@@ -12,5 +12,5 @@
   "discovery_log_path": "woff_discovery.log",
   "log_level": "INFO",
   "max_workers": 4,
-  "export_schema_version": "2.2"
+  "config_version": "1"
 }

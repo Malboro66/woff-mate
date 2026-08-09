@@ -60,6 +60,7 @@ try:
     from .medal_cataloger import catalog_medals
     from .squadron_cataloger import catalog_squadrons
     from .campaign_engine import CampaignEngine
+    from .version import __version__
 
     # Importar os Parsers para a ferramenta de debug e leitura inicial
     from .parsers.xml_parser import WoFFXMLParser
@@ -101,9 +102,7 @@ class WoFFWatchdog:
         self, config: WatchdogConfig, discovery: bool = False, pilot_id: str = ""
     ):
         self.config = config
-        self.db_manager = DatabaseManager(
-            config.export_path, config.export_schema_version
-        )
+        self.db_manager = DatabaseManager(config.export_path)
         self.discovery = (
             DiscoveryLogger(config.discovery_log_path) if discovery else None
         )
@@ -492,10 +491,10 @@ def run_parse_file(file_path: str):
 
 BANNER = r"""
 ╔════════════════════════════════════════════════════════════╗
-║      ✈  WoFF BHaH II — Watchdog  v3.2  ✈                 ║
+║      ✈  WoFF BHaH II — Watchdog  v{version:<19}✈     ║
 ║   Wings over Flanders Fields · SQLite Companion Sync       ║
 ╚════════════════════════════════════════════════════════════╝
-"""
+""".format(version=__version__)
 
 
 def main():
@@ -511,6 +510,7 @@ Exemplos:
   python -m woff.woff_watchdog --verbose                  Log detalhado (DEBUG)
 """,
     )
+    ap.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
     ap.add_argument(
         "--config",
         default="config.json",

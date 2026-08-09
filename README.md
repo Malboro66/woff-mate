@@ -21,6 +21,26 @@ A aplicação monitoriza em tempo real as pastas de campanha do jogo, extrai dad
 
 ---
 
+## 🔖 Versionamento
+
+A versão da aplicação é declarada uma única vez em `woff/version.py`. O pacote
+Python, a opção `woff-watchdog --version`, os metadados SQLite e
+os metadados do executável PyInstaller obtêm a versão desse módulo. As versões
+dos formatos de configuração e schema também vivem nesse módulo, mas evoluem
+independentemente da versão da aplicação. Configurações sem esses campos (ou
+com campos legados) continuam legíveis; configurações de formato futuro e bancos
+com schema futuro são recusados antes de qualquer alteração. Bancos
+antigos continuam a seguir o fluxo de backup e migração antes de serem reabertos.
+
+Inventário consolidado na versão 3.2.0:
+
+| Superfície | Versão | Origem atual |
+|---|---:|---|
+| Aplicação/pacote/CLI/build/executável/SQLite | 3.2.0 | `woff.version.__version__` |
+| Schema SQLite | 3.1 | `woff.version.SCHEMA_VERSION` |
+| Formato de configuração | 1 | `woff.version.CONFIG_VERSION` |
+| Export schema em configurações antigas | 2.2 | aceite e migrado para 3.1 |
+
 ## ⚠️ Estado Atual do Projeto
 
 | Componente | Estado |

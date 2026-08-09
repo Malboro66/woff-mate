@@ -25,8 +25,26 @@ from typing import Optional, List, Any, Dict, Tuple
 
 from .models import WoFFPilot, WoFFMission, WoFFVictory, WoFFDecoration, WoFFWingman
 from .repositories import PilotRepository, MissionRepository, RpgRepository, WingmanRepository
+from .version import SCHEMA_VERSION, __version__
 
 log = logging.getLogger("WoFFWatch")
+
+
+class UnsupportedSchemaVersion(RuntimeError):
+    """Raised before opening a database created by a newer schema."""
+
+
+class SchemaCompatibilityError(RuntimeError):
+    """Raised when a database layout cannot be safely certified or migrated."""
+
+
+def _version_tuple(version: str) -> Tuple[int, ...]:
+    try:
+        return tuple(int(part) for part in version.split("."))
+    except ValueError as exc:
+        raise UnsupportedSchemaVersion(
+            f"Versão de schema SQLite inválida: {version!r}."
+        ) from exc
 
 # ── Whitelist de migrações schema (proteção contra SQL Injection) ──
 ALLOWED_MIGRATIONS: Dict[str, Dict[str, str]] = {
@@ -49,11 +67,48 @@ ALLOWED_MIGRATIONS: Dict[str, Dict[str, str]] = {
     }
 }
 
+# Canonical schema 3.1 contract. SQLite integrity checks cannot detect missing
+# application columns or constraints, so certification verifies these explicitly.
+SCHEMA_TABLES: Dict[str, Dict[str, str]] = {
+    "meta": {"key": "TEXT", "value": "TEXT"},
+    "pilots": {"id": "TEXT", "name": "TEXT", "fName": "TEXT", "sName": "TEXT", "nation": "TEXT", "rank": "TEXT", "squadron": "TEXT", "aircraft": "TEXT", "aerodrome": "TEXT", "sector": "TEXT", "startDate": "TEXT", "enlisted": "TEXT", "status": "TEXT", "notes": "TEXT", "photo": "TEXT", "birthDate": "TEXT", "birthPlace": "TEXT", "missions": "INTEGER", "flminutes": "INTEGER", "claimsCount": "INTEGER", "killsCount": "INTEGER", "skill": "INTEGER", "reputation": "INTEGER", "source_file": "TEXT", "last_updated": "TEXT"},
+    "missions": {"id": "TEXT", "pilotId": "TEXT", "date": "TEXT", "time": "TEXT", "missionType": "TEXT", "aircraft": "TEXT", "duration": "TEXT", "altitude": "TEXT", "sector": "TEXT", "squadron": "TEXT", "weather": "TEXT", "enemyContacts": "INTEGER", "claimsCount": "INTEGER", "result": "TEXT", "damageReceived": "INTEGER", "woundsReceived": "INTEGER", "notes": "TEXT", "source_file": "TEXT"},
+    "victories": {"id": "TEXT", "pilotId": "TEXT", "date": "TEXT", "time": "TEXT", "missionId": "TEXT", "enemyType": "TEXT", "victoryType": "TEXT", "location": "TEXT", "confirmed": "INTEGER", "witnesses": "TEXT", "notes": "TEXT", "sector": "TEXT", "aircraft": "TEXT", "source_file": "TEXT"},
+    "decorations": {"id": "TEXT", "pilotId": "TEXT", "name": "TEXT", "date": "TEXT", "citation": "TEXT", "source_file": "TEXT"},
+    "squad_members": {"id": "TEXT", "pilotId": "TEXT", "rank": "TEXT", "fName": "TEXT", "sName": "TEXT", "skill": "INTEGER", "morale": "INTEGER", "status": "TEXT", "missions": "INTEGER", "flminutes": "INTEGER", "bio": "TEXT"},
+    "medals_catalog": {"id": "TEXT", "country": "TEXT", "name": "TEXT", "filename": "TEXT"},
+    "squadrons": {"id": "TEXT", "name": "TEXT", "raw_data": "TEXT", "source_file": "TEXT"},
+    "pilot_rpg_stats": {"pilotId": "TEXT", "fatigue": "INTEGER", "morale": "INTEGER", "stress": "INTEGER", "last_updated": "TEXT"},
+    "diary_entries": {"id": "TEXT", "pilotId": "TEXT", "missionId": "TEXT", "entry_date": "TEXT", "narrative": "TEXT"},
+    "wingmen_personalities": {"wingmanId": "TEXT", "pilotId": "TEXT", "aerial_skill": "INTEGER", "aggression": "INTEGER", "charisma": "INTEGER", "intelligence": "INTEGER", "physicality": "INTEGER", "professionalism": "INTEGER", "personality_trait": "TEXT"},
+    "wingmen_memory": {"id": "TEXT", "wingmanId": "TEXT", "event_type": "TEXT", "event_date": "TEXT", "description": "TEXT", "impact_morale": "INTEGER", "impact_stress": "INTEGER"},
+}
+
+SCHEMA_PRIMARY_KEYS = {table: ("pilotId" if table == "pilot_rpg_stats" else "wingmanId" if table == "wingmen_personalities" else "key" if table == "meta" else "id") for table in SCHEMA_TABLES}
+SCHEMA_UNIQUES = {
+    "pilots": [("name",)],
+    "missions": [("pilotId", "date", "time", "missionType", "aircraft")],
+    "victories": [("pilotId", "date", "time", "enemyType")],
+    "decorations": [("pilotId", "name")],
+    "squad_members": [("pilotId", "fName", "sName")],
+    "medals_catalog": [("country", "name")],
+}
+SCHEMA_FOREIGN_KEYS = {
+    "missions": {("pilotId", "pilots", "id")},
+    "victories": {("pilotId", "pilots", "id")},
+    "decorations": {("pilotId", "pilots", "id")},
+    "squad_members": {("pilotId", "pilots", "id")},
+    "pilot_rpg_stats": {("pilotId", "pilots", "id")},
+    "diary_entries": {("pilotId", "pilots", "id"), ("missionId", "missions", "id")},
+    "wingmen_personalities": {("wingmanId", "squad_members", "id")},
+    "wingmen_memory": {("wingmanId", "squad_members", "id")},
+}
+
 
 class DatabaseManager:
-    def __init__(self, db_path: str, schema_version: str = "3.1"):
+    def __init__(self, db_path: str):
         self.db_path = Path(db_path)
-        self.schema_version = schema_version
+        self.schema_version = SCHEMA_VERSION
         self._lock = threading.RLock()
         self._local = threading.local()
 
@@ -61,14 +116,15 @@ class DatabaseManager:
 
         with self._lock:
             self._migration_backup_path: Optional[Path] = None
-            pending_migration = self._existing_database_has_pending_migration()
+            stored_version = self._read_schema_version()
+            if stored_version is not None and _version_tuple(stored_version) > _version_tuple(SCHEMA_VERSION):
+                raise UnsupportedSchemaVersion(
+                    f"Banco usa schema futuro {stored_version}; "
+                    f"esta aplicação suporta até {SCHEMA_VERSION}."
+                )
+
             try:
-                if pending_migration:
-                    self._migrate_schema()
-                    self._init_db()
-                else:
-                    self._init_db()
-                    self._migrate_schema()
+                self._migrate_schema()
             except Exception:
                 self._restore_migration_backup()
                 raise
@@ -77,6 +133,31 @@ class DatabaseManager:
         self._missions = MissionRepository(self)
         self._rpg = RpgRepository(self)
         self._wingmen = WingmanRepository(self)
+
+    def _read_schema_version(self) -> Optional[str]:
+        """Read schema metadata without creating or changing the database."""
+        if not self.db_path.exists():
+            return None
+        uri = f"{self.db_path.resolve().as_uri()}?mode=ro"
+        conn = sqlite3.connect(uri, uri=True)
+        try:
+            try:
+                has_meta = conn.execute(
+                    "SELECT 1 FROM sqlite_master WHERE type='table' AND name='meta'"
+                ).fetchone()
+                if not has_meta:
+                    return None
+                row = conn.execute(
+                    "SELECT value FROM meta WHERE key='schema_version'"
+                ).fetchone()
+                return str(row[0]) if row is not None else None
+            except sqlite3.OperationalError:
+                # A stale/crashed journal may require recovery, which a read-only
+                # probe cannot perform. The transactional validation below remains
+                # authoritative and will run before any application DDL.
+                return None
+        finally:
+            conn.close()
 
     # ── Thread-Local Connection Pooling ──
     def _open_conn(self) -> sqlite3.Connection:
@@ -272,7 +353,6 @@ class DatabaseManager:
                 )
             """)
 
-            conn.commit()
             log.info(f"Base de dados SQLite pronta: {self.db_path}")
         except Exception:
             log.exception("Erro ao inicializar base de dados")
@@ -399,8 +479,7 @@ class DatabaseManager:
         ValueError para não converter nem descartar dados silenciosamente.
         """
         with self._lock:
-            conn = self._get_conn()
-            foreign_keys = conn.execute("PRAGMA foreign_keys").fetchone()[0]
+            conn = sqlite3.connect(self.db_path, check_same_thread=False)
             try:
                 cursor = conn.cursor()
                 conn.create_function("woff_safe_int", 1, self._parse_sqlite_integer)
@@ -412,8 +491,6 @@ class DatabaseManager:
                         "Cannot run schema migration because another process is writing to the database"
                     ) from exc
 
-                cursor.execute("CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT)")
-
                 def table_columns(table: str) -> set[str]:
                     cursor.execute(f"PRAGMA table_info({table})")
                     return {row[1] for row in cursor.fetchall()}
@@ -421,7 +498,33 @@ class DatabaseManager:
                 def column_exists(table: str, col: str) -> bool:
                     return col in table_columns(table)
 
-                pending_migration = False
+                has_meta = cursor.execute(
+                    "SELECT 1 FROM sqlite_master WHERE type='table' AND name='meta'"
+                ).fetchone()
+                stored_version = (
+                    cursor.execute(
+                        "SELECT value FROM meta WHERE key='schema_version'"
+                    ).fetchone()
+                    if has_meta
+                    else None
+                )
+                if (
+                    stored_version is not None
+                    and _version_tuple(str(stored_version[0])) > _version_tuple(SCHEMA_VERSION)
+                ):
+                    raise UnsupportedSchemaVersion(
+                        f"Banco usa schema futuro {stored_version[0]}; "
+                        f"esta aplicação suporta até {SCHEMA_VERSION}."
+                    )
+
+                user_objects = cursor.execute(
+                    "SELECT 1 FROM sqlite_master "
+                    "WHERE name NOT LIKE 'sqlite_%' LIMIT 1"
+                ).fetchone()
+                pending_migration = (
+                    user_objects is not None
+                    and (stored_version is None or str(stored_version[0]) != SCHEMA_VERSION)
+                )
                 for table, cols in ALLOWED_MIGRATIONS.items():
                     existing_columns = table_columns(table)
                     if existing_columns:
@@ -430,6 +533,8 @@ class DatabaseManager:
                 pending_migration = pending_migration or self._has_numeric_column_type_migration(cursor)
                 if pending_migration and self._migration_backup_path is None:
                     self._migration_backup_path = self._backup_existing_database()
+
+                cursor.execute("CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT)")
 
                 for table, cols in ALLOWED_MIGRATIONS.items():
                     existing_columns = table_columns(table)
@@ -443,6 +548,11 @@ class DatabaseManager:
 
                 self._migrate_numeric_column_types(cursor)
 
+                # Initialization is part of this same transaction: a failure in
+                # any CREATE rolls back migrations and leaves old metadata intact.
+                self._local.conn = conn
+                self._init_db()
+
                 if table_columns("diary_entries"):
                     cursor.execute("""
                         CREATE UNIQUE INDEX IF NOT EXISTS idx_diary_unique_mission
@@ -455,17 +565,131 @@ class DatabaseManager:
                 if cursor.execute("PRAGMA integrity_check").fetchone() != ("ok",):
                     raise sqlite3.DatabaseError("integrity_check failed after migration")
 
+                self._validate_schema_contract(cursor)
+
                 cursor.execute(
                     "INSERT OR REPLACE INTO meta (key, value) VALUES ('schema_version', ?)",
                     (self.schema_version,)
                 )
+                cursor.execute(
+                    "INSERT OR REPLACE INTO meta (key, value) VALUES ('app_version', ?)",
+                    (__version__,),
+                )
                 conn.commit()
-                cursor.execute(f"PRAGMA foreign_keys={foreign_keys}")
             except Exception:
                 log.exception("Erro na migração de schema")
                 conn.rollback()
-                conn.execute(f"PRAGMA foreign_keys={foreign_keys}")
                 raise
+            finally:
+                if getattr(self._local, "conn", None) is conn:
+                    self._local.conn = None
+                conn.close()
+
+    def _validate_schema_contract(self, cursor: sqlite3.Cursor) -> None:
+        """Certify the complete application schema, not only SQLite integrity."""
+        errors: List[str] = []
+        for table, required_columns in SCHEMA_TABLES.items():
+            info = cursor.execute(
+                f"PRAGMA table_info({self._quote_identifier(table)})"
+            ).fetchall()
+            if not info:
+                errors.append(f"missing table {table}")
+                continue
+            actual = {str(row[1]): str(row[2]).upper() for row in info}
+            for column, expected_type in required_columns.items():
+                if column not in actual:
+                    errors.append(f"missing column {table}.{column}")
+                elif actual[column] != expected_type:
+                    errors.append(
+                        f"wrong type {table}.{column}: {actual[column] or '<none>'}, "
+                        f"expected {expected_type}"
+                    )
+
+            primary_key = tuple(
+                row[1] for row in sorted(info, key=lambda item: item[5]) if row[5]
+            )
+            expected_pk = (SCHEMA_PRIMARY_KEYS[table],)
+            if primary_key != expected_pk:
+                errors.append(
+                    f"wrong primary key {table}: {primary_key}, expected {expected_pk}"
+                )
+
+            indexes = cursor.execute(
+                f"PRAGMA index_list({self._quote_identifier(table)})"
+            ).fetchall()
+            unique_columns = {
+                tuple(
+                    row[2]
+                    for row in cursor.execute(
+                        f"PRAGMA index_info({self._quote_identifier(str(index[1]))})"
+                    ).fetchall()
+                )
+                for index in indexes
+                # A table UNIQUE constraint is represented by a non-partial
+                # index whose origin is ``u``. A user-created (origin ``c``)
+                # partial index is not an equivalent schema constraint.
+                if index[2] and index[3] == "u" and not index[4]
+            }
+            for unique in SCHEMA_UNIQUES.get(table, []):
+                if unique not in unique_columns:
+                    errors.append(f"missing UNIQUE {table}{unique}")
+
+            foreign_keys = {
+                (str(row[3]), str(row[2]), str(row[4]))
+                for row in cursor.execute(
+                    f"PRAGMA foreign_key_list({self._quote_identifier(table)})"
+                ).fetchall()
+            }
+            for foreign_key in SCHEMA_FOREIGN_KEYS.get(table, set()):
+                if foreign_key not in foreign_keys:
+                    errors.append(f"missing foreign key {table}{foreign_key}")
+
+        diary_indexes = cursor.execute("PRAGMA index_list(diary_entries)").fetchall()
+        diary_index = next(
+            (row for row in diary_indexes if row[1] == "idx_diary_unique_mission"),
+            None,
+        )
+        if diary_index is None or not diary_index[2] or not diary_index[4]:
+            errors.append("missing required partial unique index idx_diary_unique_mission")
+        elif tuple(
+            (str(row[2]), int(row[3]), str(row[4]).upper())
+            for row in cursor.execute(
+                "PRAGMA index_xinfo(idx_diary_unique_mission)"
+            ).fetchall()
+            if row[5] == 1
+        ) != (
+            ("pilotId", 0, "BINARY"),
+            ("missionId", 0, "BINARY"),
+        ):
+            errors.append("wrong key semantics for index idx_diary_unique_mission")
+        else:
+            index_sql_row = cursor.execute(
+                "SELECT sql FROM sqlite_master WHERE type='index' "
+                "AND name='idx_diary_unique_mission'"
+            ).fetchone()
+            index_sql = str(index_sql_row[0]) if index_sql_row and index_sql_row[0] else ""
+            if not self._has_canonical_diary_index_predicate(index_sql):
+                errors.append("wrong predicate for index idx_diary_unique_mission")
+
+        if errors:
+            raise SchemaCompatibilityError(
+                "Database layout is incompatible with schema 3.1: " + "; ".join(errors)
+            )
+
+    def _has_canonical_diary_index_predicate(self, sql: str) -> bool:
+        """Match the complete canonical WHERE expression with quoted identifiers."""
+        where_match = re.search(r"\bWHERE\b", sql, flags=re.IGNORECASE)
+        if where_match is None:
+            return False
+        predicate = sql[where_match.end():].strip()
+        try:
+            identifier, end = self._read_identifier(predicate, 0)
+        except ValueError:
+            return False
+        remainder = predicate[end:]
+        return identifier.lower() == "missionid" and bool(
+            re.fullmatch(r"\s+IS\s+NOT\s+NULL\s*", remainder, flags=re.IGNORECASE)
+        )
 
     def _numeric_columns(self) -> Dict[str, set[str]]:
         return {
