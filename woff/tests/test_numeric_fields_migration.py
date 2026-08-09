@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from woff.database import DatabaseManager
+from woff.database import DatabaseManager, SchemaCompatibilityError
 from woff.models import WoFFMission, WoFFPilot, WoFFWingman
 from woff.rpg_system import RPGSystem
 
@@ -55,7 +55,8 @@ def test_old_text_numeric_database_is_migrated_without_data_loss(tmp_path):
             id TEXT PRIMARY KEY, pilotId TEXT, rank TEXT, fName TEXT,
             sName TEXT, skill TEXT, morale TEXT, status TEXT,
             missions TEXT, flminutes TEXT, bio TEXT,
-            UNIQUE(pilotId, fName, sName)
+            UNIQUE(pilotId, fName, sName),
+            FOREIGN KEY(pilotId) REFERENCES pilots(id)
         );
         """
     )
@@ -354,7 +355,7 @@ def test_custom_unique_index_triggers_and_views_are_recreated_after_rebuild(tmp_
         conn.close()
 
 
-def test_backup_is_created_only_for_pending_migration_and_backup_path_is_git_ignored(tmp_path):
+def test_backup_is_created_for_version_migration_and_backup_path_is_git_ignored(tmp_path):
     db_path = tmp_path / "backup.sqlite"
     db = DatabaseManager(str(db_path)); db.close()
     backup_dir = tmp_path / ".woff-migration-backups"
@@ -364,7 +365,7 @@ def test_backup_is_created_only_for_pending_migration_and_backup_path_is_git_ign
     conn.execute("UPDATE meta SET value='2.0' WHERE key='schema_version'")
     conn.commit(); conn.close()
     db = DatabaseManager(str(db_path)); db.close()
-    assert not backup_dir.exists()
+    assert list(backup_dir.glob("*.backup.sqlite"))
 
     old_path = tmp_path / "old_backup.sqlite"
     conn = _connect(old_path)
@@ -372,7 +373,7 @@ def test_backup_is_created_only_for_pending_migration_and_backup_path_is_git_ign
     _seed_valid_rows(conn)
     conn.commit(); conn.close()
     db = DatabaseManager(str(old_path)); db.close()
-    backups = sorted((tmp_path / ".woff-migration-backups").glob("*.backup.sqlite"))
+    backups = sorted((tmp_path / ".woff-migration-backups").glob("old_backup.sqlite.*.backup.sqlite"))
     assert len(backups) == 1
     assert backups[0].suffix == ".sqlite"
     gitignore = Path(".gitignore").read_text(encoding="utf-8")
@@ -495,7 +496,7 @@ def test_legitimate_new_pilots_table_collision_is_not_dropped(tmp_path):
         conn.close()
 
 
-def test_rebuild_preserves_custom_check_not_null_default_and_squad_members_fk(tmp_path):
+def test_unknown_partial_schema_with_custom_constraints_is_rejected_and_restored(tmp_path):
     db_path = tmp_path / "schema_preserve.sqlite"
     conn = _connect(db_path)
     conn.executescript(
@@ -531,26 +532,11 @@ def test_rebuild_preserves_custom_check_not_null_default_and_squad_members_fk(tm
         """
     )
     conn.commit(); conn.close()
+    before = _dump(db_path)
 
-    db = DatabaseManager(str(db_path)); db.close()
-
-    conn = _connect(db_path)
-    try:
-        pilot_cols = {row[1]: row for row in conn.execute("PRAGMA table_info(pilots)")}
-        squad_cols = {row[1]: row for row in conn.execute("PRAGMA table_info(squad_members)")}
-        assert pilot_cols["missions"][2] == "INTEGER"
-        assert pilot_cols["missions"][3] == 1
-        assert squad_cols["skill"][2] == "INTEGER"
-        assert squad_cols["skill"][3] == 1
-        assert conn.execute("PRAGMA foreign_key_list(squad_members)").fetchone()[2] == "pilots"
-        conn.execute("INSERT INTO pilots (id, name) VALUES ('p2', 'Default Pilot')")
-        assert conn.execute("SELECT missions FROM pilots WHERE id='p2'").fetchone() == (0,)
-        with pytest.raises(sqlite3.IntegrityError):
-            conn.execute("INSERT INTO pilots (id, name, missions) VALUES ('p3', 'Bad', -1)")
-        with pytest.raises(sqlite3.IntegrityError):
-            conn.execute("INSERT INTO squad_members (id, pilotId) VALUES ('bad', 'missing')")
-    finally:
-        conn.close()
+    with pytest.raises(SchemaCompatibilityError):
+        DatabaseManager(str(db_path))
+    assert _dump(db_path) == before
 
 
 def test_restore_replace_failure_keeps_current_database_and_backup(tmp_path, monkeypatch):
@@ -670,7 +656,7 @@ def test_instead_of_insert_trigger_on_view_is_recreated_after_view(tmp_path):
         conn.close()
 
 
-def test_create_table_without_space_before_parenthesis_is_supported(tmp_path):
+def test_partial_no_space_schema_is_rejected_without_certification(tmp_path):
     db_path = tmp_path / "no_space.sqlite"
     conn = _connect(db_path)
     conn.executescript(
@@ -686,18 +672,14 @@ def test_create_table_without_space_before_parenthesis_is_supported(tmp_path):
         """
     )
     conn.commit(); conn.close()
+    before = _dump(db_path)
 
-    db = DatabaseManager(str(db_path)); db.close()
-
-    conn = _connect(db_path)
-    try:
-        assert conn.execute("SELECT missions FROM pilots WHERE id='p1'").fetchone() == (9,)
-        assert {row[1]: row[2] for row in conn.execute("PRAGMA table_info(pilots)")}["missions"] == "INTEGER"
-    finally:
-        conn.close()
+    with pytest.raises(SchemaCompatibilityError):
+        DatabaseManager(str(db_path))
+    assert _dump(db_path) == before
 
 
-def test_check_containing_column_like_text_is_preserved_without_rewrite_confusion(tmp_path):
+def test_partial_schema_with_custom_check_is_rejected_and_restored(tmp_path):
     db_path = tmp_path / "check_text.sqlite"
     conn = _connect(db_path)
     conn.executescript(
@@ -718,16 +700,11 @@ def test_check_containing_column_like_text_is_preserved_without_rewrite_confusio
         """
     )
     conn.commit(); conn.close()
+    before = _dump(db_path)
 
-    db = DatabaseManager(str(db_path)); db.close()
-
-    conn = _connect(db_path)
-    try:
-        sql = conn.execute("SELECT sql FROM sqlite_master WHERE type='table' AND name='pilots'").fetchone()[0]
-        assert "missions INTEGER CHECK(note <> 'forbidden missions TEXT text')" in sql
-        assert conn.execute("SELECT missions FROM pilots WHERE id='p1'").fetchone() == (4,)
-    finally:
-        conn.close()
+    with pytest.raises(SchemaCompatibilityError):
+        DatabaseManager(str(db_path))
+    assert _dump(db_path) == before
 
 
 def test_unsupported_alternative_numeric_type_aborts_before_schema_changes(tmp_path):
@@ -771,7 +748,7 @@ def test_backup_creation_failure_removes_partial_backup(tmp_path, monkeypatch):
     assert not list(backup_dir.glob("*.backup.sqlite"))
 
 
-def test_old_database_without_meta_gets_meta_in_migration_transaction(tmp_path):
+def test_unknown_partial_database_without_meta_is_rejected_and_restored(tmp_path):
     db_path = tmp_path / "no_meta.sqlite"
     conn = _connect(db_path)
     conn.executescript(
@@ -785,15 +762,11 @@ def test_old_database_without_meta_gets_meta_in_migration_transaction(tmp_path):
         """
     )
     conn.commit(); conn.close()
+    before = _dump(db_path)
 
-    db = DatabaseManager(str(db_path)); db.close()
-
-    conn = _connect(db_path)
-    try:
-        assert conn.execute("SELECT value FROM meta WHERE key='schema_version'").fetchone() == ("3.1",)
-        assert conn.execute("SELECT missions FROM pilots WHERE id='p1'").fetchone() == (5,)
-    finally:
-        conn.close()
+    with pytest.raises(SchemaCompatibilityError):
+        DatabaseManager(str(db_path))
+    assert _dump(db_path) == before
 
 
 def test_restore_holds_exclusive_lock_between_rollback_and_backup(tmp_path, monkeypatch):

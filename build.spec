@@ -1,6 +1,33 @@
 # -*- mode: python ; coding: utf-8 -*-
 # build.spec
 
+from pathlib import Path
+import runpy
+
+
+version_data = runpy.run_path(str(Path(SPECPATH) / "woff" / "version.py"))
+__version__ = version_data["__version__"]
+
+
+def windows_version_file(version):
+    """Create PyInstaller metadata from the runtime's canonical version."""
+    numeric = tuple(int(part) for part in version.split("."))
+    file_version = numeric + (0,) * (4 - len(numeric))
+    target = Path("build") / "woff-version-info.txt"
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_text(
+        "VSVersionInfo(ffi=FixedFileInfo(filevers={0}, prodvers={0}), "
+        "kids=[StringFileInfo([StringTable('040904B0', ["
+        "StringStruct('FileVersion', '{1}'), StringStruct('ProductVersion', '{1}'), "
+        "StringStruct('ProductName', 'WoFF Mate')])]), VarFileInfo([VarStruct('Translation', [1033, 1200])])])"
+        .format(file_version, version),
+        encoding="utf-8",
+    )
+    return str(target)
+
+
+version_file = windows_version_file(__version__)
+
 block_cipher = None
 
 # The application is now an installable package.  Keep the repository root on
@@ -71,6 +98,7 @@ exe = EXE(
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
+    version=version_file,
 )
 
 coll = COLLECT(

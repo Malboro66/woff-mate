@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "woff"
-version = "3.2.0"
+dynamic = ["version"]
 description = "WoFF BHaH II Watchdog data extraction and campaign persistence tools"
 requires-python = ">=3.10"
 dependencies = [
@@ -21,3 +21,6 @@ woff-report = "woff.gerar_relatorio:main"
 [tool.setuptools.packages.find]
 include = ["woff*"]
 exclude = ["woff.tests", "woff.tests.*"]
+
+[tool.setuptools.dynamic]
+version = {attr = "woff.version.__version__"}

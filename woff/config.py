@@ -21,7 +21,13 @@ from dataclasses import dataclass, asdict, field
 from pathlib import Path
 from typing import List
 
+from .version import CONFIG_VERSION
+
 log = logging.getLogger("WoFFWatch")
+
+
+class UnsupportedConfigVersion(ValueError):
+    """Raised when a config was written by a newer, unsupported release."""
 
 
 @dataclass
@@ -36,19 +42,31 @@ class WatchdogConfig:
     discovery_log_path: str = "woff_discovery.log"
     log_level: str = "INFO"
     max_workers: int = 4
-    export_schema_version: str = "2.2" # ATUALIZADO
+    config_version: str = CONFIG_VERSION
 
     @classmethod
     def from_dict(cls, d: dict) -> "WatchdogConfig":
         """Cria a configuração a partir de um dicionário, avisando sobre chaves inválidas."""
         valid_keys = cls.__dataclass_fields__.keys()
-        unknown_keys = [k for k in d.keys() if k not in valid_keys]
+        legacy_keys = {"export_schema_version", "app_version"}
+        unknown_keys = [k for k in d.keys() if k not in valid_keys and k not in legacy_keys]
         
         if unknown_keys:
             log.warning(f"⚠ Chaves desconhecidas no config.json ignoradas: {unknown_keys}")
             log.warning("Verifica se há erros de digitação no ficheiro de configuração.")
             
+        config_version = d.get("config_version", CONFIG_VERSION)
+        if not isinstance(config_version, str) or config_version != CONFIG_VERSION:
+            raise UnsupportedConfigVersion(
+                f"Versão de configuração {config_version!r} inválida ou não suportada; "
+                f"esta aplicação requer {CONFIG_VERSION!r}."
+            )
+
+        if "export_schema_version" in d:
+            log.info("Campo legado 'export_schema_version' ignorado.")
+
         valid = {k: v for k, v in d.items() if k in valid_keys}
+        valid["config_version"] = config_version
         return cls(**valid)
 
     def to_dict(self) -> dict:
@@ -71,6 +89,8 @@ def load_config(path: str) -> WatchdogConfig:
             cfg = WatchdogConfig.from_dict(data)
             log.info(f"Configuração carregada: {path}")
             return cfg
+        except UnsupportedConfigVersion:
+            raise
         except Exception as e:
             log.warning(f"Erro ao ler config ({e}) — tentando auto-deteção.")
     else:
