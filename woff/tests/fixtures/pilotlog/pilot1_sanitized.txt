@@ -1,0 +1,3 @@
+2
+20/;9/;1915;8h;17;Flanders;SampleBaseA;Patrol Behind Friendly Front Lines;Nieuport 10C1;;45;100;Nieuport_10C1;Sample Squadron A;troops;Sample Target A;N50*00'00.0000;E2*00'00.0000;;Final Status: You landed at your home field. Mission completed.;
+24/;9/;1915;6h;46;Flanders;SampleBaseA;Patrol Friendly Front Lines;Nieuport 10C1;;6;100;Nieuport_10C1;Sample Squadron A;frontsectors;Sample Sector;N50*00'00.0000;E2*00'00.0000;;Final Status: You were forced to land within friendly lines.;

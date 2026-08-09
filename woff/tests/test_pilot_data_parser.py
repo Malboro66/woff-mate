@@ -1,6 +1,7 @@
 import unittest
 import os
 import tempfile
+from pathlib import Path
 from unittest.mock import Mock, patch, mock_open
 
 
@@ -175,6 +176,154 @@ class TestWoFFPilotDataParser(unittest.TestCase):
         # O parser extrai o ID do nome do ficheiro e formata como "Pilot 1"
         self.assertEqual(parser.pilot.name, "Pilot 1")
         # O database.py deverá resolver este "Pilot 1" para o UUID real usando GLOB no source_file
+
+VERIFIED_FIELDS = [
+    "6/", "4/", "1917", "10h", "30", "Flanders", "SampleBase",
+    "Patrol", "SE.5a", "", "45", "100", "SE5a", "Sample Squadron",
+    "troops", "Sample Target", "N50*00'00.0000", "E2*00'00.0000", "",
+    "Final Status: Mission completed.",
+]
+
+FIXTURE_DIR = Path(__file__).parent / "fixtures" / "pilotlog"
+PILOT1_SAMPLE = (FIXTURE_DIR / "pilot1_sanitized.txt").read_text(encoding="utf-8")
+PILOT2_SAMPLE = (FIXTURE_DIR / "pilot2_sanitized.txt").read_text(encoding="utf-8")
+PILOT3_SAMPLE = (FIXTURE_DIR / "pilot3_sanitized.txt").read_text(encoding="utf-8")
+
+
+class TestPilotLogRecordClassification(unittest.TestCase):
+    def parse_content(self, content, filename="Pilot1Log.txt"):
+        parser = WoFFPilotDataParser()
+        with patch("builtins.open", mock_open(read_data=content)):
+            result = parser.parse(filename)
+        return parser, result
+
+    @staticmethod
+    def line(fields=None, terminal=False):
+        value = ";".join(fields or VERIFIED_FIELDS)
+        return value + (";" if terminal else "")
+
+    def test_verified_layout_with_and_without_terminal_semicolon(self):
+        for terminal in (False, True):
+            with self.subTest(terminal=terminal):
+                parser, ok = self.parse_content("1\n" + self.line(terminal=terminal) + "\n")
+                self.assertTrue(ok)
+                self.assertEqual(len(parser.missions), 1)
+                mission = parser.missions[0]
+                self.assertEqual(mission.notes, VERIFIED_FIELDS[19])
+                self.assertFalse(mission.damageReceived)
+                self.assertFalse(mission.woundsReceived)
+
+    def test_reserved_index_is_independent_from_notes(self):
+        fields = VERIFIED_FIELDS.copy()
+        fields[18] = "reserved value"
+        fields[19] = "Only these are notes"
+        parser, _ = self.parse_content("1\n" + self.line(fields) + "\n")
+        self.assertEqual(parser.missions[0].notes, "Only these are notes")
+        self.assertFalse(parser.missions[0].woundsReceived)
+
+    def test_notes_are_limited_to_existing_maximum(self):
+        fields = VERIFIED_FIELDS.copy()
+        fields[19] = "n" * 501
+        parser, _ = self.parse_content("1\n" + self.line(fields) + "\n")
+        self.assertEqual(parser.missions[0].notes, "n" * 500)
+
+    def test_extended_layout_independent_flags_and_terminal_semicolon(self):
+        for terminal in (False, True):
+            fields = VERIFIED_FIELDS[:18] + ["Damaged", "No", "extended notes"]
+            parser, ok = self.parse_content("1\n" + self.line(fields, terminal) + "\n")
+            self.assertTrue(ok)
+            self.assertTrue(parser.missions[0].damageReceived)
+            self.assertFalse(parser.missions[0].woundsReceived)
+            self.assertEqual(parser.missions[0].notes, "extended notes")
+
+    def test_damage_and_wounds_are_independent(self):
+        for damage, wounds, expected in (("Yes", "0", (True, False)), ("No", "Wounded", (False, True))):
+            with self.subTest(damage=damage, wounds=wounds):
+                fields = VERIFIED_FIELDS[:18] + [damage, wounds, "notes"]
+                parser, _ = self.parse_content("1\n" + self.line(fields) + "\n")
+                self.assertEqual((parser.missions[0].damageReceived, parser.missions[0].woundsReceived), expected)
+
+    def test_all_strict_boolean_tokens_case_and_whitespace(self):
+        false_tokens = ("", "0", "No", "False", "None", "Undamaged")
+        true_tokens = ("1", "Yes", "True", "Damage", "Damaged", "Wound", "Wounded", "Injured")
+        for token in false_tokens:
+            with self.subTest(token=token):
+                self.assertFalse(WoFFPilotDataParser._bool_field("  " + token.swapcase() + "  "))
+        for token in true_tokens:
+            with self.subTest(token=token):
+                self.assertTrue(WoFFPilotDataParser._bool_field("  " + token.swapcase() + "  "))
+        self.assertIsNone(WoFFPilotDataParser._bool_field("unexpected narrative"))
+
+    def test_ambiguous_extended_record_is_skipped(self):
+        ambiguous = VERIFIED_FIELDS[:18] + ["perhaps", "Wounded", "secret complete record text"]
+        content = "2\n" + self.line(ambiguous) + "\n" + self.line() + "\n"
+        with self.assertLogs("WoFFWatch", level="WARNING") as captured:
+            parser, ok = self.parse_content(content)
+        self.assertTrue(ok)
+        self.assertEqual(len(parser.missions), 1)
+        logged = " ".join(captured.output)
+        self.assertIn("Pilot1Log.txt", logged)
+        self.assertIn("line=2", logged)
+        self.assertIn("fields=21", logged)
+        self.assertNotIn("secret complete record text", logged)
+
+    def test_unknown_record_log_is_safe_and_identifies_the_record(self):
+        source_line = ";".join(["private complete source line"] + ["x"] * 21)
+        with self.assertLogs("WoFFWatch", level="WARNING") as captured:
+            parser, _ = self.parse_content("1\n" + source_line + "\n")
+        self.assertEqual(parser.missions, [])
+        logged = " ".join(captured.output)
+        self.assertIn("source=Pilot1Log.txt", logged)
+        self.assertIn("line=2", logged)
+        self.assertIn("category=unknown", logged)
+        self.assertIn("fields=22", logged)
+        self.assertNotIn(source_line, logged)
+        self.assertNotIn("private complete source line", logged)
+
+    def test_result_classification_precedence(self):
+        cases = (
+            ("The pilot was KILLED.", "Shot Down — KIA"),
+            ("A CRASH occurred.", "Crash Landing — Survived"),
+            ("Crash; pilot killed".replace(";", ","), "Shot Down — KIA"),
+            ("Aircraft Destroyed", "Completed"),
+            ("Routine landing", "Completed"),
+        )
+        for notes, expected in cases:
+            with self.subTest(notes=notes):
+                fields = VERIFIED_FIELDS.copy(); fields[19] = notes
+                parser, _ = self.parse_content("1\n" + self.line(fields) + "\n")
+                mission = parser.missions[0]
+                self.assertEqual(mission.result, expected)
+                if notes == "Aircraft Destroyed":
+                    self.assertFalse(mission.damageReceived); self.assertFalse(mission.woundsReceived)
+
+    def test_claim_confirmation_is_not_a_mission_and_later_mission_survives(self):
+        claim = PILOT2_SAMPLE.splitlines()[3]
+        content = "3\n" + self.line() + "\n" + claim + "\n" + self.line() + "\n"
+        parser, ok = self.parse_content(content)
+        self.assertTrue(ok)
+        self.assertEqual(len(parser.missions), 2)
+
+    def test_zero_counter_and_header_are_ignored(self):
+        parser, ok = self.parse_content(PILOT3_SAMPLE, "Pilot3Log.txt")
+        self.assertFalse(ok)
+        self.assertEqual(parser.missions, [])
+
+    def test_incomplete_unsupported_and_malformed_records_do_not_stop_processing(self):
+        malformed_date = VERIFIED_FIELDS.copy(); malformed_date[0] = "not-a-day"
+        malformed_time = VERIFIED_FIELDS.copy(); malformed_time[3] = "not-an-hour"
+        content = "5\nshort;record\n" + ";".join(["x"] * 22) + "\n" + self.line(malformed_date) + "\n" + self.line(malformed_time) + "\n" + self.line() + "\n"
+        with self.assertLogs("WoFFWatch", level="WARNING"):
+            parser, ok = self.parse_content(content)
+        self.assertTrue(ok)
+        self.assertEqual(len(parser.missions), 1)
+
+    def test_inline_sanitized_samples_end_to_end(self):
+        for filename, sample, count in (("Pilot1Log.txt", PILOT1_SAMPLE, 2), ("Pilot2Log.txt", PILOT2_SAMPLE, 2), ("Pilot3Log.txt", PILOT3_SAMPLE, 0)):
+            with self.subTest(filename=filename):
+                parser, _ = self.parse_content(sample, filename)
+                self.assertEqual(len(parser.missions), count)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -1,0 +1,4 @@
+3
+10/;10/;1917;8h;18;Flanders;SampleBaseB;Railyard Attack;Sopwith Camel;;13;100;camel;Sample Squadron B;railyards;Sample Junction;N50*00'00.0000;E2*00'00.0000;;Final Status: You landed on the ground within friendly lines.;
+11/;10/;1917;9h;47;Flanders;SampleBaseB;Intercept;Sopwith Camel;Claims Submitted;39;100;camel;Sample Squadron B;frontsectors;Sample Sector;N50*00'00.0000;E2*00'00.0000;;Final Status: You landed at your home field. Aircraft Destroyed.;
+12/;10/;1917;9h;0;Confirmation Received of Claim submitted on: 11/;10/;1917;9h;47;Flanders;SampleBaseB;Intercept;Sopwith Camel;1;Albatros DIII OAW;Sanitized claim narrative. Status: Confirmed;40;camel;Sample Squadron B;Alb_DIII_OAW;sample_enemy_unit,;;Sample Enemy Squadron;German;Airman

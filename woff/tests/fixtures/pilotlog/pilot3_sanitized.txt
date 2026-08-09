@@ -1,0 +1,2 @@
+0
+Day ;Month ;Year ;Hour ;Minute ; MissionRegion; MissionBase; Missiontype ;AircraftName ;Claims
