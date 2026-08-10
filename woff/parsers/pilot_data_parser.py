@@ -35,10 +35,9 @@ class WoFFPilotDataParser:
         return len(parts) == 10 and tuple(value.lower() for value in parts[:5]) == expected
 
     @staticmethod
-    def _is_claim_confirmation(parts: List[str]) -> bool:
-        return (
-            len(parts) >= 26
-            and parts[5].lower().startswith("confirmation received of claim submitted on:")
+    def _has_claim_confirmation_signature(parts: List[str]) -> bool:
+        return len(parts) > 5 and parts[5].lower().startswith(
+            "confirmation received of claim submitted on:"
         )
 
     @staticmethod
@@ -106,7 +105,13 @@ class WoFFPilotDataParser:
                 parts = self._normalized_fields(line)
                 if self._is_zero_mission_header(parts):
                     continue
-                if self._is_claim_confirmation(parts):
+                if self._has_claim_confirmation_signature(parts):
+                    if len(parts) < 26:
+                        self._log_rejected(
+                            path, line_number, "truncated-claim-confirmation",
+                            len(parts),
+                            "claim confirmation has fewer than 26 fields",
+                        )
                     continue
 
                 if len(parts) < 20:

@@ -89,13 +89,14 @@ Otherwise, `crash` produces `Crash Landing — Survived`; all other notes produc
 ## Claim confirmations and rejected records
 
 The sanitized evidence includes a claim-confirmation record with a verified
-minimum structure of 26 fields whose sixth field begins with `Confirmation
-Received of Claim submitted on:`. Detection uses that signature and structural
-minimum rather than requiring an exact field count, because semicolons in the
-free-form claim narrative create additional fragments. Short records containing
-the phrase do not meet the minimum and are not accepted as claim confirmations.
-Recognized confirmations are ignored rather than imported as missions. Victory
-parsing and the separate claims parser are outside this format change.
+minimum structure of 26 fields whose sixth field (index 5) begins with
+`Confirmation Received of Claim submitted on:`. The signature is detected
+independently of field count and before mission classification. Signature-bearing
+records with at least 26 fields are ignored as valid confirmations; this permits
+semicolons in the free-form claim narrative to create additional fragments.
+Signature-bearing records with fewer than 26 fields are logged as truncated and
+skipped, so they can never fall through to mission parsing. Victory parsing and
+the separate claims parser are outside this format change.
 
 Records with too few fields are incomplete. A candidate mission with an invalid
 fixed prefix or invalid date/time components is malformed. These records are

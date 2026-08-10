@@ -294,6 +294,42 @@ class TestPilotLogRecordClassification(unittest.TestCase):
                 self.assertEqual(len(parser.missions), 1)
                 self.assertEqual(parser.missions[0].notes, VERIFIED_FIELDS[19])
 
+    def assert_truncated_claim_confirmation_is_rejected(self, field_count):
+        claim_fields = PILOT2_SAMPLE.splitlines()[3].split(";")[:field_count]
+        self.assertTrue(
+            claim_fields[5].lower().startswith(
+                "confirmation received of claim submitted on:"
+            )
+        )
+        claim_fields[16] = "private claim text and narrative"
+        if not claim_fields[-1]:
+            claim_fields[-1] = "truncated field"
+        content = "2\n" + self.line(claim_fields) + "\n" + self.line() + "\n"
+
+        with self.assertLogs("WoFFWatch", level="WARNING") as captured:
+            parser, ok = self.parse_content(content)
+
+        self.assertTrue(ok)
+        self.assertEqual(len(parser.missions), 1)
+        self.assertEqual(parser.missions[0].notes, VERIFIED_FIELDS[19])
+        logged = " ".join(captured.output)
+        self.assertIn("source=Pilot1Log.txt", logged)
+        self.assertIn("line=2", logged)
+        self.assertIn("category=truncated-claim-confirmation", logged)
+        self.assertIn(f"fields={field_count}", logged)
+        self.assertIn("reason=claim confirmation has fewer than 26 fields", logged)
+        self.assertNotIn("private claim text", logged)
+        self.assertNotIn("narrative", logged)
+
+    def test_truncated_claim_confirmation_with_21_fields_is_rejected(self):
+        self.assert_truncated_claim_confirmation_is_rejected(21)
+
+    def test_truncated_claim_confirmation_with_23_fields_is_rejected(self):
+        self.assert_truncated_claim_confirmation_is_rejected(23)
+
+    def test_truncated_claim_confirmation_with_25_fields_is_rejected(self):
+        self.assert_truncated_claim_confirmation_is_rejected(25)
+
     def test_zero_counter_and_header_are_ignored(self):
         parser, ok = self.parse_content(PILOT3_SAMPLE, "Pilot3Log.txt")
         self.assertFalse(ok)
