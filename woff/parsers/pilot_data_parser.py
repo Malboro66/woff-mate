@@ -125,10 +125,9 @@ class WoFFPilotDataParser:
                 if self._is_claim_confirmation(parts):
                     continue
 
-                if len(parts) not in (20, 21):
-                    category = "incomplete" if len(parts) < 20 else "unknown"
+                if len(parts) < 20:
                     self._log_rejected(
-                        path, line_number, category, len(parts),
+                        path, line_number, "incomplete", len(parts),
                         "unsupported logical field count",
                     )
                     continue
@@ -136,9 +135,15 @@ class WoFFPilotDataParser:
                 damage = False
                 wounds = False
                 notes_index = 19
-                if len(parts) == 21:
+                if len(parts) > 20 and parts[18] != "":
                     damage_flag = self._bool_field(parts[18])
                     wounds_flag = self._bool_field(parts[19])
+                    if damage_flag is None and wounds_flag is None:
+                        self._log_rejected(
+                            path, line_number, "unknown", len(parts),
+                            "record does not match a supported mission layout",
+                        )
+                        continue
                     if damage_flag is None or wounds_flag is None:
                         self._log_rejected(
                             path, line_number, "extended", len(parts),
@@ -163,7 +168,7 @@ class WoFFPilotDataParser:
                     m.squadron = parts[13]
                     m.damageReceived = damage
                     m.woundsReceived = wounds
-                    m.notes = parts[notes_index][:500]
+                    m.notes = ";".join(parts[notes_index:])[:500]
                     notes_lower = m.notes.lower()
                     m.result = "Shot Down — KIA" if "killed" in notes_lower else "Crash Landing — Survived" if "crash" in notes_lower else "Completed"
                     self.missions.append(m)
