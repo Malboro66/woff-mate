@@ -18,21 +18,6 @@ class WoFFPilotDataParser:
         self.victories: List[WoFFVictory] = []
 
     @staticmethod
-    def _bool_field(raw: str) -> Optional[bool]:
-        """Convert only the explicitly supported PilotLog flag tokens."""
-        value = str(raw or "").strip().lower()
-        false_values = ("", "0", "false", "no", "none", "undamaged")
-        true_values = (
-            "1", "true", "yes", "damaged", "damage",
-            "wounded", "wound", "injured",
-        )
-        if value in false_values:
-            return False
-        if value in true_values:
-            return True
-        return None
-
-    @staticmethod
     def _normalized_fields(line: str) -> List[str]:
         """Split a record while preserving internal empty fields.
 
@@ -50,11 +35,9 @@ class WoFFPilotDataParser:
         return len(parts) == 10 and tuple(value.lower() for value in parts[:5]) == expected
 
     @staticmethod
-    def _is_claim_confirmation(parts: List[str]) -> bool:
-        return (
-            len(parts) == 26
-            and len(parts) > 5
-            and parts[5].lower().startswith("confirmation received of claim submitted on:")
+    def _has_claim_confirmation_signature(parts: List[str]) -> bool:
+        return len(parts) > 5 and parts[5].lower().startswith(
+            "confirmation received of claim submitted on:"
         )
 
     @staticmethod
@@ -122,32 +105,21 @@ class WoFFPilotDataParser:
                 parts = self._normalized_fields(line)
                 if self._is_zero_mission_header(parts):
                     continue
-                if self._is_claim_confirmation(parts):
+                if self._has_claim_confirmation_signature(parts):
+                    if len(parts) < 26:
+                        self._log_rejected(
+                            path, line_number, "truncated-claim-confirmation",
+                            len(parts),
+                            "claim confirmation has fewer than 26 fields",
+                        )
                     continue
 
-                if len(parts) not in (20, 21):
-                    category = "incomplete" if len(parts) < 20 else "unknown"
+                if len(parts) < 20:
                     self._log_rejected(
-                        path, line_number, category, len(parts),
+                        path, line_number, "incomplete", len(parts),
                         "unsupported logical field count",
                     )
                     continue
-
-                damage = False
-                wounds = False
-                notes_index = 19
-                if len(parts) == 21:
-                    damage_flag = self._bool_field(parts[18])
-                    wounds_flag = self._bool_field(parts[19])
-                    if damage_flag is None or wounds_flag is None:
-                        self._log_rejected(
-                            path, line_number, "extended", len(parts),
-                            "damage or wound flag is not a recognized token",
-                        )
-                        continue
-                    damage = damage_flag
-                    wounds = wounds_flag
-                    notes_index = 20
 
                 try:
                     mission_date, mission_time = self._validated_date_time(parts)
@@ -161,9 +133,9 @@ class WoFFPilotDataParser:
                     m.missionType = normalize_mission_type(parts[7])
                     m.duration = parts[10]
                     m.squadron = parts[13]
-                    m.damageReceived = damage
-                    m.woundsReceived = wounds
-                    m.notes = parts[notes_index][:500]
+                    m.damageReceived = False
+                    m.woundsReceived = False
+                    m.notes = ";".join(parts[19:])[:500]
                     notes_lower = m.notes.lower()
                     m.result = "Shot Down — KIA" if "killed" in notes_lower else "Crash Landing — Survived" if "crash" in notes_lower else "Completed"
                     self.missions.append(m)

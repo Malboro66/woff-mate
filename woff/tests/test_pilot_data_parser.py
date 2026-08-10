@@ -1,13 +1,9 @@
 import unittest
-import os
-import tempfile
 from pathlib import Path
-from unittest.mock import Mock, patch, mock_open
+from unittest.mock import patch, mock_open
 
 
 from ..parsers.pilot_data_parser import WoFFPilotDataParser
-from ..parsers.xml_parser import WoFFXMLParser
-from ..rpg_system import RPGSystem
 
 class TestWoFFPilotDataParser(unittest.TestCase):
     
@@ -33,8 +29,8 @@ class TestWoFFPilotDataParser(unittest.TestCase):
         self.assertEqual(m.squadron, "No. 56 Sqn RFC")
     
 
-    def test_parse_log_populates_wounds_and_damage_flags(self):
-        """PilotLog.txt deve popular explicitamente dano e ferimentos."""
+    def test_parse_log_extended_looking_fields_use_verified_layout(self):
+        """Sem marcador externo, campos parecidos com flags continuam reservados/notas."""
         mock_content = "2\n"
         mock_content += "6;4;1917;10;30;Arras;Filescamp;OP;SE.5a;;45;100;SE.5a;No. 56 Sqn RFC;troops;Army Camp;N50*17;E2*42;Damaged;Wounded; Final Status: Crash landed wounded.;\n"
         mock_content += "7;4;1917;11;00;Arras;Filescamp;OP;SE.5a;;45;100;SE.5a;No. 56 Sqn RFC;troops;Army Camp;N50*17;E2*42;No;0; Final Status: Landed safely.;\n"
@@ -45,64 +41,10 @@ class TestWoFFPilotDataParser(unittest.TestCase):
 
         self.assertTrue(ok)
         self.assertEqual(len(parser.missions), 2)
-        self.assertTrue(parser.missions[0].damageReceived)
-        self.assertTrue(parser.missions[0].woundsReceived)
+        self.assertFalse(parser.missions[0].damageReceived)
+        self.assertFalse(parser.missions[0].woundsReceived)
         self.assertFalse(parser.missions[1].damageReceived)
         self.assertFalse(parser.missions[1].woundsReceived)
-
-    def test_parse_log_damage_wounds_match_xml_boolean_semantics(self):
-        """TXT e XML devem produzir os mesmos booleanos para missão equivalente."""
-        mock_content = "1\n"
-        mock_content += "6;4;1917;10;30;Arras;Filescamp;OP;SE.5a;;45;100;SE.5a;No. 56 Sqn RFC;troops;Army Camp;N50*17;E2*42;Yes;1; Final Status: Returned damaged and wounded.;\n"
-
-        txt_parser = WoFFPilotDataParser()
-        with patch("builtins.open", mock_open(read_data=mock_content)):
-            self.assertTrue(txt_parser.parse("Pilot1Log.txt"))
-
-        xml = """<?xml version="1.0" encoding="UTF-8"?>
-<Campaign>
-  <Pilot><PilotName>Test Pilot</PilotName><Status>Active</Status></Pilot>
-  <Missions>
-    <Mission>
-      <Date>1917-04-06</Date><Time>10:30</Time><Type>OP</Type>
-      <Aircraft>SE.5a</Aircraft><Damage>Yes</Damage><Wounds>1</Wounds>
-    </Mission>
-  </Missions>
-</Campaign>
-"""
-        with tempfile.NamedTemporaryFile("w", suffix=".xml", delete=False, encoding="utf-8") as f:
-            f.write(xml)
-            xml_path = f.name
-        try:
-            xml_parser = WoFFXMLParser()
-            self.assertTrue(xml_parser.parse(xml_path))
-        finally:
-            os.unlink(xml_path)
-
-        self.assertEqual(
-            txt_parser.missions[0].damageReceived,
-            xml_parser.missions[0].damageReceived,
-        )
-        self.assertEqual(
-            txt_parser.missions[0].woundsReceived,
-            xml_parser.missions[0].woundsReceived,
-        )
-
-    def test_parse_log_flags_feed_fatigue_calculation(self):
-        """Ferimento e dano vindos do TXT devem impactar fadiga downstream."""
-        mock_content = "1\n"
-        mock_content += "6;4;1917;10;30;Arras;Filescamp;OP;SE.5a;;45;100;SE.5a;No. 56 Sqn RFC;troops;Army Camp;N50*17;E2*42;1;Wounded; Final Status: Crash landed wounded.;\n"
-
-        parser = WoFFPilotDataParser()
-        with patch("builtins.open", mock_open(read_data=mock_content)):
-            self.assertTrue(parser.parse("Pilot1Log.txt"))
-
-        mission = parser.missions[0]
-        rng = Mock()
-        rng.random.return_value = 1.0
-        fatigue = RPGSystem(rng=rng).calculate_fatigue([mission.__dict__])
-
-        self.assertEqual(fatigue, 30)
 
     def test_parse_claims_file(self):
         """Testa parsing de ficheiro de vitórias (Claims) e confirmação."""
@@ -213,13 +155,75 @@ class TestPilotLogRecordClassification(unittest.TestCase):
                 self.assertFalse(mission.damageReceived)
                 self.assertFalse(mission.woundsReceived)
 
-    def test_reserved_index_is_independent_from_notes(self):
+    def test_verified_notes_with_semicolon_are_imported(self):
         fields = VERIFIED_FIELDS.copy()
-        fields[18] = "reserved value"
-        fields[19] = "Only these are notes"
-        parser, _ = self.parse_content("1\n" + self.line(fields) + "\n")
-        self.assertEqual(parser.missions[0].notes, "Only these are notes")
+        fields[19] = "Final Status: landed; aircraft recovered."
+        parser, ok = self.parse_content("1\n" + self.line(fields) + "\n")
+        self.assertTrue(ok)
+        self.assertEqual(len(parser.missions), 1)
+        self.assertEqual(
+            parser.missions[0].notes,
+            "Final Status: landed;aircraft recovered.",
+        )
+
+    def test_verified_notes_preserve_multiple_semicolons_and_terminal_delimiter(self):
+        fields = VERIFIED_FIELDS.copy()
+        fields[19] = "First; second; third"
+        parser, ok = self.parse_content("1\n" + self.line(fields, terminal=True) + "\n")
+        self.assertTrue(ok)
+        self.assertEqual(parser.missions[0].notes, "First;second;third")
+
+    def test_verified_boolean_looking_note_prefixes_are_notes(self):
+        for prefix in ("No", "Yes", "False", "Wounded"):
+            with self.subTest(prefix=prefix):
+                fields = VERIFIED_FIELDS.copy()
+                fields[19] = prefix + "; this is still the mission report"
+                parser, ok = self.parse_content("1\n" + self.line(fields) + "\n")
+                self.assertTrue(ok)
+                mission = parser.missions[0]
+                self.assertEqual(mission.notes, prefix + ";this is still the mission report")
+                self.assertFalse(mission.damageReceived)
+                self.assertFalse(mission.woundsReceived)
+
+    def test_extended_looking_record_preserves_verified_interpretation(self):
+        fields = VERIFIED_FIELDS[:18] + ["Damaged", "No", "one; two; three"]
+        parser, ok = self.parse_content("1\n" + self.line(fields) + "\n")
+        self.assertTrue(ok)
+        self.assertEqual(parser.missions[0].notes, "No;one;two;three")
+        self.assertFalse(parser.missions[0].damageReceived)
         self.assertFalse(parser.missions[0].woundsReceived)
+
+    def test_result_terms_after_semicolon_keep_precedence(self):
+        for notes, expected in (
+            ("Forced down; crash on landing", "Crash Landing — Survived"),
+            ("Aircraft crashed; pilot killed", "Shot Down — KIA"),
+        ):
+            with self.subTest(notes=notes):
+                fields = VERIFIED_FIELDS.copy()
+                fields[19] = notes
+                parser, ok = self.parse_content("1\n" + self.line(fields) + "\n")
+                self.assertTrue(ok)
+                self.assertEqual(parser.missions[0].result, expected)
+
+    def test_notes_limit_is_applied_after_semicolon_reconstruction(self):
+        fields = VERIFIED_FIELDS.copy()
+        fields[19] = ("a" * 300) + "; " + ("b" * 300)
+        parser, ok = self.parse_content("1\n" + self.line(fields) + "\n")
+        self.assertTrue(ok)
+        self.assertEqual(len(parser.missions[0].notes), 500)
+        self.assertIn(";", parser.missions[0].notes)
+
+    def test_nonempty_reserved_values_are_independent_from_semicolon_notes(self):
+        for reserved in ("reserved value", "Damaged", "Yes", "No", "Wounded"):
+            with self.subTest(reserved=reserved):
+                fields = VERIFIED_FIELDS.copy()
+                fields[18] = reserved
+                fields[19] = "Only; these;; are notes"
+                parser, ok = self.parse_content("1\n" + self.line(fields, terminal=True) + "\n")
+                self.assertTrue(ok)
+                self.assertEqual(parser.missions[0].notes, "Only;these;;are notes")
+                self.assertFalse(parser.missions[0].damageReceived)
+                self.assertFalse(parser.missions[0].woundsReceived)
 
     def test_notes_are_limited_to_existing_maximum(self):
         fields = VERIFIED_FIELDS.copy()
@@ -227,55 +231,24 @@ class TestPilotLogRecordClassification(unittest.TestCase):
         parser, _ = self.parse_content("1\n" + self.line(fields) + "\n")
         self.assertEqual(parser.missions[0].notes, "n" * 500)
 
-    def test_extended_layout_independent_flags_and_terminal_semicolon(self):
-        for terminal in (False, True):
-            fields = VERIFIED_FIELDS[:18] + ["Damaged", "No", "extended notes"]
-            parser, ok = self.parse_content("1\n" + self.line(fields, terminal) + "\n")
-            self.assertTrue(ok)
-            self.assertTrue(parser.missions[0].damageReceived)
-            self.assertFalse(parser.missions[0].woundsReceived)
-            self.assertEqual(parser.missions[0].notes, "extended notes")
-
-    def test_damage_and_wounds_are_independent(self):
-        for damage, wounds, expected in (("Yes", "0", (True, False)), ("No", "Wounded", (False, True))):
-            with self.subTest(damage=damage, wounds=wounds):
-                fields = VERIFIED_FIELDS[:18] + [damage, wounds, "notes"]
-                parser, _ = self.parse_content("1\n" + self.line(fields) + "\n")
-                self.assertEqual((parser.missions[0].damageReceived, parser.missions[0].woundsReceived), expected)
-
-    def test_all_strict_boolean_tokens_case_and_whitespace(self):
-        false_tokens = ("", "0", "No", "False", "None", "Undamaged")
-        true_tokens = ("1", "Yes", "True", "Damage", "Damaged", "Wound", "Wounded", "Injured")
-        for token in false_tokens:
-            with self.subTest(token=token):
-                self.assertFalse(WoFFPilotDataParser._bool_field("  " + token.swapcase() + "  "))
-        for token in true_tokens:
-            with self.subTest(token=token):
-                self.assertTrue(WoFFPilotDataParser._bool_field("  " + token.swapcase() + "  "))
-        self.assertIsNone(WoFFPilotDataParser._bool_field("unexpected narrative"))
-
-    def test_ambiguous_extended_record_is_skipped(self):
+    def test_extended_looking_record_is_preserved_and_later_record_recovers(self):
         ambiguous = VERIFIED_FIELDS[:18] + ["perhaps", "Wounded", "secret complete record text"]
         content = "2\n" + self.line(ambiguous) + "\n" + self.line() + "\n"
+        parser, ok = self.parse_content(content)
+        self.assertTrue(ok)
+        self.assertEqual(len(parser.missions), 2)
+        self.assertEqual(parser.missions[0].notes, "Wounded;secret complete record text")
+
+    def test_malformed_record_log_is_safe_and_later_record_recovers(self):
+        source_line = ";".join(["private complete source line"] + ["x"] * 21)
         with self.assertLogs("WoFFWatch", level="WARNING") as captured:
-            parser, ok = self.parse_content(content)
+            parser, ok = self.parse_content("2\n" + source_line + "\n" + self.line() + "\n")
         self.assertTrue(ok)
         self.assertEqual(len(parser.missions), 1)
         logged = " ".join(captured.output)
-        self.assertIn("Pilot1Log.txt", logged)
-        self.assertIn("line=2", logged)
-        self.assertIn("fields=21", logged)
-        self.assertNotIn("secret complete record text", logged)
-
-    def test_unknown_record_log_is_safe_and_identifies_the_record(self):
-        source_line = ";".join(["private complete source line"] + ["x"] * 21)
-        with self.assertLogs("WoFFWatch", level="WARNING") as captured:
-            parser, _ = self.parse_content("1\n" + source_line + "\n")
-        self.assertEqual(parser.missions, [])
-        logged = " ".join(captured.output)
         self.assertIn("source=Pilot1Log.txt", logged)
         self.assertIn("line=2", logged)
-        self.assertIn("category=unknown", logged)
+        self.assertIn("category=malformed", logged)
         self.assertIn("fields=22", logged)
         self.assertNotIn(source_line, logged)
         self.assertNotIn("private complete source line", logged)
@@ -303,6 +276,59 @@ class TestPilotLogRecordClassification(unittest.TestCase):
         parser, ok = self.parse_content(content)
         self.assertTrue(ok)
         self.assertEqual(len(parser.missions), 2)
+
+    def test_claim_confirmation_with_narrative_semicolons_is_ignored(self):
+        claim = PILOT2_SAMPLE.splitlines()[3]
+        for narrative in (
+            "Sanitized claim;narrative.",
+            "Sanitized;claim;narrative.",
+        ):
+            with self.subTest(narrative=narrative):
+                claim_with_semicolons = claim.replace(
+                    "Sanitized claim narrative.", narrative,
+                )
+                content = "2\n" + claim_with_semicolons + "\n" + self.line() + "\n"
+                with self.assertNoLogs("WoFFWatch", level="WARNING"):
+                    parser, ok = self.parse_content(content)
+                self.assertTrue(ok)
+                self.assertEqual(len(parser.missions), 1)
+                self.assertEqual(parser.missions[0].notes, VERIFIED_FIELDS[19])
+
+    def assert_truncated_claim_confirmation_is_rejected(self, field_count):
+        claim_fields = PILOT2_SAMPLE.splitlines()[3].split(";")[:field_count]
+        self.assertTrue(
+            claim_fields[5].lower().startswith(
+                "confirmation received of claim submitted on:"
+            )
+        )
+        claim_fields[16] = "private claim text and narrative"
+        if not claim_fields[-1]:
+            claim_fields[-1] = "truncated field"
+        content = "2\n" + self.line(claim_fields) + "\n" + self.line() + "\n"
+
+        with self.assertLogs("WoFFWatch", level="WARNING") as captured:
+            parser, ok = self.parse_content(content)
+
+        self.assertTrue(ok)
+        self.assertEqual(len(parser.missions), 1)
+        self.assertEqual(parser.missions[0].notes, VERIFIED_FIELDS[19])
+        logged = " ".join(captured.output)
+        self.assertIn("source=Pilot1Log.txt", logged)
+        self.assertIn("line=2", logged)
+        self.assertIn("category=truncated-claim-confirmation", logged)
+        self.assertIn(f"fields={field_count}", logged)
+        self.assertIn("reason=claim confirmation has fewer than 26 fields", logged)
+        self.assertNotIn("private claim text", logged)
+        self.assertNotIn("narrative", logged)
+
+    def test_truncated_claim_confirmation_with_21_fields_is_rejected(self):
+        self.assert_truncated_claim_confirmation_is_rejected(21)
+
+    def test_truncated_claim_confirmation_with_23_fields_is_rejected(self):
+        self.assert_truncated_claim_confirmation_is_rejected(23)
+
+    def test_truncated_claim_confirmation_with_25_fields_is_rejected(self):
+        self.assert_truncated_claim_confirmation_is_rejected(25)
 
     def test_zero_counter_and_header_are_ignored(self):
         parser, ok = self.parse_content(PILOT3_SAMPLE, "Pilot3Log.txt")
