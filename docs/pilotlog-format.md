@@ -21,10 +21,10 @@ removed. Consequently, a verified mission has 21 raw fields when it has a
 terminal semicolon and 20 logical fields after normalization. It also has 20
 logical fields when no terminal semicolon is present.
 
-Before a mission object is created, a record is classified as a counter, the
-zero-mission header, a verified mission, an extended legacy mission, a claim
-confirmation, incomplete, malformed, or unsupported/unknown. One rejected line
-does not prevent later lines from being processed.
+Before a mission object is created, claim confirmations and metadata are
+identified, and the fixed mission prefix and date/time are validated. A record
+is then classified as a verified mission, incomplete, or malformed. One
+rejected line does not prevent later lines from being processed.
 
 ## Verified 20-field mission layout
 
@@ -63,32 +63,21 @@ damage. The verified samples establish no fixed aircraft-damage or pilot-wound
 positions, so both flags are `False`. In particular, phrases such as “Aircraft
 Destroyed” in notes do not imply death, crash, damage, or wounds.
 
-## Extended legacy layout
+## Verified-layout priority
 
-An explicit 21-logical-field legacy layout remains supported:
+The verified layout has priority for every supported mission. Index 18 remains
+reserved and independent, while notes are reconstructed from index 19 through
+all remaining semicolon-delimited fragments.
 
-- indexes 0–17 retain the common mission prefix;
-- index 18 is the independent aircraft-damage flag;
-- index 19 is the independent pilot-wound flag; and
-- index 20 is notes.
+An extended-looking record cannot be distinguished safely from a verified
+record whose reserved field is non-empty and whose notes contain semicolons.
+Field count and flag-like values such as `Damaged`, `Yes`, `No`, or `Wounded`
+are not reliable layout markers. Consequently, PilotLog damage and wound flags
+are not inferred: both values remain `False`.
 
-The extended form is explicitly distinguished from a verified record with
-semicolon-containing notes by a non-empty, recognized damage flag at index 18
-and a recognized wound flag at index 19. Thus a verified report whose notes
-begin with `No;`, `Yes;`, or another flag-like token remains a verified report.
-As with the verified layout, a terminal semicolon adds one raw trailing empty
-field and does not change the logical layout. The extended form is accepted only
-when both flag positions use strictly recognized tokens. Matching ignores case
-and surrounding whitespace.
-
-| Boolean | Recognized tokens |
-| --- | --- |
-| False | empty string, `0`, `No`, `False`, `None`, `Undamaged` |
-| True | `1`, `Yes`, `True`, `Damage`, `Damaged`, `Wound`, `Wounded`, `Injured` |
-
-Unknown non-empty text has no truth value; it is never converted with Python's
-`bool(value)`. An extended record containing such text is ambiguous and is
-rejected as unsupported.
+Future support for an extended layout requires sanitized evidence establishing
+its positions or a reliable external format marker. Until then, speculative
+automatic extended-layout detection is intentionally disabled.
 
 ## Mission results
 
@@ -99,14 +88,17 @@ Otherwise, `crash` produces `Crash Landing — Survived`; all other notes produc
 
 ## Claim confirmations and rejected records
 
-The sanitized evidence includes a 26-field claim-confirmation record whose sixth
-field begins with `Confirmation Received of Claim submitted on:`. It is
-recognized within PilotLog and ignored; it is not a mission. Victory parsing and
-the separate claims parser are outside this format change.
+The sanitized evidence includes a claim-confirmation record with a verified
+minimum structure of 26 fields whose sixth field begins with `Confirmation
+Received of Claim submitted on:`. Detection uses that signature and structural
+minimum rather than requiring an exact field count, because semicolons in the
+free-form claim narrative create additional fragments. Short records containing
+the phrase do not meet the minimum and are not accepted as claim confirmations.
+Recognized confirmations are ignored rather than imported as missions. Victory
+parsing and the separate claims parser are outside this format change.
 
-Records with too few fields are incomplete. Unsupported field counts are
-unknown, an extended layout with invalid flags is ambiguous, and a candidate
-mission with invalid date/time components is malformed. These records are
+Records with too few fields are incomplete. A candidate mission with an invalid
+fixed prefix or invalid date/time components is malformed. These records are
 skipped without interrupting later valid missions.
 
 Rejection logs contain only safe diagnostics: source filename, line number,

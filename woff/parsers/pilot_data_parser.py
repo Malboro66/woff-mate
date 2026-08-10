@@ -18,21 +18,6 @@ class WoFFPilotDataParser:
         self.victories: List[WoFFVictory] = []
 
     @staticmethod
-    def _bool_field(raw: str) -> Optional[bool]:
-        """Convert only the explicitly supported PilotLog flag tokens."""
-        value = str(raw or "").strip().lower()
-        false_values = ("", "0", "false", "no", "none", "undamaged")
-        true_values = (
-            "1", "true", "yes", "damaged", "damage",
-            "wounded", "wound", "injured",
-        )
-        if value in false_values:
-            return False
-        if value in true_values:
-            return True
-        return None
-
-    @staticmethod
     def _normalized_fields(line: str) -> List[str]:
         """Split a record while preserving internal empty fields.
 
@@ -52,8 +37,7 @@ class WoFFPilotDataParser:
     @staticmethod
     def _is_claim_confirmation(parts: List[str]) -> bool:
         return (
-            len(parts) == 26
-            and len(parts) > 5
+            len(parts) >= 26
             and parts[5].lower().startswith("confirmation received of claim submitted on:")
         )
 
@@ -132,28 +116,6 @@ class WoFFPilotDataParser:
                     )
                     continue
 
-                damage = False
-                wounds = False
-                notes_index = 19
-                if len(parts) > 20 and parts[18] != "":
-                    damage_flag = self._bool_field(parts[18])
-                    wounds_flag = self._bool_field(parts[19])
-                    if damage_flag is None and wounds_flag is None:
-                        self._log_rejected(
-                            path, line_number, "unknown", len(parts),
-                            "record does not match a supported mission layout",
-                        )
-                        continue
-                    if damage_flag is None or wounds_flag is None:
-                        self._log_rejected(
-                            path, line_number, "extended", len(parts),
-                            "damage or wound flag is not a recognized token",
-                        )
-                        continue
-                    damage = damage_flag
-                    wounds = wounds_flag
-                    notes_index = 20
-
                 try:
                     mission_date, mission_time = self._validated_date_time(parts)
                     m = WoFFMission()
@@ -166,9 +128,9 @@ class WoFFPilotDataParser:
                     m.missionType = normalize_mission_type(parts[7])
                     m.duration = parts[10]
                     m.squadron = parts[13]
-                    m.damageReceived = damage
-                    m.woundsReceived = wounds
-                    m.notes = ";".join(parts[notes_index:])[:500]
+                    m.damageReceived = False
+                    m.woundsReceived = False
+                    m.notes = ";".join(parts[19:])[:500]
                     notes_lower = m.notes.lower()
                     m.result = "Shot Down — KIA" if "killed" in notes_lower else "Crash Landing — Survived" if "crash" in notes_lower else "Completed"
                     self.missions.append(m)
