@@ -4,6 +4,7 @@ Parser de Dados do Piloto (parsers/pilot_data_parser.py)
 ══════════════════════════════════════════════════════════════════
 """
 import os, re, logging
+from datetime import datetime
 from typing import List, Optional
 from ..models import WoFFPilot, WoFFMission, WoFFVictory
 from ..normalization import normalize_mission_type, normalize_victory_type, normalize_date
@@ -17,25 +18,65 @@ class WoFFPilotDataParser:
         self.victories: List[WoFFVictory] = []
 
     @staticmethod
-    def _bool_field(raw: str) -> bool:
-        """Converte flags textuais/numéricas do PilotLog para booleano.
-
-        Mantém paridade semântica com o parser XML: valores vazios e negações
-        comuns são False; indicadores positivos como 1/yes/damaged/wounded são True.
-        """
+    def _bool_field(raw: str) -> Optional[bool]:
+        """Convert only the explicitly supported PilotLog flag tokens."""
         value = str(raw or "").strip().lower()
-        false_values = ("", "0", "false", "no", "none", "nein", "non", "undamaged")
+        false_values = ("", "0", "false", "no", "none", "undamaged")
         true_values = (
-            "1", "true", "yes", "y", "damaged", "damage",
+            "1", "true", "yes", "damaged", "damage",
             "wounded", "wound", "injured",
         )
         if value in false_values:
             return False
         if value in true_values:
             return True
-        if value.startswith(("no ", "not ")):
-            return False
-        return bool(value)
+        return None
+
+    @staticmethod
+    def _normalized_fields(line: str) -> List[str]:
+        """Split a record while preserving internal empty fields.
+
+        A terminal semicolon creates exactly one synthetic empty field.  Remove
+        that field only; an empty field immediately before it remains intact.
+        """
+        parts = [part.strip() for part in line.split(";")]
+        if parts and parts[-1] == "":
+            parts.pop()
+        return parts
+
+    @staticmethod
+    def _is_zero_mission_header(parts: List[str]) -> bool:
+        expected = ("day", "month", "year", "hour", "minute")
+        return len(parts) == 10 and tuple(value.lower() for value in parts[:5]) == expected
+
+    @staticmethod
+    def _is_claim_confirmation(parts: List[str]) -> bool:
+        return (
+            len(parts) == 26
+            and len(parts) > 5
+            and parts[5].lower().startswith("confirmation received of claim submitted on:")
+        )
+
+    @staticmethod
+    def _validated_date_time(parts: List[str]) -> tuple[str, str]:
+        day = parts[0].replace("/", "").strip()
+        month = parts[1].replace("/", "").strip()
+        year = parts[2].strip()
+        hour = parts[3].lower().removesuffix("h").strip()
+        minute = parts[4].strip()
+        if not all(value.isdigit() for value in (day, month, year, hour, minute)):
+            raise ValueError("date or time contains a non-numeric component")
+        parsed = datetime(int(year), int(month), int(day), int(hour), int(minute))
+        return parsed.strftime("%Y-%m-%d"), parsed.strftime("%H:%M")
+
+    @staticmethod
+    def _log_rejected(path: str, line_number: int, category: str,
+                      field_count: int, reason: str) -> None:
+        log.warning(
+            "[TXT] PilotLog record rejected: source=%s line=%d "
+            "category=%s fields=%d reason=%s",
+            os.path.basename(path), line_number, category, field_count, reason,
+        )
 
     def parse(self, path: str) -> bool:
         fname = os.path.basename(path).lower()
@@ -74,38 +115,62 @@ class WoFFPilotDataParser:
         log.info(f"[TXT] Analisando Log de Missões: {os.path.basename(path)}")
         try:
             with open(path, "r", encoding="cp1252", errors="replace") as f: lines = f.readlines()
-            for line in lines[1:]:
-                line = line.strip()
-                if not line or line.isdigit(): continue
-                parts = [part.strip() for part in line.split(";")]
-                if len(parts) >= 14:
+            for line_number, raw_line in enumerate(lines, start=1):
+                line = raw_line.rstrip("\r\n")
+                if not line.strip() or line.strip().isdigit():
+                    continue
+                parts = self._normalized_fields(line)
+                if self._is_zero_mission_header(parts):
+                    continue
+                if self._is_claim_confirmation(parts):
+                    continue
+
+                if len(parts) not in (20, 21):
+                    category = "incomplete" if len(parts) < 20 else "unknown"
+                    self._log_rejected(
+                        path, line_number, category, len(parts),
+                        "unsupported logical field count",
+                    )
+                    continue
+
+                damage = False
+                wounds = False
+                notes_index = 19
+                if len(parts) == 21:
+                    damage_flag = self._bool_field(parts[18])
+                    wounds_flag = self._bool_field(parts[19])
+                    if damage_flag is None or wounds_flag is None:
+                        self._log_rejected(
+                            path, line_number, "extended", len(parts),
+                            "damage or wound flag is not a recognized token",
+                        )
+                        continue
+                    damage = damage_flag
+                    wounds = wounds_flag
+                    notes_index = 20
+
+                try:
+                    mission_date, mission_time = self._validated_date_time(parts)
                     m = WoFFMission()
                     m.source_file = os.path.basename(path)
                     m.pilotId = pilot_name
-                    m.date = normalize_date(f"{parts[0].replace('/', '')}/{parts[1].replace('/', '')}/{parts[2]}")
-                    if len(parts) > 4:
-                        m.time = f"{parts[3].replace('h','').zfill(2)}:{parts[4].zfill(2)}"
+                    m.date = mission_date
+                    m.time = mission_time
                     m.sector = parts[5]
-                    m.aircraft = parts[8] if len(parts) > 8 else ""
-                    m.missionType = normalize_mission_type(parts[7]) if len(parts) > 7 else ""
-                    m.duration = parts[10] if len(parts) > 10 else ""
+                    m.aircraft = parts[8]
+                    m.missionType = normalize_mission_type(parts[7])
+                    m.duration = parts[10]
                     m.squadron = parts[13]
-                    # PilotLog.txt usa os campos 18 e 19 para dano na aeronave e
-                    # ferimentos do piloto. Normalizamos defensivamente para manter
-                    # paridade com os booleanos extraídos pelo parser XML.
-                    m.damageReceived = (
-                        self._bool_field(parts[18]) if len(parts) > 18 else False
-                    )
-                    m.woundsReceived = (
-                        self._bool_field(parts[19]) if len(parts) > 19 else False
-                    )
-                    m.notes = (
-                        parts[20][:500]
-                        if len(parts) > 20
-                        else parts[19][:500] if len(parts) > 19 else ""
-                    )
-                    m.result = "Shot Down — KIA" if "killed" in m.notes.lower() else "Crash Landing — Survived" if "crash" in m.notes.lower() else "Completed"
+                    m.damageReceived = damage
+                    m.woundsReceived = wounds
+                    m.notes = parts[notes_index][:500]
+                    notes_lower = m.notes.lower()
+                    m.result = "Shot Down — KIA" if "killed" in notes_lower else "Crash Landing — Survived" if "crash" in notes_lower else "Completed"
                     self.missions.append(m)
+                except (ValueError, IndexError) as exc:
+                    self._log_rejected(
+                        path, line_number, "malformed", len(parts), str(exc),
+                    )
             
             # FIX: Criar placeholder pilot se não existir para que o handler e DB o possam usar
             if not self.pilot:
