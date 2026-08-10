@@ -213,6 +213,64 @@ class TestPilotLogRecordClassification(unittest.TestCase):
                 self.assertFalse(mission.damageReceived)
                 self.assertFalse(mission.woundsReceived)
 
+    def test_verified_notes_with_semicolon_are_imported(self):
+        fields = VERIFIED_FIELDS.copy()
+        fields[19] = "Final Status: landed; aircraft recovered."
+        parser, ok = self.parse_content("1\n" + self.line(fields) + "\n")
+        self.assertTrue(ok)
+        self.assertEqual(len(parser.missions), 1)
+        self.assertEqual(
+            parser.missions[0].notes,
+            "Final Status: landed;aircraft recovered.",
+        )
+
+    def test_verified_notes_preserve_multiple_semicolons_and_terminal_delimiter(self):
+        fields = VERIFIED_FIELDS.copy()
+        fields[19] = "First; second; third"
+        parser, ok = self.parse_content("1\n" + self.line(fields, terminal=True) + "\n")
+        self.assertTrue(ok)
+        self.assertEqual(parser.missions[0].notes, "First;second;third")
+
+    def test_verified_boolean_looking_note_prefixes_are_notes(self):
+        for prefix in ("No", "Yes", "False", "Wounded"):
+            with self.subTest(prefix=prefix):
+                fields = VERIFIED_FIELDS.copy()
+                fields[19] = prefix + "; this is still the mission report"
+                parser, ok = self.parse_content("1\n" + self.line(fields) + "\n")
+                self.assertTrue(ok)
+                mission = parser.missions[0]
+                self.assertEqual(mission.notes, prefix + ";this is still the mission report")
+                self.assertFalse(mission.damageReceived)
+                self.assertFalse(mission.woundsReceived)
+
+    def test_extended_notes_preserve_semicolons(self):
+        fields = VERIFIED_FIELDS[:18] + ["Damaged", "No", "one; two; three"]
+        parser, ok = self.parse_content("1\n" + self.line(fields) + "\n")
+        self.assertTrue(ok)
+        self.assertEqual(parser.missions[0].notes, "one;two;three")
+        self.assertTrue(parser.missions[0].damageReceived)
+        self.assertFalse(parser.missions[0].woundsReceived)
+
+    def test_result_terms_after_semicolon_keep_precedence(self):
+        for notes, expected in (
+            ("Forced down; crash on landing", "Crash Landing — Survived"),
+            ("Aircraft crashed; pilot killed", "Shot Down — KIA"),
+        ):
+            with self.subTest(notes=notes):
+                fields = VERIFIED_FIELDS.copy()
+                fields[19] = notes
+                parser, ok = self.parse_content("1\n" + self.line(fields) + "\n")
+                self.assertTrue(ok)
+                self.assertEqual(parser.missions[0].result, expected)
+
+    def test_notes_limit_is_applied_after_semicolon_reconstruction(self):
+        fields = VERIFIED_FIELDS.copy()
+        fields[19] = ("a" * 300) + "; " + ("b" * 300)
+        parser, ok = self.parse_content("1\n" + self.line(fields) + "\n")
+        self.assertTrue(ok)
+        self.assertEqual(len(parser.missions[0].notes), 500)
+        self.assertIn(";", parser.missions[0].notes)
+
     def test_reserved_index_is_independent_from_notes(self):
         fields = VERIFIED_FIELDS.copy()
         fields[18] = "reserved value"

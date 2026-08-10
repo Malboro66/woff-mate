@@ -13,11 +13,13 @@ with no missions can contain the counter `0` followed by this ten-field header:
 `Day;Month;Year;Hour;Minute;MissionRegion;MissionBase;Missiontype;AircraftName;Claims`
 
 The header is also metadata and is ignored. Internal empty fields are
-significant and are preserved. If a physical line ends in a semicolon, splitting
-it creates one final empty field; only that one field is removed. Consequently,
-a verified mission has 21 raw fields when it has a terminal semicolon and 20
-logical fields after normalization. It also has 20 logical fields when no
-terminal semicolon is present.
+significant and are preserved. The fixed mission prefix is classified separately
+from the free-form notes tail, so semicolons in notes are reconstructed rather
+than mistaken for additional layout fields. If a physical line ends in a
+semicolon, splitting it creates one final empty field; only that one field is
+removed. Consequently, a verified mission has 21 raw fields when it has a
+terminal semicolon and 20 logical fields after normalization. It also has 20
+logical fields when no terminal semicolon is present.
 
 Before a mission object is created, a record is classified as a counter, the
 zero-mission header, a verified mission, an extended legacy mission, a claim
@@ -55,7 +57,8 @@ Names intentionally remain generic where the evidence is incomplete.
 | 19 | free-form text | complete mission report and notes | High |
 
 Index 19 is exclusively `notes`, truncated to the application's existing
-500-character maximum. Index 18 remains independent and is not interpreted as
+500-character maximum after all of its semicolon-delimited fragments have been
+reconstructed. Index 18 remains independent and is not interpreted as
 damage. The verified samples establish no fixed aircraft-damage or pilot-wound
 positions, so both flags are `False`. In particular, phrases such as “Aircraft
 Destroyed” in notes do not imply death, crash, damage, or wounds.
@@ -69,6 +72,10 @@ An explicit 21-logical-field legacy layout remains supported:
 - index 19 is the independent pilot-wound flag; and
 - index 20 is notes.
 
+The extended form is explicitly distinguished from a verified record with
+semicolon-containing notes by a non-empty, recognized damage flag at index 18
+and a recognized wound flag at index 19. Thus a verified report whose notes
+begin with `No;`, `Yes;`, or another flag-like token remains a verified report.
 As with the verified layout, a terminal semicolon adds one raw trailing empty
 field and does not change the logical layout. The extended form is accepted only
 when both flag positions use strictly recognized tokens. Matching ignores case
