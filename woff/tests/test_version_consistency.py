@@ -165,7 +165,7 @@ def test_current_3_1_database_opens_normally(tmp_path):
     assert not list((tmp_path / ".woff-migration-backups").glob("*.backup.sqlite"))
 
 
-def test_future_database_is_rejected_without_any_changes(tmp_path):
+def test_future_database_is_rejected_without_any_changes(tmp_path, caplog):
     path = tmp_path / "future.sqlite"
     _write_versioned_database(path, "99.0")
     before = path.read_bytes()
@@ -177,6 +177,8 @@ def test_future_database_is_rejected_without_any_changes(tmp_path):
     assert _meta(path)["schema_version"] == "99.0"
     assert not list(tmp_path.glob("future.sqlite-*"))
     assert not (tmp_path / ".woff-migration-backups").exists()
+    assert "Backup de migração criado:" not in caplog.text
+    assert "Restauração automática" not in caplog.text
 
 
 def test_future_schema_committed_in_wal_is_seen_and_files_are_unchanged(tmp_path):

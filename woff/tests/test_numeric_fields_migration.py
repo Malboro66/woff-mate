@@ -1,3 +1,4 @@
+import logging
 import os
 import sqlite3
 from pathlib import Path
@@ -260,6 +261,84 @@ def test_simulated_rebuild_failure_restores_original_database_and_schema_version
         assert conn.execute("PRAGMA foreign_keys").fetchone() == (1,)
     finally:
         conn.close()
+
+
+def test_migration_logs_created_backup_and_successful_restore(tmp_path, monkeypatch, caplog):
+    db_path = tmp_path / "diagnostic.sqlite"
+    conn = _connect(db_path)
+    _old_schema(conn); _seed_valid_rows(conn)
+    conn.commit(); conn.close()
+
+    def fail_migration(self, cursor):
+        raise RuntimeError("diagnostic failure")
+
+    monkeypatch.setattr(DatabaseManager, "_migrate_numeric_column_types", fail_migration)
+    with caplog.at_level(logging.INFO, logger="WoFFWatch"):
+        with pytest.raises(RuntimeError, match="diagnostic failure"):
+            DatabaseManager(str(db_path))
+
+    backup = next((tmp_path / ".woff-migration-backups").glob("*.backup.sqlite"))
+    assert f"Backup de migração criado: {backup}" in caplog.text
+    assert f"Migração falhou. Restauração automática concluída a partir de: {backup}" in caplog.text
+    assert backup.exists()
+
+
+def test_failed_restore_logs_preserved_backup_and_keeps_restore_exception(tmp_path, monkeypatch, caplog):
+    db_path = tmp_path / "failed_restore.sqlite"
+    conn = _connect(db_path)
+    _old_schema(conn)
+    conn.execute("INSERT INTO pilots (id, name, missions) VALUES ('p1', 'Pilot', 'bad')")
+    conn.commit(); conn.close()
+    original_run = DatabaseManager._run_sqlite_backup
+
+    def fail_restore(self, source, dest):
+        source_path = source.execute("PRAGMA database_list").fetchone()[2]
+        if ".woff-migration-backups" in source_path:
+            raise RuntimeError("restore diagnostic failure")
+        return original_run(self, source, dest)
+
+    monkeypatch.setattr(DatabaseManager, "_run_sqlite_backup", fail_restore)
+    with caplog.at_level(logging.INFO, logger="WoFFWatch"):
+        with pytest.raises(RuntimeError, match="restore diagnostic failure"):
+            DatabaseManager(str(db_path))
+
+    backup = next((tmp_path / ".woff-migration-backups").glob("*.backup.sqlite"))
+    assert backup.exists()
+    assert ("Migração falhou e a restauração automática também falhou. "
+            f"Backup preservado em: {backup}") in caplog.text
+
+
+def test_backup_message_waits_for_directory_sync(tmp_path, monkeypatch, caplog):
+    db_path = tmp_path / "sync_failure.sqlite"
+    conn = _connect(db_path)
+    _old_schema(conn); _seed_valid_rows(conn)
+    conn.commit(); conn.close()
+
+    def fail_sync(path):
+        raise RuntimeError("sync failed")
+
+    monkeypatch.setattr(DatabaseManager, "_fsync_directory", staticmethod(fail_sync))
+    with caplog.at_level(logging.INFO, logger="WoFFWatch"):
+        with pytest.raises(RuntimeError, match="sync failed"):
+            DatabaseManager(str(db_path))
+    assert "Backup de migração criado:" not in caplog.text
+
+
+def test_missing_backup_does_not_report_successful_restore(tmp_path, monkeypatch, caplog):
+    db_path = tmp_path / "missing_backup.sqlite"
+    conn = _connect(db_path)
+    _old_schema(conn); _seed_valid_rows(conn)
+    conn.commit(); conn.close()
+
+    def remove_backup_then_fail(self, cursor):
+        self._migration_backup_path.unlink()
+        raise RuntimeError("backup disappeared")
+
+    monkeypatch.setattr(DatabaseManager, "_migrate_numeric_column_types", remove_backup_then_fail)
+    with caplog.at_level(logging.INFO, logger="WoFFWatch"):
+        with pytest.raises(RuntimeError, match="backup disappeared"):
+            DatabaseManager(str(db_path))
+    assert "Restauração automática concluída" not in caplog.text
 
 
 @pytest.mark.parametrize(
