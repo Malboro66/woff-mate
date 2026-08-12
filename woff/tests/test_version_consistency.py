@@ -165,7 +165,7 @@ def test_current_3_1_database_opens_normally(tmp_path):
     assert not list((tmp_path / ".woff-migration-backups").glob("*.backup.sqlite"))
 
 
-def test_future_database_is_rejected_without_any_changes(tmp_path):
+def test_future_database_is_rejected_without_any_changes(tmp_path, caplog):
     path = tmp_path / "future.sqlite"
     _write_versioned_database(path, "99.0")
     before = path.read_bytes()
@@ -177,6 +177,8 @@ def test_future_database_is_rejected_without_any_changes(tmp_path):
     assert _meta(path)["schema_version"] == "99.0"
     assert not list(tmp_path.glob("future.sqlite-*"))
     assert not (tmp_path / ".woff-migration-backups").exists()
+    assert "Backup de migração criado:" not in caplog.text
+    assert "Restauração automática" not in caplog.text
 
 
 def test_future_schema_committed_in_wal_is_seen_and_files_are_unchanged(tmp_path):
@@ -449,3 +451,91 @@ def test_package_cli_config_example_and_version_consumers_are_consistent():
     assert 'version = {attr = "woff.version.__version__"}' in pyproject
     assert 'runpy.run_path(str(Path(SPECPATH) / "woff" / "version.py"))' in build_spec
     assert "from woff" not in build_spec
+
+
+def test_compatibility_guide_documents_approved_support_contract():
+    root = Path(__file__).parents[2]
+    guide = (root / "docs" / "compatibility.md").read_text(encoding="utf-8")
+    for status in ("Supported", "Automatically validated", "Verified by sanitized samples", "Unconfirmed"):
+        assert status in guide
+    assert "Windows 10 64-bit" in guide
+    assert "Windows 11 64-bit" in guide
+    assert "Python 3.10 through 3.14" in guide
+    assert "Linux" in guide and "Python 3.10 and 3.14" in guide
+    assert "windows-latest" in guide and "Python 3.10" in guide
+    assert "WOFF BH&H II" in guide
+    assert "sanitized samples and regression fixtures" in guide
+    assert "exact WoFF build is unconfirmed" in guide
+
+
+def test_compatibility_guide_defines_safe_report_contents_and_prohibited_data():
+    root = Path(__file__).parents[2]
+    guide = (root / "docs" / "compatibility.md").read_text(encoding="utf-8")
+    for safe_item in ("Windows version and architecture", "Python version", "WoFF Mate version", "exact command", "sanitized error message", "sanitized input structure"):
+        assert safe_item in guide
+    for prohibited_item in ("config.json", "SQLite databases", "PilotLog records", "mission notes", "narratives", "personal paths"):
+        assert prohibited_item in guide
+
+
+def test_database_migration_guide_documents_versioning_backup_and_recovery_contract():
+    root = Path(__file__).parents[2]
+    guide = (root / "docs" / "database-migrations.md").read_text(encoding="utf-8")
+    assert f"Current schema: `{SCHEMA_VERSION}`" in guide
+    assert "MAJOR.MINOR" in guide
+    assert "MINOR" in guide and "compatible automatic migrations" in guide
+    assert "MAJOR" in guide and "manual intervention" in guide
+    assert "same transaction" in guide and "future schema" in guide
+    for action in ("DDL", "backup", "downgrade", "sidecar"):
+        assert action in guide
+    for item in (".woff-migration-backups/", "<database>.YYYYMMDDHHMMSS[.<counter>].backup.sqlite", "Connection.backup()", "PRAGMA integrity_check", "without overwriting", "never deletes migration backups automatically"):
+        assert item in guide
+    for message in ("Backup de migração criado:", "Migração falhou. Restauração automática concluída a partir de:", "Migração falhou e a restauração automática também falhou. Backup preservado em:"):
+        assert message in guide
+    assert "PowerShell" in guide and "C:\\WoFFMate\\data" in guide
+    assert "Test-Path -LiteralPath $Backup -PathType Leaf" in guide
+    assert "mode=ro" in guide and "uri=True" in guide
+    assert "Close every WoFF Mate process" in guide
+    for sidecar in ("-wal", "-shm", "-journal"):
+        assert sidecar in guide
+    assert "safety directory" in guide
+    assert "restore the original files" in guide
+    assert "successful reopening" in guide
+
+
+def test_user_guides_exist_and_readme_links_to_each_guide():
+    root = Path(__file__).parents[2]
+    readme = (root / "README.md").read_text(encoding="utf-8")
+    for name in ("compatibility.md", "database-migrations.md", "troubleshooting.md"):
+        assert (root / "docs" / name).is_file()
+        assert f"docs/{name}" in readme
+
+
+def test_readme_and_guides_preserve_the_approved_compatibility_contract():
+    root = Path(__file__).parents[2]
+    readme = (root / "README.md").read_text(encoding="utf-8")
+    compatibility = (root / "docs" / "compatibility.md").read_text(encoding="utf-8")
+    migrations = (root / "docs" / "database-migrations.md").read_text(encoding="utf-8")
+    assert "Python da versão 3.10 até a 3.14" in readme
+    assert "Windows 10 de 64 bits" in readme and "Windows 11 de 64 bits" in readme
+    assert "WOFF BH&H II" in readme and "amostras sanitizadas" in readme
+    assert "versão exata do WoFF ainda não foi confirmada" in readme
+    assert "Python 3.10 through 3.14" in compatibility
+    assert f"Current schema: `{SCHEMA_VERSION}`" in migrations
+
+
+def test_troubleshooting_guide_covers_safe_diagnostics_and_recovery_messages():
+    root = Path(__file__).parents[2]
+    guide = (root / "docs" / "troubleshooting.md").read_text(encoding="utf-8")
+    for item in ("PowerShell", "woff-watchdog --version", "future schema", "database is locked", "Backup de migração criado:", "Migração falhou. Restauração automática concluída a partir de:", "Migração falhou e a restauração automática também falhou. Backup preservado em:", "unknown WoFF format"):
+        assert item in guide
+    for prohibited in ("config.json", "SQLite databases", "migration backups", "complete PilotLog records", "pilot notes", "mission narratives"):
+        assert prohibited in guide
+
+
+def test_documentation_examples_do_not_contain_personal_home_paths():
+    root = Path(__file__).parents[2]
+    documents = [root / "README.md", *sorted((root / "docs").glob("*.md"))]
+    for document in documents:
+        contents = document.read_text(encoding="utf-8")
+        for personal_root in ("C:\\Users", "/Users/", "/home/", "/root/"):
+            assert personal_root not in contents, f"{personal_root} in {document}"

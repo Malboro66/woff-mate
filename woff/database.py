@@ -126,7 +126,16 @@ class DatabaseManager:
             try:
                 self._migrate_schema()
             except Exception:
-                self._restore_migration_backup()
+                try:
+                    self._restore_migration_backup()
+                except Exception:
+                    if self._migration_backup_path is not None:
+                        log.error(
+                            "Migração falhou e a restauração automática também falhou. "
+                            "Backup preservado em: %s",
+                            self._migration_backup_path,
+                        )
+                    raise
                 raise
 
         self._pilots = PilotRepository(self)
@@ -414,6 +423,7 @@ class DatabaseManager:
             dest.close()
             source.close()
         self._fsync_directory(backup_dir)
+        log.info("Backup de migração criado: %s", backup_path)
         return backup_path
 
     def _run_sqlite_backup(self, source: sqlite3.Connection, dest: sqlite3.Connection) -> None:
@@ -441,6 +451,10 @@ class DatabaseManager:
             dest.close()
             source.close()
         self._fsync_directory(self.db_path.parent)
+        log.error(
+            "Migração falhou. Restauração automática concluída a partir de: %s",
+            backup_path,
+        )
 
     def _unique_sidecar_path(self, path: Path, label: str) -> Path:
         counter = 0
