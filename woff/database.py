@@ -21,7 +21,7 @@ import time
 import threading
 from datetime import datetime
 from pathlib import Path
-from typing import Optional, List, Any, Dict, Tuple
+from typing import Optional, List, Any, Dict, NoReturn, Tuple
 
 from .models import WoFFPilot, WoFFMission, WoFFVictory, WoFFDecoration, WoFFWingman
 from .repositories import PilotRepository, MissionRepository, RpgRepository, WingmanRepository
@@ -440,15 +440,14 @@ class DatabaseManager:
         if backup_path is None:
             return
         if not backup_path.exists():
-            message = (
-                "Migração falhou e o backup de migração registrado está indisponível em: "
-                f"{backup_path}"
-            )
-            log.error(message)
-            raise MigrationBackupUnavailableError(message)
+            self._raise_migration_backup_unavailable(backup_path)
 
         self.close()
-        source = sqlite3.connect(backup_path)
+        source_uri = f"{backup_path.resolve().as_uri()}?mode=ro"
+        try:
+            source = sqlite3.connect(source_uri, uri=True)
+        except sqlite3.Error as exc:
+            self._raise_migration_backup_unavailable(backup_path, exc)
         dest = sqlite3.connect(self.db_path, timeout=0)
         try:
             mode = dest.execute("PRAGMA locking_mode=EXCLUSIVE").fetchone()
@@ -467,6 +466,20 @@ class DatabaseManager:
             "Migração falhou. Restauração automática concluída a partir de: %s",
             backup_path,
         )
+
+    @staticmethod
+    def _raise_migration_backup_unavailable(
+        backup_path: Path, cause: Optional[BaseException] = None
+    ) -> NoReturn:
+        message = (
+            "Migração falhou e o backup de migração registrado está indisponível em: "
+            f"{backup_path}"
+        )
+        log.error(message)
+        error = MigrationBackupUnavailableError(message)
+        if cause is None:
+            raise error
+        raise error from cause
 
     def _unique_sidecar_path(self, path: Path, label: str) -> Path:
         counter = 0

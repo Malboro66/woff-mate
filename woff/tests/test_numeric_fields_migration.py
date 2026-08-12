@@ -350,6 +350,55 @@ def test_missing_backup_does_not_report_successful_restore(tmp_path, monkeypatch
     assert "Backup preservado em:" not in caplog.text
 
 
+def test_backup_removed_between_exists_check_and_read_only_open_fails_safely(
+    tmp_path, monkeypatch, caplog
+):
+    db_path = tmp_path / "backup_open_race.sqlite"
+    conn = _connect(db_path)
+    _old_schema(conn); _seed_valid_rows(conn)
+    conn.commit(); conn.close()
+    before = db_path.read_bytes()
+    original_connect = sqlite3.connect
+    removed_backup = []
+
+    def fail_migration(self, cursor):
+        raise RuntimeError("trigger restoration")
+
+    def remove_before_source_open(database, *args, **kwargs):
+        database_text = str(database)
+        if "mode=ro" in database_text and ".woff-migration-backups" in database_text:
+            backup_path = next(
+                (tmp_path / ".woff-migration-backups").glob("*.backup.sqlite")
+            )
+            backup_path.unlink()
+            removed_backup.append(backup_path)
+        return original_connect(database, *args, **kwargs)
+
+    monkeypatch.setattr(DatabaseManager, "_migrate_numeric_column_types", fail_migration)
+    monkeypatch.setattr(sqlite3, "connect", remove_before_source_open)
+    with caplog.at_level(logging.INFO, logger="WoFFWatch"):
+        with pytest.raises(
+            MigrationBackupUnavailableError,
+            match="backup de migração registrado está indisponível",
+        ):
+            DatabaseManager(str(db_path))
+
+    assert len(removed_backup) == 1
+    assert not removed_backup[0].exists()
+    assert db_path.read_bytes() == before
+    conn = original_connect(db_path)
+    try:
+        assert conn.execute("SELECT name, missions FROM pilots WHERE id='p1'").fetchone() == (
+            "Pilot",
+            "7",
+        )
+    finally:
+        conn.close()
+    assert "Migração falhou e o backup de migração registrado está indisponível em:" in caplog.text
+    assert "Restauração automática concluída" not in caplog.text
+    assert "Backup preservado em:" not in caplog.text
+
+
 @pytest.mark.parametrize(
     "value",
     [str(2 ** 63), str(-(2 ** 63) - 1), "１２", "١٢"],
