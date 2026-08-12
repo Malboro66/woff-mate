@@ -8,10 +8,13 @@ Current schema: `3.1`, sourced from `woff.version.SCHEMA_VERSION`.
 
 Schema versions use `MAJOR.MINOR`:
 
-- increment **MINOR** for compatible automatic migrations;
-- increment **MAJOR** for incompatible changes that require manual intervention.
+- schema versions identify stored database formats;
+- future schema versions are rejected;
+- an automatic migration is supported only when the installed application has a compatible migration path and the resulting schema passes certification;
+- `2.2` to `3.1` is the currently tested historical migration path; and
+- the **MAJOR** component alone does not determine whether migration is automatic.
 
-The application persists the new schema version in the same transaction as the schema and data changes. A database declaring a future schema is rejected before application DDL, a migration backup, any downgrade, or creation of an application sidecar. Use a compatible newer version instead.
+The application persists the new schema version in the same transaction as the schema and data changes. A database declaring a future schema is rejected before application DDL, a migration backup, or any downgrade. During the read-only compatibility probe, SQLite may open or create WAL coordination sidecars such as `-shm`; this is SQLite coordination rather than application DDL or migration. Use a compatible newer version instead.
 
 ## Automatic migration protection
 
@@ -37,6 +40,12 @@ If both migration and restoration fail, the restoration error remains visible an
 Migração falhou e a restauração automática também falhou. Backup preservado em: <sanitized backup path>
 ```
 
+If a recorded backup disappears before restoration, restoration fails without claiming that the backup was preserved:
+
+```text
+Migração falhou e o backup de migração registrado está indisponível em: <sanitized backup path>
+```
+
 ## Offline manual restoration on Windows
 
 Use this only after automatic recovery failed or under support guidance. These neutral PowerShell examples use `C:\WoFFMate\data\woff.sqlite`.
@@ -45,12 +54,27 @@ Use this only after automatic recovery failed or under support guidance. These n
 2. Create a uniquely named safety directory and preserve the active database plus SQLite `-wal`, `-shm`, and `-journal` files:
 
    ```powershell
+   $ErrorActionPreference = 'Stop'
    $Data = 'C:\WoFFMate\data'
    $Database = Join-Path $Data 'woff.sqlite'
    $Safety = Join-Path $Data ('recovery-safety-' + (Get-Date -Format 'yyyyMMdd-HHmmss'))
-   New-Item -ItemType Directory -Path $Safety | Out-Null
-   @($Database, "$Database-wal", "$Database-shm", "$Database-journal") |
-     Where-Object { Test-Path $_ } | Copy-Item -Destination $Safety
+   if (-not (Test-Path -LiteralPath $Database -PathType Leaf)) {
+     throw 'Active database not found'
+   }
+   New-Item -ItemType Directory -Path $Safety -ErrorAction Stop | Out-Null
+   $Sources = @($Database, "$Database-wal", "$Database-shm", "$Database-journal") |
+     Where-Object { Test-Path -LiteralPath $_ -PathType Leaf }
+   foreach ($Source in $Sources) {
+     Copy-Item -LiteralPath $Source -Destination $Safety -ErrorAction Stop
+     $Destination = Join-Path $Safety (Split-Path -Leaf $Source)
+     if (-not (Test-Path -LiteralPath $Destination -PathType Leaf)) {
+       throw "Safety copy missing: $Destination"
+     }
+     if ((Get-FileHash -LiteralPath $Source -Algorithm SHA256).Hash -ne
+         (Get-FileHash -LiteralPath $Destination -Algorithm SHA256).Hash) {
+       throw "Safety copy hash mismatch: $Destination"
+     }
+   }
    ```
 
 3. Select and validate a preserved backup before replacing anything. The check must print `ok`:
@@ -67,7 +91,8 @@ Use this only after automatic recovery failed or under support guidance. These n
 
    ```powershell
    @($Database, "$Database-wal", "$Database-shm", "$Database-journal") |
-     Where-Object { Test-Path $_ } | Remove-Item
+     Where-Object { Test-Path -LiteralPath $_ -PathType Leaf } |
+     ForEach-Object { Remove-Item -LiteralPath $_ -ErrorAction Stop }
    python -c "import sqlite3,sys; s=sqlite3.connect(sys.argv[1]); d=sqlite3.connect(sys.argv[2]); s.backup(d); d.close(); s.close()" $Backup $Database
    ```
 

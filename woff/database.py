@@ -38,6 +38,10 @@ class SchemaCompatibilityError(RuntimeError):
     """Raised when a database layout cannot be safely certified or migrated."""
 
 
+class MigrationBackupUnavailableError(RuntimeError):
+    """Raised when a recorded migration backup disappears before restoration."""
+
+
 def _version_tuple(version: str) -> Tuple[int, ...]:
     try:
         return tuple(int(part) for part in version.split("."))
@@ -128,13 +132,14 @@ class DatabaseManager:
             except Exception:
                 try:
                     self._restore_migration_backup()
-                except Exception:
+                except Exception as restore_error:
                     if self._migration_backup_path is not None:
-                        log.error(
-                            "Migração falhou e a restauração automática também falhou. "
-                            "Backup preservado em: %s",
-                            self._migration_backup_path,
-                        )
+                        if not isinstance(restore_error, MigrationBackupUnavailableError):
+                            log.error(
+                                "Migração falhou e a restauração automática também falhou. "
+                                "Backup preservado em: %s",
+                                self._migration_backup_path,
+                            )
                     raise
                 raise
 
@@ -432,8 +437,15 @@ class DatabaseManager:
     def _restore_migration_backup(self) -> None:
         """Restaura backup via API SQLite sem mover arquivos de conexões abertas."""
         backup_path = getattr(self, "_migration_backup_path", None)
-        if backup_path is None or not backup_path.exists():
+        if backup_path is None:
             return
+        if not backup_path.exists():
+            message = (
+                "Migração falhou e o backup de migração registrado está indisponível em: "
+                f"{backup_path}"
+            )
+            log.error(message)
+            raise MigrationBackupUnavailableError(message)
 
         self.close()
         source = sqlite3.connect(backup_path)

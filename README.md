@@ -111,7 +111,7 @@ Woff_Mate/
 ## 📦 Instalação
 
 ### Pré-requisitos
-- Python 3.10 ou superior
+- Python da versão 3.10 até a 3.14
 - WoFF BHaH II instalado (a aplicação tenta detetar o caminho automaticamente via Registo do Windows)
 
 ### Passos
@@ -268,7 +268,7 @@ O Watchdog não se limita a ler ficheiros — ele interpreta-os. Sempre que uma 
 
 ## 🛠 Tecnologias Utilizadas
 
-- **Python 3.10+**
+- **Python 3.10–3.14**
 - **Watchdog** — monitorização de eventos do sistema de ficheiros
 - **SQLite3** — base de dados local embutida (sem servidor)
 - **Dataclasses & Threading** — modelos de dados limpos e processamento assíncrono

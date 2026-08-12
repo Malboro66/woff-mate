@@ -44,6 +44,12 @@ If restoration also fails, stop using the database. The named backup is preserve
 Migração falhou e a restauração automática também falhou. Backup preservado em: <sanitized backup path>
 ```
 
+If a recorded backup is missing, restoration fails and this dedicated message does not claim preservation:
+
+```text
+Migração falhou e o backup de migração registrado está indisponível em: <sanitized backup path>
+```
+
 Keep every backup and follow the offline procedure in [Database migrations and recovery](database-migrations.md).
 
 ## Report an unknown WoFF format safely

@@ -482,18 +482,29 @@ def test_database_migration_guide_documents_versioning_backup_and_recovery_contr
     guide = (root / "docs" / "database-migrations.md").read_text(encoding="utf-8")
     assert f"Current schema: `{SCHEMA_VERSION}`" in guide
     assert "MAJOR.MINOR" in guide
-    assert "MINOR" in guide and "compatible automatic migrations" in guide
-    assert "MAJOR" in guide and "manual intervention" in guide
+    assert "schema versions identify stored database formats" in guide
+    assert "compatible migration path" in guide and "passes certification" in guide
+    assert "`2.2` to `3.1`" in guide
+    assert "MAJOR" in guide and "alone does not determine" in guide
+    assert "manual intervention" not in guide
     assert "same transaction" in guide and "future schema" in guide
-    for action in ("DDL", "backup", "downgrade", "sidecar"):
+    for action in ("DDL", "backup", "downgrade"):
         assert action in guide
+    assert "SQLite may open or create WAL coordination sidecars such as `-shm`" in guide
     for item in (".woff-migration-backups/", "<database>.YYYYMMDDHHMMSS[.<counter>].backup.sqlite", "Connection.backup()", "PRAGMA integrity_check", "without overwriting", "never deletes migration backups automatically"):
         assert item in guide
-    for message in ("Backup de migração criado:", "Migração falhou. Restauração automática concluída a partir de:", "Migração falhou e a restauração automática também falhou. Backup preservado em:"):
+    for message in ("Backup de migração criado:", "Migração falhou. Restauração automática concluída a partir de:", "Migração falhou e a restauração automática também falhou. Backup preservado em:", "Migração falhou e o backup de migração registrado está indisponível em:"):
         assert message in guide
     assert "PowerShell" in guide and "C:\\WoFFMate\\data" in guide
     assert "Test-Path -LiteralPath $Backup -PathType Leaf" in guide
     assert "mode=ro" in guide and "uri=True" in guide
+    assert "$ErrorActionPreference = 'Stop'" in guide
+    assert "Test-Path -LiteralPath $Database -PathType Leaf" in guide
+    assert "New-Item -ItemType Directory -Path $Safety -ErrorAction Stop" in guide
+    assert "Copy-Item -LiteralPath $Source -Destination $Safety -ErrorAction Stop" in guide
+    assert "Get-FileHash -LiteralPath $Source -Algorithm SHA256" in guide
+    assert "Get-FileHash -LiteralPath $Destination -Algorithm SHA256" in guide
+    assert "Remove-Item -LiteralPath $_ -ErrorAction Stop" in guide
     assert "Close every WoFF Mate process" in guide
     for sidecar in ("-wal", "-shm", "-journal"):
         assert sidecar in guide
@@ -520,13 +531,17 @@ def test_readme_and_guides_preserve_the_approved_compatibility_contract():
     assert "WOFF BH&H II" in readme and "amostras sanitizadas" in readme
     assert "versão exata do WoFF ainda não foi confirmada" in readme
     assert "Python 3.10 through 3.14" in compatibility
+    pyproject = (root / "pyproject.toml").read_text(encoding="utf-8")
+    assert 'requires-python = ">=3.10,<3.15"' in pyproject
+    assert "Python 3.10 ou superior" not in readme
+    assert "Python 3.10+" not in readme
     assert f"Current schema: `{SCHEMA_VERSION}`" in migrations
 
 
 def test_troubleshooting_guide_covers_safe_diagnostics_and_recovery_messages():
     root = Path(__file__).parents[2]
     guide = (root / "docs" / "troubleshooting.md").read_text(encoding="utf-8")
-    for item in ("PowerShell", "woff-watchdog --version", "future schema", "database is locked", "Backup de migração criado:", "Migração falhou. Restauração automática concluída a partir de:", "Migração falhou e a restauração automática também falhou. Backup preservado em:", "unknown WoFF format"):
+    for item in ("PowerShell", "woff-watchdog --version", "future schema", "database is locked", "Backup de migração criado:", "Migração falhou. Restauração automática concluída a partir de:", "Migração falhou e a restauração automática também falhou. Backup preservado em:", "Migração falhou e o backup de migração registrado está indisponível em:", "unknown WoFF format"):
         assert item in guide
     for prohibited in ("config.json", "SQLite databases", "migration backups", "complete PilotLog records", "pilot notes", "mission narratives"):
         assert prohibited in guide

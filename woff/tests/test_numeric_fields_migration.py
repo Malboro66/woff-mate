@@ -5,7 +5,11 @@ from pathlib import Path
 
 import pytest
 
-from woff.database import DatabaseManager, SchemaCompatibilityError
+from woff.database import (
+    DatabaseManager,
+    MigrationBackupUnavailableError,
+    SchemaCompatibilityError,
+)
 from woff.models import WoFFMission, WoFFPilot, WoFFWingman
 from woff.rpg_system import RPGSystem
 
@@ -336,9 +340,14 @@ def test_missing_backup_does_not_report_successful_restore(tmp_path, monkeypatch
 
     monkeypatch.setattr(DatabaseManager, "_migrate_numeric_column_types", remove_backup_then_fail)
     with caplog.at_level(logging.INFO, logger="WoFFWatch"):
-        with pytest.raises(RuntimeError, match="backup disappeared"):
+        with pytest.raises(
+            MigrationBackupUnavailableError,
+            match="backup de migração registrado está indisponível",
+        ):
             DatabaseManager(str(db_path))
+    assert "Migração falhou e o backup de migração registrado está indisponível em:" in caplog.text
     assert "Restauração automática concluída" not in caplog.text
+    assert "Backup preservado em:" not in caplog.text
 
 
 @pytest.mark.parametrize(
