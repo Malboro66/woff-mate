@@ -500,3 +500,42 @@ def test_database_migration_guide_documents_versioning_backup_and_recovery_contr
     assert "safety directory" in guide
     assert "restore the original files" in guide
     assert "successful reopening" in guide
+
+
+def test_user_guides_exist_and_readme_links_to_each_guide():
+    root = Path(__file__).parents[2]
+    readme = (root / "README.md").read_text(encoding="utf-8")
+    for name in ("compatibility.md", "database-migrations.md", "troubleshooting.md"):
+        assert (root / "docs" / name).is_file()
+        assert f"docs/{name}" in readme
+
+
+def test_readme_and_guides_preserve_the_approved_compatibility_contract():
+    root = Path(__file__).parents[2]
+    readme = (root / "README.md").read_text(encoding="utf-8")
+    compatibility = (root / "docs" / "compatibility.md").read_text(encoding="utf-8")
+    migrations = (root / "docs" / "database-migrations.md").read_text(encoding="utf-8")
+    assert "Python da versão 3.10 até a 3.14" in readme
+    assert "Windows 10 de 64 bits" in readme and "Windows 11 de 64 bits" in readme
+    assert "WOFF BH&H II" in readme and "amostras sanitizadas" in readme
+    assert "versão exata do WoFF ainda não foi confirmada" in readme
+    assert "Python 3.10 through 3.14" in compatibility
+    assert f"Current schema: `{SCHEMA_VERSION}`" in migrations
+
+
+def test_troubleshooting_guide_covers_safe_diagnostics_and_recovery_messages():
+    root = Path(__file__).parents[2]
+    guide = (root / "docs" / "troubleshooting.md").read_text(encoding="utf-8")
+    for item in ("PowerShell", "woff-watchdog --version", "future schema", "database is locked", "Backup de migração criado:", "Migração falhou. Restauração automática concluída a partir de:", "Migração falhou e a restauração automática também falhou. Backup preservado em:", "unknown WoFF format"):
+        assert item in guide
+    for prohibited in ("config.json", "SQLite databases", "migration backups", "complete PilotLog records", "pilot notes", "mission narratives"):
+        assert prohibited in guide
+
+
+def test_documentation_examples_do_not_contain_personal_home_paths():
+    root = Path(__file__).parents[2]
+    documents = [root / "README.md", *sorted((root / "docs").glob("*.md"))]
+    for document in documents:
+        contents = document.read_text(encoding="utf-8")
+        for personal_root in ("C:\\Users", "/Users/", "/home/", "/root/"):
+            assert personal_root not in contents, f"{personal_root} in {document}"
