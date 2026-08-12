@@ -20,7 +20,7 @@ The application persists the new schema version in the same transaction as the s
 
 Before changing a supported existing database, WoFF Mate creates a consistent SQLite backup under `.woff-migration-backups/`, beside the active database. Its filename follows `<database>.YYYYMMDDHHMMSS[.<counter>].backup.sqlite`; for example, `.woff-migration-backups/woff.sqlite.20260812120000.backup.sqlite`. A numeric counter is added on collision, ensuring unique names without overwriting an earlier backup.
 
-The backup uses SQLite `Connection.backup()`, not a live-file copy. WoFF Mate verifies `PRAGMA integrity_check`, closes both connections, and synchronizes the directory before reporting:
+The backup uses SQLite `Connection.backup()`, not a live-file copy. The success message is emitted only after `Connection.backup()` completes, `PRAGMA integrity_check` succeeds, and both SQLite connections close. Directory `fsync` is also performed before the message only on platforms where the implementation supports it. Windows does not receive the same directory-`fsync` durability barrier.
 
 ```text
 Backup de migração criado: <sanitized backup path>
@@ -77,29 +77,33 @@ Use this only after automatic recovery failed or under support guidance. These n
    }
    ```
 
-3. Select and validate a preserved backup before replacing anything. The check must print `ok`:
+3. Restore the preserved backup into a uniquely named staging database inside the safety directory. The Python command opens the backup itself in read-only URI mode, copies it into staging, and requires `PRAGMA integrity_check` to return exactly `ok` and `PRAGMA foreign_key_check` to return no rows. It exits nonzero if opening, copying, or validation fails, without changing the active database or its sidecars:
 
    ```powershell
    $Backup = Join-Path $Data '.woff-migration-backups\woff.sqlite.20260812120000.backup.sqlite'
-   if (-not (Test-Path -LiteralPath $Backup -PathType Leaf)) {
-     throw 'Migration backup not found'
+   $Staging = Join-Path $Safety ('restored-' + [guid]::NewGuid().ToString('N') + '.sqlite')
+   python -c "import sqlite3,sys; from pathlib import Path; u=Path(sys.argv[1]).resolve().as_uri()+'?mode=ro'; s=sqlite3.connect(u,uri=True); d=sqlite3.connect(sys.argv[2]); s.backup(d); integrity=d.execute('PRAGMA integrity_check').fetchone(); foreign_keys=d.execute('PRAGMA foreign_key_check').fetchall(); d.close(); s.close(); raise SystemExit(0 if integrity == ('ok',) and foreign_keys == [] else 1)" $Backup $Staging
+   if ($LASTEXITCODE -ne 0) {
+     throw 'Backup staging or validation failed; active database was not changed'
    }
-   python -c "import sqlite3,sys; from pathlib import Path; u=Path(sys.argv[1]).resolve().as_uri()+'?mode=ro'; c=sqlite3.connect(u,uri=True); print(c.execute('PRAGMA integrity_check').fetchone()[0]); c.close()" $Backup
    ```
 
-4. Only after the safety copy and validation, remove the offline database and sidecars, then restore through SQLite's backup API:
+4. Only after the safety copy and staging validation succeed, remove the offline active database and sidecars, then move the validated staging database into place:
 
    ```powershell
    @($Database, "$Database-wal", "$Database-shm", "$Database-journal") |
      Where-Object { Test-Path -LiteralPath $_ -PathType Leaf } |
      ForEach-Object { Remove-Item -LiteralPath $_ -ErrorAction Stop }
-   python -c "import sqlite3,sys; s=sqlite3.connect(sys.argv[1]); d=sqlite3.connect(sys.argv[2]); s.backup(d); d.close(); s.close()" $Backup $Database
+   Move-Item -LiteralPath $Staging -Destination $Database -ErrorAction Stop
    ```
 
-5. Validate the restored database. The results must be `ok` and no foreign-key rows:
+5. Validate the installed database again. The Python command exits nonzero unless the result is exactly `ok` with no foreign-key rows:
 
    ```powershell
-   python -c "import sqlite3,sys; c=sqlite3.connect(sys.argv[1]); print(c.execute('PRAGMA integrity_check').fetchone()[0]); print(c.execute('PRAGMA foreign_key_check').fetchall()); c.close()" $Database
+   python -c "import sqlite3,sys; c=sqlite3.connect(sys.argv[1]); integrity=c.execute('PRAGMA integrity_check').fetchone(); foreign_keys=c.execute('PRAGMA foreign_key_check').fetchall(); c.close(); raise SystemExit(0 if integrity == ('ok',) and foreign_keys == [] else 1)" $Database
+   if ($LASTEXITCODE -ne 0) {
+     throw 'Installed database validation failed'
+   }
    ```
 
 6. Reopen WoFF Mate and verify the expected campaign information. Keep both the migration backup and safety copy until validation and successful reopening are complete.

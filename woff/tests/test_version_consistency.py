@@ -496,8 +496,13 @@ def test_database_migration_guide_documents_versioning_backup_and_recovery_contr
     for message in ("Backup de migração criado:", "Migração falhou. Restauração automática concluída a partir de:", "Migração falhou e a restauração automática também falhou. Backup preservado em:", "Migração falhou e o backup de migração registrado está indisponível em:"):
         assert message in guide
     assert "PowerShell" in guide and "C:\\WoFFMate\\data" in guide
-    assert "Test-Path -LiteralPath $Backup -PathType Leaf" in guide
     assert "mode=ro" in guide and "uri=True" in guide
+    assert "Directory `fsync`" in guide
+    assert "`Connection.backup()` completes" in guide
+    assert "`PRAGMA integrity_check` succeeds" in guide
+    assert "both SQLite connections close" in guide
+    assert "only on platforms where the implementation supports it" in guide
+    assert "Windows does not receive the same directory-`fsync` durability barrier" in guide
     assert "$ErrorActionPreference = 'Stop'" in guide
     assert "Test-Path -LiteralPath $Database -PathType Leaf" in guide
     assert "New-Item -ItemType Directory -Path $Safety -ErrorAction Stop" in guide
@@ -505,6 +510,16 @@ def test_database_migration_guide_documents_versioning_backup_and_recovery_contr
     assert "Get-FileHash -LiteralPath $Source -Algorithm SHA256" in guide
     assert "Get-FileHash -LiteralPath $Destination -Algorithm SHA256" in guide
     assert "Remove-Item -LiteralPath $_ -ErrorAction Stop" in guide
+    assert "[guid]::NewGuid()" in guide
+    assert "s.backup(d)" in guide
+    assert "integrity == ('ok',)" in guide
+    assert "foreign_keys == []" in guide
+    assert "$LASTEXITCODE -ne 0" in guide
+    assert guide.count("$LASTEXITCODE -ne 0") == guide.count("python -c")
+    assert "Move-Item -LiteralPath $Staging -Destination $Database -ErrorAction Stop" in guide
+    staging_validation = guide.index("integrity == ('ok',) and foreign_keys == []")
+    destructive_step = guide.index("Remove-Item -LiteralPath $_ -ErrorAction Stop")
+    assert staging_validation < destructive_step
     assert "Close every WoFF Mate process" in guide
     for sidecar in ("-wal", "-shm", "-journal"):
         assert sidecar in guide
