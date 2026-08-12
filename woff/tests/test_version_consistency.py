@@ -497,12 +497,13 @@ def test_database_migration_guide_documents_versioning_backup_and_recovery_contr
         assert message in guide
     assert "PowerShell" in guide and "C:\\WoFFMate\\data" in guide
     assert "mode=ro" in guide and "uri=True" in guide
-    assert "Directory `fsync`" in guide
+    assert "Directory synchronization is requested through `_fsync_directory()`" in guide
     assert "`Connection.backup()` completes" in guide
     assert "`PRAGMA integrity_check` succeeds" in guide
     assert "both SQLite connections close" in guide
-    assert "only on platforms where the implementation supports it" in guide
-    assert "Windows does not receive the same directory-`fsync` durability barrier" in guide
+    assert "only on platforms supported by that implementation" in guide
+    assert "Windows does not receive the same directory-`fsync` guarantee" in guide
+    assert "does not guarantee that the file will survive a sudden power loss" in guide
     assert "$ErrorActionPreference = 'Stop'" in guide
     assert "Test-Path -LiteralPath $Database -PathType Leaf" in guide
     assert "New-Item -ItemType Directory -Path $Safety -ErrorAction Stop" in guide
@@ -511,13 +512,22 @@ def test_database_migration_guide_documents_versioning_backup_and_recovery_contr
     assert "Get-FileHash -LiteralPath $Destination -Algorithm SHA256" in guide
     assert "Remove-Item -LiteralPath $_ -ErrorAction Stop" in guide
     assert "[guid]::NewGuid()" in guide
-    assert "s.backup(d)" in guide
-    assert "integrity == ('ok',)" in guide
-    assert "foreign_keys == []" in guide
+    assert "$Staging = Join-Path $Data" in guide
+    assert "source_uri = Path(sys.argv[1]).resolve().as_uri() + '?mode=ro'" in guide
+    assert "source = sqlite3.connect(source_uri, uri=True)" in guide
+    assert "source.backup(staging)" in guide
+    assert "integrity != ('ok',)" in guide
+    assert "foreign_keys != []" in guide
     assert "$LASTEXITCODE -ne 0" in guide
     assert guide.count("$LASTEXITCODE -ne 0") == guide.count("python -c")
     assert "Move-Item -LiteralPath $Staging -Destination $Database -ErrorAction Stop" in guide
-    staging_validation = guide.index("integrity == ('ok',) and foreign_keys == []")
+    assert "Remove-Item -LiteralPath $Staging -ErrorAction Stop" in guide
+    source_open = guide.index("source = sqlite3.connect(source_uri, uri=True)")
+    active_removal = guide.index("Remove-Item -LiteralPath $_ -ErrorAction Stop")
+    assert source_open < active_removal
+    staging_validation = guide.index("foreign_keys != []")
+    source_close = guide.index("source.close()")
+    assert staging_validation < source_close < active_removal
     destructive_step = guide.index("Remove-Item -LiteralPath $_ -ErrorAction Stop")
     assert staging_validation < destructive_step
     assert "Close every WoFF Mate process" in guide
@@ -558,6 +568,8 @@ def test_troubleshooting_guide_covers_safe_diagnostics_and_recovery_messages():
     guide = (root / "docs" / "troubleshooting.md").read_text(encoding="utf-8")
     for item in ("PowerShell", "woff-watchdog --version", "future schema", "database is locked", "Backup de migração criado:", "Migração falhou. Restauração automática concluída a partir de:", "Migração falhou e a restauração automática também falhou. Backup preservado em:", "Migração falhou e o backup de migração registrado está indisponível em:", "unknown WoFF format"):
         assert item in guide
+    assert "does not include a directory-`fsync` guarantee" in guide
+    assert "does not guarantee survival after sudden power loss" in guide
     for prohibited in ("config.json", "SQLite databases", "migration backups", "complete PilotLog records", "pilot notes", "mission narratives"):
         assert prohibited in guide
 

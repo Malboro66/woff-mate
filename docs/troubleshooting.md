@@ -26,7 +26,8 @@ Close WoFF Mate, SQLite viewers, backup programs, and every process that could h
 
 ### Migration and restoration
 
-A validated backup was created when you see:
+A validated backup was created when you see the following message. On Windows,
+this does not include a directory-`fsync` guarantee and does not guarantee survival after sudden power loss:
 
 ```text
 Backup de migração criado: <sanitized backup path>

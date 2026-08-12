@@ -20,7 +20,7 @@ The application persists the new schema version in the same transaction as the s
 
 Before changing a supported existing database, WoFF Mate creates a consistent SQLite backup under `.woff-migration-backups/`, beside the active database. Its filename follows `<database>.YYYYMMDDHHMMSS[.<counter>].backup.sqlite`; for example, `.woff-migration-backups/woff.sqlite.20260812120000.backup.sqlite`. A numeric counter is added on collision, ensuring unique names without overwriting an earlier backup.
 
-The backup uses SQLite `Connection.backup()`, not a live-file copy. The success message is emitted only after `Connection.backup()` completes, `PRAGMA integrity_check` succeeds, and both SQLite connections close. Directory `fsync` is also performed before the message only on platforms where the implementation supports it. Windows does not receive the same directory-`fsync` durability barrier.
+The backup uses SQLite `Connection.backup()`, not a live-file copy. The success message is emitted only after `Connection.backup()` completes, `PRAGMA integrity_check` succeeds, and both SQLite connections close. Directory synchronization is requested through `_fsync_directory()` only on platforms supported by that implementation. Windows does not receive the same directory-`fsync` guarantee. The message confirms a validated backup; it does not guarantee that the file will survive a sudden power loss.
 
 ```text
 Backup de migração criado: <sanitized backup path>
@@ -77,13 +77,37 @@ Use this only after automatic recovery failed or under support guidance. These n
    }
    ```
 
-3. Restore the preserved backup into a uniquely named staging database inside the safety directory. The Python command opens the backup itself in read-only URI mode, copies it into staging, and requires `PRAGMA integrity_check` to return exactly `ok` and `PRAGMA foreign_key_check` to return no rows. It exits nonzero if opening, copying, or validation fails, without changing the active database or its sidecars:
+3. Restore the preserved backup into a uniquely named temporary database in the same directory as the active database. The Python command opens and validates the backup source first through an absolute, read-only URI, keeps that source connection open throughout restoration, and validates the temporary database. Both `PRAGMA integrity_check` calls must return exactly `ok`, and `PRAGMA foreign_key_check` must return no rows. It exits nonzero if opening, copying, or validation fails, without opening or changing the active database or its sidecars:
 
    ```powershell
    $Backup = Join-Path $Data '.woff-migration-backups\woff.sqlite.20260812120000.backup.sqlite'
-   $Staging = Join-Path $Safety ('restored-' + [guid]::NewGuid().ToString('N') + '.sqlite')
-   python -c "import sqlite3,sys; from pathlib import Path; u=Path(sys.argv[1]).resolve().as_uri()+'?mode=ro'; s=sqlite3.connect(u,uri=True); d=sqlite3.connect(sys.argv[2]); s.backup(d); integrity=d.execute('PRAGMA integrity_check').fetchone(); foreign_keys=d.execute('PRAGMA foreign_key_check').fetchall(); d.close(); s.close(); raise SystemExit(0 if integrity == ('ok',) and foreign_keys == [] else 1)" $Backup $Staging
+   $Staging = Join-Path $Data ('.woff-restore-' + [guid]::NewGuid().ToString('N') + '.sqlite')
+   $RestoreScript = @'
+   import sqlite3, sys
+   from pathlib import Path
+
+   source_uri = Path(sys.argv[1]).resolve().as_uri() + '?mode=ro'
+   source = sqlite3.connect(source_uri, uri=True)
+   try:
+       if source.execute('PRAGMA integrity_check').fetchone() != ('ok',):
+           raise RuntimeError('Migration backup integrity check failed')
+       staging = sqlite3.connect(sys.argv[2])
+       try:
+           source.backup(staging)
+           integrity = staging.execute('PRAGMA integrity_check').fetchone()
+           foreign_keys = staging.execute('PRAGMA foreign_key_check').fetchall()
+           if integrity != ('ok',) or foreign_keys != []:
+               raise RuntimeError('Staging database validation failed')
+       finally:
+           staging.close()
+   finally:
+       source.close()
+   '@
+   python -c $RestoreScript $Backup $Staging
    if ($LASTEXITCODE -ne 0) {
+     if (Test-Path -LiteralPath $Staging -PathType Leaf) {
+       Remove-Item -LiteralPath $Staging -ErrorAction Stop
+     }
      throw 'Backup staging or validation failed; active database was not changed'
    }
    ```
