@@ -451,3 +451,27 @@ def test_package_cli_config_example_and_version_consumers_are_consistent():
     assert 'version = {attr = "woff.version.__version__"}' in pyproject
     assert 'runpy.run_path(str(Path(SPECPATH) / "woff" / "version.py"))' in build_spec
     assert "from woff" not in build_spec
+
+
+def test_compatibility_guide_documents_approved_support_contract():
+    root = Path(__file__).parents[2]
+    guide = (root / "docs" / "compatibility.md").read_text(encoding="utf-8")
+    for status in ("Supported", "Automatically validated", "Verified by sanitized samples", "Unconfirmed"):
+        assert status in guide
+    assert "Windows 10 64-bit" in guide
+    assert "Windows 11 64-bit" in guide
+    assert "Python 3.10 through 3.14" in guide
+    assert "Linux" in guide and "Python 3.10 and 3.14" in guide
+    assert "windows-latest" in guide and "Python 3.10" in guide
+    assert "WOFF BH&H II" in guide
+    assert "sanitized samples and regression fixtures" in guide
+    assert "exact WoFF build is unconfirmed" in guide
+
+
+def test_compatibility_guide_defines_safe_report_contents_and_prohibited_data():
+    root = Path(__file__).parents[2]
+    guide = (root / "docs" / "compatibility.md").read_text(encoding="utf-8")
+    for safe_item in ("Windows version and architecture", "Python version", "WoFF Mate version", "exact command", "sanitized error message", "sanitized input structure"):
+        assert safe_item in guide
+    for prohibited_item in ("config.json", "SQLite databases", "PilotLog records", "mission notes", "narratives", "personal paths"):
+        assert prohibited_item in guide
