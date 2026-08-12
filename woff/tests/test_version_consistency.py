@@ -475,3 +475,28 @@ def test_compatibility_guide_defines_safe_report_contents_and_prohibited_data():
         assert safe_item in guide
     for prohibited_item in ("config.json", "SQLite databases", "PilotLog records", "mission notes", "narratives", "personal paths"):
         assert prohibited_item in guide
+
+
+def test_database_migration_guide_documents_versioning_backup_and_recovery_contract():
+    root = Path(__file__).parents[2]
+    guide = (root / "docs" / "database-migrations.md").read_text(encoding="utf-8")
+    assert f"Current schema: `{SCHEMA_VERSION}`" in guide
+    assert "MAJOR.MINOR" in guide
+    assert "MINOR" in guide and "compatible automatic migrations" in guide
+    assert "MAJOR" in guide and "manual intervention" in guide
+    assert "same transaction" in guide and "future schema" in guide
+    for action in ("DDL", "backup", "downgrade", "sidecar"):
+        assert action in guide
+    for item in (".woff-migration-backups/", "<database>.YYYYMMDDHHMMSS[.<counter>].backup.sqlite", "Connection.backup()", "PRAGMA integrity_check", "without overwriting", "never deletes migration backups automatically"):
+        assert item in guide
+    for message in ("Backup de migração criado:", "Migração falhou. Restauração automática concluída a partir de:", "Migração falhou e a restauração automática também falhou. Backup preservado em:"):
+        assert message in guide
+    assert "PowerShell" in guide and "C:\\WoFFMate\\data" in guide
+    assert "Test-Path -LiteralPath $Backup -PathType Leaf" in guide
+    assert "mode=ro" in guide and "uri=True" in guide
+    assert "Close every WoFF Mate process" in guide
+    for sidecar in ("-wal", "-shm", "-journal"):
+        assert sidecar in guide
+    assert "safety directory" in guide
+    assert "restore the original files" in guide
+    assert "successful reopening" in guide
