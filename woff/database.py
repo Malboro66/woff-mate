@@ -21,7 +21,7 @@ import time
 import threading
 from datetime import datetime
 from pathlib import Path
-from typing import Optional, List, Any, Dict, Tuple
+from typing import Optional, List, Any, Dict, NoReturn, Tuple
 
 from .models import WoFFPilot, WoFFMission, WoFFVictory, WoFFDecoration, WoFFWingman
 from .repositories import PilotRepository, MissionRepository, RpgRepository, WingmanRepository
@@ -36,6 +36,10 @@ class UnsupportedSchemaVersion(RuntimeError):
 
 class SchemaCompatibilityError(RuntimeError):
     """Raised when a database layout cannot be safely certified or migrated."""
+
+
+class MigrationBackupUnavailableError(RuntimeError):
+    """Raised when a recorded migration backup disappears before restoration."""
 
 
 def _version_tuple(version: str) -> Tuple[int, ...]:
@@ -126,7 +130,17 @@ class DatabaseManager:
             try:
                 self._migrate_schema()
             except Exception:
-                self._restore_migration_backup()
+                try:
+                    self._restore_migration_backup()
+                except Exception as restore_error:
+                    if self._migration_backup_path is not None:
+                        if not isinstance(restore_error, MigrationBackupUnavailableError):
+                            log.error(
+                                "Migração falhou e a restauração automática também falhou. "
+                                "Backup preservado em: %s",
+                                self._migration_backup_path,
+                            )
+                    raise
                 raise
 
         self._pilots = PilotRepository(self)
@@ -414,6 +428,7 @@ class DatabaseManager:
             dest.close()
             source.close()
         self._fsync_directory(backup_dir)
+        log.info("Backup de migração criado: %s", backup_path)
         return backup_path
 
     def _run_sqlite_backup(self, source: sqlite3.Connection, dest: sqlite3.Connection) -> None:
@@ -422,11 +437,17 @@ class DatabaseManager:
     def _restore_migration_backup(self) -> None:
         """Restaura backup via API SQLite sem mover arquivos de conexões abertas."""
         backup_path = getattr(self, "_migration_backup_path", None)
-        if backup_path is None or not backup_path.exists():
+        if backup_path is None:
             return
+        if not backup_path.exists():
+            self._raise_migration_backup_unavailable(backup_path)
 
         self.close()
-        source = sqlite3.connect(backup_path)
+        source_uri = f"{backup_path.resolve().as_uri()}?mode=ro"
+        try:
+            source = sqlite3.connect(source_uri, uri=True)
+        except sqlite3.Error as exc:
+            self._raise_migration_backup_unavailable(backup_path, exc)
         dest = sqlite3.connect(self.db_path, timeout=0)
         try:
             mode = dest.execute("PRAGMA locking_mode=EXCLUSIVE").fetchone()
@@ -441,6 +462,24 @@ class DatabaseManager:
             dest.close()
             source.close()
         self._fsync_directory(self.db_path.parent)
+        log.error(
+            "Migração falhou. Restauração automática concluída a partir de: %s",
+            backup_path,
+        )
+
+    @staticmethod
+    def _raise_migration_backup_unavailable(
+        backup_path: Path, cause: Optional[BaseException] = None
+    ) -> NoReturn:
+        message = (
+            "Migração falhou e o backup de migração registrado está indisponível em: "
+            f"{backup_path}"
+        )
+        log.error(message)
+        error = MigrationBackupUnavailableError(message)
+        if cause is None:
+            raise error
+        raise error from cause
 
     def _unique_sidecar_path(self, path: Path, label: str) -> Path:
         counter = 0
