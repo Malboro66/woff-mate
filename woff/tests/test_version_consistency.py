@@ -538,6 +538,40 @@ def test_database_migration_guide_documents_versioning_backup_and_recovery_contr
     assert "successful reopening" in guide
 
 
+def test_documented_installed_database_validation_is_read_only_and_fail_closed(tmp_path):
+    root = Path(__file__).parents[2]
+    guide = (root / "docs" / "database-migrations.md").read_text(encoding="utf-8")
+    final_step = guide.split("5. Validate the installed database again", 1)[1]
+    validation = final_step.split("$ValidationScript = @'", 1)[1].split("'@", 1)[0]
+    validation = "\n".join(
+        line.removeprefix("   ") for line in validation.strip("\n").splitlines()
+    )
+
+    assert "Test-Path -LiteralPath $Database -PathType Leaf" in final_step
+    assert "Path(sys.argv[1]).resolve().as_uri() + '?mode=ro'" in validation
+    assert "sqlite3.connect(database_uri, uri=True)" in validation
+    assert "immutable" not in validation
+    assert "sqlite3.connect(sys.argv[1])" not in validation
+
+    missing = tmp_path / "missing.sqlite"
+    result = subprocess.run([sys.executable, "-c", validation, str(missing)])
+    assert result.returncode != 0
+    assert not missing.exists()
+
+    valid = tmp_path / "valid.sqlite"
+    with sqlite3.connect(valid) as conn:
+        conn.execute("CREATE TABLE parent (id INTEGER PRIMARY KEY)")
+    result = subprocess.run([sys.executable, "-c", validation, str(valid)])
+    assert result.returncode == 0
+
+    invalid = tmp_path / "invalid.sqlite"
+    invalid.write_bytes(b"not a sqlite database")
+    before = invalid.read_bytes()
+    result = subprocess.run([sys.executable, "-c", validation, str(invalid)])
+    assert result.returncode != 0
+    assert invalid.read_bytes() == before
+
+
 def test_user_guides_exist_and_readme_links_to_each_guide():
     root = Path(__file__).parents[2]
     readme = (root / "README.md").read_text(encoding="utf-8")

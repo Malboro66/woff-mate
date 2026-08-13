@@ -121,10 +121,27 @@ Use this only after automatic recovery failed or under support guidance. These n
    Move-Item -LiteralPath $Staging -Destination $Database -ErrorAction Stop
    ```
 
-5. Validate the installed database again. The Python command exits nonzero unless the result is exactly `ok` with no foreign-key rows:
+5. Validate the installed database again through an absolute, read-only URI. The command cannot create a missing database and exits nonzero if the database is missing, unreadable, invalid, or does not return exactly `ok` with no foreign-key rows:
 
    ```powershell
-   python -c "import sqlite3,sys; c=sqlite3.connect(sys.argv[1]); integrity=c.execute('PRAGMA integrity_check').fetchone(); foreign_keys=c.execute('PRAGMA foreign_key_check').fetchall(); c.close(); raise SystemExit(0 if integrity == ('ok',) and foreign_keys == [] else 1)" $Database
+   if (-not (Test-Path -LiteralPath $Database -PathType Leaf)) {
+     throw 'Installed database not found'
+   }
+   $ValidationScript = @'
+   import sqlite3, sys
+   from pathlib import Path
+
+   database_uri = Path(sys.argv[1]).resolve().as_uri() + '?mode=ro'
+   database = sqlite3.connect(database_uri, uri=True)
+   try:
+       integrity = database.execute('PRAGMA integrity_check').fetchone()
+       foreign_keys = database.execute('PRAGMA foreign_key_check').fetchall()
+       if integrity != ('ok',) or foreign_keys != []:
+           raise RuntimeError('Installed database validation failed')
+   finally:
+       database.close()
+   '@
+   python -c $ValidationScript $Database
    if ($LASTEXITCODE -ne 0) {
      throw 'Installed database validation failed'
    }
@@ -133,3 +150,4 @@ Use this only after automatic recovery failed or under support guidance. These n
 6. Reopen WoFF Mate and verify the expected campaign information. Keep both the migration backup and safety copy until validation and successful reopening are complete.
 
 If any recovery step fails, close every process again, preserve the failed result separately, and restore the original files (database, WAL, SHM, and journal) from the safety directory. Keep both the backup and safety copy until recovery and reopening succeed.
+
