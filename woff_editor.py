@@ -45,49 +45,63 @@ def export_diary_to_file(conn, pilot_name: str, filepath: str):
             f.write("=" * 60 + "\n")
 
 def import_diary_from_file(conn, filepath: str, pilot_id: str):
+    """Replace one pilot's diary using a transaction owned by this function.
+
+    The supplied connection must not have an active transaction. This function
+    starts, commits, or rolls back its complete import transaction itself.
+    """
+    if conn.in_transaction:
+        raise ValueError("Diary import requires a connection without an active transaction")
+
     with open(filepath, "r", encoding="utf-8") as f:
         content = f.read()
-    
-    # Extrair blocos
-    blocks = content.split("=" * 60)[1:] # Ignora o cabeçalho inicial
 
     imported_entries = []
-    for block in blocks:
+    parsed_ids = set()
+    blocks = content.split("=" * 60)[1:] # Ignora o cabeçalho inicial
+    for block_number, block in enumerate(blocks, start=1):
         block = block.strip()
-        if not block: continue
-        
-        lines = block.split("\n")
-        entry_id = None
-        entry_date = ""
-        narrative_lines = []
-        parsing_narrative = False
-        
-        for line in lines:
-            if line.startswith("=== ID:"):
-                entry_id = line.replace("=== ID:", "").replace("===", "").strip()
-                parsing_narrative = False
-            elif line.startswith("DATA:"):
-                entry_date = line.replace("DATA:", "").strip()
-                parsing_narrative = True
-            elif parsing_narrative:
-                narrative_lines.append(line)
-                
-        if entry_id and entry_date is not None:
-            narrative = "\n".join(narrative_lines).strip()
-            if narrative: # Não importar entradas vazias (apagadas pelo utilizador)
-                imported_entries.append((entry_id, entry_date, narrative))
+        if not block:
+            continue
 
-    imported_ids = {entry[0] for entry in imported_entries}
+        lines = block.split("\n")
+        id_line = lines[0]
+        if not id_line.startswith("=== ID:") or not id_line.endswith("==="):
+            raise ValueError(f"Diary block {block_number} is missing a valid ID field")
+        entry_id = id_line[len("=== ID:"):-len("===")].strip()
+        if not entry_id:
+            raise ValueError(f"Diary block {block_number} has an empty ID field")
+        if len(lines) < 2 or not lines[1].startswith("DATA:"):
+            raise ValueError(f"Diary block {block_number} is missing a DATA field")
+        entry_date = lines[1][len("DATA:"):].strip()
+        if not entry_date:
+            raise ValueError(f"Diary block {block_number} has an empty DATA field")
+        if entry_id in parsed_ids:
+            raise ValueError(f"Duplicate diary entry ID: {entry_id}")
+        parsed_ids.add(entry_id)
+        narrative = "\n".join(lines[2:]).strip()
+        imported_entries.append((entry_id, entry_date, narrative))
+
+    imported_ids = {entry[0] for entry in imported_entries if entry[2]}
     cursor = conn.cursor()
     owners = []
+    transaction_started = False
     try:
         cursor.execute("BEGIN IMMEDIATE")
+        transaction_started = True
 
-        if imported_ids:
-            placeholders = ",".join("?" for _ in imported_ids)
+        pilot_exists = cursor.execute(
+            "SELECT 1 FROM pilots WHERE id = ?",
+            (pilot_id,),
+        ).fetchone()
+        if pilot_exists is None:
+            raise ValueError(f"Selected pilot {pilot_id} no longer exists")
+
+        if parsed_ids:
+            placeholders = ",".join("?" for _ in parsed_ids)
             owners = cursor.execute(
                 f"SELECT id, pilotId FROM diary_entries WHERE id IN ({placeholders})",
-                tuple(imported_ids),
+                tuple(parsed_ids),
             ).fetchall()
             foreign_ids = [row[0] for row in owners if row[1] != pilot_id]
             if foreign_ids:
@@ -97,6 +111,8 @@ def import_diary_from_file(conn, filepath: str, pilot_id: str):
 
         existing_ids = {row[0] for row in owners} if imported_ids else set()
         for entry_id, entry_date, narrative in imported_entries:
+            if not narrative:
+                continue
             if entry_id in existing_ids:
                 cursor.execute(
                     """
@@ -129,7 +145,8 @@ def import_diary_from_file(conn, filepath: str, pilot_id: str):
             )
         conn.commit()
     except Exception:
-        conn.rollback()
+        if transaction_started:
+            conn.rollback()
         raise
 
 def open_editor(filepath: str):
