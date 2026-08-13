@@ -44,17 +44,14 @@ def export_diary_to_file(conn, pilot_name: str, filepath: str):
             f.write(f"{entry['narrative']}\n")
             f.write("=" * 60 + "\n")
 
-def import_diary_from_file(conn, filepath: str):
+def import_diary_from_file(conn, filepath: str, pilot_id: str):
     with open(filepath, "r", encoding="utf-8") as f:
         content = f.read()
     
-    # Apagar todas as entradas existentes (serão substituídas pelas do ficheiro)
-    cursor = conn.cursor()
-    
     # Extrair blocos
     blocks = content.split("=" * 60)[1:] # Ignora o cabeçalho inicial
-    
-    imported_ids = set()
+
+    imported_entries = []
     for block in blocks:
         block = block.strip()
         if not block: continue
@@ -78,19 +75,62 @@ def import_diary_from_file(conn, filepath: str):
         if entry_id and entry_date is not None:
             narrative = "\n".join(narrative_lines).strip()
             if narrative: # Não importar entradas vazias (apagadas pelo utilizador)
-                imported_ids.add(entry_id)
-                # UPSERT: Atualiza se existir, insere se for novo
-                cursor.execute("""
-                    INSERT INTO diary_entries (id, pilotId, missionId, entry_date, narrative)
-                    VALUES (?, (SELECT id FROM pilots LIMIT 1), NULL, ?, ?)
-                    ON CONFLICT(id) DO UPDATE SET 
-                        entry_date=excluded.entry_date, 
-                        narrative=excluded.narrative
-                """, (entry_id, entry_date, narrative))
+                imported_entries.append((entry_id, entry_date, narrative))
 
-    # Apagar entradas que estavam na DB mas não foram importadas (ou seja, o utilizador apagou-as)
-    cursor.execute("DELETE FROM diary_entries WHERE id NOT IN ({})".format(",".join("?" * len(imported_ids))), tuple(imported_ids))
-    conn.commit()
+    imported_ids = {entry[0] for entry in imported_entries}
+    cursor = conn.cursor()
+    owners = []
+    try:
+        cursor.execute("BEGIN IMMEDIATE")
+
+        if imported_ids:
+            placeholders = ",".join("?" for _ in imported_ids)
+            owners = cursor.execute(
+                f"SELECT id, pilotId FROM diary_entries WHERE id IN ({placeholders})",
+                tuple(imported_ids),
+            ).fetchall()
+            foreign_ids = [row[0] for row in owners if row[1] != pilot_id]
+            if foreign_ids:
+                raise ValueError(
+                    f"Diary entry ID {foreign_ids[0]} does not belong to the selected pilot"
+                )
+
+        existing_ids = {row[0] for row in owners} if imported_ids else set()
+        for entry_id, entry_date, narrative in imported_entries:
+            if entry_id in existing_ids:
+                cursor.execute(
+                    """
+                    UPDATE diary_entries
+                    SET entry_date = ?, narrative = ?
+                    WHERE id = ? AND pilotId = ?
+                    """,
+                    (entry_date, narrative, entry_id, pilot_id),
+                )
+            else:
+                cursor.execute(
+                    """
+                    INSERT INTO diary_entries
+                        (id, pilotId, missionId, entry_date, narrative)
+                    VALUES (?, ?, NULL, ?, ?)
+                    """,
+                    (entry_id, pilot_id, entry_date, narrative),
+                )
+
+        if imported_ids:
+            placeholders = ",".join("?" for _ in imported_ids)
+            cursor.execute(
+                f"DELETE FROM diary_entries WHERE pilotId = ? AND id NOT IN ({placeholders})",
+                (pilot_id, *imported_ids),
+            )
+        else:
+            cursor.execute(
+                "DELETE FROM diary_entries WHERE pilotId = ?",
+                (pilot_id,),
+            )
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
 
 def open_editor(filepath: str):
     system = platform.system()
@@ -122,7 +162,8 @@ def main():
 
     # Verificar se o piloto existe
     cursor = conn.execute("SELECT id FROM pilots WHERE name = ?", (args.pilot,))
-    if not cursor.fetchone():
+    pilot = cursor.fetchone()
+    if not pilot:
         print(f"[ERRO] Piloto '{args.pilot}' não encontrado.")
         sys.exit(1)
 
@@ -138,7 +179,7 @@ def main():
         open_editor(tmp_path)
         
         print("A importar alterações do ficheiro...")
-        import_diary_from_file(conn, tmp_path)
+        import_diary_from_file(conn, tmp_path, pilot["id"])
         print("✓ Diário atualizado com sucesso na Base de Dados!")
     finally:
         if os.path.exists(tmp_path):
