@@ -8,6 +8,18 @@ A aplicação monitoriza em tempo real as pastas de campanha do jogo, extrai dad
 
 ---
 
+## Compatibilidade e suporte
+
+O WoFF Mate oferece suporte ao Windows 10 de 64 bits e ao Windows 11 de 64 bits, com Python da versão 3.10 até a 3.14. O suporte ao WOFF BH&H II limita-se aos formatos confirmados por amostras sanitizadas e testes de regressão; a versão exata do WoFF ainda não foi confirmada. A integração contínua valida Python 3.10 e 3.14 no Linux e executa uma validação básica com Python 3.10 no `windows-latest`.
+
+- [Compatibilidade e relatórios seguros](docs/compatibility.md)
+- [Migrações e recuperação da base de dados](docs/database-migrations.md)
+- [Resolução de problemas](docs/troubleshooting.md)
+
+Os guias contêm os limites e procedimentos completos; este resumo não os substitui.
+
+---
+
 ## 🌟 Funcionalidades Principais
 
 - **Monitorização em Tempo Real** — deteta automaticamente quando o jogo guarda progresso e processa os ficheiros sem interferir com o motor (Read-Only).
@@ -99,7 +111,7 @@ Woff_Mate/
 ## 📦 Instalação
 
 ### Pré-requisitos
-- Python 3.10 ou superior
+- Python da versão 3.10 até a 3.14
 - WoFF BHaH II instalado (a aplicação tenta detetar o caminho automaticamente via Registo do Windows)
 
 ### Passos
@@ -256,7 +268,7 @@ O Watchdog não se limita a ler ficheiros — ele interpreta-os. Sempre que uma 
 
 ## 🛠 Tecnologias Utilizadas
 
-- **Python 3.10+**
+- **Python 3.10–3.14**
 - **Watchdog** — monitorização de eventos do sistema de ficheiros
 - **SQLite3** — base de dados local embutida (sem servidor)
 - **Dataclasses & Threading** — modelos de dados limpos e processamento assíncrono

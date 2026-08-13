@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 name = "woff"
 dynamic = ["version"]
 description = "WoFF BHaH II Watchdog data extraction and campaign persistence tools"
-requires-python = ">=3.10"
+requires-python = ">=3.10,<3.15"
 dependencies = [
     "watchdog>=3.0",
 ]

@@ -165,7 +165,7 @@ def test_current_3_1_database_opens_normally(tmp_path):
     assert not list((tmp_path / ".woff-migration-backups").glob("*.backup.sqlite"))
 
 
-def test_future_database_is_rejected_without_any_changes(tmp_path):
+def test_future_database_is_rejected_without_any_changes(tmp_path, caplog):
     path = tmp_path / "future.sqlite"
     _write_versioned_database(path, "99.0")
     before = path.read_bytes()
@@ -177,6 +177,8 @@ def test_future_database_is_rejected_without_any_changes(tmp_path):
     assert _meta(path)["schema_version"] == "99.0"
     assert not list(tmp_path.glob("future.sqlite-*"))
     assert not (tmp_path / ".woff-migration-backups").exists()
+    assert "Backup de migração criado:" not in caplog.text
+    assert "Restauração automática" not in caplog.text
 
 
 def test_future_schema_committed_in_wal_is_seen_and_files_are_unchanged(tmp_path):
@@ -449,3 +451,167 @@ def test_package_cli_config_example_and_version_consumers_are_consistent():
     assert 'version = {attr = "woff.version.__version__"}' in pyproject
     assert 'runpy.run_path(str(Path(SPECPATH) / "woff" / "version.py"))' in build_spec
     assert "from woff" not in build_spec
+
+
+def test_compatibility_guide_documents_approved_support_contract():
+    root = Path(__file__).parents[2]
+    guide = (root / "docs" / "compatibility.md").read_text(encoding="utf-8")
+    for status in ("Supported", "Automatically validated", "Verified by sanitized samples", "Unconfirmed"):
+        assert status in guide
+    assert "Windows 10 64-bit" in guide
+    assert "Windows 11 64-bit" in guide
+    assert "Python 3.10 through 3.14" in guide
+    assert "Linux" in guide and "Python 3.10 and 3.14" in guide
+    assert "windows-latest" in guide and "Python 3.10" in guide
+    assert "WOFF BH&H II" in guide
+    assert "sanitized samples and regression fixtures" in guide
+    assert "exact WoFF build is unconfirmed" in guide
+
+
+def test_compatibility_guide_defines_safe_report_contents_and_prohibited_data():
+    root = Path(__file__).parents[2]
+    guide = (root / "docs" / "compatibility.md").read_text(encoding="utf-8")
+    for safe_item in ("Windows version and architecture", "Python version", "WoFF Mate version", "exact command", "sanitized error message", "sanitized input structure"):
+        assert safe_item in guide
+    for prohibited_item in ("config.json", "SQLite databases", "PilotLog records", "mission notes", "narratives", "personal paths"):
+        assert prohibited_item in guide
+
+
+def test_database_migration_guide_documents_versioning_backup_and_recovery_contract():
+    root = Path(__file__).parents[2]
+    guide = (root / "docs" / "database-migrations.md").read_text(encoding="utf-8")
+    assert f"Current schema: `{SCHEMA_VERSION}`" in guide
+    assert "MAJOR.MINOR" in guide
+    assert "schema versions identify stored database formats" in guide
+    assert "compatible migration path" in guide and "passes certification" in guide
+    assert "`2.2` to `3.1`" in guide
+    assert "MAJOR" in guide and "alone does not determine" in guide
+    assert "manual intervention" not in guide
+    assert "same transaction" in guide and "future schema" in guide
+    for action in ("DDL", "backup", "downgrade"):
+        assert action in guide
+    assert "SQLite may open or create WAL coordination sidecars such as `-shm`" in guide
+    for item in (".woff-migration-backups/", "<database>.YYYYMMDDHHMMSS[.<counter>].backup.sqlite", "Connection.backup()", "PRAGMA integrity_check", "without overwriting", "never deletes migration backups automatically"):
+        assert item in guide
+    for message in ("Backup de migração criado:", "Migração falhou. Restauração automática concluída a partir de:", "Migração falhou e a restauração automática também falhou. Backup preservado em:", "Migração falhou e o backup de migração registrado está indisponível em:"):
+        assert message in guide
+    assert "PowerShell" in guide and "C:\\WoFFMate\\data" in guide
+    assert "mode=ro" in guide and "uri=True" in guide
+    assert "Directory synchronization is requested through `_fsync_directory()`" in guide
+    assert "`Connection.backup()` completes" in guide
+    assert "`PRAGMA integrity_check` succeeds" in guide
+    assert "both SQLite connections close" in guide
+    assert "only on platforms supported by that implementation" in guide
+    assert "Windows does not receive the same directory-`fsync` guarantee" in guide
+    assert "does not guarantee that the file will survive a sudden power loss" in guide
+    assert "$ErrorActionPreference = 'Stop'" in guide
+    assert "Test-Path -LiteralPath $Database -PathType Leaf" in guide
+    assert "New-Item -ItemType Directory -Path $Safety -ErrorAction Stop" in guide
+    assert "Copy-Item -LiteralPath $Source -Destination $Safety -ErrorAction Stop" in guide
+    assert "Get-FileHash -LiteralPath $Source -Algorithm SHA256" in guide
+    assert "Get-FileHash -LiteralPath $Destination -Algorithm SHA256" in guide
+    assert "Remove-Item -LiteralPath $_ -ErrorAction Stop" in guide
+    assert "[guid]::NewGuid()" in guide
+    assert "$Staging = Join-Path $Data" in guide
+    assert "source_uri = Path(sys.argv[1]).resolve().as_uri() + '?mode=ro'" in guide
+    assert "source = sqlite3.connect(source_uri, uri=True)" in guide
+    assert "source.backup(staging)" in guide
+    assert "integrity != ('ok',)" in guide
+    assert "foreign_keys != []" in guide
+    assert "$LASTEXITCODE -ne 0" in guide
+    assert guide.count("$LASTEXITCODE -ne 0") == guide.count("python -c")
+    assert "Move-Item -LiteralPath $Staging -Destination $Database -ErrorAction Stop" in guide
+    assert "Remove-Item -LiteralPath $Staging -ErrorAction Stop" in guide
+    source_open = guide.index("source = sqlite3.connect(source_uri, uri=True)")
+    active_removal = guide.index("Remove-Item -LiteralPath $_ -ErrorAction Stop")
+    assert source_open < active_removal
+    staging_validation = guide.index("foreign_keys != []")
+    source_close = guide.index("source.close()")
+    assert staging_validation < source_close < active_removal
+    destructive_step = guide.index("Remove-Item -LiteralPath $_ -ErrorAction Stop")
+    assert staging_validation < destructive_step
+    assert "Close every WoFF Mate process" in guide
+    for sidecar in ("-wal", "-shm", "-journal"):
+        assert sidecar in guide
+    assert "safety directory" in guide
+    assert "restore the original files" in guide
+    assert "successful reopening" in guide
+
+
+def test_documented_installed_database_validation_is_read_only_and_fail_closed(tmp_path):
+    root = Path(__file__).parents[2]
+    guide = (root / "docs" / "database-migrations.md").read_text(encoding="utf-8")
+    final_step = guide.split("5. Validate the installed database again", 1)[1]
+    validation = final_step.split("$ValidationScript = @'", 1)[1].split("'@", 1)[0]
+    validation = "\n".join(
+        line.removeprefix("   ") for line in validation.strip("\n").splitlines()
+    )
+
+    assert "Test-Path -LiteralPath $Database -PathType Leaf" in final_step
+    assert "Path(sys.argv[1]).resolve().as_uri() + '?mode=ro'" in validation
+    assert "sqlite3.connect(database_uri, uri=True)" in validation
+    assert "immutable" not in validation
+    assert "sqlite3.connect(sys.argv[1])" not in validation
+
+    missing = tmp_path / "missing.sqlite"
+    result = subprocess.run([sys.executable, "-c", validation, str(missing)])
+    assert result.returncode != 0
+    assert not missing.exists()
+
+    valid = tmp_path / "valid.sqlite"
+    with sqlite3.connect(valid) as conn:
+        conn.execute("CREATE TABLE parent (id INTEGER PRIMARY KEY)")
+    result = subprocess.run([sys.executable, "-c", validation, str(valid)])
+    assert result.returncode == 0
+
+    invalid = tmp_path / "invalid.sqlite"
+    invalid.write_bytes(b"not a sqlite database")
+    before = invalid.read_bytes()
+    result = subprocess.run([sys.executable, "-c", validation, str(invalid)])
+    assert result.returncode != 0
+    assert invalid.read_bytes() == before
+
+
+def test_user_guides_exist_and_readme_links_to_each_guide():
+    root = Path(__file__).parents[2]
+    readme = (root / "README.md").read_text(encoding="utf-8")
+    for name in ("compatibility.md", "database-migrations.md", "troubleshooting.md"):
+        assert (root / "docs" / name).is_file()
+        assert f"docs/{name}" in readme
+
+
+def test_readme_and_guides_preserve_the_approved_compatibility_contract():
+    root = Path(__file__).parents[2]
+    readme = (root / "README.md").read_text(encoding="utf-8")
+    compatibility = (root / "docs" / "compatibility.md").read_text(encoding="utf-8")
+    migrations = (root / "docs" / "database-migrations.md").read_text(encoding="utf-8")
+    assert "Python da versão 3.10 até a 3.14" in readme
+    assert "Windows 10 de 64 bits" in readme and "Windows 11 de 64 bits" in readme
+    assert "WOFF BH&H II" in readme and "amostras sanitizadas" in readme
+    assert "versão exata do WoFF ainda não foi confirmada" in readme
+    assert "Python 3.10 through 3.14" in compatibility
+    pyproject = (root / "pyproject.toml").read_text(encoding="utf-8")
+    assert 'requires-python = ">=3.10,<3.15"' in pyproject
+    assert "Python 3.10 ou superior" not in readme
+    assert "Python 3.10+" not in readme
+    assert f"Current schema: `{SCHEMA_VERSION}`" in migrations
+
+
+def test_troubleshooting_guide_covers_safe_diagnostics_and_recovery_messages():
+    root = Path(__file__).parents[2]
+    guide = (root / "docs" / "troubleshooting.md").read_text(encoding="utf-8")
+    for item in ("PowerShell", "woff-watchdog --version", "future schema", "database is locked", "Backup de migração criado:", "Migração falhou. Restauração automática concluída a partir de:", "Migração falhou e a restauração automática também falhou. Backup preservado em:", "Migração falhou e o backup de migração registrado está indisponível em:", "unknown WoFF format"):
+        assert item in guide
+    assert "does not include a directory-`fsync` guarantee" in guide
+    assert "does not guarantee survival after sudden power loss" in guide
+    for prohibited in ("config.json", "SQLite databases", "migration backups", "complete PilotLog records", "pilot notes", "mission narratives"):
+        assert prohibited in guide
+
+
+def test_documentation_examples_do_not_contain_personal_home_paths():
+    root = Path(__file__).parents[2]
+    documents = [root / "README.md", *sorted((root / "docs").glob("*.md"))]
+    for document in documents:
+        contents = document.read_text(encoding="utf-8")
+        for personal_root in ("C:\\Users", "/Users/", "/home/", "/root/"):
+            assert personal_root not in contents, f"{personal_root} in {document}"
