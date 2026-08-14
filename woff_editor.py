@@ -15,6 +15,8 @@ import subprocess
 import platform
 import tempfile
 import argparse
+from datetime import datetime
+from pathlib import Path
 
 def get_db_path():
     config_path = "config.json"
@@ -43,6 +45,85 @@ def export_diary_to_file(conn, pilot_name: str, filepath: str):
             f.write(f"DATA: {entry['entry_date']}\n")
             f.write(f"{entry['narrative']}\n")
             f.write("=" * 60 + "\n")
+
+
+def _database_path(conn) -> Path:
+    for _, name, filename in conn.execute("PRAGMA database_list"):
+        if name == "main" and filename:
+            return Path(filename).resolve()
+    raise RuntimeError("Diary backup requires a file-backed SQLite database")
+
+
+def _reserve_backup_path(database_path: Path) -> Path:
+    backup_dir = database_path.parent / ".woff-diary-backups"
+    backup_dir.mkdir(mode=0o700, exist_ok=True)
+    timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
+    counter = 0
+    while True:
+        suffix = "" if counter == 0 else f".{counter}"
+        candidate = backup_dir / (
+            f"{database_path.name}.{timestamp}{suffix}.backup.sqlite"
+        )
+        try:
+            descriptor = os.open(candidate, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
+        except FileExistsError:
+            counter += 1
+            continue
+        try:
+            os.close(descriptor)
+        except Exception:
+            candidate.unlink(missing_ok=True)
+            raise
+        return candidate
+
+
+def _copy_database_backup(source, destination):
+    source.backup(destination)
+
+
+def _backup_integrity_check(conn):
+    return conn.execute("PRAGMA integrity_check").fetchone()
+
+
+def _commit_import(conn):
+    conn.commit()
+
+
+def _create_pre_import_backup(conn) -> Path:
+    database_path = _database_path(conn)
+    backup_path = None
+    source = None
+    destination = None
+    try:
+        backup_path = _reserve_backup_path(database_path)
+        source_uri = database_path.as_uri() + "?mode=ro"
+        source = sqlite3.connect(source_uri, uri=True)
+        destination = sqlite3.connect(backup_path)
+        _copy_database_backup(source, destination)
+        if _backup_integrity_check(destination) != ("ok",):
+            raise RuntimeError("Diary backup integrity check failed")
+        destination.close()
+        destination = None
+        source.close()
+        source = None
+        return backup_path
+    except Exception as exc:
+        close_error = None
+        for backup_conn in (destination, source):
+            if backup_conn is not None:
+                try:
+                    backup_conn.close()
+                except Exception as error:
+                    close_error = error
+        if backup_path is not None:
+            try:
+                backup_path.unlink(missing_ok=True)
+            except Exception as error:
+                raise RuntimeError(
+                    f"Diary backup failed and incomplete backup could not be removed: {error}"
+                ) from exc
+        failure = close_error if close_error is not None else exc
+        raise RuntimeError(f"Diary backup failed: {failure}") from exc
 
 def import_diary_from_file(conn, filepath: str, pilot_id: str):
     """Replace one pilot's diary using a transaction owned by this function.
@@ -86,6 +167,7 @@ def import_diary_from_file(conn, filepath: str, pilot_id: str):
     cursor = conn.cursor()
     owners = []
     transaction_started = False
+    backup_path = None
     try:
         cursor.execute("BEGIN IMMEDIATE")
         transaction_started = True
@@ -143,11 +225,26 @@ def import_diary_from_file(conn, filepath: str, pilot_id: str):
                 "DELETE FROM diary_entries WHERE pilotId = ?",
                 (pilot_id,),
             )
-        conn.commit()
+        backup_path = _create_pre_import_backup(conn)
     except Exception:
         if transaction_started:
             conn.rollback()
         raise
+    try:
+        _commit_import(conn)
+    except Exception as commit_error:
+        try:
+            conn.rollback()
+        except Exception as rollback_error:
+            raise RuntimeError(
+                f"Diary commit failed: {commit_error}; rollback also failed: "
+                f"{rollback_error}. Verified backup retained at {backup_path}"
+            ) from commit_error
+        raise RuntimeError(
+            f"Diary commit failed: {commit_error}. "
+            f"Verified backup retained at {backup_path}"
+        ) from commit_error
+    return str(backup_path)
 
 def open_editor(filepath: str):
     system = platform.system()
@@ -196,7 +293,8 @@ def main():
         open_editor(tmp_path)
         
         print("A importar alterações do ficheiro...")
-        import_diary_from_file(conn, tmp_path, pilot["id"])
+        backup_path = import_diary_from_file(conn, tmp_path, pilot["id"])
+        print(f"✓ Backup pré-importação guardado em: {backup_path}")
         print("✓ Diário atualizado com sucesso na Base de Dados!")
     finally:
         if os.path.exists(tmp_path):

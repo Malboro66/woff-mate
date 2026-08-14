@@ -1,6 +1,7 @@
 """Regression tests for journal editor behavior."""
 
 import sqlite3
+from pathlib import Path
 
 from unittest.mock import patch
 
@@ -55,6 +56,15 @@ def _entries(conn):
     )]
 
 
+def _backup_paths(tmp_path):
+    return sorted((tmp_path / ".woff-diary-backups").glob("*.backup.sqlite"))
+
+
+def _backup_entries(path):
+    with sqlite3.connect(path) as backup:
+        return _entries(backup)
+
+
 def test_open_editor_rejects_missing_windows_startfile():
     with (
         patch.object(woff_editor.platform, "system", return_value="Windows"),
@@ -65,17 +75,27 @@ def test_open_editor_rejects_missing_windows_startfile():
 
 
 def test_import_changes_only_selected_pilots_diary(diary_db, tmp_path):
+    before = _entries(diary_db)
     path = _write_diary(tmp_path, [("bob-1", "1917-02-02", "Bob edited")])
 
-    woff_editor.import_diary_from_file(diary_db, path, "bob")
+    backup_path = woff_editor.import_diary_from_file(diary_db, path, "bob")
 
     assert _entries(diary_db) == [
         ("alice-1", "alice", "alice-mission", "1917-01-01", "Alice original"),
         ("bob-1", "bob", "bob-mission", "1917-02-02", "Bob edited"),
     ]
+    assert Path(backup_path).exists()
+    assert _backup_paths(tmp_path) == [Path(backup_path)]
+    assert _backup_entries(backup_path) == before
+    with sqlite3.connect(backup_path) as backup:
+        assert backup.execute("SELECT id, name FROM pilots ORDER BY id").fetchall() == [
+            ("alice", "Alice"),
+            ("bob", "Bob"),
+        ]
 
 
 def test_empty_import_clears_only_selected_pilots_diary(diary_db, tmp_path):
+    before = _entries(diary_db)
     path = _write_diary(tmp_path, [])
 
     woff_editor.import_diary_from_file(diary_db, path, "bob")
@@ -83,6 +103,105 @@ def test_empty_import_clears_only_selected_pilots_diary(diary_db, tmp_path):
     assert _entries(diary_db) == [
         ("alice-1", "alice", "alice-mission", "1917-01-01", "Alice original")
     ]
+    assert _backup_entries(_backup_paths(tmp_path)[0]) == before
+
+
+def test_backups_in_same_second_are_unique_and_not_overwritten(diary_db, tmp_path):
+    first_before = _entries(diary_db)
+    first = woff_editor.import_diary_from_file(
+        diary_db, _write_diary(tmp_path, [("bob-1", "1917-02-02", "First")]), "bob"
+    )
+    second_before = _entries(diary_db)
+    second = woff_editor.import_diary_from_file(
+        diary_db, _write_diary(tmp_path, [("bob-1", "1917-03-03", "Second")]), "bob"
+    )
+
+    assert first != second
+    assert _backup_entries(first) == first_before
+    assert _backup_entries(second) == second_before
+
+
+def test_backup_source_is_opened_read_only(diary_db, tmp_path, monkeypatch):
+    real_connect = sqlite3.connect
+    calls = []
+
+    def recording_connect(database, *args, **kwargs):
+        calls.append((database, kwargs.copy()))
+        return real_connect(database, *args, **kwargs)
+
+    monkeypatch.setattr(woff_editor.sqlite3, "connect", recording_connect)
+    woff_editor.import_diary_from_file(
+        diary_db, _write_diary(tmp_path, [("bob-1", "1917-02-02", "Edited")]), "bob"
+    )
+
+    assert any(
+        str(database).startswith("file:")
+        and str(database).endswith("?mode=ro")
+        and kwargs.get("uri") is True
+        for database, kwargs in calls
+    )
+
+
+def test_backup_failure_rolls_back_and_removes_incomplete_file(
+    diary_db, tmp_path, monkeypatch
+):
+    before = _entries(diary_db)
+
+    def fail_backup(source, destination):
+        destination.execute("CREATE TABLE incomplete (value TEXT)")
+        destination.commit()
+        raise sqlite3.OperationalError("simulated backup failure")
+
+    monkeypatch.setattr(woff_editor, "_copy_database_backup", fail_backup)
+    path = _write_diary(tmp_path, [("bob-1", "1917-02-02", "Edited")])
+
+    with pytest.raises(RuntimeError, match="backup.*failed"):
+        woff_editor.import_diary_from_file(diary_db, path, "bob")
+
+    assert _entries(diary_db) == before
+    assert _backup_paths(tmp_path) == []
+
+
+def test_failed_backup_integrity_check_prevents_import(
+    diary_db, tmp_path, monkeypatch
+):
+    before = _entries(diary_db)
+    monkeypatch.setattr(woff_editor, "_backup_integrity_check", lambda conn: ("bad",))
+    path = _write_diary(tmp_path, [("bob-1", "1917-02-02", "Edited")])
+
+    with pytest.raises(RuntimeError, match="integrity check"):
+        woff_editor.import_diary_from_file(diary_db, path, "bob")
+
+    assert _entries(diary_db) == before
+    assert _backup_paths(tmp_path) == []
+
+
+def test_commit_failure_retains_verified_backup_and_rolls_back_import(
+    diary_db, tmp_path, monkeypatch, capsys
+):
+    before = _entries(diary_db)
+    path = _write_diary(tmp_path, [("bob-1", "1917-02-02", "Edited")])
+
+    def fail_commit(conn):
+        raise sqlite3.OperationalError("simulated commit failure")
+
+    monkeypatch.setattr(woff_editor, "_commit_import", fail_commit)
+
+    with pytest.raises(RuntimeError, match="commit failed") as error:
+        woff_editor.import_diary_from_file(diary_db, path, "bob")
+
+    backups = _backup_paths(tmp_path)
+    assert len(backups) == 1
+    assert str(backups[0]) in str(error.value)
+    assert _backup_entries(backups[0]) == before
+    with sqlite3.connect(backups[0]) as backup:
+        assert backup.execute("SELECT id, name FROM pilots ORDER BY id").fetchall() == [
+            ("alice", "Alice"),
+            ("bob", "Bob"),
+        ]
+    assert _entries(diary_db) == before
+    assert diary_db.in_transaction is False
+    assert "sucesso" not in capsys.readouterr().out
 
 
 def test_new_entry_uses_selected_pilot_and_repeated_import_is_stable(
@@ -113,6 +232,7 @@ def test_cross_pilot_entry_id_rejects_entire_import(diary_db, tmp_path):
         woff_editor.import_diary_from_file(diary_db, path, "bob")
 
     assert _entries(diary_db) == before
+    assert _backup_paths(tmp_path) == []
 
 
 def test_failure_after_write_rolls_back_complete_import(diary_db, tmp_path):
@@ -144,6 +264,7 @@ def test_active_caller_transaction_is_rejected_without_rollback(diary_db, tmp_pa
     assert diary_db.execute(
         "SELECT name FROM pilots WHERE id = ?", ("pending",)
     ).fetchone()[0] == "Pending"
+    assert _backup_paths(tmp_path) == []
 
 
 @pytest.mark.parametrize(
@@ -164,6 +285,7 @@ def test_malformed_block_is_rejected_without_changes(diary_db, tmp_path, block, 
         woff_editor.import_diary_from_file(diary_db, path, "bob")
 
     assert _entries(diary_db) == before
+    assert _backup_paths(tmp_path) == []
 
 
 def test_malformed_block_after_valid_block_rejects_before_writes(diary_db, tmp_path):
@@ -259,4 +381,5 @@ def test_stale_selected_pilot_is_rejected_without_orphan_rows(tmp_path):
     assert importer.execute(
         "SELECT COUNT(*) FROM diary_entries WHERE pilotId = ?", (cached_id,)
     ).fetchone()[0] == 0
+    assert _backup_paths(tmp_path) == []
     importer.close()
