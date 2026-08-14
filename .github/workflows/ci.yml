@@ -25,8 +25,12 @@ jobs:
           cache: pip
       - run: python -m pip install --upgrade pip
       - run: python -m pip install .
-      - run: python -m pip install pytest psutil
+      - run: python -m pip install pytest psutil PyYAML
       - run: python -m pip install build
+      - name: Validate engineering governance
+        run: |
+          python scripts/validate_project_graph.py
+          python -m pytest woff/tests/test_architecture_contracts.py -q
       - name: Build and inspect wheel
         run: |
           python -m build --wheel
@@ -74,7 +78,7 @@ jobs:
           cache: pip
       - run: python -m pip install --upgrade pip
       - run: python -m pip install .
-      - run: python -m pip install pyright pytest psutil
+      - run: python -m pip install pyright pytest psutil PyYAML
       - run: pyright
 
   windows-smoke:

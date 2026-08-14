@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import ast
 from copy import deepcopy
 from pathlib import Path
 
@@ -121,3 +122,39 @@ def test_cycle_rejects_a_member_missing_from_work_items() -> None:
 
     with pytest.raises(GraphValidationError, match="unknown member"):
         validate_graph(REPOSITORY_ROOT, graph)
+
+
+def test_pyyaml_remains_a_development_dependency() -> None:
+    pyproject = (REPOSITORY_ROOT / "pyproject.toml").read_text(encoding="utf-8")
+    project_section, optional_section = pyproject.split(
+        "[project.optional-dependencies]", maxsplit=1
+    )
+
+    assert "PyYAML" not in project_section
+    assert '"PyYAML>=6.0"' in optional_section
+
+
+def test_runtime_modules_do_not_import_yaml() -> None:
+    runtime_paths = [
+        *REPOSITORY_ROOT.glob("*.py"),
+        *(
+            path
+            for path in (REPOSITORY_ROOT / "woff").rglob("*.py")
+            if "tests" not in path.parts
+        ),
+    ]
+    offenders: list[str] = []
+    for path in runtime_paths:
+        tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+        imports_yaml = any(
+            (
+                isinstance(node, ast.Import)
+                and any(alias.name == "yaml" for alias in node.names)
+            )
+            or (isinstance(node, ast.ImportFrom) and node.module == "yaml")
+            for node in ast.walk(tree)
+        )
+        if imports_yaml:
+            offenders.append(path.relative_to(REPOSITORY_ROOT).as_posix())
+
+    assert offenders == []

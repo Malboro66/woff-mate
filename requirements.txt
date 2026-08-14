@@ -10,6 +10,9 @@ watchdog>=3.0.0
 # Framework de testes (usado em toda a suite tests/)
 pytest>=7.0.0
 
+# Validação do graph file de governança (não usado pelo runtime)
+PyYAML>=6.0.0
+
 # Monitoramento de memória nos testes de performance (opcional)
 # Se não instalado, o teste de memória é skipped automaticamente
 psutil>=5.9.0
