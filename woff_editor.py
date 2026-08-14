@@ -15,6 +15,8 @@ import subprocess
 import platform
 import tempfile
 import argparse
+from datetime import datetime
+from pathlib import Path
 
 def get_db_path():
     config_path = "config.json"
@@ -44,53 +46,205 @@ def export_diary_to_file(conn, pilot_name: str, filepath: str):
             f.write(f"{entry['narrative']}\n")
             f.write("=" * 60 + "\n")
 
-def import_diary_from_file(conn, filepath: str):
+
+def _database_path(conn) -> Path:
+    for _, name, filename in conn.execute("PRAGMA database_list"):
+        if name == "main" and filename:
+            return Path(filename).resolve()
+    raise RuntimeError("Diary backup requires a file-backed SQLite database")
+
+
+def _reserve_backup_path(database_path: Path) -> Path:
+    backup_dir = database_path.parent / ".woff-diary-backups"
+    backup_dir.mkdir(mode=0o700, exist_ok=True)
+    timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
+    counter = 0
+    while True:
+        suffix = "" if counter == 0 else f".{counter}"
+        candidate = backup_dir / (
+            f"{database_path.name}.{timestamp}{suffix}.backup.sqlite"
+        )
+        try:
+            descriptor = os.open(candidate, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
+        except FileExistsError:
+            counter += 1
+            continue
+        try:
+            os.close(descriptor)
+        except Exception:
+            candidate.unlink(missing_ok=True)
+            raise
+        return candidate
+
+
+def _copy_database_backup(source, destination):
+    source.backup(destination)
+
+
+def _backup_integrity_check(conn):
+    return conn.execute("PRAGMA integrity_check").fetchone()
+
+
+def _commit_import(conn):
+    conn.commit()
+
+
+def _create_pre_import_backup(conn) -> Path:
+    database_path = _database_path(conn)
+    backup_path = None
+    source = None
+    destination = None
+    try:
+        backup_path = _reserve_backup_path(database_path)
+        source_uri = database_path.as_uri() + "?mode=ro"
+        source = sqlite3.connect(source_uri, uri=True)
+        destination = sqlite3.connect(backup_path)
+        _copy_database_backup(source, destination)
+        if _backup_integrity_check(destination) != ("ok",):
+            raise RuntimeError("Diary backup integrity check failed")
+        destination.close()
+        destination = None
+        source.close()
+        source = None
+        return backup_path
+    except Exception as exc:
+        close_error = None
+        for backup_conn in (destination, source):
+            if backup_conn is not None:
+                try:
+                    backup_conn.close()
+                except Exception as error:
+                    close_error = error
+        if backup_path is not None:
+            try:
+                backup_path.unlink(missing_ok=True)
+            except Exception as error:
+                raise RuntimeError(
+                    f"Diary backup failed and incomplete backup could not be removed: {error}"
+                ) from exc
+        failure = close_error if close_error is not None else exc
+        raise RuntimeError(f"Diary backup failed: {failure}") from exc
+
+def import_diary_from_file(conn, filepath: str, pilot_id: str):
+    """Replace one pilot's diary using a transaction owned by this function.
+
+    The supplied connection must not have an active transaction. This function
+    starts, commits, or rolls back its complete import transaction itself.
+    """
+    if conn.in_transaction:
+        raise ValueError("Diary import requires a connection without an active transaction")
+
     with open(filepath, "r", encoding="utf-8") as f:
         content = f.read()
-    
-    # Apagar todas as entradas existentes (serão substituídas pelas do ficheiro)
-    cursor = conn.cursor()
-    
-    # Extrair blocos
-    blocks = content.split("=" * 60)[1:] # Ignora o cabeçalho inicial
-    
-    imported_ids = set()
-    for block in blocks:
-        block = block.strip()
-        if not block: continue
-        
-        lines = block.split("\n")
-        entry_id = None
-        entry_date = ""
-        narrative_lines = []
-        parsing_narrative = False
-        
-        for line in lines:
-            if line.startswith("=== ID:"):
-                entry_id = line.replace("=== ID:", "").replace("===", "").strip()
-                parsing_narrative = False
-            elif line.startswith("DATA:"):
-                entry_date = line.replace("DATA:", "").strip()
-                parsing_narrative = True
-            elif parsing_narrative:
-                narrative_lines.append(line)
-                
-        if entry_id and entry_date is not None:
-            narrative = "\n".join(narrative_lines).strip()
-            if narrative: # Não importar entradas vazias (apagadas pelo utilizador)
-                imported_ids.add(entry_id)
-                # UPSERT: Atualiza se existir, insere se for novo
-                cursor.execute("""
-                    INSERT INTO diary_entries (id, pilotId, missionId, entry_date, narrative)
-                    VALUES (?, (SELECT id FROM pilots LIMIT 1), NULL, ?, ?)
-                    ON CONFLICT(id) DO UPDATE SET 
-                        entry_date=excluded.entry_date, 
-                        narrative=excluded.narrative
-                """, (entry_id, entry_date, narrative))
 
-    # Apagar entradas que estavam na DB mas não foram importadas (ou seja, o utilizador apagou-as)
-    cursor.execute("DELETE FROM diary_entries WHERE id NOT IN ({})".format(",".join("?" * len(imported_ids))), tuple(imported_ids))
-    conn.commit()
+    imported_entries = []
+    parsed_ids = set()
+    blocks = content.split("=" * 60)[1:] # Ignora o cabeçalho inicial
+    for block_number, block in enumerate(blocks, start=1):
+        block = block.strip()
+        if not block:
+            continue
+
+        lines = block.split("\n")
+        id_line = lines[0]
+        if not id_line.startswith("=== ID:") or not id_line.endswith("==="):
+            raise ValueError(f"Diary block {block_number} is missing a valid ID field")
+        entry_id = id_line[len("=== ID:"):-len("===")].strip()
+        if not entry_id:
+            raise ValueError(f"Diary block {block_number} has an empty ID field")
+        if len(lines) < 2 or not lines[1].startswith("DATA:"):
+            raise ValueError(f"Diary block {block_number} is missing a DATA field")
+        entry_date = lines[1][len("DATA:"):].strip()
+        if not entry_date:
+            raise ValueError(f"Diary block {block_number} has an empty DATA field")
+        if entry_id in parsed_ids:
+            raise ValueError(f"Duplicate diary entry ID: {entry_id}")
+        parsed_ids.add(entry_id)
+        narrative = "\n".join(lines[2:]).strip()
+        imported_entries.append((entry_id, entry_date, narrative))
+
+    imported_ids = {entry[0] for entry in imported_entries if entry[2]}
+    cursor = conn.cursor()
+    owners = []
+    transaction_started = False
+    backup_path = None
+    try:
+        cursor.execute("BEGIN IMMEDIATE")
+        transaction_started = True
+
+        pilot_exists = cursor.execute(
+            "SELECT 1 FROM pilots WHERE id = ?",
+            (pilot_id,),
+        ).fetchone()
+        if pilot_exists is None:
+            raise ValueError(f"Selected pilot {pilot_id} no longer exists")
+
+        if parsed_ids:
+            placeholders = ",".join("?" for _ in parsed_ids)
+            owners = cursor.execute(
+                f"SELECT id, pilotId FROM diary_entries WHERE id IN ({placeholders})",
+                tuple(parsed_ids),
+            ).fetchall()
+            foreign_ids = [row[0] for row in owners if row[1] != pilot_id]
+            if foreign_ids:
+                raise ValueError(
+                    f"Diary entry ID {foreign_ids[0]} does not belong to the selected pilot"
+                )
+
+        existing_ids = {row[0] for row in owners} if imported_ids else set()
+        for entry_id, entry_date, narrative in imported_entries:
+            if not narrative:
+                continue
+            if entry_id in existing_ids:
+                cursor.execute(
+                    """
+                    UPDATE diary_entries
+                    SET entry_date = ?, narrative = ?
+                    WHERE id = ? AND pilotId = ?
+                    """,
+                    (entry_date, narrative, entry_id, pilot_id),
+                )
+            else:
+                cursor.execute(
+                    """
+                    INSERT INTO diary_entries
+                        (id, pilotId, missionId, entry_date, narrative)
+                    VALUES (?, ?, NULL, ?, ?)
+                    """,
+                    (entry_id, pilot_id, entry_date, narrative),
+                )
+
+        if imported_ids:
+            placeholders = ",".join("?" for _ in imported_ids)
+            cursor.execute(
+                f"DELETE FROM diary_entries WHERE pilotId = ? AND id NOT IN ({placeholders})",
+                (pilot_id, *imported_ids),
+            )
+        else:
+            cursor.execute(
+                "DELETE FROM diary_entries WHERE pilotId = ?",
+                (pilot_id,),
+            )
+        backup_path = _create_pre_import_backup(conn)
+    except Exception:
+        if transaction_started:
+            conn.rollback()
+        raise
+    try:
+        _commit_import(conn)
+    except Exception as commit_error:
+        try:
+            conn.rollback()
+        except Exception as rollback_error:
+            raise RuntimeError(
+                f"Diary commit failed: {commit_error}; rollback also failed: "
+                f"{rollback_error}. Verified backup retained at {backup_path}"
+            ) from commit_error
+        raise RuntimeError(
+            f"Diary commit failed: {commit_error}. "
+            f"Verified backup retained at {backup_path}"
+        ) from commit_error
+    return str(backup_path)
 
 def open_editor(filepath: str):
     system = platform.system()
@@ -122,7 +276,8 @@ def main():
 
     # Verificar se o piloto existe
     cursor = conn.execute("SELECT id FROM pilots WHERE name = ?", (args.pilot,))
-    if not cursor.fetchone():
+    pilot = cursor.fetchone()
+    if not pilot:
         print(f"[ERRO] Piloto '{args.pilot}' não encontrado.")
         sys.exit(1)
 
@@ -138,7 +293,8 @@ def main():
         open_editor(tmp_path)
         
         print("A importar alterações do ficheiro...")
-        import_diary_from_file(conn, tmp_path)
+        backup_path = import_diary_from_file(conn, tmp_path, pilot["id"])
+        print(f"✓ Backup pré-importação guardado em: {backup_path}")
         print("✓ Diário atualizado com sucesso na Base de Dados!")
     finally:
         if os.path.exists(tmp_path):
