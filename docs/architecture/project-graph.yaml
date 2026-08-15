@@ -1,5 +1,5 @@
 version: 1
-updated: 2026-08-14
+updated: 2026-08-15
 
 project:
   repository: Malboro66/woff-mate
@@ -501,7 +501,7 @@ work_items:
   issue-51:
     title: Establish executable engineering governance
     module: governance
-    state: in_progress
+    state: done
     evals: [EVAL-GOV-001]
     gates: [Q0, Q1]
     depends_on:
