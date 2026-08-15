@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import ast
 import importlib
+import re
 import sys
 from copy import deepcopy
 from pathlib import Path
@@ -17,6 +18,7 @@ from scripts.validate_project_graph import (
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
 GRAPH_PATH = REPOSITORY_ROOT / "docs" / "architecture" / "project-graph.yaml"
+_REQUIREMENT_NAME_RE = re.compile(r"^\s*([A-Za-z0-9][A-Za-z0-9._-]*)")
 
 
 def _imports_yaml(source: str) -> bool:
@@ -52,6 +54,12 @@ def _load_pyproject() -> dict[str, object]:
     )
     assert isinstance(loaded, dict)
     return loaded
+
+
+def _requirement_name(requirement: object) -> str:
+    match = _REQUIREMENT_NAME_RE.match(str(requirement))
+    assert match is not None, f"invalid requirement entry: {requirement!r}"
+    return re.sub(r"[-_.]+", "-", match.group(1)).lower()
 
 
 def _graph() -> dict[str, object]:
@@ -335,6 +343,21 @@ def test_completed_cycle_rejects_incomplete_member() -> None:
         validate_graph(REPOSITORY_ROOT, graph)
 
 
+def test_completed_cycle_rejects_incomplete_tracker() -> None:
+    graph = _graph()
+    cycles = graph["cycles"]
+    assert isinstance(cycles, dict)
+    cycle = cycles["cycle-3.3.0"]
+    assert isinstance(cycle, dict)
+    cycle["state"] = "completed"
+
+    with pytest.raises(
+        GraphValidationError,
+        match="cycles.cycle-3.3.0 completed tracker issue-50 is tracking",
+    ):
+        validate_graph(REPOSITORY_ROOT, graph)
+
+
 def test_completed_cycle_accepts_done_members() -> None:
     validate_graph(REPOSITORY_ROOT, _graph())
 
@@ -362,14 +385,14 @@ def test_pyyaml_dependency_contract_is_structural() -> None:
     dev_dependencies = project["optional-dependencies"]["dev"]  # type: ignore[index]
     assert isinstance(dev_dependencies, list)
 
-    assert not any(
-        str(dependency).lower().startswith("pyyaml")
-        for dependency in dependencies
-    )
-    assert any(
-        str(dependency).lower().startswith("pyyaml")
-        for dependency in dev_dependencies
-    )
+    assert "pyyaml" not in {_requirement_name(dependency) for dependency in dependencies}
+    assert "pyyaml" in {_requirement_name(dependency) for dependency in dev_dependencies}
+
+
+def test_pyyaml_dependency_matching_rejects_prefix_collision() -> None:
+    assert _requirement_name("PyYAML>=6.0") == "pyyaml"
+    assert _requirement_name("PyYAML-extra>=1.0") == "pyyaml-extra"
+    assert _requirement_name("PyYAML-extra>=1.0") != "pyyaml"
 
 
 def test_project_graph_rejects_work_item_eval_missing_reciprocal_owner() -> None:

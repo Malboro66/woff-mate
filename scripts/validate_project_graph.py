@@ -548,6 +548,13 @@ def _validate_cycles(
             raise GraphValidationError(
                 f"cycles.{cycle_id} references unknown tracker {tracker}"
             )
+        if state == "completed" and tracker is not None:
+            tracker_item = _mapping(work_items[tracker], f"work_items.{tracker}")
+            if tracker_item.get("state") != "done":
+                raise GraphValidationError(
+                    f"cycles.{cycle_id} completed tracker {tracker} "
+                    f"is {tracker_item.get('state')}"
+                )
         members = _string_list(
             cycle.get("members"), f"cycles.{cycle_id}.members"
         )
