@@ -489,13 +489,14 @@ def _validate_completed_cycle_member_evidence(
                 )
 
 
-def _validate_done_work_item_evals(
+def _validate_implementation_work_item_evals(
     work_items: Mapping[str, Any],
     evals: Mapping[str, Any],
 ) -> None:
     for item_id, raw_item in work_items.items():
         item = _mapping(raw_item, f"work_items.{item_id}")
-        if item.get("state") != "done":
+        state = item.get("state")
+        if state not in {"ready", "in_progress", "done"}:
             continue
         item_evals = _string_list(
             item.get("evals", []),
@@ -503,8 +504,10 @@ def _validate_done_work_item_evals(
         )
         if not item_evals:
             raise GraphValidationError(
-                f"work_items.{item_id} is done but has no evals"
+                f"work_items.{item_id} is {state} but has no evals"
             )
+        if state != "done":
+            continue
         for eval_id in item_evals:
             evaluation = _mapping(evals[eval_id], f"evals.{eval_id}")
             if evaluation.get("status") != "implemented":
@@ -514,12 +517,13 @@ def _validate_done_work_item_evals(
                 )
 
 
-def _validate_done_work_item_dependencies(
+def _validate_implementation_work_item_dependencies(
     work_items: Mapping[str, Any],
 ) -> None:
     for item_id, raw_item in work_items.items():
         item = _mapping(raw_item, f"work_items.{item_id}")
-        if item.get("state") != "done":
+        state = item.get("state")
+        if state not in {"ready", "in_progress", "done"}:
             continue
         for index, raw_dependency in enumerate(item["depends_on"]):
             dependency = _mapping(
@@ -528,7 +532,7 @@ def _validate_done_work_item_dependencies(
             )
             if dependency.get("status") != "satisfied":
                 raise GraphValidationError(
-                    f"work_items.{item_id} is done but dependency "
+                    f"work_items.{item_id} is {state} but dependency "
                     f"{dependency.get('id')} is {dependency.get('status')}"
                 )
 
@@ -726,6 +730,12 @@ def _validate_cycles(
                     f"is {member_item.get('state')}"
                 )
         aggregate_eval = cycle.get("aggregate_eval")
+        if state == "completed" and (
+            not isinstance(aggregate_eval, str) or not aggregate_eval
+        ):
+            raise GraphValidationError(
+                f"cycles.{cycle_id}.aggregate_eval must be a non-empty string"
+            )
         if aggregate_eval is not None and aggregate_eval not in evals:
             raise GraphValidationError(
                 f"cycles.{cycle_id} references unknown eval {aggregate_eval}"
@@ -842,9 +852,9 @@ def validate_graph(repository_root: Path, graph: Mapping[str, Any]) -> None:
     }
     _validate_cycles(graph, work_items, evals, gates)
     _validate_work_item_gates(work_items)
-    _validate_done_work_item_dependencies(work_items)
     _validate_unsatisfied_dependencies_target_incomplete_work(work_items)
-    _validate_done_work_item_evals(work_items, evals)
+    _validate_implementation_work_item_dependencies(work_items)
+    _validate_implementation_work_item_evals(work_items, evals)
     _validate_reciprocal_eval_ownership(work_items, evals, aggregate_eval_ids)
     _validate_eval_owners(evals)
 

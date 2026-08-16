@@ -350,6 +350,61 @@ def test_done_work_item_rejects_an_unsatisfied_dependency() -> None:
         validate_graph(REPOSITORY_ROOT, graph)
 
 
+@pytest.mark.parametrize("state", ["ready", "in_progress"])
+def test_implementation_work_item_requires_evals(state: str) -> None:
+    graph = _graph()
+    work_items = graph["work_items"]
+    assert isinstance(work_items, dict)
+    issue_34 = work_items["issue-34"]
+    assert isinstance(issue_34, dict)
+    issue_34["state"] = state
+    issue_34["evals"] = []
+
+    with pytest.raises(
+        GraphValidationError,
+        match=f"work_items.issue-34 is {state} but has no evals",
+    ):
+        validate_graph(REPOSITORY_ROOT, graph)
+
+
+@pytest.mark.parametrize("state", ["ready", "in_progress"])
+def test_implementation_work_item_rejects_unsatisfied_dependency(
+    state: str,
+) -> None:
+    graph = _graph()
+    work_items = graph["work_items"]
+    assert isinstance(work_items, dict)
+    issue_34 = work_items["issue-34"]
+    assert isinstance(issue_34, dict)
+    issue_34["state"] = state
+    issue_34["depends_on"] = [
+        {"id": "issue-45", "status": "unsatisfied"}
+    ]
+
+    with pytest.raises(
+        GraphValidationError,
+        match=(
+            f"work_items.issue-34 is {state} but dependency "
+            "issue-45 is unsatisfied"
+        ),
+    ):
+        validate_graph(REPOSITORY_ROOT, graph)
+
+
+def test_blocked_work_item_accepts_unsatisfied_dependency() -> None:
+    graph = _graph()
+    work_items = graph["work_items"]
+    assert isinstance(work_items, dict)
+    issue_34 = work_items["issue-34"]
+    assert isinstance(issue_34, dict)
+    issue_34["state"] = "blocked"
+    issue_34["depends_on"] = [
+        {"id": "issue-45", "status": "unsatisfied"}
+    ]
+
+    validate_graph(REPOSITORY_ROOT, graph)
+
+
 def test_cycle_rejects_a_member_missing_from_work_items() -> None:
     graph = _graph()
     cycles = graph["cycles"]
@@ -982,6 +1037,34 @@ def test_completed_cycle_rejects_planned_aggregate_eval() -> None:
         match="cycles.cycle-3.2.1 aggregate eval EVAL-DIARY-001 is planned",
     ):
         validate_graph(REPOSITORY_ROOT, graph)
+
+
+def test_completed_cycle_requires_aggregate_eval() -> None:
+    graph = _graph()
+    cycles = graph["cycles"]
+    assert isinstance(cycles, dict)
+    cycle = cycles["cycle-3.2.1"]
+    assert isinstance(cycle, dict)
+    cycle.pop("aggregate_eval")
+
+    with pytest.raises(
+        GraphValidationError,
+        match=(
+            "cycles.cycle-3.2.1.aggregate_eval must be a non-empty string"
+        ),
+    ):
+        validate_graph(REPOSITORY_ROOT, graph)
+
+
+def test_planned_cycle_may_omit_aggregate_eval() -> None:
+    graph = _graph()
+    cycles = graph["cycles"]
+    assert isinstance(cycles, dict)
+    cycle = cycles["cycle-3.4.0"]
+    assert isinstance(cycle, dict)
+    cycle.pop("aggregate_eval", None)
+
+    validate_graph(REPOSITORY_ROOT, graph)
 
 
 def test_completed_cycle_rejects_unsatisfied_member_dependency() -> None:
