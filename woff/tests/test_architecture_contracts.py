@@ -117,6 +117,31 @@ def test_project_graph_rejects_a_missing_declared_path() -> None:
         validate_graph(REPOSITORY_ROOT, graph)
 
 
+@pytest.mark.parametrize(
+    "pattern",
+    [
+        "C:/tmp/evidence.py",
+        r"C:\tmp\evidence.py",
+        r"\\server\share\evidence.py",
+        "/tmp/evidence.py",
+        "../evidence.py",
+        r"..\evidence.py",
+    ],
+)
+def test_project_graph_rejects_unsafe_patterns_in_either_path_syntax(
+    pattern: str,
+) -> None:
+    graph = _graph()
+    invariant = graph["invariants"]["DATA-001"]  # type: ignore[index]
+    invariant["enforced_by"] = [pattern]  # type: ignore[index]
+
+    with pytest.raises(
+        GraphValidationError,
+        match="invariants.DATA-001.enforced_by must stay within the repository",
+    ):
+        validate_graph(REPOSITORY_ROOT, graph)
+
+
 def test_project_graph_rejects_an_invariant_without_enforcement_paths() -> None:
     graph = _graph()
     invariants = graph["invariants"]
@@ -590,6 +615,42 @@ def test_cli_prints_a_valid_absolute_graph_path_outside_repository(
     assert f"project graph is valid: {graph_path}" in capsys.readouterr().out
 
 
+def test_cli_rejects_windows_absolute_pattern_without_traceback(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    graph_text = GRAPH_PATH.read_text(encoding="utf-8").replace(
+        "      - woff/tests/test_woff_editor.py\n",
+        r"      - C:\tmp\evidence.py" + "\n",
+        1,
+    )
+    graph_path = tmp_path / "malformed-graph.yaml"
+    graph_path.write_text(graph_text, encoding="utf-8")
+
+    assert main([str(graph_path)]) == 1
+    captured = capsys.readouterr()
+    assert "must stay within the repository" in captured.err
+    assert "Traceback" not in captured.err
+
+
+def test_cli_rejects_malformed_tracker_without_traceback(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    graph_text = GRAPH_PATH.read_text(encoding="utf-8").replace(
+        "    tracker: issue-50\n",
+        "    tracker: []\n",
+        1,
+    )
+    graph_path = tmp_path / "malformed-graph.yaml"
+    graph_path.write_text(graph_text, encoding="utf-8")
+
+    assert main([str(graph_path)]) == 1
+    captured = capsys.readouterr()
+    assert "cycles.cycle-3.3.0.tracker must be a non-empty string" in captured.err
+    assert "Traceback" not in captured.err
+
+
 @pytest.mark.parametrize("status", [None, "", "complete", "Implemented"])
 def test_project_graph_rejects_invalid_eval_status(status: object) -> None:
     graph = _graph()
@@ -850,6 +911,39 @@ def test_completed_cycle_rejects_incomplete_tracker() -> None:
     with pytest.raises(
         GraphValidationError,
         match="cycles.cycle-3.3.0 completed tracker issue-50 is tracking",
+    ):
+        validate_graph(REPOSITORY_ROOT, graph)
+
+
+@pytest.mark.parametrize("tracker", [[], {}, True, ""])
+def test_cycle_rejects_malformed_tracker_types(tracker: object) -> None:
+    graph = _graph()
+    cycle = graph["cycles"]["cycle-3.4.0"]  # type: ignore[index]
+    cycle["tracker"] = tracker  # type: ignore[index]
+
+    with pytest.raises(
+        GraphValidationError,
+        match="cycles.cycle-3.4.0.tracker must be a non-empty string",
+    ):
+        validate_graph(REPOSITORY_ROOT, graph)
+
+
+def test_cycle_allows_null_tracker_where_optional() -> None:
+    graph = _graph()
+    cycle = graph["cycles"]["cycle-3.4.0"]  # type: ignore[index]
+    cycle["tracker"] = None  # type: ignore[index]
+
+    validate_graph(REPOSITORY_ROOT, graph)
+
+
+def test_cycle_preserves_unknown_tracker_diagnostic_for_valid_strings() -> None:
+    graph = _graph()
+    cycle = graph["cycles"]["cycle-3.4.0"]  # type: ignore[index]
+    cycle["tracker"] = "issue-unknown"  # type: ignore[index]
+
+    with pytest.raises(
+        GraphValidationError,
+        match="cycles.cycle-3.4.0 references unknown tracker issue-unknown",
     ):
         validate_graph(REPOSITORY_ROOT, graph)
 

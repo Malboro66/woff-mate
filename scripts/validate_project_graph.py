@@ -6,7 +6,7 @@ from __future__ import annotations
 import argparse
 import sys
 from collections.abc import Mapping, Sequence
-from pathlib import Path, PurePosixPath
+from pathlib import Path, PurePosixPath, PureWindowsPath
 from typing import Any, cast
 
 import yaml
@@ -113,8 +113,15 @@ def _non_empty_string(value: object, location: str) -> str:
 
 
 def _safe_pattern(pattern: str, location: str) -> None:
-    parsed = PurePosixPath(pattern)
-    if parsed.is_absolute() or ".." in parsed.parts:
+    posix_path = PurePosixPath(pattern)
+    windows_path = PureWindowsPath(pattern)
+    if (
+        posix_path.is_absolute()
+        or ".." in posix_path.parts
+        or windows_path.is_absolute()
+        or bool(windows_path.drive)
+        or ".." in windows_path.parts
+    ):
         raise GraphValidationError(
             f"{location} must stay within the repository: {pattern}"
         )
@@ -693,10 +700,15 @@ def _validate_cycles(
                 f"cycles.{cycle_id} has invalid state {state}"
             )
         tracker = cycle.get("tracker")
-        if tracker is not None and tracker not in work_items:
-            raise GraphValidationError(
-                f"cycles.{cycle_id} references unknown tracker {tracker}"
+        if tracker is not None:
+            tracker = _non_empty_string(
+                tracker,
+                f"cycles.{cycle_id}.tracker",
             )
+            if tracker not in work_items:
+                raise GraphValidationError(
+                    f"cycles.{cycle_id} references unknown tracker {tracker}"
+                )
         members = _string_list(
             cycle.get("members"), f"cycles.{cycle_id}.members"
         )
