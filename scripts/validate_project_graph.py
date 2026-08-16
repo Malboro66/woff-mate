@@ -283,6 +283,10 @@ def _validate_evals(
         owners = _string_list(
             evaluation.get("work_items"), f"evals.{eval_id}.work_items"
         )
+        if not owners:
+            raise GraphValidationError(
+                f"evals.{eval_id}.work_items must contain at least one work item"
+            )
         for owner in owners:
             if owner not in work_items:
                 raise GraphValidationError(
@@ -553,6 +557,14 @@ def _validate_work_items(
                     f"work_items.{item_id} dependency is marked satisfied but "
                     f"{dependency_id} is not done"
                 )
+            if (
+                dependency_state == "unsatisfied"
+                and dependency_item.get("state") == "done"
+            ):
+                raise GraphValidationError(
+                    f"work_items.{item_id} dependency {dependency_id} is marked "
+                    "unsatisfied but the dependency is done"
+                )
     _validate_work_item_dependency_cycles(work_items)
     return work_items
 
@@ -579,6 +591,10 @@ def _validate_cycles(
         members = _string_list(
             cycle.get("members"), f"cycles.{cycle_id}.members"
         )
+        if not members:
+            raise GraphValidationError(
+                f"cycles.{cycle_id}.members must contain at least one work item"
+            )
         if state == "completed" and tracker is not None and tracker not in members:
             tracker_item = _mapping(work_items[tracker], f"work_items.{tracker}")
             if tracker_item.get("state") != "done":
@@ -658,6 +674,24 @@ def _validate_cycles(
             raise GraphValidationError(
                 f"cycles.{cycle_id} references unknown gate {gate}"
             )
+        if gate is not None:
+            participants = [*members]
+            if tracker is not None and tracker not in participants:
+                participants.append(tracker)
+            for participant in participants:
+                participant_item = _mapping(
+                    work_items[participant],
+                    f"work_items.{participant}",
+                )
+                participant_gates = _string_list(
+                    participant_item.get("gates", []),
+                    f"work_items.{participant}.gates",
+                )
+                if gate not in participant_gates:
+                    raise GraphValidationError(
+                        f"cycles.{cycle_id} participant {participant} "
+                        f"must reference gate {gate}"
+                    )
 
 
 def validate_graph(repository_root: Path, graph: Mapping[str, Any]) -> None:
@@ -711,7 +745,11 @@ def main(argv: list[str] | None = None) -> int:
         print(f"project graph validation failed: {exc}", file=sys.stderr)
         return 1
 
-    print(f"project graph is valid: {graph_path.relative_to(repository_root)}")
+    try:
+        display_path = graph_path.relative_to(repository_root)
+    except ValueError:
+        display_path = graph_path
+    print(f"project graph is valid: {display_path}")
     return 0
 
 

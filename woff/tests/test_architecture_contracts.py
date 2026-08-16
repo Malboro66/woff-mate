@@ -12,6 +12,7 @@ import pytest
 from scripts.validate_project_graph import (
     GraphValidationError,
     load_graph,
+    main,
     validate_graph,
 )
 
@@ -141,6 +142,26 @@ def test_project_graph_rejects_an_unknown_eval_reference() -> None:
         validate_graph(REPOSITORY_ROOT, graph)
 
 
+def test_project_graph_rejects_an_eval_without_owners() -> None:
+    graph = _graph()
+    evals = graph["evals"]
+    work_items = graph["work_items"]
+    assert isinstance(evals, dict) and isinstance(work_items, dict)
+    evaluation = evals["EVAL-DB-001"]
+    issue_34 = work_items["issue-34"]
+    assert isinstance(evaluation, dict) and isinstance(issue_34, dict)
+    evaluation["work_items"] = []
+    item_evals = issue_34["evals"]
+    assert isinstance(item_evals, list)
+    item_evals.remove("EVAL-DB-001")
+
+    with pytest.raises(
+        GraphValidationError,
+        match="evals.EVAL-DB-001.work_items must contain at least one work item",
+    ):
+        validate_graph(REPOSITORY_ROOT, graph)
+
+
 def test_project_graph_rejects_an_unknown_gate_reference() -> None:
     graph = _graph()
     work_items = graph["work_items"]
@@ -170,6 +191,28 @@ def test_satisfied_dependency_requires_a_completed_work_item() -> None:
         validate_graph(REPOSITORY_ROOT, graph)
 
 
+def test_unsatisfied_dependency_rejects_a_completed_work_item() -> None:
+    graph = _graph()
+    work_items = graph["work_items"]
+    assert isinstance(work_items, dict)
+    issue_34 = work_items["issue-34"]
+    assert isinstance(issue_34, dict)
+    dependencies = issue_34["depends_on"]
+    assert isinstance(dependencies, list)
+    dependency = dependencies[0]
+    assert isinstance(dependency, dict)
+    dependency["status"] = "unsatisfied"
+
+    with pytest.raises(
+        GraphValidationError,
+        match=(
+            "work_items.issue-34 dependency issue-26 is marked unsatisfied "
+            "but the dependency is done"
+        ),
+    ):
+        validate_graph(REPOSITORY_ROOT, graph)
+
+
 def test_cycle_rejects_a_member_missing_from_work_items() -> None:
     graph = _graph()
     cycles = graph["cycles"]
@@ -181,6 +224,42 @@ def test_cycle_rejects_a_member_missing_from_work_items() -> None:
     members.append("issue-999")
 
     with pytest.raises(GraphValidationError, match="unknown member"):
+        validate_graph(REPOSITORY_ROOT, graph)
+
+
+def test_cycle_rejects_an_empty_member_list() -> None:
+    graph = _graph()
+    cycles = graph["cycles"]
+    assert isinstance(cycles, dict)
+    cycle = cycles["cycle-3.4.0"]
+    assert isinstance(cycle, dict)
+    cycle["members"] = []
+
+    with pytest.raises(
+        GraphValidationError,
+        match="cycles.cycle-3.4.0.members must contain at least one work item",
+    ):
+        validate_graph(REPOSITORY_ROOT, graph)
+
+
+@pytest.mark.parametrize("participant", ["issue-34", "issue-50"])
+def test_cycle_requires_its_gate_on_every_participant(participant: str) -> None:
+    graph = _graph()
+    work_items = graph["work_items"]
+    assert isinstance(work_items, dict)
+    item = work_items[participant]
+    assert isinstance(item, dict)
+    gates = item["gates"]
+    assert isinstance(gates, list)
+    gates.remove("Q6-CYCLE-3.3.0")
+
+    with pytest.raises(
+        GraphValidationError,
+        match=(
+            f"cycles.cycle-3.3.0 participant {participant} "
+            "must reference gate Q6-CYCLE-3.3.0"
+        ),
+    ):
         validate_graph(REPOSITORY_ROOT, graph)
 
 
@@ -232,6 +311,18 @@ def test_project_graph_loader_accepts_valid_yaml(tmp_path: Path) -> None:
     graph_path.write_text("version: 1\nroot:\n  nested: value\n", encoding="utf-8")
 
     assert load_graph(graph_path) == {"version": 1, "root": {"nested": "value"}}
+
+
+def test_cli_prints_a_valid_absolute_graph_path_outside_repository(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    graph_path = tmp_path / "project-graph.yaml"
+    graph_path.write_text(GRAPH_PATH.read_text(encoding="utf-8"), encoding="utf-8")
+    assert not graph_path.is_relative_to(REPOSITORY_ROOT)
+
+    assert main([str(graph_path)]) == 0
+    assert f"project graph is valid: {graph_path}" in capsys.readouterr().out
 
 
 @pytest.mark.parametrize("status", [None, "", "complete", "Implemented"])
