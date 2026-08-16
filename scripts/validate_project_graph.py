@@ -257,9 +257,17 @@ def _validate_invariants(repository_root: Path, graph: Mapping[str, Any]) -> Non
             raise GraphValidationError(
                 f"invariants.{invariant_id}.statement must be a non-empty string"
             )
+        enforced_by = _string_list(
+            invariant.get("enforced_by"),
+            f"invariants.{invariant_id}.enforced_by",
+        )
+        if not enforced_by:
+            raise GraphValidationError(
+                f"invariants.{invariant_id}.enforced_by must contain at least one path"
+            )
         _validate_existing_paths(
             repository_root,
-            invariant.get("enforced_by"),
+            enforced_by,
             f"invariants.{invariant_id}.enforced_by",
         )
 
@@ -437,6 +445,26 @@ def _validate_completed_cycle_member_evidence(
                 raise GraphValidationError(
                     f"cycles.{cycle_id} completed member {member} "
                     f"dependency {dependency_id} is {dependency.get('status')}"
+                )
+
+
+def _validate_done_work_item_evals(
+    work_items: Mapping[str, Any],
+    evals: Mapping[str, Any],
+) -> None:
+    for item_id, raw_item in work_items.items():
+        item = _mapping(raw_item, f"work_items.{item_id}")
+        if item.get("state") != "done":
+            continue
+        for eval_id in _string_list(
+            item.get("evals", []),
+            f"work_items.{item_id}.evals",
+        ):
+            evaluation = _mapping(evals[eval_id], f"evals.{eval_id}")
+            if evaluation.get("status") != "implemented":
+                raise GraphValidationError(
+                    f"work_items.{item_id} is done but eval {eval_id} "
+                    f"is {evaluation.get('status')}"
                 )
 
 
@@ -658,6 +686,7 @@ def validate_graph(repository_root: Path, graph: Mapping[str, Any]) -> None:
         if isinstance(aggregate_eval, str)
     }
     _validate_cycles(graph, work_items, evals, gates)
+    _validate_done_work_item_evals(work_items, evals)
     _validate_reciprocal_eval_ownership(work_items, evals, aggregate_eval_ids)
 
 

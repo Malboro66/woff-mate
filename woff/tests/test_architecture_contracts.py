@@ -84,6 +84,21 @@ def test_project_graph_rejects_a_missing_declared_path() -> None:
         validate_graph(REPOSITORY_ROOT, graph)
 
 
+def test_project_graph_rejects_an_invariant_without_enforcement_paths() -> None:
+    graph = _graph()
+    invariants = graph["invariants"]
+    assert isinstance(invariants, dict)
+    invariant = invariants["DATA-001"]
+    assert isinstance(invariant, dict)
+    invariant["enforced_by"] = []
+
+    with pytest.raises(
+        GraphValidationError,
+        match="invariants.DATA-001.enforced_by must contain at least one path",
+    ):
+        validate_graph(REPOSITORY_ROOT, graph)
+
+
 def test_project_graph_rejects_an_unmapped_source_file() -> None:
     graph = _graph()
     modules = graph["modules"]
@@ -245,6 +260,21 @@ def test_project_graph_accepts_valid_eval_statuses() -> None:
         assert evaluation["status"] in {"planned", "implemented"}
 
     validate_graph(REPOSITORY_ROOT, graph)
+
+
+def test_done_work_item_rejects_a_planned_eval_outside_completed_cycle() -> None:
+    graph = _graph()
+    work_items = graph["work_items"]
+    assert isinstance(work_items, dict)
+    issue_30 = work_items["issue-30"]
+    assert isinstance(issue_30, dict)
+    issue_30["state"] = "done"
+
+    with pytest.raises(
+        GraphValidationError,
+        match="work_items.issue-30 is done but eval EVAL-LINT-001 is planned",
+    ):
+        validate_graph(REPOSITORY_ROOT, graph)
 
 
 def test_project_graph_preserves_specific_self_dependency_validation() -> None:
