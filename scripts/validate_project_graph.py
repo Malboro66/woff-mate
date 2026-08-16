@@ -298,7 +298,15 @@ def _validate_evals(
             raise GraphValidationError(
                 f"evals.{eval_id}.evidence must be a non-empty string"
             )
-        enforced_by = evaluation.get("enforced_by", [])
+        enforced_by = _string_list(
+            evaluation.get("enforced_by", []),
+            f"evals.{eval_id}.enforced_by",
+        )
+        if status == "implemented" and not enforced_by:
+            raise GraphValidationError(
+                f"evals.{eval_id}.enforced_by must contain at least one path "
+                "when status is implemented"
+            )
         if enforced_by:
             _validate_existing_paths(
                 repository_root,
@@ -480,6 +488,37 @@ def _validate_done_work_item_evals(
                 )
 
 
+def _validate_done_work_item_dependencies(
+    work_items: Mapping[str, Any],
+) -> None:
+    for item_id, raw_item in work_items.items():
+        item = _mapping(raw_item, f"work_items.{item_id}")
+        if item.get("state") != "done":
+            continue
+        for index, raw_dependency in enumerate(item.get("depends_on", [])):
+            dependency = _mapping(
+                raw_dependency,
+                f"work_items.{item_id}.depends_on[{index}]",
+            )
+            if dependency.get("status") != "satisfied":
+                raise GraphValidationError(
+                    f"work_items.{item_id} is done but dependency "
+                    f"{dependency.get('id')} is {dependency.get('status')}"
+                )
+
+
+def _validate_work_item_gates(work_items: Mapping[str, Any]) -> None:
+    for item_id, raw_item in work_items.items():
+        item = _mapping(raw_item, f"work_items.{item_id}")
+        if not _string_list(
+            item.get("gates", []),
+            f"work_items.{item_id}.gates",
+        ):
+            raise GraphValidationError(
+                f"work_items.{item_id}.gates must contain at least one quality gate"
+            )
+
+
 def _validate_work_items(
     graph: Mapping[str, Any],
     modules: Mapping[str, Any],
@@ -506,9 +545,10 @@ def _validate_work_items(
                 raise GraphValidationError(
                     f"work_items.{item_id} references unknown eval {eval_id}"
                 )
-        for gate_id in _string_list(
+        item_gates = _string_list(
             item.get("gates", []), f"work_items.{item_id}.gates"
-        ):
+        )
+        for gate_id in item_gates:
             if gate_id not in gates:
                 raise GraphValidationError(
                     f"work_items.{item_id} references unknown gate {gate_id}"
@@ -723,7 +763,8 @@ def validate_graph(repository_root: Path, graph: Mapping[str, Any]) -> None:
     """Validate graph structure, paths, references, and dependency state."""
 
     repository_root = repository_root.resolve()
-    if graph.get("version") != 1:
+    version = graph.get("version")
+    if type(version) is not int or version != 1:
         raise GraphValidationError("project graph version must be 1")
 
     modules = _mapping(graph.get("modules"), "modules")
@@ -745,6 +786,8 @@ def validate_graph(repository_root: Path, graph: Mapping[str, Any]) -> None:
         if isinstance(aggregate_eval, str)
     }
     _validate_cycles(graph, work_items, evals, gates)
+    _validate_work_item_gates(work_items)
+    _validate_done_work_item_dependencies(work_items)
     _validate_unsatisfied_dependencies_target_incomplete_work(work_items)
     _validate_done_work_item_evals(work_items, evals)
     _validate_reciprocal_eval_ownership(work_items, evals, aggregate_eval_ids)

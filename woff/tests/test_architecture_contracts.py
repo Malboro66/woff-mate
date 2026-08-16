@@ -71,6 +71,18 @@ def test_project_graph_is_valid() -> None:
     validate_graph(REPOSITORY_ROOT, _graph())
 
 
+@pytest.mark.parametrize("version", [True, 1.0, "1"])
+def test_project_graph_rejects_non_integer_version_one(version: object) -> None:
+    graph = _graph()
+    graph["version"] = version
+
+    with pytest.raises(
+        GraphValidationError,
+        match="project graph version must be 1",
+    ):
+        validate_graph(REPOSITORY_ROOT, graph)
+
+
 def test_project_graph_rejects_a_missing_declared_path() -> None:
     graph = _graph()
     modules = graph["modules"]
@@ -162,6 +174,47 @@ def test_project_graph_rejects_an_eval_without_owners() -> None:
         validate_graph(REPOSITORY_ROOT, graph)
 
 
+@pytest.mark.parametrize("enforced_by", [None, []])
+def test_implemented_eval_requires_enforcement_paths(
+    enforced_by: list[str] | None,
+) -> None:
+    graph = _graph()
+    evals = graph["evals"]
+    assert isinstance(evals, dict)
+    evaluation = evals["EVAL-GOV-001"]
+    assert isinstance(evaluation, dict)
+    if enforced_by is None:
+        evaluation.pop("enforced_by")
+    else:
+        evaluation["enforced_by"] = enforced_by
+
+    with pytest.raises(
+        GraphValidationError,
+        match=(
+            "evals.EVAL-GOV-001.enforced_by must contain at least one path "
+            "when status is implemented"
+        ),
+    ):
+        validate_graph(REPOSITORY_ROOT, graph)
+
+
+@pytest.mark.parametrize("enforced_by", [None, []])
+def test_planned_eval_may_omit_enforcement_paths(
+    enforced_by: list[str] | None,
+) -> None:
+    graph = _graph()
+    evals = graph["evals"]
+    assert isinstance(evals, dict)
+    evaluation = evals["EVAL-LINT-001"]
+    assert isinstance(evaluation, dict)
+    if enforced_by is None:
+        evaluation.pop("enforced_by", None)
+    else:
+        evaluation["enforced_by"] = enforced_by
+
+    validate_graph(REPOSITORY_ROOT, graph)
+
+
 def test_project_graph_rejects_an_unknown_gate_reference() -> None:
     graph = _graph()
     work_items = graph["work_items"]
@@ -173,6 +226,23 @@ def test_project_graph_rejects_an_unknown_gate_reference() -> None:
     gates.append("Q-UNKNOWN")
 
     with pytest.raises(GraphValidationError, match="unknown gate"):
+        validate_graph(REPOSITORY_ROOT, graph)
+
+
+def test_project_graph_rejects_a_work_item_without_quality_gates() -> None:
+    graph = _graph()
+    work_items = graph["work_items"]
+    assert isinstance(work_items, dict)
+    issue_51 = work_items["issue-51"]
+    assert isinstance(issue_51, dict)
+    issue_51["gates"] = []
+
+    with pytest.raises(
+        GraphValidationError,
+        match=(
+            "work_items.issue-51.gates must contain at least one quality gate"
+        ),
+    ):
         validate_graph(REPOSITORY_ROOT, graph)
 
 
@@ -208,6 +278,23 @@ def test_unsatisfied_dependency_rejects_a_completed_work_item() -> None:
         match=(
             "work_items.issue-34 dependency issue-26 is marked unsatisfied "
             "but the dependency is done"
+        ),
+    ):
+        validate_graph(REPOSITORY_ROOT, graph)
+
+
+def test_done_work_item_rejects_an_unsatisfied_dependency() -> None:
+    graph = _graph()
+    work_items = graph["work_items"]
+    assert isinstance(work_items, dict)
+    issue_51 = work_items["issue-51"]
+    assert isinstance(issue_51, dict)
+    issue_51["depends_on"] = [{"id": "issue-30", "status": "unsatisfied"}]
+
+    with pytest.raises(
+        GraphValidationError,
+        match=(
+            "work_items.issue-51 is done but dependency issue-30 is unsatisfied"
         ),
     ):
         validate_graph(REPOSITORY_ROOT, graph)
