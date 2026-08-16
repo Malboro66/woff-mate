@@ -546,6 +546,10 @@ def _validate_work_items(
     for item_id, raw_item in work_items.items():
         item = _mapping(raw_item, f"work_items.{item_id}")
         module = item.get("module")
+        if not isinstance(module, str) or not module:
+            raise GraphValidationError(
+                f"work_items.{item_id}.module must be a non-empty string"
+            )
         if module not in modules:
             raise GraphValidationError(
                 f"work_items.{item_id} references unknown module {module}"
@@ -760,6 +764,14 @@ def _validate_cycles(
                 evals,
             )
         gate = cycle.get("gate")
+        if gate is not None and (not isinstance(gate, str) or not gate):
+            raise GraphValidationError(
+                f"cycles.{cycle_id}.gate must be a non-empty string"
+            )
+        if state in {"active", "completed"} and gate is None:
+            raise GraphValidationError(
+                f"cycles.{cycle_id}.gate must be a non-empty string"
+            )
         if gate is not None and gate not in gates:
             raise GraphValidationError(
                 f"cycles.{cycle_id} references unknown gate {gate}"

@@ -22,7 +22,7 @@ GRAPH_PATH = REPOSITORY_ROOT / "docs" / "architecture" / "project-graph.yaml"
 _REQUIREMENT_NAME_RE = re.compile(r"^\s*([A-Za-z0-9][A-Za-z0-9._-]*)")
 
 
-def _imports_yaml(source: str) -> bool:
+def _imports_forbidden_runtime_dependency(source: str) -> bool:
     tree = ast.parse(source)
     return any(
         (
@@ -36,6 +36,26 @@ def _imports_yaml(source: str) -> bool:
             isinstance(node, ast.ImportFrom)
             and node.module is not None
             and (node.module == "yaml" or node.module.startswith("yaml."))
+        )
+        or (
+            isinstance(node, ast.Import)
+            and any(
+                alias.name == "scripts.validate_project_graph"
+                for alias in node.names
+            )
+        )
+        or (
+            isinstance(node, ast.ImportFrom)
+            and (
+                node.module == "scripts.validate_project_graph"
+                or (
+                    node.module == "scripts"
+                    and any(
+                        alias.name == "validate_project_graph"
+                        for alias in node.names
+                    )
+                )
+            )
         )
         for node in ast.walk(tree)
     )
@@ -165,6 +185,22 @@ def test_project_graph_rejects_an_unknown_eval_reference() -> None:
     evals.append("EVAL-UNKNOWN-001")
 
     with pytest.raises(GraphValidationError, match="unknown eval"):
+        validate_graph(REPOSITORY_ROOT, graph)
+
+
+@pytest.mark.parametrize("module", [None, "", ["persistence"]])
+def test_project_graph_rejects_a_malformed_work_item_module(module: object) -> None:
+    graph = _graph()
+    work_items = graph["work_items"]
+    assert isinstance(work_items, dict)
+    issue_34 = work_items["issue-34"]
+    assert isinstance(issue_34, dict)
+    issue_34["module"] = module
+
+    with pytest.raises(
+        GraphValidationError,
+        match="work_items.issue-34.module must be a non-empty string",
+    ):
         validate_graph(REPOSITORY_ROOT, graph)
 
 
@@ -364,6 +400,33 @@ def test_cycle_requires_its_gate_on_every_participant(participant: str) -> None:
         validate_graph(REPOSITORY_ROOT, graph)
 
 
+@pytest.mark.parametrize("cycle_id", ["cycle-3.2.1", "cycle-3.3.0"])
+def test_non_planned_cycle_requires_a_gate(cycle_id: str) -> None:
+    graph = _graph()
+    cycles = graph["cycles"]
+    assert isinstance(cycles, dict)
+    cycle = cycles[cycle_id]
+    assert isinstance(cycle, dict)
+    cycle.pop("gate")
+
+    with pytest.raises(
+        GraphValidationError,
+        match=rf"cycles\.{re.escape(cycle_id)}\.gate must be a non-empty string",
+    ):
+        validate_graph(REPOSITORY_ROOT, graph)
+
+
+def test_planned_cycle_may_omit_its_gate() -> None:
+    graph = _graph()
+    cycles = graph["cycles"]
+    assert isinstance(cycles, dict)
+    cycle = cycles["cycle-3.4.0"]
+    assert isinstance(cycle, dict)
+    cycle.pop("gate", None)
+
+    validate_graph(REPOSITORY_ROOT, graph)
+
+
 def test_pyyaml_remains_a_development_dependency() -> None:
     pyproject = (REPOSITORY_ROOT / "pyproject.toml").read_text(encoding="utf-8")
     project_section, optional_section = pyproject.split(
@@ -374,7 +437,7 @@ def test_pyyaml_remains_a_development_dependency() -> None:
     assert '"PyYAML>=6.0"' in optional_section
 
 
-def test_runtime_modules_do_not_import_yaml() -> None:
+def test_runtime_modules_do_not_import_governance_dependencies() -> None:
     runtime_paths = [
         *REPOSITORY_ROOT.glob("*.py"),
         *(
@@ -385,10 +448,32 @@ def test_runtime_modules_do_not_import_yaml() -> None:
     ]
     offenders: list[str] = []
     for path in runtime_paths:
-        if _imports_yaml(path.read_text(encoding="utf-8")):
+        if _imports_forbidden_runtime_dependency(path.read_text(encoding="utf-8")):
             offenders.append(path.relative_to(REPOSITORY_ROOT).as_posix())
 
     assert offenders == []
+
+
+@pytest.mark.parametrize(
+    "source",
+    [
+        "import scripts.validate_project_graph",
+        "from scripts.validate_project_graph import validate_graph",
+        "def validate():\n    from scripts import validate_project_graph\n",
+    ],
+)
+def test_governance_import_detection_covers_direct_and_nested_forms(
+    source: str,
+) -> None:
+    assert _imports_forbidden_runtime_dependency(source)
+
+
+@pytest.mark.parametrize(
+    "source",
+    ["import yaml", "import yaml.loader", "from yaml.loader import SafeLoader"],
+)
+def test_governance_import_detection_preserves_yaml_prohibition(source: str) -> None:
+    assert _imports_forbidden_runtime_dependency(source)
 
 
 def test_project_graph_loader_rejects_duplicate_root_mapping_key(tmp_path: Path) -> None:
@@ -579,8 +664,10 @@ def test_yaml_import_detection_covers_yaml_and_submodules() -> None:
         "from yaml import safe_load",
         "from yaml.loader import SafeLoader",
     ):
-        assert _imports_yaml(source)
-    assert not _imports_yaml("import json\nfrom pathlib import Path")
+        assert _imports_forbidden_runtime_dependency(source)
+    assert not _imports_forbidden_runtime_dependency(
+        "import json\nfrom pathlib import Path"
+    )
 
 
 def test_completed_cycle_rejects_incomplete_member() -> None:
