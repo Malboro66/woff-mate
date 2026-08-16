@@ -41,12 +41,18 @@ def _construct_mapping_without_duplicate_keys(
 ) -> Mapping[object, object]:
     seen: set[object] = set()
     for key_node, _value_node in node.value:
-        key = loader.construct_object(key_node, deep=deep)
+        key = loader.construct_object(key_node, deep=True)
+        location = (
+            f"line {key_node.start_mark.line + 1}, "
+            f"column {key_node.start_mark.column + 1}"
+        )
+        try:
+            hash(key)
+        except TypeError as exc:
+            raise GraphValidationError(
+                f"mapping key {key!r} at {location} must be hashable"
+            ) from exc
         if key in seen:
-            location = (
-                f"line {key_node.start_mark.line + 1}, "
-                f"column {key_node.start_mark.column + 1}"
-            )
             raise GraphValidationError(f"duplicate key {key!r} at {location}")
         seen.add(key)
     return cast(
@@ -250,6 +256,12 @@ def _validate_existing_paths(
 
 def _validate_invariants(repository_root: Path, graph: Mapping[str, Any]) -> None:
     invariants = _mapping(graph.get("invariants"), "invariants")
+    required_invariants = {"DATA-001", "DATA-002"}
+    missing_invariants = sorted(required_invariants - set(invariants))
+    if missing_invariants:
+        raise GraphValidationError(
+            f"invariants must include required invariants {missing_invariants}"
+        )
     for invariant_id, raw_invariant in invariants.items():
         invariant = _mapping(raw_invariant, f"invariants.{invariant_id}")
         statement = invariant.get("statement")
@@ -476,10 +488,15 @@ def _validate_done_work_item_evals(
         item = _mapping(raw_item, f"work_items.{item_id}")
         if item.get("state") != "done":
             continue
-        for eval_id in _string_list(
+        item_evals = _string_list(
             item.get("evals", []),
             f"work_items.{item_id}.evals",
-        ):
+        )
+        if not item_evals:
+            raise GraphValidationError(
+                f"work_items.{item_id} is done but has no evals"
+            )
+        for eval_id in item_evals:
             evaluation = _mapping(evals[eval_id], f"evals.{eval_id}")
             if evaluation.get("status") != "implemented":
                 raise GraphValidationError(
@@ -641,6 +658,7 @@ def _validate_cycles(
     gates: Mapping[str, Any],
 ) -> None:
     cycles = _mapping(graph.get("cycles"), "cycles")
+    member_cycles: dict[str, str] = {}
     for cycle_id, raw_cycle in cycles.items():
         cycle = _mapping(raw_cycle, f"cycles.{cycle_id}")
         state = cycle.get("state")
@@ -672,6 +690,13 @@ def _validate_cycles(
                 raise GraphValidationError(
                     f"cycles.{cycle_id} references unknown member {member}"
                 )
+            previous_cycle = member_cycles.get(member)
+            if previous_cycle is not None:
+                raise GraphValidationError(
+                    f"work item {member} is a member of both "
+                    f"cycles.{previous_cycle} and cycles.{cycle_id}"
+                )
+            member_cycles[member] = cycle_id
             member_item = _mapping(work_items[member], f"work_items.{member}")
             if state == "completed" and member_item.get("state") != "done":
                 raise GraphValidationError(

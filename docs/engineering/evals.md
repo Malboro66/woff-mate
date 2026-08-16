@@ -99,17 +99,17 @@ dependencies, and unknown cycle members. Enforcement lives in
 
 ## Eval record requirements
 
-Every detailed eval added to this catalog or the graph must define:
+The machine-readable graph is a minimal registry, not the complete execution
+record for an eval. Each graph entry defines its ID, owning work items, status,
+observable evidence, and, once implemented, its enforcement paths. Planned
+evals must not be populated with speculative execution details merely to fill
+out a template.
 
-- ID
-- controlled risk
-- owning work item
-- initial state and input
-- expected result
-- assertion or metric
-- test file or review procedure
-- required gate
-- last known execution in the pull request that claims completion
+When implementation begins or completion is claimed, the associated issue or
+pull request carries the detailed execution record. That record defines the
+controlled risk, initial state and input, assertion or metric, test or review
+procedure, required gate, and last execution. These extended fields may be
+linked to the registry but are not required graph fields.
 
 Fixtures must be synthetic or sanitized. Logs and failure output must not expose
 campaign data or personal paths.

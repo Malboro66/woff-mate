@@ -112,6 +112,20 @@ def test_project_graph_rejects_an_invariant_without_enforcement_paths() -> None:
         validate_graph(REPOSITORY_ROOT, graph)
 
 
+@pytest.mark.parametrize("invariant_id", ["DATA-001", "DATA-002"])
+def test_project_graph_requires_data_safety_invariants(invariant_id: str) -> None:
+    graph = _graph()
+    invariants = graph["invariants"]
+    assert isinstance(invariants, dict)
+    del invariants[invariant_id]
+
+    with pytest.raises(
+        GraphValidationError,
+        match=rf"invariants must include required invariants.*{invariant_id}",
+    ):
+        validate_graph(REPOSITORY_ROOT, graph)
+
+
 def test_project_graph_rejects_an_unmapped_source_file() -> None:
     graph = _graph()
     modules = graph["modules"]
@@ -393,6 +407,30 @@ def test_project_graph_loader_rejects_duplicate_nested_mapping_key(tmp_path: Pat
         load_graph(graph_path)
 
 
+def test_project_graph_loader_rejects_unhashable_mapping_key(tmp_path: Path) -> None:
+    graph_path = tmp_path / "graph.yaml"
+    graph_path.write_text("? [module, name]\n: value\n", encoding="utf-8")
+
+    with pytest.raises(
+        GraphValidationError,
+        match=r"mapping key \['module', 'name'\].*must be hashable",
+    ):
+        load_graph(graph_path)
+
+
+def test_cli_reports_unhashable_mapping_key_without_traceback(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    graph_path = tmp_path / "graph.yaml"
+    graph_path.write_text("? [module, name]\n: value\n", encoding="utf-8")
+
+    assert main([str(graph_path)]) == 1
+    captured = capsys.readouterr()
+    assert "mapping key ['module', 'name']" in captured.err
+    assert "Traceback" not in captured.err
+
+
 def test_project_graph_loader_accepts_valid_yaml(tmp_path: Path) -> None:
     graph_path = tmp_path / "graph.yaml"
     graph_path.write_text("version: 1\nroot:\n  nested: value\n", encoding="utf-8")
@@ -451,6 +489,23 @@ def test_done_work_item_rejects_a_planned_eval_outside_completed_cycle() -> None
     with pytest.raises(
         GraphValidationError,
         match="work_items.issue-30 is done but eval EVAL-LINT-001 is planned",
+    ):
+        validate_graph(REPOSITORY_ROOT, graph)
+
+
+def test_done_work_item_rejects_an_empty_eval_list() -> None:
+    graph = _graph()
+    work_items = graph["work_items"]
+    evals = graph["evals"]
+    assert isinstance(work_items, dict) and isinstance(evals, dict)
+    issue_51 = work_items["issue-51"]
+    assert isinstance(issue_51, dict)
+    issue_51["evals"] = []
+    del evals["EVAL-GOV-001"]
+
+    with pytest.raises(
+        GraphValidationError,
+        match="work_items.issue-51 is done but has no evals",
     ):
         validate_graph(REPOSITORY_ROOT, graph)
 
@@ -581,6 +636,37 @@ def test_planned_cycle_accepts_incomplete_members_when_otherwise_consistent() ->
     cycle = cycles["cycle-3.3.0"]
     assert isinstance(cycle, dict)
     cycle["state"] = "planned"
+    validate_graph(REPOSITORY_ROOT, graph)
+
+
+def test_project_graph_rejects_member_assigned_to_multiple_cycles() -> None:
+    graph = _graph()
+    cycles = graph["cycles"]
+    assert isinstance(cycles, dict)
+    cycle_350 = cycles["cycle-3.5.0"]
+    assert isinstance(cycle_350, dict)
+    members = cycle_350["members"]
+    assert isinstance(members, list)
+    members.append("issue-41")
+
+    with pytest.raises(
+        GraphValidationError,
+        match=(
+            "work item issue-41 is a member of both "
+            "cycles.cycle-3.4.0 and cycles.cycle-3.5.0"
+        ),
+    ):
+        validate_graph(REPOSITORY_ROOT, graph)
+
+
+def test_cycle_tracker_may_also_be_a_member_of_the_same_cycle() -> None:
+    graph = _graph()
+    cycles = graph["cycles"]
+    assert isinstance(cycles, dict)
+    cycle = cycles["cycle-3.2.1"]
+    assert isinstance(cycle, dict)
+    assert cycle["tracker"] in cycle["members"]
+
     validate_graph(REPOSITORY_ROOT, graph)
 
 
