@@ -563,6 +563,97 @@ def test_project_graph_accepts_valid_eval_statuses() -> None:
     validate_graph(REPOSITORY_ROOT, graph)
 
 
+@pytest.mark.parametrize("status", [None, "", [], {}])
+def test_project_graph_rejects_malformed_eval_status_types(status: object) -> None:
+    graph = _graph()
+    evaluation = graph["evals"]["EVAL-DB-001"]  # type: ignore[index]
+    evaluation["status"] = status  # type: ignore[index]
+
+    with pytest.raises(
+        GraphValidationError,
+        match="evals.EVAL-DB-001.status must be a non-empty string",
+    ):
+        validate_graph(REPOSITORY_ROOT, graph)
+
+
+@pytest.mark.parametrize("state", [None, "", [], {}])
+def test_project_graph_rejects_malformed_work_item_states(state: object) -> None:
+    graph = _graph()
+    item = graph["work_items"]["issue-30"]  # type: ignore[index]
+    item["state"] = state  # type: ignore[index]
+
+    with pytest.raises(
+        GraphValidationError,
+        match="work_items.issue-30.state must be a non-empty string",
+    ):
+        validate_graph(REPOSITORY_ROOT, graph)
+
+
+@pytest.mark.parametrize("status", [None, "", [], {}])
+def test_project_graph_rejects_malformed_dependency_statuses(status: object) -> None:
+    graph = _graph()
+    item = graph["work_items"]["issue-27"]  # type: ignore[index]
+    dependency = item["depends_on"][0]  # type: ignore[index]
+    dependency["status"] = status
+
+    with pytest.raises(
+        GraphValidationError,
+        match=r"work_items.issue-27.depends_on\[0\].status must be a non-empty string",
+    ):
+        validate_graph(REPOSITORY_ROOT, graph)
+
+
+@pytest.mark.parametrize("state", [None, "", [], {}])
+def test_project_graph_rejects_malformed_cycle_states(state: object) -> None:
+    graph = _graph()
+    cycle = graph["cycles"]["cycle-3.4.0"]  # type: ignore[index]
+    cycle["state"] = state  # type: ignore[index]
+
+    with pytest.raises(
+        GraphValidationError,
+        match="cycles.cycle-3.4.0.state must be a non-empty string",
+    ):
+        validate_graph(REPOSITORY_ROOT, graph)
+
+
+def test_cli_rejects_malformed_enum_without_traceback(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    graph_text = GRAPH_PATH.read_text(encoding="utf-8").replace(
+        "    status: planned\n",
+        "    status: []\n",
+        1,
+    )
+    graph_path = tmp_path / "malformed-graph.yaml"
+    graph_path.write_text(graph_text, encoding="utf-8")
+
+    assert main([str(graph_path)]) == 1
+    captured = capsys.readouterr()
+    assert "must be a non-empty string" in captured.err
+    assert "Traceback" not in captured.err
+
+
+def test_project_graph_rejects_missing_depends_on() -> None:
+    graph = _graph()
+    item = graph["work_items"]["issue-30"]  # type: ignore[index]
+    del item["depends_on"]  # type: ignore[attr-defined]
+
+    with pytest.raises(
+        GraphValidationError,
+        match="work_items.issue-30.depends_on must be a list",
+    ):
+        validate_graph(REPOSITORY_ROOT, graph)
+
+
+def test_project_graph_accepts_explicit_empty_depends_on() -> None:
+    graph = _graph()
+    item = graph["work_items"]["issue-30"]  # type: ignore[index]
+    item["depends_on"] = []  # type: ignore[index]
+
+    validate_graph(REPOSITORY_ROOT, graph)
+
+
 def test_done_work_item_rejects_a_planned_eval_outside_completed_cycle() -> None:
     graph = _graph()
     work_items = graph["work_items"]

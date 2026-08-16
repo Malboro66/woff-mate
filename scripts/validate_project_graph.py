@@ -106,6 +106,12 @@ def _string_list(value: object, location: str) -> list[str]:
     return result
 
 
+def _non_empty_string(value: object, location: str) -> str:
+    if not isinstance(value, str) or not value:
+        raise GraphValidationError(f"{location} must be a non-empty string")
+    return value
+
+
 def _safe_pattern(pattern: str, location: str) -> None:
     parsed = PurePosixPath(pattern)
     if parsed.is_absolute() or ".." in parsed.parts:
@@ -300,7 +306,10 @@ def _validate_evals(
                 raise GraphValidationError(
                     f"evals.{eval_id} references unknown work item {owner}"
                 )
-        status = evaluation.get("status")
+        status = _non_empty_string(
+            evaluation.get("status"),
+            f"evals.{eval_id}.status",
+        )
         if status not in VALID_EVAL_STATUSES:
             raise GraphValidationError(
                 f"evals.{eval_id}.status must be one of {sorted(VALID_EVAL_STATUSES)}"
@@ -353,7 +362,7 @@ def _validate_gates(graph: Mapping[str, Any]) -> Mapping[str, Any]:
 
 
 def _declared_dependencies(item: Mapping[str, Any], item_id: str) -> list[str]:
-    dependencies = item.get("depends_on", [])
+    dependencies = item.get("depends_on")
     if not isinstance(dependencies, Sequence) or isinstance(
         dependencies,
         (str, bytes),
@@ -461,7 +470,7 @@ def _validate_completed_cycle_member_evidence(
                     f"cycles.{cycle_id} completed member {member} "
                     f"eval {eval_id} is {status}"
                 )
-        dependencies = member_item.get("depends_on", [])
+        dependencies = member_item["depends_on"]
         if not isinstance(dependencies, Sequence) or isinstance(
             dependencies,
             (str, bytes),
@@ -512,7 +521,7 @@ def _validate_done_work_item_dependencies(
         item = _mapping(raw_item, f"work_items.{item_id}")
         if item.get("state") != "done":
             continue
-        for index, raw_dependency in enumerate(item.get("depends_on", [])):
+        for index, raw_dependency in enumerate(item["depends_on"]):
             dependency = _mapping(
                 raw_dependency,
                 f"work_items.{item_id}.depends_on[{index}]",
@@ -554,7 +563,10 @@ def _validate_work_items(
             raise GraphValidationError(
                 f"work_items.{item_id} references unknown module {module}"
             )
-        state = item.get("state")
+        state = _non_empty_string(
+            item.get("state"),
+            f"work_items.{item_id}.state",
+        )
         if state not in VALID_WORK_ITEM_STATES:
             raise GraphValidationError(
                 f"work_items.{item_id} has invalid state {state}"
@@ -577,7 +589,7 @@ def _validate_work_items(
 
     for item_id, raw_item in work_items.items():
         item = _mapping(raw_item, f"work_items.{item_id}")
-        dependencies = item.get("depends_on", [])
+        dependencies = item.get("depends_on")
         if not isinstance(dependencies, Sequence) or isinstance(
             dependencies, (str, bytes)
         ):
@@ -591,7 +603,10 @@ def _validate_work_items(
                 f"work_items.{item_id}.depends_on[{index}]",
             )
             dependency_id = dependency.get("id")
-            dependency_state = dependency.get("status")
+            dependency_state = _non_empty_string(
+                dependency.get("status"),
+                f"work_items.{item_id}.depends_on[{index}].status",
+            )
             if not isinstance(dependency_id, str) or not dependency_id:
                 raise GraphValidationError(
                     f"work_items.{item_id}.depends_on[{index}].id must be a string"
@@ -635,7 +650,7 @@ def _validate_unsatisfied_dependencies_target_incomplete_work(
 ) -> None:
     for item_id, raw_item in work_items.items():
         item = _mapping(raw_item, f"work_items.{item_id}")
-        for index, raw_dependency in enumerate(item.get("depends_on", [])):
+        for index, raw_dependency in enumerate(item["depends_on"]):
             dependency = _mapping(
                 raw_dependency,
                 f"work_items.{item_id}.depends_on[{index}]",
@@ -665,7 +680,10 @@ def _validate_cycles(
     member_cycles: dict[str, str] = {}
     for cycle_id, raw_cycle in cycles.items():
         cycle = _mapping(raw_cycle, f"cycles.{cycle_id}")
-        state = cycle.get("state")
+        state = _non_empty_string(
+            cycle.get("state"),
+            f"cycles.{cycle_id}.state",
+        )
         if state not in VALID_CYCLE_STATES:
             raise GraphValidationError(
                 f"cycles.{cycle_id} has invalid state {state}"
