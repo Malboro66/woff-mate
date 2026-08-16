@@ -283,10 +283,6 @@ def _validate_evals(
         owners = _string_list(
             evaluation.get("work_items"), f"evals.{eval_id}.work_items"
         )
-        if not owners:
-            raise GraphValidationError(
-                f"evals.{eval_id}.work_items must contain at least one work item"
-            )
         for owner in owners:
             if owner not in work_items:
                 raise GraphValidationError(
@@ -310,6 +306,18 @@ def _validate_evals(
                 f"evals.{eval_id}.enforced_by",
             )
     return evals
+
+
+def _validate_eval_owners(evals: Mapping[str, Any]) -> None:
+    for eval_id, raw_eval in evals.items():
+        evaluation = _mapping(raw_eval, f"evals.{eval_id}")
+        owners = _string_list(
+            evaluation.get("work_items"), f"evals.{eval_id}.work_items"
+        )
+        if not owners:
+            raise GraphValidationError(
+                f"evals.{eval_id}.work_items must contain at least one work item"
+            )
 
 
 def _validate_gates(graph: Mapping[str, Any]) -> Mapping[str, Any]:
@@ -557,16 +565,33 @@ def _validate_work_items(
                     f"work_items.{item_id} dependency is marked satisfied but "
                     f"{dependency_id} is not done"
                 )
+    _validate_work_item_dependency_cycles(work_items)
+    return work_items
+
+
+def _validate_unsatisfied_dependencies_target_incomplete_work(
+    work_items: Mapping[str, Any],
+) -> None:
+    for item_id, raw_item in work_items.items():
+        item = _mapping(raw_item, f"work_items.{item_id}")
+        for index, raw_dependency in enumerate(item.get("depends_on", [])):
+            dependency = _mapping(
+                raw_dependency,
+                f"work_items.{item_id}.depends_on[{index}]",
+            )
+            dependency_id = dependency.get("id")
+            assert isinstance(dependency_id, str)
+            dependency_item = _mapping(
+                work_items[dependency_id], f"work_items.{dependency_id}"
+            )
             if (
-                dependency_state == "unsatisfied"
+                dependency.get("status") == "unsatisfied"
                 and dependency_item.get("state") == "done"
             ):
                 raise GraphValidationError(
                     f"work_items.{item_id} dependency {dependency_id} is marked "
                     "unsatisfied but the dependency is done"
                 )
-    _validate_work_item_dependency_cycles(work_items)
-    return work_items
 
 
 def _validate_cycles(
@@ -720,8 +745,10 @@ def validate_graph(repository_root: Path, graph: Mapping[str, Any]) -> None:
         if isinstance(aggregate_eval, str)
     }
     _validate_cycles(graph, work_items, evals, gates)
+    _validate_unsatisfied_dependencies_target_incomplete_work(work_items)
     _validate_done_work_item_evals(work_items, evals)
     _validate_reciprocal_eval_ownership(work_items, evals, aggregate_eval_ids)
+    _validate_eval_owners(evals)
 
 
 def main(argv: list[str] | None = None) -> int:
