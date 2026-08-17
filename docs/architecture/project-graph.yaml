@@ -1,5 +1,5 @@
 version: 1
-updated: 2026-08-16
+updated: 2026-08-17
 
 project:
   repository: Malboro66/woff-mate
@@ -167,7 +167,7 @@ gates:
   Q5:
     description: Product decision gates approve data reliability, launcher viability, social core, or public release.
   Q6-CYCLE-3.3.0:
-    description: All seven 3.3.0 work items, applicable evals, functional exit criteria, documentation, and CI are approved.
+    description: All eight 3.3.0 work items, applicable evals, functional exit criteria, documentation, and CI are approved.
 
 evals:
   EVAL-DIARY-001:
@@ -192,6 +192,14 @@ evals:
     status: implemented
     evidence: An internal operation joins an external transaction without committing it.
     enforced_by: [woff/tests/test_composable_transactions.py]
+  EVAL-PILOT-STATS-001:
+    work_items: [issue-57]
+    status: planned
+    evidence: Reprocessing Log, Claims, Squads, or partial XML preserves authoritative Dossier pilot statistics.
+  EVAL-PILOT-STATS-002:
+    work_items: [issue-57]
+    status: planned
+    evidence: An authoritative Dossier zero remains writable and is distinguishable from an absent numeric field.
   EVAL-CFG-001:
     work_items: [issue-45]
     status: planned
@@ -321,6 +329,7 @@ evals:
     work_items:
       - issue-50
       - issue-34
+      - issue-57
       - issue-45
       - issue-36
       - issue-42
@@ -348,6 +357,7 @@ work_items:
       - {id: issue-36, status: unsatisfied}
       - {id: issue-42, status: unsatisfied}
       - {id: issue-39, status: unsatisfied}
+      - {id: issue-57, status: unsatisfied}
   issue-28:
     title: Validate pilots in every woff_query output format
     module: presentation
@@ -510,6 +520,13 @@ work_items:
     gates: [Q0, Q1]
     depends_on:
       - {id: issue-26, status: satisfied}
+  issue-57:
+    title: Preserve authoritative pilot statistics when merging partial sources
+    module: persistence
+    state: backlog
+    evals: [EVAL-PILOT-STATS-001, EVAL-PILOT-STATS-002]
+    gates: [Q0, Q1, Q2, Q6-CYCLE-3.3.0]
+    depends_on: []
 
 cycles:
   cycle-3.2.1:
@@ -524,6 +541,7 @@ cycles:
     tracker: issue-50
     members:
       - issue-34
+      - issue-57
       - issue-45
       - issue-36
       - issue-42
