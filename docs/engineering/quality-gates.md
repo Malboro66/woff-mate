@@ -12,6 +12,7 @@ criteria.
 Work enters implementation only when:
 
 - the defect is reproduced or preventive risk is evidenced
+- the issue has passed the mandatory historical non-duplication check below
 - dependencies are verified in the project graph
 - affected files and owning module are identified
 - acceptance criteria are observable
@@ -19,6 +20,23 @@ Work enters implementation only when:
 - fixtures are synthetic or sanitized
 - database, Windows, and privacy risk are classified
 - large or structural work has a focused technical plan
+
+### Mandatory historical non-duplication check
+
+Before implementation starts, every issue must provide all three forms of evidence:
+
+1. Historical evidence: search closed issues, pull requests, and relevant commits for earlier work that addressed the same behavior, root cause, or code path.
+2. Current-main evidence: inspect the exact affected code on the current `main` branch and identify why the defect or preventive risk still exists after previous changes.
+3. Reproduction evidence: run a focused regression test or deterministic reproduction against current `main` that fails for the expected reason. Preventive work without a failing runtime defect must instead provide executable or structural evidence of the risk.
+
+The outcome controls implementation:
+
+- if current `main` already satisfies the intended behavior, stop implementation and classify the issue as a duplicate, obsolete, or already resolved candidate
+- if earlier work solved only part of the problem, update the issue scope to the remaining defect and reference the prior issue, pull request, or commit
+- if the reproduction does not fail for the expected reason, do not implement until the issue is revalidated
+- only a confirmed remaining defect or evidenced preventive risk may pass Q0
+
+The issue or draft pull request must record the historical references, current-main code path, and reproduction result so the Q0 decision is auditable.
 
 ## Q1: local behavior
 
@@ -131,6 +149,7 @@ CI success alone does not close #50 or release 3.3.0.
 Every draft pull request lists:
 
 - issue and module
+- Q0 non-duplication evidence: related historical issues, pull requests, or commits, current-main code path, and reproduction result
 - eval IDs
 - applicable gates
 - exact commands and results
