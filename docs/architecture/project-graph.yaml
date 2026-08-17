@@ -1,5 +1,5 @@
 version: 1
-updated: 2026-08-15
+updated: 2026-08-16
 
 project:
   repository: Malboro66/woff-mate
@@ -182,12 +182,16 @@ evals:
     enforced_by: [woff/tests/test_woff_editor.py]
   EVAL-DB-001:
     work_items: [issue-34]
-    status: planned
+    status: implemented
     evidence: Failure at any write boundary rolls back RPG, diary, and repository writes together.
+    enforced_by:
+      - woff/tests/test_composable_transactions.py
+      - woff/tests/test_campaign_engine.py
   EVAL-DB-002:
     work_items: [issue-34]
-    status: planned
+    status: implemented
     evidence: An internal operation joins an external transaction without committing it.
+    enforced_by: [woff/tests/test_composable_transactions.py]
   EVAL-CFG-001:
     work_items: [issue-45]
     status: planned
@@ -368,7 +372,7 @@ work_items:
   issue-34:
     title: Make RPG, diary, and repository writes transaction-composable
     module: persistence
-    state: in_progress
+    state: done
     evals: [EVAL-DB-001, EVAL-DB-002]
     gates: [Q0, Q1, Q2, Q6-CYCLE-3.3.0]
     depends_on:
@@ -397,7 +401,7 @@ work_items:
     evals: [EVAL-ROSTER-001, EVAL-ROSTER-002]
     gates: [Q0, Q1, Q2]
     depends_on:
-      - {id: issue-34, status: unsatisfied}
+      - {id: issue-34, status: satisfied}
       - {id: issue-35, status: unsatisfied}
   issue-38:
     title: Use exact nation aliases and stop defaulting unknown values to RFC
@@ -443,7 +447,7 @@ work_items:
     evals: [EVAL-NARR-001]
     gates: [Q0, Q1]
     depends_on:
-      - {id: issue-34, status: unsatisfied}
+      - {id: issue-34, status: satisfied}
       - {id: issue-39, status: unsatisfied}
       - {id: issue-40, status: unsatisfied}
   issue-44:
