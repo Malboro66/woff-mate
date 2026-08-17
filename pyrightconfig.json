@@ -5,6 +5,7 @@
     "woff_watchdog_entry.py",
     "woff_editor.py",
     "woff_query.py",
-    "diagnostico.py"
+    "diagnostico.py",
+    "scripts"
   ]
 }

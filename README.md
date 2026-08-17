@@ -55,50 +55,57 @@ Inventário consolidado na versão 3.2.0:
 
 ## ⚠️ Estado Atual do Projeto
 
-| Componente | Estado |
-|---|---|
-| Camada Hex de ofuscação do Dossier | ✅ Decifrada |
-| Cifra interna do Dossier (suspeita XOR) | 🔴 Em investigação |
-| Parser de ficheiros de piloto (`;`-delimited) | ✅ Confirmado e funcional |
-| Refatoração modular do watchdog | ✅ Concluída |
+O ciclo corretivo 3.2.1 foi concluído no código pela Issue
+[#26](https://github.com/Malboro66/woff-mate/issues/26) e pela PR
+[#33](https://github.com/Malboro66/woff-mate/pull/33). Esse registro não afirma
+que uma release pública 3.2.1 tenha sido publicada.
 
-A decifragem completa do `Pilot1Dossier.txt` é o bloqueador atual do projeto. Próximos passos em avaliação:
-1. Diff entre duas snapshots do Dossier (mesmo piloto, momentos diferentes) para isolar o padrão da cifra.
-2. Decompilação do *Pilot Log Editor* (ferramenta Java da comunidade, por JJJ65) para comparar lógica de decifragem.
-3. Alternativa: contornar o Dossier inteiramente, usando apenas os `.txt` delimitados por `;` já confirmados como fonte de dados fiável.
+O ciclo ativo é o **3.3.0: integridade e ingestão**, acompanhado pela Issue
+[#50](https://github.com/Malboro66/woff-mate/issues/50). A primeira mudança
+estrutural é a Issue [#34](https://github.com/Malboro66/woff-mate/issues/34).
+
+O backlog operacional está no
+[GitHub Project WoFF Mate Development](https://github.com/users/Malboro66/projects/1).
+O Project organiza a execução. A `main`, o CI e os contratos versionados no
+repositório permanecem como fontes técnicas.
+
+Prioridades atuais:
+
+1. escrita transacional componível
+2. configuração válida antes do startup
+3. scheduling limitado e snapshots estáveis
+4. datas e missões convergentes
+5. reprocessamento seguro quando o Dossier ainda não está disponível
+
+A investigação do Dossier continua relevante, mas não representa o único
+bloqueador do projeto.
 
 ---
 
 ## 🏗 Arquitetura do Projeto
-Woff_Mate/
-│
-├── config.py                  # Carrega e valida config.json (auto-deteção via Registo do Windows)
-├── models.py                  # Dataclasses para Pilotos, Missões, etc.
-├── maps.py                    # Tabelas estáticas de tradução e expressões regulares
-├── normalization.py           # Limpeza de dados (datas, nações, conversão de coordenadas)
-├── database.py                # Gestor SQLite (tabelas, upsert, RPG stats)
-├── discovery.py                # Logger do modo de descoberta de ficheiros
-├── handler.py                  # Eventos do sistema (Watchdog), ThreadPool, routing de parsers
-├── campaign_engine.py          # Orquestrador da Fase 2 (RPG + Diário)
-├── rpg_system.py                # Motor de cálculo de Fadiga, Moral e Stress
-├── narrative_generator.py       # Gera os textos do Diário de Bordo
-├── medal_cataloger.py            # Lê a pasta de Medalhas do jogo
-├── squadron_cataloger.py          # Desofusca e lê a pasta de Esquadrões (Scratchpad)
-├── woff_watchdog.py                # Orquestrador principal e CLI (ponto de entrada)
-│
-├── parsers/
-│   ├── init.py
-│   ├── xml_parser.py            # Lê ficheiros XML de configuração do motor (CFS3)
-│   ├── mission_log_parser.py     # Extrai briefing, waypoints e membros do voo
-│   ├── pilot_data_parser.py       # Lê Pilot{N}Log.txt, Claims.txt, Squads.txt (delimitados por ;)
-│   └── dossier_parser.py           # [EM DESENVOLVIMENTO] Decifra o Pilot{N}Dossier.txt (Hex ✅ / cifra interna 🔴)
-│
-├── tests/
-│   ├── test_normalization.py
-│   └── test_xml_parser.py
-│
-├── config.example.json         # Modelo neutro versionado para a configuração local
-└── requirements.txt
+
+O WoFF Mate segue uma arquitetura de monólito modular. A aplicação permanece um
+único programa Windows com um único banco SQLite, dividido nestes módulos
+lógicos:
+
+| Módulo | Responsabilidade |
+|---|---|
+| foundation | identidade do pacote e versões canônicas |
+| domain | modelos, normalização, RPG e narrativas |
+| persistence | SQLite, schema, transações e repositories |
+| platform | configuração local e integração Windows |
+| ingestion | decode, parsers, catálogos e observação de ficheiros |
+| application | coordenação de campanha e watchdog |
+| presentation | CLIs, relatórios, diagnóstico e editor |
+| governance | validação dos contratos de engenharia |
+
+Consulte:
+
+- [arquitetura do monólito modular](docs/architecture/modular-monolith.md)
+- [graph file executável](docs/architecture/project-graph.yaml)
+- [catálogo de evals](docs/engineering/evals.md)
+- [quality gates](docs/engineering/quality-gates.md)
+- [autonomia progressiva](docs/engineering/autonomy.md)
 
 > **Nota:** os dados reais e confiáveis do piloto vêm dos ficheiros `.txt` delimitados por `;` (via `pilot_data_parser.py`), não do XML. O `xml_parser.py` trata apenas de ficheiros de configuração do motor CFS3.
 >
@@ -129,7 +136,11 @@ Woff_Mate/
    pip install -e .
 ```
 
-Para desenvolvimento, instale também o `pytest` e o `pyright` conforme necessário.
+Para desenvolvimento, instale o conjunto de dependências de teste e governança:
+
+```bash
+pip install -e ".[dev]"
+```
 
 ---
 
@@ -259,10 +270,16 @@ O Watchdog não se limita a ler ficheiros — ele interpreta-os. Sempre que uma 
 
 ## 🗺 Roadmap do Projeto
 
-- [x] **Fase 1 (Core):** Monitorização, Extração de Dados, Engenharia Reversa parcial do Dossier, Base de Dados SQLite.
-- [~] **Fase 2 (Lógica):** Sistema de RPG (Fadiga/Moral/Stress), Gerador de Diário de Bordo — *decifragem completa do Dossier pendente.*
-- [ ] **Fase 3 (UI PyQt6):** Interface gráfica (Dashboard do Piloto, Mapa Tático com coordenadas, Visualizador do Diário).
-- [ ] **Fase 4 (Distribuição):** Empacotamento com PyInstaller e criação de instalador.
+| Ciclo | Estado | Escopo |
+|---|---|---|
+| 3.2.1 | concluído no código | #26, isolamento destrutivo do diário |
+| 3.3.0 | ativo, tracker #50 | #34, #45, #36, #42, #40, #39 e #27 |
+| 3.4.0 | planejado | #41, #38, #35, #37, #44, #43 e #28 |
+| 3.5.0 | planejado | #48, #47, #29, #46, #49 e #30 |
+
+A futura interface permanece condicionada ao Portão A de dados confiáveis. Cada
+ciclo exige critérios funcionais, evals, documentação e gates aplicáveis. CI
+verde isoladamente não encerra um ciclo.
 
 ---
 

@@ -1,0 +1,549 @@
+version: 1
+updated: 2026-08-15
+
+project:
+  repository: Malboro66/woff-mate
+  operational_board: https://github.com/users/Malboro66/projects/1
+  approved_plan: WoFF Mate Master Plan, approved 2026-08-13
+  source_of_truth:
+    - The main branch and its CI define the final technical state.
+    - This graph defines modules, invariants, work dependencies, evals, and gates.
+    - GitHub Projects is the operational view and does not replace repository evidence.
+
+source_files:
+  include:
+    - "*.py"
+    - woff/**/*.py
+    - scripts/**/*.py
+  exclude:
+    - woff/tests/**/*.py
+
+modules:
+  foundation:
+    responsibility: Package identity and canonical versions.
+    paths:
+      - woff/__init__.py
+      - woff/version.py
+    may_depend_on: []
+    forbidden_dependencies:
+      - domain
+      - persistence
+      - ingestion
+      - application
+      - platform
+      - presentation
+
+  domain:
+    responsibility: Campaign entities, normalization, RPG rules, and narratives.
+    paths:
+      - woff/maps.py
+      - woff/models.py
+      - woff/narrative_generator.py
+      - woff/normalization.py
+      - woff/rpg_system.py
+    may_depend_on:
+      - foundation
+    forbidden_dependencies:
+      - persistence
+      - ingestion
+      - application
+      - platform
+      - presentation
+
+  persistence:
+    responsibility: SQLite lifecycle, transactions, schema, and repositories.
+    paths:
+      - woff/database.py
+      - woff/repositories/**/*.py
+    may_depend_on:
+      - foundation
+      - domain
+    forbidden_dependencies:
+      - ingestion
+      - application
+      - platform
+      - presentation
+
+  platform:
+    responsibility: Local configuration and Windows integration.
+    paths:
+      - woff/config.py
+      - woff/win_registry.py
+    may_depend_on:
+      - foundation
+    forbidden_dependencies:
+      - persistence
+      - ingestion
+      - application
+      - presentation
+
+  ingestion:
+    responsibility: Decode, parse, catalog, and observe WoFF files.
+    paths:
+      - woff/decode/**/*.py
+      - woff/decode_dossier.py
+      - woff/decode_squad.py
+      - woff/discovery.py
+      - woff/medal_cataloger.py
+      - woff/parsers/**/*.py
+      - woff/squadron_cataloger.py
+    may_depend_on:
+      - foundation
+      - domain
+      - persistence
+      - platform
+    forbidden_dependencies:
+      - application
+      - presentation
+
+  application:
+    responsibility: Coordinate campaign processing and watchdog activity.
+    paths:
+      - woff/campaign_engine.py
+      - woff/handler.py
+      - woff/woff_watchdog.py
+    may_depend_on:
+      - foundation
+      - domain
+      - persistence
+      - ingestion
+      - platform
+    forbidden_dependencies:
+      - presentation
+
+  presentation:
+    responsibility: User-facing commands, reports, diagnostics, and diary editing.
+    paths:
+      - diagnostico.py
+      - woff_editor.py
+      - woff_query.py
+      - woff_watchdog_entry.py
+      - woff/gerar_relatorio.py
+    may_depend_on:
+      - foundation
+      - domain
+      - persistence
+      - ingestion
+      - application
+      - platform
+    forbidden_dependencies: []
+
+  governance:
+    responsibility: Executable repository policy and project graph validation.
+    paths:
+      - scripts/validate_project_graph.py
+    may_depend_on: []
+    forbidden_dependencies:
+      - foundation
+      - domain
+      - persistence
+      - ingestion
+      - application
+      - platform
+      - presentation
+
+invariants:
+  DATA-001:
+    statement: No operation may delete or modify data belonging to another pilot.
+    enforced_by:
+      - woff/tests/test_woff_editor.py
+  DATA-002:
+    statement: Every schema change requires backup, migration validation, rollback, and a reopen test.
+    enforced_by:
+      - woff/tests/test_database_manager.py
+      - woff/tests/test_numeric_fields_migration.py
+
+gates:
+  Q0:
+    description: Work is reproducible, scoped, dependency-aware, and ready for implementation.
+  Q1:
+    description: Focused tests, related tests, full suite, Pyright, and diff review pass.
+  Q2:
+    description: Database and data changes prove backup, rollback, integrity, and reopen behavior.
+  Q3:
+    description: File and concurrency changes prove bounded queues, retries, snapshots, moves, and shutdown.
+  Q4:
+    description: Windows and packaging changes pass supported Python, smoke, build, install, upgrade, and rollback checks.
+  Q5:
+    description: Product decision gates approve data reliability, launcher viability, social core, or public release.
+  Q6-CYCLE-3.3.0:
+    description: All seven 3.3.0 work items, applicable evals, functional exit criteria, documentation, and CI are approved.
+
+evals:
+  EVAL-DIARY-001:
+    work_items: [issue-26]
+    status: implemented
+    evidence: Editing Bob's diary changes no row owned by Alice.
+    enforced_by: [woff/tests/test_woff_editor.py]
+  EVAL-DIARY-002:
+    work_items: [issue-26]
+    status: implemented
+    evidence: An empty diary removes entries only for the selected pilot.
+    enforced_by: [woff/tests/test_woff_editor.py]
+  EVAL-DB-001:
+    work_items: [issue-34]
+    status: planned
+    evidence: Failure at any write boundary rolls back RPG, diary, and repository writes together.
+  EVAL-DB-002:
+    work_items: [issue-34]
+    status: planned
+    evidence: An internal operation joins an external transaction without committing it.
+  EVAL-CFG-001:
+    work_items: [issue-45]
+    status: planned
+    evidence: Invalid configuration fails before threads or watchers start.
+  EVAL-CFG-002:
+    work_items: [issue-45]
+    status: planned
+    evidence: Invalid personal configuration remains byte-for-byte unchanged.
+  EVAL-SCHED-001:
+    work_items: [issue-36]
+    status: planned
+    evidence: An event burst keeps pending work bounded and preserves the latest generation.
+  EVAL-SCHED-002:
+    work_items: [issue-36]
+    status: planned
+    evidence: A move processes the canonical destination path once.
+  EVAL-SNAP-001:
+    work_items: [issue-42]
+    status: planned
+    evidence: The parser receives the exact snapshot whose stability was validated.
+  EVAL-SNAP-002:
+    work_items: [issue-42]
+    status: planned
+    evidence: Transient Windows access denial uses bounded retry and a final diagnostic.
+  EVAL-DATE-001:
+    work_items: [issue-40]
+    status: planned
+    evidence: An invalid game date never enters history as valid.
+  EVAL-DATE-002:
+    work_items: [issue-40]
+    status: planned
+    evidence: Mission ordering remains deterministic when timestamps tie.
+  EVAL-MISSION-001:
+    work_items: [issue-39]
+    status: planned
+    evidence: Reimport updates permitted fields without replacing missionId.
+  EVAL-MISSION-002:
+    work_items: [issue-39]
+    status: planned
+    evidence: A poorer source never erases richer stored mission data.
+  EVAL-DEFER-001:
+    work_items: [issue-27]
+    status: planned
+    evidence: Log, Claims, and Squads received before the Dossier are reprocessed after identity exists.
+  EVAL-DEFER-002:
+    work_items: [issue-27]
+    status: planned
+    evidence: A pending dependency expires with a diagnostic and bounded storage.
+  EVAL-NUM-001:
+    work_items: [issue-41]
+    status: planned
+    evidence: A permitted signed integer never becomes zero silently.
+  EVAL-NUM-002:
+    work_items: [issue-41]
+    status: planned
+    evidence: An unsigned field rejects negative input.
+  EVAL-NATION-001:
+    work_items: [issue-38]
+    status: planned
+    evidence: An unknown nation value never defaults to RFC.
+  EVAL-NATION-002:
+    work_items: [issue-38]
+    status: planned
+    evidence: A short alias never matches another nation by substring.
+  EVAL-DOSSIER-001:
+    work_items: [issue-35]
+    status: planned
+    evidence: Required identity is validated by fields instead of line count.
+  EVAL-DOSSIER-002:
+    work_items: [issue-35]
+    status: planned
+    evidence: Useful partial data is distinguished from truncation and decoding failure.
+  EVAL-ROSTER-001:
+    work_items: [issue-37]
+    status: planned
+    evidence: A transfer never reports the complete previous roster as missing.
+  EVAL-ROSTER-002:
+    work_items: [issue-37]
+    status: planned
+    evidence: Reprocessing an unchanged roster creates no duplicate events.
+  EVAL-XML-001:
+    work_items: [issue-44]
+    status: planned
+    evidence: Closing-element text inside a comment or CDATA does not truncate Mission XML.
+  EVAL-NARR-001:
+    work_items: [issue-43]
+    status: planned
+    evidence: Narrative generation handles zero, one, or several associated victories.
+  EVAL-CLI-001:
+    work_items: [issue-28]
+    status: planned
+    evidence: An unknown pilot returns the same failure contract in table, JSON, CSV, and Markdown.
+  EVAL-DISC-001:
+    work_items: [issue-48]
+    status: planned
+    evidence: Discovery logging respects total size and retention across sessions.
+  EVAL-DECODE-001:
+    work_items: [issue-47]
+    status: planned
+    evidence: The optimized decoder produces identical bytes for all fixtures.
+  EVAL-DECODE-002:
+    work_items: [issue-47]
+    status: planned
+    evidence: Peak memory improves without using wall-clock time as a correctness assertion.
+  EVAL-CATALOG-001:
+    work_items: [issue-29]
+    status: planned
+    evidence: Catalogers share the central connection policy and atomic batch behavior.
+  EVAL-BLOB-001:
+    work_items: [issue-46]
+    status: planned
+    evidence: A hexadecimal TEXT to BLOB migration preserves bytes and reopens safely.
+  EVAL-REG-001:
+    work_items: [issue-49]
+    status: planned
+    evidence: Registry discovery uses deterministic precedence and validates every candidate path.
+  EVAL-LINT-001:
+    work_items: [issue-30]
+    status: planned
+    evidence: The pinned Ruff baseline passes for Python 3.10 without hidden functional changes.
+  EVAL-GOV-001:
+    work_items: [issue-51]
+    status: implemented
+    evidence: Invalid paths, modules, evals, gates, cycles, and dependency states fail validation.
+    enforced_by: [woff/tests/test_architecture_contracts.py]
+  EVAL-CYCLE-330-001:
+    work_items:
+      - issue-50
+      - issue-34
+      - issue-45
+      - issue-36
+      - issue-42
+      - issue-40
+      - issue-39
+      - issue-27
+    status: planned
+    evidence: Every 3.3.0 member passes its acceptance criteria and applicable evals before the tracker closes.
+
+work_items:
+  issue-26:
+    title: Prevent diary edits from deleting other pilots' entries
+    module: presentation
+    state: done
+    evals: [EVAL-DIARY-001, EVAL-DIARY-002]
+    gates: [Q0, Q1, Q2]
+    depends_on: []
+  issue-27:
+    title: Reprocess pilot files when the Dossier is not available yet
+    module: ingestion
+    state: blocked
+    evals: [EVAL-DEFER-001, EVAL-DEFER-002]
+    gates: [Q0, Q1, Q3, Q6-CYCLE-3.3.0]
+    depends_on:
+      - {id: issue-36, status: unsatisfied}
+      - {id: issue-42, status: unsatisfied}
+      - {id: issue-39, status: unsatisfied}
+  issue-28:
+    title: Validate pilots in every woff_query output format
+    module: presentation
+    state: backlog
+    evals: [EVAL-CLI-001]
+    gates: [Q0, Q1]
+    depends_on: []
+  issue-29:
+    title: Centralize SQLite connections used by catalogers
+    module: persistence
+    state: backlog
+    evals: [EVAL-CATALOG-001]
+    gates: [Q0, Q1, Q2]
+    depends_on: []
+  issue-30:
+    title: Define a Ruff baseline and eliminate lint debt
+    module: governance
+    state: backlog
+    evals: [EVAL-LINT-001]
+    gates: [Q0, Q1]
+    depends_on: []
+  issue-34:
+    title: Make RPG, diary, and repository writes transaction-composable
+    module: persistence
+    state: in_progress
+    evals: [EVAL-DB-001, EVAL-DB-002]
+    gates: [Q0, Q1, Q2, Q6-CYCLE-3.3.0]
+    depends_on:
+      - {id: issue-26, status: satisfied}
+  issue-35:
+    title: Replace the Dossier line-count gate with field-level validation
+    module: ingestion
+    state: blocked
+    evals: [EVAL-DOSSIER-001, EVAL-DOSSIER-002]
+    gates: [Q0, Q1, Q3]
+    depends_on:
+      - {id: issue-41, status: unsatisfied}
+      - {id: issue-38, status: unsatisfied}
+  issue-36:
+    title: Bound and coalesce filesystem event scheduling
+    module: application
+    state: blocked
+    evals: [EVAL-SCHED-001, EVAL-SCHED-002]
+    gates: [Q0, Q1, Q3, Q6-CYCLE-3.3.0]
+    depends_on:
+      - {id: issue-45, status: unsatisfied}
+  issue-37:
+    title: Distinguish squadron transfers from missing wingmen
+    module: application
+    state: blocked
+    evals: [EVAL-ROSTER-001, EVAL-ROSTER-002]
+    gates: [Q0, Q1, Q2]
+    depends_on:
+      - {id: issue-34, status: unsatisfied}
+      - {id: issue-35, status: unsatisfied}
+  issue-38:
+    title: Use exact nation aliases and stop defaulting unknown values to RFC
+    module: domain
+    state: backlog
+    evals: [EVAL-NATION-001, EVAL-NATION-002]
+    gates: [Q0, Q1]
+    depends_on: []
+  issue-39:
+    title: Update existing missions instead of silently ignoring refreshed data
+    module: persistence
+    state: blocked
+    evals: [EVAL-MISSION-001, EVAL-MISSION-002]
+    gates: [Q0, Q1, Q2, Q6-CYCLE-3.3.0]
+    depends_on:
+      - {id: issue-40, status: unsatisfied}
+  issue-40:
+    title: Enforce canonical game dates and deterministic mission ordering
+    module: domain
+    state: backlog
+    evals: [EVAL-DATE-001, EVAL-DATE-002]
+    gates: [Q0, Q1, Q6-CYCLE-3.3.0]
+    depends_on: []
+  issue-41:
+    title: Parse signed integers without silently converting them to zero
+    module: domain
+    state: backlog
+    evals: [EVAL-NUM-001, EVAL-NUM-002]
+    gates: [Q0, Q1]
+    depends_on: []
+  issue-42:
+    title: Read stable file snapshots and retry transient write races
+    module: ingestion
+    state: blocked
+    evals: [EVAL-SNAP-001, EVAL-SNAP-002]
+    gates: [Q0, Q1, Q3, Q6-CYCLE-3.3.0]
+    depends_on:
+      - {id: issue-36, status: unsatisfied}
+  issue-43:
+    title: Supply associated victory details to mission narratives
+    module: application
+    state: blocked
+    evals: [EVAL-NARR-001]
+    gates: [Q0, Q1]
+    depends_on:
+      - {id: issue-34, status: unsatisfied}
+      - {id: issue-39, status: unsatisfied}
+      - {id: issue-40, status: unsatisfied}
+  issue-44:
+    title: Extract Mission XML with an XML-aware boundary
+    module: ingestion
+    state: backlog
+    evals: [EVAL-XML-001]
+    gates: [Q0, Q1, Q3]
+    depends_on: []
+  issue-45:
+    title: Validate and honor watchdog configuration before startup
+    module: platform
+    state: backlog
+    evals: [EVAL-CFG-001, EVAL-CFG-002]
+    gates: [Q0, Q1, Q3, Q6-CYCLE-3.3.0]
+    depends_on: []
+  issue-46:
+    title: Store decoded squadron payloads without hex amplification
+    module: persistence
+    state: blocked
+    evals: [EVAL-BLOB-001]
+    gates: [Q0, Q1, Q2, Q4]
+    depends_on:
+      - {id: issue-29, status: unsatisfied}
+  issue-47:
+    title: Decode obfuscated files without per-token allocations
+    module: ingestion
+    state: backlog
+    evals: [EVAL-DECODE-001, EVAL-DECODE-002]
+    gates: [Q0, Q1]
+    depends_on: []
+  issue-48:
+    title: Bound discovery log size and retention
+    module: ingestion
+    state: blocked
+    evals: [EVAL-DISC-001]
+    gates: [Q0, Q1, Q3]
+    depends_on:
+      - {id: issue-36, status: unsatisfied}
+      - {id: issue-45, status: unsatisfied}
+  issue-49:
+    title: Make WoFF registry discovery version-tolerant
+    module: platform
+    state: backlog
+    evals: [EVAL-REG-001]
+    gates: [Q0, Q1, Q4]
+    depends_on: []
+  issue-50:
+    title: WoFF Mate 3.3.0, integrity and ingestion tracker
+    module: governance
+    state: tracking
+    evals: [EVAL-CYCLE-330-001]
+    gates: [Q6-CYCLE-3.3.0]
+    depends_on: []
+  issue-51:
+    title: Establish executable engineering governance
+    module: governance
+    state: done
+    evals: [EVAL-GOV-001]
+    gates: [Q0, Q1]
+    depends_on:
+      - {id: issue-26, status: satisfied}
+
+cycles:
+  cycle-3.2.1:
+    state: completed
+    tracker: issue-26
+    members: [issue-26]
+    aggregate_eval: EVAL-DIARY-001
+    gate: Q1
+    release_status: not recorded as published by this graph
+  cycle-3.3.0:
+    state: active
+    tracker: issue-50
+    members:
+      - issue-34
+      - issue-45
+      - issue-36
+      - issue-42
+      - issue-40
+      - issue-39
+      - issue-27
+    aggregate_eval: EVAL-CYCLE-330-001
+    gate: Q6-CYCLE-3.3.0
+  cycle-3.4.0:
+    state: planned
+    members:
+      - issue-41
+      - issue-38
+      - issue-35
+      - issue-37
+      - issue-44
+      - issue-43
+      - issue-28
+  cycle-3.5.0:
+    state: planned
+    members:
+      - issue-48
+      - issue-47
+      - issue-29
+      - issue-46
+      - issue-49
+      - issue-30
