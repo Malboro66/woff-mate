@@ -87,6 +87,29 @@ def _graph() -> dict[str, object]:
     return deepcopy(load_graph(GRAPH_PATH))
 
 
+def _set_issue_34_incomplete_state(
+    graph: dict[str, object], state: str
+) -> None:
+    work_items = graph["work_items"]
+    assert isinstance(work_items, dict)
+    issue_34 = work_items["issue-34"]
+    assert isinstance(issue_34, dict)
+    issue_34["state"] = state
+
+    for dependent_id in ("issue-37", "issue-43"):
+        dependent = work_items[dependent_id]
+        assert isinstance(dependent, dict)
+        dependencies = dependent["depends_on"]
+        assert isinstance(dependencies, list)
+        issue_34_dependency = next(
+            dependency
+            for dependency in dependencies
+            if isinstance(dependency, dict)
+            and dependency.get("id") == "issue-34"
+        )
+        issue_34_dependency["status"] = "unsatisfied"
+
+
 def test_project_graph_is_valid() -> None:
     validate_graph(REPOSITORY_ROOT, _graph())
 
@@ -382,7 +405,7 @@ def test_implementation_work_item_requires_evals(state: str) -> None:
     assert isinstance(work_items, dict)
     issue_34 = work_items["issue-34"]
     assert isinstance(issue_34, dict)
-    issue_34["state"] = state
+    _set_issue_34_incomplete_state(graph, state)
     issue_34["evals"] = []
 
     with pytest.raises(
@@ -401,7 +424,7 @@ def test_implementation_work_item_rejects_unsatisfied_dependency(
     assert isinstance(work_items, dict)
     issue_34 = work_items["issue-34"]
     assert isinstance(issue_34, dict)
-    issue_34["state"] = state
+    _set_issue_34_incomplete_state(graph, state)
     issue_34["depends_on"] = [
         {"id": "issue-45", "status": "unsatisfied"}
     ]
@@ -422,7 +445,7 @@ def test_blocked_work_item_accepts_unsatisfied_dependency() -> None:
     assert isinstance(work_items, dict)
     issue_34 = work_items["issue-34"]
     assert isinstance(issue_34, dict)
-    issue_34["state"] = "blocked"
+    _set_issue_34_incomplete_state(graph, "blocked")
     issue_34["depends_on"] = [
         {"id": "issue-45", "status": "unsatisfied"}
     ]

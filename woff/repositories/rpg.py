@@ -28,8 +28,8 @@ class RpgRepository(BaseRepository):
         self, pilot_id: str, fatigue: int, morale: int, stress: int
     ) -> None:
         """Atualiza ou insere o estado RPG do piloto."""
-        with self._lock:
-            try:
+        try:
+            with self._db.transaction():
                 self._query(
                     """
                     INSERT INTO pilot_rpg_stats (
@@ -43,20 +43,15 @@ class RpgRepository(BaseRepository):
                     """,
                     (pilot_id, fatigue, morale, stress, datetime.now().isoformat()),
                 )
-                self._conn.commit()
-                log.info(
-                    f"  🧠 RPG Stats: Fadiga:{fatigue} | Moral:{morale} | Stress:{stress}"
-                )
-            except sqlite3.Error:
-                log.exception("Erro ao salvar RPG stats")
-                self._conn.rollback()
-                raise
+        except sqlite3.Error:
+            log.exception("Erro ao salvar RPG stats")
+            raise
 
     def save_diary_entry(
         self, pilot_id: str, mission_id: Optional[str], entry_date: str, narrative: str
     ) -> bool:
         """Guarda uma entrada de diário. Retorna True se inserida, False se duplicada."""
-        with self._lock:
+        with self._db.transaction():
             try:
                 entry_id = _uid()
                 self._query(
@@ -66,19 +61,19 @@ class RpgRepository(BaseRepository):
                     """,
                     (entry_id, pilot_id, mission_id, entry_date, narrative),
                 )
-                self._conn.commit()
-                log.info(
-                    f"  📝 Diário: missão {mission_id if mission_id else 'Evento de Vida'}."
-                )
                 return True
             except sqlite3.IntegrityError:
-                self._conn.rollback()
-                log.info(
-                    f"  ⏭ Entrada duplicada ignorada: "
-                    f"missão {mission_id if mission_id else 'Evento de Vida'}."
-                )
+                duplicate = mission_id is not None and self._fetch_one(
+                    """
+                    SELECT 1 FROM diary_entries
+                    WHERE pilotId = ? AND missionId = ?
+                    """,
+                    (pilot_id, mission_id),
+                ) is not None
+                if not duplicate:
+                    raise
+                log.info(f"  ⏭ Entrada duplicada ignorada: missão {mission_id}.")
                 return False
             except Exception:
                 log.exception("Erro ao salvar diário")
-                self._conn.rollback()
                 raise
