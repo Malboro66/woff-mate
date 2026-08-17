@@ -90,8 +90,8 @@ class WingmanRepository(BaseRepository):
         self, wingman_id: str, pilot_id: str, personality: Dict[str, Any]
     ) -> bool:
         """Guarda ou atualiza a personalidade 3P de um wingman."""
-        with self._lock:
-            try:
+        try:
+            with self._db.transaction():
                 self._query(
                     """
                     INSERT INTO wingmen_personalities (
@@ -119,12 +119,10 @@ class WingmanRepository(BaseRepository):
                         personality.get("personality_trait", "Standard"),
                     ),
                 )
-                self._conn.commit()
                 return True
-            except sqlite3.Error:
-                log.exception("Erro ao salvar personalidade")
-                self._conn.rollback()
-                return False
+        except sqlite3.Error:
+            log.exception("Erro ao salvar personalidade")
+            return False
 
     def save_wingman_memory(
         self,
@@ -136,8 +134,8 @@ class WingmanRepository(BaseRepository):
         impact_stress: int = 0,
     ) -> bool:
         """Regista um evento na memória do Wingman."""
-        with self._lock:
-            try:
+        try:
+            with self._db.transaction():
                 self._query(
                     """
                     INSERT INTO wingmen_memory (
@@ -155,9 +153,7 @@ class WingmanRepository(BaseRepository):
                         impact_stress,
                     ),
                 )
-                self._conn.commit()
                 return True
-            except sqlite3.Error:
-                log.exception("Erro ao salvar memória")
-                self._conn.rollback()
-                return False
+        except sqlite3.Error:
+            log.exception("Erro ao salvar memória")
+            return False

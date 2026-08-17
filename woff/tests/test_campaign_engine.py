@@ -76,6 +76,116 @@ class TestCampaignEngine(unittest.TestCase):
         self.assertIn("1917-04-06", diary_row[4]) 
         
         conn.close()
+
+    def _mission_fixture(self, suffix):
+        pilot = WoFFPilot(id=f"P_{suffix}", name=f"Pilot {suffix}")
+        mission = WoFFMission(
+            id=f"M_{suffix}", pilotId=pilot.id, date="1917-05-10",
+            time="09:00", missionType="Patrol"
+        )
+        self.assertEqual(
+            self.db.merge_and_write(pilot, [mission], [], []), pilot.id
+        )
+        return pilot, mission
+
+    def test_process_mission_end_narrative_failure_performs_no_writes(self):
+        pilot, mission = self._mission_fixture("NARRATIVE_FAILURE")
+
+        with patch(
+            "woff.campaign_engine.narrative_generator.generate",
+            side_effect=RuntimeError("narrative failure"),
+        ):
+            with self.assertRaisesRegex(RuntimeError, "narrative failure"):
+                self.engine.process_mission_end(pilot.name, mission.id)
+
+        conn = self.db._get_conn()
+        self.assertIsNone(conn.execute(
+            "SELECT 1 FROM pilot_rpg_stats WHERE pilotId = ?", (pilot.id,)
+        ).fetchone())
+        self.assertIsNone(conn.execute(
+            "SELECT 1 FROM diary_entries WHERE missionId = ?", (mission.id,)
+        ).fetchone())
+
+    def test_process_mission_end_diary_failure_rolls_back_rpg_update(self):
+        pilot, mission = self._mission_fixture("DIARY_FAILURE")
+
+        with patch(
+            "woff.campaign_engine.narrative_generator.generate",
+            return_value="Generated before writing",
+        ), patch.object(
+            self.db, "save_diary_entry", side_effect=RuntimeError("diary failure")
+        ), self.assertLogs("WoFFWatch", level="INFO") as captured:
+            with self.assertRaisesRegex(RuntimeError, "diary failure"):
+                self.engine.process_mission_end(pilot.name, mission.id)
+
+        self.assertIsNone(self.db._get_conn().execute(
+            "SELECT 1 FROM pilot_rpg_stats WHERE pilotId = ?", (pilot.id,)
+        ).fetchone())
+        messages = "\n".join(captured.output)
+        for success_message in ("RPG Atualizado", "RPG Stats", "📝 Diário:"):
+            self.assertNotIn(success_message, messages)
+
+    def test_process_mission_end_success_commits_rpg_and_diary_together(self):
+        pilot, mission = self._mission_fixture("ATOMIC_SUCCESS")
+        transaction_state = []
+        success_log_state = []
+        update = self.db.update_pilot_rpg_stats
+        save = self.db.save_diary_entry
+
+        def observed_update(*args, **kwargs):
+            transaction_state.append(("rpg", self.db._get_conn().in_transaction))
+            return update(*args, **kwargs)
+
+        def observed_save(*args, **kwargs):
+            transaction_state.append(("diary", self.db._get_conn().in_transaction))
+            return save(*args, **kwargs)
+
+        def observed_log(message, *args, **kwargs):
+            if "RPG Atualizado" in message:
+                success_log_state.append(self.db._get_conn().in_transaction)
+
+        with patch(
+            "woff.campaign_engine.narrative_generator.generate",
+            return_value="Atomic narrative",
+        ), patch.object(
+            self.db, "update_pilot_rpg_stats", side_effect=observed_update
+        ), patch.object(
+            self.db, "save_diary_entry", side_effect=observed_save
+        ), patch("woff.campaign_engine.log.info", side_effect=observed_log):
+            result = self.engine.process_mission_end(pilot.name, mission.id)
+
+        self.assertEqual(
+            (result, transaction_state),
+            (True, [("rpg", True), ("diary", True)]),
+        )
+        self.assertEqual(success_log_state, [False])
+        with sqlite3.connect(self.tmp_db.name) as observer:
+            self.assertIsNotNone(observer.execute(
+                "SELECT 1 FROM pilot_rpg_stats WHERE pilotId = ?", (pilot.id,)
+            ).fetchone())
+            self.assertEqual(observer.execute(
+                "SELECT narrative FROM diary_entries WHERE missionId = ?", (mission.id,)
+            ).fetchone(), ("Atomic narrative",))
+
+    def test_process_mission_end_duplicate_diary_has_no_false_success(self):
+        pilot, mission = self._mission_fixture("DUPLICATE")
+        self.assertTrue(self.db.save_diary_entry(
+            pilot.id, mission.id, mission.date, "Existing narrative"
+        ))
+
+        with patch(
+            "woff.campaign_engine.narrative_generator.generate",
+            return_value="Duplicate narrative",
+        ), self.assertLogs("WoFFWatch", level="INFO") as captured:
+            result = self.engine.process_mission_end(pilot.name, mission.id)
+
+        self.assertFalse(result)
+        messages = "\n".join(captured.output)
+        for success_message in ("RPG Atualizado", "RPG Stats", "📝 Diário:"):
+            self.assertNotIn(success_message, messages)
+        self.assertEqual(self.db._get_conn().execute(
+            "SELECT narrative FROM diary_entries WHERE missionId = ?", (mission.id,)
+        ).fetchall(), [("Existing narrative",)])
     
     def test_process_life_events_promotion(self):
         """Testa deteção de promoção e geração de entrada de diário."""

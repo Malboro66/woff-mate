@@ -19,6 +19,7 @@ import re
 import sqlite3
 import time
 import threading
+from contextlib import contextmanager
 from datetime import datetime
 from pathlib import Path
 from typing import Optional, List, Any, Dict, NoReturn, Tuple
@@ -40,6 +41,10 @@ class SchemaCompatibilityError(RuntimeError):
 
 class MigrationBackupUnavailableError(RuntimeError):
     """Raised when a recorded migration backup disappears before restoration."""
+
+
+class TransactionRollbackError(RuntimeError):
+    """Raised when caught nested failure makes an outer transaction rollback-only."""
 
 
 def _version_tuple(version: str) -> Tuple[int, ...]:
@@ -193,6 +198,67 @@ class DatabaseManager:
             self._local.conn = self._open_conn()
 
         return self._local.conn
+
+    @contextmanager
+    def transaction(self):
+        """Run a composable transaction on the current thread's connection."""
+        with self._lock:
+            conn = self._get_conn()
+            depth = getattr(self._local, "transaction_depth", 0)
+            outermost = depth == 0
+            if outermost:
+                conn.execute("BEGIN")
+                self._local.transaction_rollback_only = False
+            self._local.transaction_depth = depth + 1
+            exception_propagating = False
+            try:
+                yield conn
+            except Exception:
+                exception_propagating = True
+                self._local.transaction_rollback_only = True
+                raise
+            finally:
+                self._local.transaction_depth = depth
+                if outermost:
+                    try:
+                        if self._local.transaction_rollback_only:
+                            try:
+                                conn.rollback()
+                            except Exception:
+                                self._discard_failed_connection(conn)
+                                if exception_propagating:
+                                    log.exception(
+                                        "Rollback failed while preserving "
+                                        "transaction exception"
+                                    )
+                                else:
+                                    raise
+                            if not exception_propagating:
+                                raise TransactionRollbackError(
+                                    "Transaction rolled back after a nested failure "
+                                    "marked it rollback-only"
+                                )
+                        else:
+                            try:
+                                conn.commit()
+                            except Exception:
+                                try:
+                                    conn.rollback()
+                                except Exception:
+                                    log.exception("Rollback failed after commit failure")
+                                    self._discard_failed_connection(conn)
+                                raise
+                    finally:
+                        self._local.transaction_rollback_only = False
+
+    def _discard_failed_connection(self, conn: sqlite3.Connection) -> None:
+        """Discard a connection whose transactional state is uncertain."""
+        if getattr(self._local, "conn", None) is conn:
+            self._local.conn = None
+        try:
+            conn.close()
+        except Exception:
+            log.exception("Failed to close connection after rollback failure")
 
     def close(self) -> None:
         """Fecha a conexão da thread atual. Chamar no shutdown."""
@@ -1168,9 +1234,8 @@ class DatabaseManager:
         wingmen: Optional[List[WoFFWingman]] = None
     ) -> Optional[str]:
         """Faz o merge dos novos dados na base de dados SQLite. Retorna o pilot_id ou None."""
-        with self._lock:
-            conn = self._get_conn()
-            try:
+        try:
+            with self.transaction():
                 pilot_id = self._pilots.upsert_pilot(pilot, missions, victories)
                 if not pilot_id:
                     return None
@@ -1183,20 +1248,17 @@ class DatabaseManager:
                         f"  + {added_m} missões, {added_v} vitórias, {added_d} "
                         f"condecorações, {added_w} wingmen inseridos."
                     )
-                conn.execute(
+                self._get_conn().execute(
                     "INSERT OR REPLACE INTO meta (key, value) VALUES ('last_updated', ?)",
                     (datetime.now().isoformat(),)
                 )
-                conn.commit()
                 return pilot_id
-            except sqlite3.IntegrityError as e:
-                log.error(f"Erro de integridade na base de dados: {e}")
-                conn.rollback()
-                return None
-            except Exception:
-                log.exception("Erro ao escrever na base de dados")
-                conn.rollback()
-                raise
+        except sqlite3.IntegrityError as e:
+            log.error(f"Erro de integridade na base de dados: {e}")
+            return None
+        except Exception:
+            log.exception("Erro ao escrever na base de dados")
+            raise
 
     def get_pilot_id_by_name(self, pilot_name: str) -> Optional[str]:
         return self._pilots.get_pilot_id_by_name(pilot_name)

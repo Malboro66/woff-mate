@@ -16,6 +16,11 @@ from .models import WoFFWingman
 
 log = logging.getLogger("WoFFWatch")
 
+
+class _DiaryWriteRejected(Exception):
+    pass
+
+
 class CampaignEngine:
     def __init__(self, db_manager: DatabaseManager):
         self.db_manager = db_manager
@@ -49,25 +54,34 @@ class CampaignEngine:
         )
         stress = rpg_system.calculate_stress(m_list)
 
-        self.db_manager.update_pilot_rpg_stats(real_pilot_id, fatigue, morale, stress)
-
         narrative = narrative_generator.generate(
             pilot_dict["name"], current_mission
         )
+        if not narrative:
+            return False
 
         # FIX: Usar data da missão em vez de datetime.now()
         entry_date = current_mission.get("date", "") or self.db_manager.get_pilot_game_date(real_pilot_id)
 
-        self.db_manager.save_diary_entry(
-            pilot_id=real_pilot_id,
-            mission_id=mission_id,
-            entry_date=entry_date,
-            narrative=narrative
-        )
+        try:
+            with self.db_manager.transaction():
+                self.db_manager.update_pilot_rpg_stats(
+                    real_pilot_id, fatigue, morale, stress
+                )
+                if not self.db_manager.save_diary_entry(
+                    pilot_id=real_pilot_id,
+                    mission_id=mission_id,
+                    entry_date=entry_date,
+                    narrative=narrative
+                ):
+                    raise _DiaryWriteRejected
+        except _DiaryWriteRejected:
+            return False
 
         log.info(
             f"  ✓ RPG Atualizado: Fadiga={fatigue} | Moral={morale} | Stress={stress}"
         )
+        return True
 
     def process_life_events(
         self, pilot_name: str, new_status: str, new_rank: str,
