@@ -17,16 +17,23 @@ from __future__ import annotations
 
 import json
 import logging
+import math
 from dataclasses import dataclass, asdict, field
 from pathlib import Path
-from typing import List
+from typing import Any, List
 
 from .version import CONFIG_VERSION
 
 log = logging.getLogger("WoFFWatch")
 
+SUPPORTED_WATCHED_EXTENSIONS = frozenset({".xml", ".txt", ".log"})
 
-class UnsupportedConfigVersion(ValueError):
+
+class InvalidConfigurationError(ValueError):
+    """Raised when an existing configuration cannot be used safely."""
+
+
+class UnsupportedConfigVersion(InvalidConfigurationError):
     """Raised when a config was written by a newer, unsupported release."""
 
 
@@ -44,9 +51,62 @@ class WatchdogConfig:
     max_workers: int = 4
     config_version: str = CONFIG_VERSION
 
+    def __post_init__(self) -> None:
+        self.validate()
+
+    def validate(self) -> None:
+        """Validate and normalize every public configuration field."""
+        if not isinstance(self.watch_paths, list):
+            raise InvalidConfigurationError("watch_paths must be a list")
+        self._validate_strings(self.watch_paths, "watch_paths")
+        for name in ("export_path", "discovery_log_path"):
+            value = getattr(self, name)
+            if not isinstance(value, str) or not value.strip():
+                raise InvalidConfigurationError(f"{name} must be a nonblank string")
+        if not isinstance(self.watched_extensions, list) or not self.watched_extensions:
+            raise InvalidConfigurationError("watched_extensions must be a nonempty list")
+        self._validate_strings(self.watched_extensions, "watched_extensions")
+        normalized_extensions = []
+        for extension in self.watched_extensions:
+            extension = extension.lower()
+            if not extension.startswith(".") or len(extension) == 1 or not extension[1:].isalnum():
+                raise InvalidConfigurationError("watched_extensions entries must be extensions such as '.xml'")
+            if extension in normalized_extensions:
+                raise InvalidConfigurationError("watched_extensions must not contain duplicates")
+            if extension not in SUPPORTED_WATCHED_EXTENSIONS:
+                raise InvalidConfigurationError(
+                    f"watched_extensions entry {extension!r} is not supported"
+                )
+            normalized_extensions.append(extension)
+        self.watched_extensions = normalized_extensions
+        for name in ("stability_timeout_sec", "stability_check_interval_sec"):
+            value = getattr(self, name)
+            if isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(value) or value <= 0:
+                raise InvalidConfigurationError(f"{name} must be a finite positive number")
+        if self.stability_check_interval_sec >= self.stability_timeout_sec:
+            raise InvalidConfigurationError("stability_check_interval_sec must be less than stability_timeout_sec")
+        if not isinstance(self.backup_export, bool):
+            raise InvalidConfigurationError("backup_export must be a Boolean")
+        if isinstance(self.max_workers, bool) or not isinstance(self.max_workers, int) or self.max_workers <= 0:
+            raise InvalidConfigurationError("max_workers must be a positive integer")
+        if not isinstance(self.log_level, str) or not self.log_level.strip():
+            raise InvalidConfigurationError("log_level must be a nonblank string")
+        self.log_level = self.log_level.upper()
+        if self.log_level not in {"DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"}:
+            raise InvalidConfigurationError("log_level is not supported")
+        if not isinstance(self.config_version, str) or self.config_version != CONFIG_VERSION:
+            raise UnsupportedConfigVersion(f"Versão de configuração {self.config_version!r} inválida ou não suportada; esta aplicação requer {CONFIG_VERSION!r}.")
+
+    @staticmethod
+    def _validate_strings(values: List[str], name: str) -> None:
+        if any(not isinstance(value, str) or not value.strip() for value in values):
+            raise InvalidConfigurationError(f"{name} entries must be nonblank strings")
+
     @classmethod
-    def from_dict(cls, d: dict) -> "WatchdogConfig":
+    def from_dict(cls, d: Any) -> "WatchdogConfig":
         """Cria a configuração a partir de um dicionário, avisando sobre chaves inválidas."""
+        if not isinstance(d, dict):
+            raise InvalidConfigurationError("configuration root must be a JSON object")
         valid_keys = cls.__dataclass_fields__.keys()
         legacy_keys = {"export_schema_version", "app_version"}
         unknown_keys = [k for k in d.keys() if k not in valid_keys and k not in legacy_keys]
@@ -77,8 +137,9 @@ class WatchdogConfig:
 def load_config(path: str) -> WatchdogConfig:
     """
     Carrega a configuração de um ficheiro JSON.
-    Se o ficheiro não existir, tenta auto-detectar o caminho do jogo no Registo do Windows.
-    Se estiver corrompido, avisa o utilizador e usa os valores padrão.
+    Se o ficheiro não existir, tenta auto-detectar o caminho do jogo no Registo
+    do Windows e pode usar os valores padrão. Ficheiros existentes malformados
+    ou inválidos falham sem serem substituídos.
     """
     p = Path(path)
     
@@ -89,10 +150,10 @@ def load_config(path: str) -> WatchdogConfig:
             cfg = WatchdogConfig.from_dict(data)
             log.info(f"Configuração carregada: {path}")
             return cfg
-        except UnsupportedConfigVersion:
+        except (InvalidConfigurationError, UnsupportedConfigVersion):
             raise
-        except Exception as e:
-            log.warning(f"Erro ao ler config ({e}) — tentando auto-deteção.")
+        except (OSError, UnicodeError, json.JSONDecodeError) as e:
+            raise InvalidConfigurationError(f"Erro ao ler config: {e}") from e
     else:
         log.info("config.json não encontrado. A tentar auto-deteção...")
         

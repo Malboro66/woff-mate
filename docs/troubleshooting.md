@@ -14,6 +14,19 @@ Get-ComputerInfo -Property WindowsProductName, WindowsVersion, OsArchitecture
 
 Include the exact failed command and smallest relevant error excerpt. Replace user names, installation directories, and local paths with neutral placeholders such as `<installation>`. Do not upload an entire log.
 
+## Invalid configuration
+
+WoFF Mate validates `config.json` before opening the database or starting file
+watchers and worker threads. Strings and paths must not be blank, workers and
+stability values must be positive, the stability interval must be less than its
+timeout, and watched extensions must be a supported subset of `.xml`, `.txt`,
+and `.log`. Extension filtering applies both to initial synchronization and to
+runtime file events. Supported log levels are
+`DEBUG`, `INFO`, `WARNING`, `ERROR`, and `CRITICAL` (case-insensitive).
+
+An existing malformed or invalid configuration is never replaced or repaired
+automatically. Auto-detection and defaults apply only when the file is missing.
+
 ## Common database messages
 
 ### Future schema
