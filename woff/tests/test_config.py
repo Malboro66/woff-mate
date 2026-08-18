@@ -40,6 +40,13 @@ def test_normalization_uses_both_construction_paths():
     assert direct.watched_extensions == loaded.watched_extensions == [".xml", ".txt"]
 
 
+def test_unsupported_watched_extensions_are_rejected_by_both_construction_paths():
+    with pytest.raises(InvalidConfigurationError, match="not supported"):
+        WatchdogConfig(watched_extensions=[".dat"])
+    with pytest.raises(InvalidConfigurationError, match="not supported"):
+        WatchdogConfig.from_dict(valid_config(watched_extensions=[".dat"]))
+
+
 def test_missing_config_uses_fallback(tmp_path):
     path = tmp_path / "missing.json"
     with patch("woff.win_registry.get_woff_install_path", return_value=None):

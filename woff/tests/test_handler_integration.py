@@ -139,12 +139,20 @@ class TestHandlerIntegration(unittest.TestCase):
 
     def test_configured_components_are_wired(self):
         self.handler.shutdown()
-        self.config.watched_extensions = [".dat"]
+        self.config.watched_extensions = [".xml", ".log"]
         self.handler = WoFFEventHandler(self.config, self.db, self.engine)
         self._handler_pool = self.handler._pool
         self.assertEqual(self.handler.processor.guard.timeout, 1.0)
         self.assertEqual(self.handler.processor.guard.interval, 0.05)
-        self.assertEqual(self.handler.watched_extensions, {".dat"})
+        self.assertEqual(self.handler.watched_extensions, {".xml", ".log"})
+
+    def test_unsupported_extension_prevents_executor_creation(self):
+        self.handler.shutdown()
+        self.config.watched_extensions = [".dat"]
+        with patch("woff.handler.ThreadPoolExecutor") as executor:
+            with self.assertRaises(ValueError):
+                WoFFEventHandler(self.config, self.db, self.engine)
+        executor.assert_not_called()
 
     def test_invalid_config_prevents_startup_components(self):
         self.handler.shutdown()

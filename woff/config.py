@@ -26,6 +26,8 @@ from .version import CONFIG_VERSION
 
 log = logging.getLogger("WoFFWatch")
 
+SUPPORTED_WATCHED_EXTENSIONS = frozenset({".xml", ".txt", ".log"})
+
 
 class InvalidConfigurationError(ValueError):
     """Raised when an existing configuration cannot be used safely."""
@@ -71,6 +73,10 @@ class WatchdogConfig:
                 raise InvalidConfigurationError("watched_extensions entries must be extensions such as '.xml'")
             if extension in normalized_extensions:
                 raise InvalidConfigurationError("watched_extensions must not contain duplicates")
+            if extension not in SUPPORTED_WATCHED_EXTENSIONS:
+                raise InvalidConfigurationError(
+                    f"watched_extensions entry {extension!r} is not supported"
+                )
             normalized_extensions.append(extension)
         self.watched_extensions = normalized_extensions
         for name in ("stability_timeout_sec", "stability_check_interval_sec"):

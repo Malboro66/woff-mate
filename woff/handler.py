@@ -20,6 +20,7 @@ from watchdog.events import FileSystemEventHandler
 
 from .database import DatabaseManager
 from .campaign_engine import CampaignEngine
+from .config import SUPPORTED_WATCHED_EXTENSIONS
 
 from .parsers.xml_parser import WoFFXMLParser
 from .parsers.mission_log_parser import WoFFMissionLogParser
@@ -112,7 +113,7 @@ class FileProcessor:
 
             if ext == ".xml":
                 self._process_xml(path)
-            elif ext in (".txt", ".log"):
+            elif ext in SUPPORTED_WATCHED_EXTENSIONS:
                 self._process_text(path, fname)
 
         except Exception:
