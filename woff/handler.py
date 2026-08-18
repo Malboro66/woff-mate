@@ -86,13 +86,13 @@ class FileProcessor:
         db_manager: DatabaseManager,
         campaign_engine: CampaignEngine,
         discovery=None,
+        stability_timeout: float = 3.0,
+        stability_interval: float = 0.15,
     ):
         self.db_manager = db_manager
         self.campaign_engine = campaign_engine
         self.discovery = discovery
-        self.guard = FileStabilityGuard(
-            timeout=3.0, interval=0.15
-        )  # Hardcoded para segurança no pipeline
+        self.guard = FileStabilityGuard(timeout=stability_timeout, interval=stability_interval)
 
     def process(self, path: str, event_type: str):
         """Executa a cadeia de processamento."""
@@ -219,7 +219,6 @@ class WoFFEventHandler(FileSystemEventHandler):
     Filtra ficheiros e delega para o FileProcessor.
     """
 
-    WATCHED_EXT = {".xml", ".txt", ".log"}
     IGNORED = {"desktop.ini", "thumbs.db", ".tmp", "~", ".bak", ".lnk"}
 
     def __init__(
@@ -229,8 +228,10 @@ class WoFFEventHandler(FileSystemEventHandler):
         campaign_engine: CampaignEngine,
         discovery=None,
     ):
+        config.validate()
         self.config = config
-        self.processor = FileProcessor(db_manager, campaign_engine, discovery)
+        self.watched_extensions = set(config.watched_extensions)
+        self.processor = FileProcessor(db_manager, campaign_engine, discovery, config.stability_timeout_sec, config.stability_check_interval_sec)
         self._pool = ThreadPoolExecutor(
             max_workers=config.max_workers, thread_name_prefix="woff-worker"
         )
@@ -249,7 +250,7 @@ class WoFFEventHandler(FileSystemEventHandler):
         bn = os.path.basename(path).lower()
         ext = os.path.splitext(path)[1].lower()
 
-        if ext not in self.WATCHED_EXT or any(p in bn for p in self.IGNORED):
+        if ext not in self.watched_extensions or any(p in bn for p in self.IGNORED):
             return
 
         with self._inflight_lock:

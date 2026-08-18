@@ -10,6 +10,7 @@ from ..config import WatchdogConfig
 from ..database import DatabaseManager
 from ..campaign_engine import CampaignEngine
 from ..handler import WoFFEventHandler
+from .. import woff_watchdog
 
 # Mock de um ficheiro de campanha XML válido
 MOCK_XML_VALID = """<?xml version="1.0" encoding="UTF-8"?>
@@ -135,6 +136,36 @@ class TestHandlerIntegration(unittest.TestCase):
         # Disparar outro evento, agora já deve ser aceite novamente
         self.handler.on_modified(event)
         self.assertEqual(self.handler._pool.submit.call_count, 2)
+
+    def test_configured_components_are_wired(self):
+        self.handler.shutdown()
+        self.config.watched_extensions = [".dat"]
+        self.handler = WoFFEventHandler(self.config, self.db, self.engine)
+        self._handler_pool = self.handler._pool
+        self.assertEqual(self.handler.processor.guard.timeout, 1.0)
+        self.assertEqual(self.handler.processor.guard.interval, 0.05)
+        self.assertEqual(self.handler.watched_extensions, {".dat"})
+
+    def test_invalid_config_prevents_startup_components(self):
+        self.handler.shutdown()
+        self.config.max_workers = True
+        with patch("woff.handler.ThreadPoolExecutor") as executor:
+            with self.assertRaises(ValueError):
+                WoFFEventHandler(self.config, self.db, self.engine)
+        executor.assert_not_called()
+
+        self.config.max_workers = 1
+        self.config.export_path = " "
+        with patch.object(woff_watchdog, "DatabaseManager") as database:
+            with self.assertRaises(ValueError):
+                woff_watchdog.WoFFWatchdog(self.config)
+        database.assert_not_called()
+
+    def test_main_applies_configured_log_level(self):
+        config = WatchdogConfig(log_level="error")
+        with patch.object(woff_watchdog, "load_config", return_value=config), patch.object(woff_watchdog, "run_parse_file"), patch.object(woff_watchdog.logging.getLogger(), "setLevel") as set_level, patch("sys.argv", ["woff-watchdog", "--parse-file", "sample.xml"]):
+            woff_watchdog.main()
+        set_level.assert_called_with(woff_watchdog.logging.ERROR)
 
 if __name__ == "__main__":
     unittest.main()

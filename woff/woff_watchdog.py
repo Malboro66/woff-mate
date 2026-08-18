@@ -101,6 +101,7 @@ class WoFFWatchdog:
     def __init__(
         self, config: WatchdogConfig, discovery: bool = False, pilot_id: str = ""
     ):
+        config.validate()
         self.config = config
         self.db_manager = DatabaseManager(config.export_path)
         self.discovery = (
@@ -539,8 +540,7 @@ Exemplos:
         logging.getLogger().setLevel(logging.DEBUG)
 
     cfg = load_config(args.config)
-    if args.verbose or cfg.log_level == "DEBUG":
-        logging.getLogger().setLevel(logging.DEBUG)
+    logging.getLogger().setLevel(logging.DEBUG if args.verbose else getattr(logging, cfg.log_level))
 
     # Modo Debug de ficheiro único
     if args.parse_file:

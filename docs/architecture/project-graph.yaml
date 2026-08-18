@@ -194,12 +194,14 @@ evals:
     enforced_by: [woff/tests/test_composable_transactions.py]
   EVAL-CFG-001:
     work_items: [issue-45]
-    status: planned
-    evidence: Invalid configuration fails before threads or watchers start.
+    status: implemented
+    evidence: Invalid configuration fails before databases, executors, threads, or watchers start and runtime settings are wired.
+    enforced_by: [woff/tests/test_config.py, woff/tests/test_handler_integration.py]
   EVAL-CFG-002:
     work_items: [issue-45]
-    status: planned
-    evidence: Invalid personal configuration remains byte-for-byte unchanged.
+    status: implemented
+    evidence: Invalid personal configuration remains byte-for-byte unchanged and bypasses auto-detection.
+    enforced_by: [woff/tests/test_config.py]
   EVAL-SCHED-001:
     work_items: [issue-36]
     status: planned
@@ -393,7 +395,7 @@ work_items:
     evals: [EVAL-SCHED-001, EVAL-SCHED-002]
     gates: [Q0, Q1, Q3, Q6-CYCLE-3.3.0]
     depends_on:
-      - {id: issue-45, status: unsatisfied}
+      - {id: issue-45, status: satisfied}
   issue-37:
     title: Distinguish squadron transfers from missing wingmen
     module: application
@@ -460,7 +462,7 @@ work_items:
   issue-45:
     title: Validate and honor watchdog configuration before startup
     module: platform
-    state: backlog
+    state: done
     evals: [EVAL-CFG-001, EVAL-CFG-002]
     gates: [Q0, Q1, Q3, Q6-CYCLE-3.3.0]
     depends_on: []
@@ -487,7 +489,7 @@ work_items:
     gates: [Q0, Q1, Q3]
     depends_on:
       - {id: issue-36, status: unsatisfied}
-      - {id: issue-45, status: unsatisfied}
+      - {id: issue-45, status: satisfied}
   issue-49:
     title: Make WoFF registry discovery version-tolerant
     module: platform

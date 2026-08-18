@@ -10,7 +10,7 @@
   "stability_check_interval_sec": 0.15,
   "backup_export": true,
   "discovery_log_path": "woff_discovery.log",
-  "log_level": "INFO",
+  "log_level": "WARNING",
   "max_workers": 4,
   "config_version": "1"
 }
