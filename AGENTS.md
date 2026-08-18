@@ -7,6 +7,7 @@ WoFF_Mate é uma aplicação Python para Windows que processa dados do WoFF e ma
 ## Regras
 
 - Preserve compatibilidade com Python 3.10.
+- Antes de implementar qualquer issue, verifique issues fechadas, PRs e commits relacionados, inspecione o código afetado na `main` atual e reproduza o defeito com um teste ou procedimento determinístico. Se a `main` já satisfizer o comportamento esperado, interrompa a implementação e reclassifique a issue como candidata a duplicada, obsoleta ou já resolvida. Se uma correção anterior tiver sido parcial, limite a issue ao defeito restante e registre a referência histórica.
 - Não altere dados de campanha sem backup.
 - Toda mudança de schema exige teste de migração e reabertura.
 - Não versione config.json, bancos, logs, builds ou dados pessoais.
