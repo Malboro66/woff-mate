@@ -137,8 +137,9 @@ class WatchdogConfig:
 def load_config(path: str) -> WatchdogConfig:
     """
     Carrega a configuração de um ficheiro JSON.
-    Se o ficheiro não existir, tenta auto-detectar o caminho do jogo no Registo do Windows.
-    Se estiver corrompido, avisa o utilizador e usa os valores padrão.
+    Se o ficheiro não existir, tenta auto-detectar o caminho do jogo no Registo
+    do Windows e pode usar os valores padrão. Ficheiros existentes malformados
+    ou inválidos falham sem serem substituídos.
     """
     p = Path(path)
     

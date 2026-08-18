@@ -158,18 +158,21 @@ class WoFFWatchdog:
         # ──────────────────────────────────────────────────────────────
         # SINCRONIZAÇÃO INICIAL DE TODOS OS PILOTOS
         # ──────────────────────────────────────────────────────────────
-        log.info("A sincronizar dados iniciais dos pilotos...")
-
         # Instanciar o CampaignEngine uma única vez para partilhar entre o arranque e o runtime
         self.campaign_engine = CampaignEngine(self.db_manager)
 
-        for path in valid:
-            for file_pattern in [
+        file_patterns = []
+        if ".txt" in self.config.watched_extensions:
+            log.info("A sincronizar dados iniciais dos pilotos...")
+            file_patterns = [
                 "Pilot*Dossier.txt",
                 "Pilot*Log.txt",
                 "Pilot*Claims.txt",
                 "Pilot*Squads.txt",
-            ]:
+            ]
+
+        for path in valid:
+            for file_pattern in file_patterns:
                 for file_path in glob.glob(os.path.join(path, file_pattern)):
                     fname = os.path.basename(file_path).lower()
 

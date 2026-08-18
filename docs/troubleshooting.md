@@ -19,7 +19,9 @@ Include the exact failed command and smallest relevant error excerpt. Replace us
 WoFF Mate validates `config.json` before opening the database or starting file
 watchers and worker threads. Strings and paths must not be blank, workers and
 stability values must be positive, the stability interval must be less than its
-timeout, and extensions must use forms such as `.xml`. Supported log levels are
+timeout, and watched extensions must be a supported subset of `.xml`, `.txt`,
+and `.log`. Extension filtering applies both to initial synchronization and to
+runtime file events. Supported log levels are
 `DEBUG`, `INFO`, `WARNING`, `ERROR`, and `CRITICAL` (case-insensitive).
 
 An existing malformed or invalid configuration is never replaced or repaired

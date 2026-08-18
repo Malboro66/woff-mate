@@ -175,5 +175,59 @@ class TestHandlerIntegration(unittest.TestCase):
             woff_watchdog.main()
         set_level.assert_called_with(woff_watchdog.logging.ERROR)
 
+
+class TestWatchdogStartup(unittest.TestCase):
+    def _start_with_extensions(self, watched_extensions):
+        tmp_dir = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, tmp_dir)
+        os.mkdir(os.path.join(tmp_dir, "Medals"))
+        os.mkdir(os.path.join(tmp_dir, "Scratchpad"))
+        config = WatchdogConfig(
+            watch_paths=[tmp_dir],
+            export_path=os.path.join(tmp_dir, "test.db"),
+            watched_extensions=watched_extensions,
+        )
+
+        patches = [
+            patch.object(woff_watchdog, "catalog_medals"),
+            patch.object(woff_watchdog, "catalog_squadrons"),
+            patch.object(woff_watchdog, "CampaignEngine"),
+            patch.object(woff_watchdog, "WoFFEventHandler"),
+            patch.object(woff_watchdog, "Observer"),
+            patch.object(woff_watchdog.glob, "glob", return_value=[]),
+        ]
+        mocks = [patcher.start() for patcher in patches]
+        for patcher in patches:
+            self.addCleanup(patcher.stop)
+
+        watchdog = woff_watchdog.WoFFWatchdog(config)
+        self.addCleanup(watchdog.db_manager.close)
+        self.assertTrue(watchdog.start())
+        return mocks
+
+    def test_txt_disabled_skips_initial_sync_but_starts_other_components(self):
+        medals, squadrons, engine, handler, observer, pilot_glob = (
+            self._start_with_extensions([".xml", ".log"])
+        )
+
+        pilot_glob.assert_not_called()
+        medals.assert_called_once()
+        squadrons.assert_called_once()
+        engine.assert_called_once()
+        handler.assert_called_once()
+        observer.return_value.schedule.assert_called_once()
+        observer.return_value.start.assert_called_once()
+
+    def test_txt_enabled_runs_initial_sync_and_starts_runtime_components(self):
+        _, _, engine, handler, observer, pilot_glob = self._start_with_extensions(
+            [".txt"]
+        )
+
+        self.assertEqual(pilot_glob.call_count, 4)
+        engine.assert_called_once()
+        handler.assert_called_once()
+        observer.return_value.schedule.assert_called_once()
+        observer.return_value.start.assert_called_once()
+
 if __name__ == "__main__":
     unittest.main()
