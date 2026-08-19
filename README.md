@@ -62,11 +62,13 @@ que uma release pública 3.2.1 tenha sido publicada.
 
 O ciclo ativo é o **3.3.0: integridade e ingestão**, acompanhado pela Issue
 [#50](https://github.com/Malboro66/woff-mate/issues/50). As Issues
-[#34](https://github.com/Malboro66/woff-mate/issues/34) e
-[#45](https://github.com/Malboro66/woff-mate/issues/45) já foram concluídas.
-A prioridade imediata de integridade é a Issue
-[#57](https://github.com/Malboro66/woff-mate/issues/57), seguida pela mudança de
-scheduling da Issue [#36](https://github.com/Malboro66/woff-mate/issues/36).
+[#34](https://github.com/Malboro66/woff-mate/issues/34),
+[#57](https://github.com/Malboro66/woff-mate/issues/57),
+[#45](https://github.com/Malboro66/woff-mate/issues/45) e
+[#36](https://github.com/Malboro66/woff-mate/issues/36) já foram concluídas.
+A prioridade técnica atual é a Issue
+[#42](https://github.com/Malboro66/woff-mate/issues/42), que trata snapshots
+estáveis e retries transitórios limitados antes do restante da cadeia de ingestão.
 
 O backlog operacional está no
 [GitHub Project WoFF Mate Development](https://github.com/users/Malboro66/projects/1).
@@ -75,11 +77,10 @@ repositório permanecem como fontes técnicas.
 
 Prioridades atuais:
 
-1. preservar estatísticas autoritativas do Dossier durante merges de fontes parciais (#57)
-2. concluir scheduling limitado, coalescido e com identidade canônica de paths (#36)
-3. processar snapshots estáveis com retry transitório e limitado (#42)
-4. tornar datas, ordenação e atualização de missões determinísticas (#40 e #39)
-5. reprocessar ficheiros dependentes sem perda quando o Dossier ainda não está disponível (#27)
+1. processar snapshots estáveis com retry transitório e limitado (#42)
+2. validar datas canônicas e ordenação determinística de missões (#40)
+3. atualizar missões existentes sem degradar dados mais ricos (#39, após #40)
+4. reprocessar ficheiros dependentes sem perda quando o Dossier ainda não está disponível (#27, após #42 e #39)
 
 A investigação do Dossier continua relevante, mas não representa o único
 bloqueador do projeto.
