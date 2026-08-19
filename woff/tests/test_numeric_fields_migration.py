@@ -19,6 +19,8 @@ def test_numeric_model_fields_support_arithmetic_without_casting():
     mission = WoFFMission(enemyContacts=3, claimsCount=2)
     wingman = WoFFWingman(skill=45, morale=70, missions=4, flminutes=120)
 
+    assert pilot.missions is not None
+    assert pilot.claimsCount is not None
     assert pilot.missions + pilot.claimsCount == 3
     assert mission.enemyContacts * 4 == 12
     assert wingman.morale + wingman.skill == 115

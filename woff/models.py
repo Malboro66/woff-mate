@@ -6,7 +6,7 @@ Modelos de Dados (models.py)
 
 import uuid
 from dataclasses import dataclass, field
-from typing import List
+from typing import List, Optional
 
 def _uid() -> str:
     return uuid.uuid4().hex[:12]
@@ -33,12 +33,14 @@ class WoFFPilot:
     # Estatísticas extraídas do Dossier
     birthDate:    str = ""
     birthPlace:   str = ""
-    missions:     int = 0
-    flminutes:    int = 0
-    claimsCount:  int = 0
-    killsCount:   int = 0
-    skill:        int = 0
-    reputation:   int = 0
+    # ``None`` means that a partial source did not provide the statistic.
+    # Integer zero remains an authoritative value supplied by the Dossier.
+    missions:     Optional[int] = None
+    flminutes:    Optional[int] = None
+    claimsCount:  Optional[int] = None
+    killsCount:   Optional[int] = None
+    skill:        Optional[int] = None
+    reputation:   Optional[int] = None
     
     source_file:  str = ""
     last_updated: str = ""
