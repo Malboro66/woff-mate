@@ -3,7 +3,7 @@ r"""
 Utilitário de Registo do Windows (win_registry.py)
 ══════════════════════════════════════════════════════════════════
 Equivalente ao WinRegistry.java do Pilot Log Editor.
-Lê o Registo do Windows para descobrir automaticamente onde o 
+Lê o Registo do Windows para descobrir automaticamente onde o
 WoFF BHaH II está instalado.
 ══════════════════════════════════════════════════════════════════
 """
@@ -13,9 +13,12 @@ from typing import Any, Optional, Protocol, Tuple, cast
 
 log = logging.getLogger("WoFFWatch")
 
-# Chave do registo usada pelo instalador do WoFF (OBD Software)
+# Chave do registo usada pelo instalador do WoFF (OBD Software).
+# PRIV/LIC contract: registry discovery is read-only and only the installation
+# path value is permitted. Activation/license values must never be queried.
 WOFF_REG_KEY = r"Software\VB and VBA Program Settings\OFFManager4\Settings"
 WOFF_REG_VALUE = "CFS3Path"
+ALLOWED_WOFF_REGISTRY_VALUES = frozenset({WOFF_REG_VALUE})
 
 
 class _WinReg(Protocol):
@@ -27,10 +30,14 @@ class _WinReg(Protocol):
     def QueryValueEx(self, key: Any, value_name: str) -> Tuple[Any, int]: ...
     def CloseKey(self, key: Any) -> None: ...
 
+
 def get_woff_install_path() -> Optional[str]:
     """
-    Procura no Registo do Windows (HKEY_CURRENT_USER) o caminho de 
+    Procura no Registo do Windows (HKEY_CURRENT_USER) o caminho de
     instalação do WoFF BHaH II.
+
+    The function deliberately queries only ``CFS3Path``. It does not enumerate
+    registry values or inspect activation, serial, or license information.
     """
     try:
         import winreg
@@ -45,7 +52,7 @@ def get_woff_install_path() -> Optional[str]:
         key = registry.OpenKey(registry.HKEY_CURRENT_USER, WOFF_REG_KEY)
         path, _ = registry.QueryValueEx(key, WOFF_REG_VALUE)
         registry.CloseKey(key)
-        
+
         if path:
             log.info(f"Caminho do WoFF encontrado no Registo: {path}")
             return path
@@ -53,5 +60,5 @@ def get_woff_install_path() -> Optional[str]:
         log.warning("Chave de registo do WoFF não encontrada. O jogo está instalado?")
     except Exception as e:
         log.error(f"Erro ao ler o Registo do Windows: {e}")
-        
+
     return None
