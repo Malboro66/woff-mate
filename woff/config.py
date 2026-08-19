@@ -49,6 +49,7 @@ class WatchdogConfig:
     discovery_log_path: str = "woff_discovery.log"
     log_level: str = "INFO"
     max_workers: int = 4
+    max_pending_events: int = 1024
     config_version: str = CONFIG_VERSION
 
     def __post_init__(self) -> None:
@@ -89,6 +90,8 @@ class WatchdogConfig:
             raise InvalidConfigurationError("backup_export must be a Boolean")
         if isinstance(self.max_workers, bool) or not isinstance(self.max_workers, int) or self.max_workers <= 0:
             raise InvalidConfigurationError("max_workers must be a positive integer")
+        if isinstance(self.max_pending_events, bool) or not isinstance(self.max_pending_events, int) or self.max_pending_events <= 0:
+            raise InvalidConfigurationError("max_pending_events must be a positive integer")
         if not isinstance(self.log_level, str) or not self.log_level.strip():
             raise InvalidConfigurationError("log_level must be a nonblank string")
         self.log_level = self.log_level.upper()

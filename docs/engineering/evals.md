@@ -67,6 +67,15 @@ The aggregate eval passes only when:
 
 Green CI alone does not pass this aggregate eval.
 
+### Implemented scheduler evals
+
+- `EVAL-SCHED-001` is enforced by deterministic burst, Windows alias,
+  coalescing, saturation, metrics, submission-failure, and shutdown tests in
+  `woff/tests/test_ingestion_scheduler.py`.
+- `EVAL-SCHED-002` is enforced by destination identity tests in
+  `woff/tests/test_ingestion_scheduler.py` and tmp-to-watched/move-away coverage
+  in `woff/tests/test_handler_integration.py`.
+
 ## Planned cycle 3.4.0
 
 | Work item | Eval IDs |

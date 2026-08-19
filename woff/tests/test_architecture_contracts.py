@@ -426,14 +426,14 @@ def test_implementation_work_item_rejects_unsatisfied_dependency(
     assert isinstance(issue_34, dict)
     _set_issue_34_incomplete_state(graph, state)
     issue_34["depends_on"] = [
-        {"id": "issue-36", "status": "unsatisfied"}
+        {"id": "issue-40", "status": "unsatisfied"}
     ]
 
     with pytest.raises(
         GraphValidationError,
         match=(
             f"work_items.issue-34 is {state} but dependency "
-            "issue-36 is unsatisfied"
+            "issue-40 is unsatisfied"
         ),
     ):
         validate_graph(REPOSITORY_ROOT, graph)
@@ -447,7 +447,7 @@ def test_blocked_work_item_accepts_unsatisfied_dependency() -> None:
     assert isinstance(issue_34, dict)
     _set_issue_34_incomplete_state(graph, "blocked")
     issue_34["depends_on"] = [
-        {"id": "issue-36", "status": "unsatisfied"}
+        {"id": "issue-40", "status": "unsatisfied"}
     ]
 
     validate_graph(REPOSITORY_ROOT, graph)
@@ -865,9 +865,9 @@ def test_project_graph_rejects_three_item_dependency_cycle() -> None:
     work_items = graph["work_items"]
     assert isinstance(work_items, dict)
     for item_id, dependency_id in (
-        ("issue-34", "issue-45"),
-        ("issue-45", "issue-36"),
-        ("issue-36", "issue-34"),
+        ("issue-27", "issue-42"),
+        ("issue-42", "issue-48"),
+        ("issue-48", "issue-27"),
     ):
         item = work_items[item_id]
         assert isinstance(item, dict)
@@ -876,8 +876,8 @@ def test_project_graph_rejects_three_item_dependency_cycle() -> None:
     with pytest.raises(
         GraphValidationError,
         match=(
-            "work item dependency cycle detected: .*issue-34.*issue-45.*issue-36"
-            "|work item dependency cycle detected: .*issue-36.*issue-34.*issue-45"
+            "work item dependency cycle detected: .*issue-27.*issue-42.*issue-48"
+            "|work item dependency cycle detected: .*issue-48.*issue-27.*issue-42"
         ),
     ):
         validate_graph(REPOSITORY_ROOT, graph)

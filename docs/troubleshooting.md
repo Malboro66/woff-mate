@@ -27,6 +27,20 @@ runtime file events. Supported log levels are
 An existing malformed or invalid configuration is never replaced or repaired
 automatically. Auto-detection and defaults apply only when the file is missing.
 
+## Filesystem event saturation
+
+`max_pending_events` limits the total number of unique filesystem paths admitted
+for processing. Each admitted path has at most one active execution and one
+latest pending generation; repeated events for that path are coalesced. The
+scheduler never waits for capacity. It emits a warning and increments its local
+`rejected` metric when a new path arrives at capacity or after shutdown begins.
+
+If `Filesystem event rejected: scheduler saturated` repeats, first verify that
+processing is not blocked by an inaccessible file or database. Then increase
+`max_pending_events` only within the machine's memory budget. The diagnostic
+intentionally omits campaign content and local paths. During an orderly stop,
+new work is rejected and already accepted work is drained before exit.
+
 ## Common database messages
 
 ### Future schema
