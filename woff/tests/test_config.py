@@ -23,6 +23,7 @@ def valid_config(**overrides):
     ("discovery_log_path", [None, 1, " "]),
     ("log_level", [None, 1, "", "TRACE"]),
     ("max_workers", [None, True, 0, -1, 1.5, "4"]),
+    ("max_pending_events", [None, True, 0, -1, 1.5, "1024"]),
     ("config_version", [None, 1, "future"]),
 ])
 def test_invalid_fields_fail_both_construction_paths(field, values):

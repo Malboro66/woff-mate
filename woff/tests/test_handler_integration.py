@@ -57,11 +57,8 @@ class TestHandlerIntegration(unittest.TestCase):
             db_manager=self.db,
             campaign_engine=self.engine
         )
-        self._handler_pool = self.handler._pool
     
     def tearDown(self):
-        # Restaurar e encerrar o pool real antes de libertar o banco no Windows.
-        self.handler._pool = self._handler_pool
         try:
             self.handler.shutdown()
         finally:
@@ -80,87 +77,61 @@ class TestHandlerIntegration(unittest.TestCase):
         from watchdog.events import FileModifiedEvent
         event = FileModifiedEvent(xml_path)
 
-        # FIX: Mockar o pool para executar sincronamente, evitando race conditions
-        # e eliminando a necessidade de aceder a _process (atributo privado).
-        original_pool = self.handler._pool
-        self.handler._pool = MagicMock()
+        self.handler.on_modified(event)
+        self.handler.shutdown()
 
-        def sync_submit(fn, *args, **kwargs):
-            """Executa a tarefa imediatamente no thread principal."""
-            fn(*args, **kwargs)
-            return MagicMock()  # Future-like object
+        status, rank = self.db.get_pilot_state("James Percival Hartley")
+        self.assertIsNotNone(status)
+        self.assertEqual(status, "Active")
 
-        self.handler._pool.submit = sync_submit
+    def test_move_uses_destination_and_filters_moves_away(self):
+        from watchdog.events import FileMovedEvent
 
-        try:
-            # Disparar evento — o processamento corre sincronamente
-            self.handler.on_modified(event)
+        self.handler.shutdown()
+        self.handler.scheduler = MagicMock()
+        destination = os.path.join(self.tmp_dir, "campaign.xml")
+        self.handler.on_moved(FileMovedEvent(os.path.join(self.tmp_dir, "upload.tmp"), destination))
+        self.handler.scheduler.submit.assert_called_once_with(destination, "moved")
 
-            # Verificar se chegou à Base de Dados
-            status, rank = self.db.get_pilot_state("James Percival Hartley")
-            self.assertIsNotNone(status)
-            self.assertEqual(status, "Active")
-        finally:
-            self.handler._pool = original_pool
-
-    def test_inflight_debounce(self):
-        """Testa que eventos rápidos duplicados são ignorados pelo set _inflight."""
-        xml_path = os.path.join(self.tmp_dir, "campaign.xml")
-        
-        # Escrever ficheiro real no disco
-        with open(xml_path, "w", encoding="utf-8") as f:
-            f.write(MOCK_XML_VALID)
-            
-        from watchdog.events import FileModifiedEvent
-        event = FileModifiedEvent(xml_path)
-        
-        # Fazer Mock do submit para não executar o processamento real,
-        # permitindo-nos contar apenas quantas vezes foi chamado.
-        self.handler._pool = MagicMock()
-        
-        # Disparar 5 eventos idênticos imediatamente
-        self.handler.on_modified(event)
-        self.handler.on_modified(event)
-        self.handler.on_modified(event)
-        self.handler.on_modified(event)
-        self.handler.on_modified(event)
-        
-        # O _inflight set deve ter bloqueado os 4 últimos eventos
-        # O submit só deve ter sido chamado 1 vez
-        self.assertEqual(self.handler._pool.submit.call_count, 1)
-        
-        # Simular o final do processamento (limpar _inflight)
-        with self.handler._inflight_lock:
-            self.handler._inflight.discard(xml_path)
-            
-        # Disparar outro evento, agora já deve ser aceite novamente
-        self.handler.on_modified(event)
-        self.assertEqual(self.handler._pool.submit.call_count, 2)
+        self.handler.scheduler.reset_mock()
+        self.handler.on_moved(FileMovedEvent(destination, os.path.join(self.tmp_dir, "campaign.tmp")))
+        self.handler.scheduler.submit.assert_not_called()
 
     def test_configured_components_are_wired(self):
         self.handler.shutdown()
         self.config.watched_extensions = [".xml", ".log"]
+        self.config.max_pending_events = 17
         self.handler = WoFFEventHandler(self.config, self.db, self.engine)
-        self._handler_pool = self.handler._pool
         self.assertEqual(self.handler.processor.guard.timeout, 1.0)
         self.assertEqual(self.handler.processor.guard.interval, 0.05)
         self.assertEqual(self.handler.watched_extensions, {".xml", ".log"})
+        self.assertEqual(self.handler.scheduler.max_pending_events, 17)
+
+    def test_worker_and_admission_limits_are_passed_to_scheduler(self):
+        self.handler.shutdown()
+        self.config.max_workers = 3
+        self.config.max_pending_events = 29
+        with patch("woff.handler.EventScheduler") as scheduler:
+            WoFFEventHandler(self.config, self.db, self.engine)
+        scheduler.assert_called_once()
+        self.assertEqual(scheduler.call_args.kwargs["max_workers"], 3)
+        self.assertEqual(scheduler.call_args.kwargs["max_pending_events"], 29)
 
     def test_unsupported_extension_prevents_executor_creation(self):
         self.handler.shutdown()
         self.config.watched_extensions = [".dat"]
-        with patch("woff.handler.ThreadPoolExecutor") as executor:
+        with patch("woff.handler.EventScheduler") as scheduler:
             with self.assertRaises(ValueError):
                 WoFFEventHandler(self.config, self.db, self.engine)
-        executor.assert_not_called()
+        scheduler.assert_not_called()
 
     def test_invalid_config_prevents_startup_components(self):
         self.handler.shutdown()
         self.config.max_workers = True
-        with patch("woff.handler.ThreadPoolExecutor") as executor:
+        with patch("woff.handler.EventScheduler") as scheduler:
             with self.assertRaises(ValueError):
                 WoFFEventHandler(self.config, self.db, self.engine)
-        executor.assert_not_called()
+        scheduler.assert_not_called()
 
         self.config.max_workers = 1
         self.config.export_path = " "

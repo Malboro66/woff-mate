@@ -11,9 +11,7 @@ from __future__ import annotations
 
 import logging
 import os
-import threading
 import time
-from concurrent.futures import ThreadPoolExecutor
 from typing import Optional, List
 
 from watchdog.events import FileSystemEventHandler
@@ -21,6 +19,7 @@ from watchdog.events import FileSystemEventHandler
 from .database import DatabaseManager
 from .campaign_engine import CampaignEngine
 from .config import SUPPORTED_WATCHED_EXTENSIONS
+from .ingestion.scheduler import EventScheduler
 
 from .parsers.xml_parser import WoFFXMLParser
 from .parsers.mission_log_parser import WoFFMissionLogParser
@@ -233,11 +232,11 @@ class WoFFEventHandler(FileSystemEventHandler):
         self.config = config
         self.watched_extensions = set(config.watched_extensions)
         self.processor = FileProcessor(db_manager, campaign_engine, discovery, config.stability_timeout_sec, config.stability_check_interval_sec)
-        self._pool = ThreadPoolExecutor(
-            max_workers=config.max_workers, thread_name_prefix="woff-worker"
+        self.scheduler = EventScheduler(
+            self._execute_pipeline,
+            max_workers=config.max_workers,
+            max_pending_events=config.max_pending_events,
         )
-        self._inflight: set[str] = set()
-        self._inflight_lock = threading.Lock()
 
     def on_modified(self, event):
         if not event.is_directory:
@@ -247,6 +246,10 @@ class WoFFEventHandler(FileSystemEventHandler):
         if not event.is_directory:
             self._handle(str(event.src_path), "created")
 
+    def on_moved(self, event):
+        if not event.is_directory:
+            self._handle(str(event.dest_path), "moved")
+
     def _handle(self, path: str, event_type: str):
         bn = os.path.basename(path).lower()
         ext = os.path.splitext(path)[1].lower()
@@ -254,23 +257,16 @@ class WoFFEventHandler(FileSystemEventHandler):
         if ext not in self.watched_extensions or any(p in bn for p in self.IGNORED):
             return
 
-        with self._inflight_lock:
-            if path in self._inflight:
-                return
-            self._inflight.add(path)
-
-        # Submete para a thread pool, chamando o processor
-        self._pool.submit(self._execute_pipeline, path, event_type)
+        self.scheduler.submit(path, event_type)
 
     def _execute_pipeline(self, path: str, event_type: str):
         """Método executado na thread pool."""
-        try:
-            log.info(f"Detectado [{event_type}]: {os.path.basename(path)}")
-            self.processor.process(path, event_type)
-        finally:
-            with self._inflight_lock:
-                self._inflight.discard(path)
+        log.info(f"Detectado [{event_type}]: {os.path.basename(path)}")
+        self.processor.process(path, event_type)
+
+    def metrics(self):
+        return self.scheduler.metrics()
 
     def shutdown(self):
         log.info("A aguardar conclusão das threads de processamento...")
-        self._pool.shutdown(wait=True)
+        self.scheduler.shutdown()

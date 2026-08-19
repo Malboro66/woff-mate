@@ -12,5 +12,6 @@
   "discovery_log_path": "woff_discovery.log",
   "log_level": "WARNING",
   "max_workers": 4,
+  "max_pending_events": 1024,
   "config_version": "1"
 }
