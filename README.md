@@ -61,8 +61,12 @@ O ciclo corretivo 3.2.1 foi concluído no código pela Issue
 que uma release pública 3.2.1 tenha sido publicada.
 
 O ciclo ativo é o **3.3.0: integridade e ingestão**, acompanhado pela Issue
-[#50](https://github.com/Malboro66/woff-mate/issues/50). A primeira mudança
-estrutural é a Issue [#34](https://github.com/Malboro66/woff-mate/issues/34).
+[#50](https://github.com/Malboro66/woff-mate/issues/50). As Issues
+[#34](https://github.com/Malboro66/woff-mate/issues/34) e
+[#45](https://github.com/Malboro66/woff-mate/issues/45) já foram concluídas.
+A prioridade imediata de integridade é a Issue
+[#57](https://github.com/Malboro66/woff-mate/issues/57), seguida pela mudança de
+scheduling da Issue [#36](https://github.com/Malboro66/woff-mate/issues/36).
 
 O backlog operacional está no
 [GitHub Project WoFF Mate Development](https://github.com/users/Malboro66/projects/1).
@@ -71,11 +75,11 @@ repositório permanecem como fontes técnicas.
 
 Prioridades atuais:
 
-1. escrita transacional componível
-2. configuração válida antes do startup
-3. scheduling limitado e snapshots estáveis
-4. datas e missões convergentes
-5. reprocessamento seguro quando o Dossier ainda não está disponível
+1. preservar estatísticas autoritativas do Dossier durante merges de fontes parciais (#57)
+2. concluir scheduling limitado, coalescido e com identidade canônica de paths (#36)
+3. processar snapshots estáveis com retry transitório e limitado (#42)
+4. tornar datas, ordenação e atualização de missões determinísticas (#40 e #39)
+5. reprocessar ficheiros dependentes sem perda quando o Dossier ainda não está disponível (#27)
 
 A investigação do Dossier continua relevante, mas não representa o único
 bloqueador do projeto.
@@ -273,7 +277,7 @@ O Watchdog não se limita a ler ficheiros — ele interpreta-os. Sempre que uma 
 | Ciclo | Estado | Escopo |
 |---|---|---|
 | 3.2.1 | concluído no código | #26, isolamento destrutivo do diário |
-| 3.3.0 | ativo, tracker #50 | #34, #45, #36, #42, #40, #39 e #27 |
+| 3.3.0 | ativo, tracker #50 | #34, #57, #45, #36, #42, #40, #39 e #27 |
 | 3.4.0 | planejado | #41, #38, #35, #37, #44, #43 e #28 |
 | 3.5.0 | planejado | #48, #47, #29, #46, #49 e #30 |
 
