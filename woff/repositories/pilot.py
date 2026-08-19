@@ -74,12 +74,12 @@ class PilotRepository(BaseRepository):
                         photo=COALESCE(NULLIF(?, ''), photo),
                         birthDate=COALESCE(NULLIF(?, ''), birthDate),
                         birthPlace=COALESCE(NULLIF(?, ''), birthPlace),
-                        missions=COALESCE(NULLIF(?, ''), missions),
-                        flminutes=COALESCE(NULLIF(?, ''), flminutes),
-                        claimsCount=COALESCE(NULLIF(?, ''), claimsCount),
-                        killsCount=COALESCE(NULLIF(?, ''), killsCount),
-                        skill=COALESCE(NULLIF(?, ''), skill),
-                        reputation=COALESCE(NULLIF(?, ''), reputation),
+                        missions=COALESCE(?, missions),
+                        flminutes=COALESCE(?, flminutes),
+                        claimsCount=COALESCE(?, claimsCount),
+                        killsCount=COALESCE(?, killsCount),
+                        skill=COALESCE(?, skill),
+                        reputation=COALESCE(?, reputation),
                         source_file=COALESCE(NULLIF(?, ''), source_file),
                         last_updated=?
                     WHERE id=?
@@ -102,7 +102,12 @@ class PilotRepository(BaseRepository):
                         status, notes, photo, birthDate, birthPlace, missions,
                         flminutes, claimsCount, killsCount, skill, reputation,
                         source_file, last_updated
-                    ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+                    ) VALUES (
+                        ?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,
+                        COALESCE(?, 0), COALESCE(?, 0), COALESCE(?, 0),
+                        COALESCE(?, 0), COALESCE(?, 0), COALESCE(?, 0),
+                        ?,?
+                    )
                 """, (
                     pilot.id, pilot.name, pilot.fName, pilot.sName,
                     pilot.nation, pilot.rank, pilot.squadron, pilot.aircraft,

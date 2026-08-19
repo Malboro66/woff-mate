@@ -61,7 +61,16 @@ class TestDatabaseManager(unittest.TestCase):
     
     def test_merge_pilot_by_source_file_glob(self):
         """Testa fallback GLOB para resolver "Pilot 1" -> "Pilot1Dossier.txt"."""
-        real = WoFFPilot(name="James Hartley", source_file="Pilot1Dossier.txt")
+        real = WoFFPilot(
+            name="James Hartley",
+            missions=12,
+            flminutes=845,
+            claimsCount=7,
+            killsCount=5,
+            skill=68,
+            reputation=420,
+            source_file="Pilot1Dossier.txt",
+        )
         self.db.merge_and_write(real, [], [], [])
         
         generic = WoFFPilot(name="Pilot 1", squadron="No. 56 Sqn", source_file="Pilot1Log.txt")
@@ -73,6 +82,20 @@ class TestDatabaseManager(unittest.TestCase):
         assert pilot_dict is not None
         
         self.assertEqual(pilot_dict["squadron"], "No. 56 Sqn")
+        self.assertEqual(
+            tuple(
+                pilot_dict[field]
+                for field in (
+                    "missions",
+                    "flminutes",
+                    "claimsCount",
+                    "killsCount",
+                    "skill",
+                    "reputation",
+                )
+            ),
+            (12, 845, 7, 5, 68, 420),
+        )
         
         ghost, _, _ = self.db.get_mission_and_history("Pilot 1", "")
         self.assertIsNone(ghost)
