@@ -40,12 +40,13 @@ public 3.2.1 release unless release evidence is recorded separately.
 
 ## Active cycle 3.3.0
 
-Issue #50 is the official tracker. The seven functional members remain separate
+Issue #50 is the official tracker. The eight functional members remain separate
 issues and pull requests.
 
 | Work item | Eval IDs | Required evidence |
 |---|---|---|
 | #34 | `EVAL-DB-001`, `EVAL-DB-002` | Atomic rollback and caller-owned transactions |
+| #57 | `EVAL-PILOT-STATS-001`, `EVAL-PILOT-STATS-002` | Partial-source preservation and authoritative zero writes |
 | #45 | `EVAL-CFG-001`, `EVAL-CFG-002` | Early validation and preservation of invalid personal config |
 | #36 | `EVAL-SCHED-001`, `EVAL-SCHED-002` | Bounded scheduling and correct move handling |
 | #42 | `EVAL-SNAP-001`, `EVAL-SNAP-002` | Exact stable snapshots and bounded Windows retry |
@@ -57,7 +58,7 @@ issues and pull requests.
 
 The aggregate eval passes only when:
 
-- all seven member issues satisfy their acceptance criteria
+- all eight member issues satisfy their acceptance criteria
 - every applicable member eval is implemented and passing
 - dependency relations in the graph are satisfied
 - focused tests, related tests, the full suite, and Pyright pass
