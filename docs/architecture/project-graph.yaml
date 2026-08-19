@@ -195,12 +195,14 @@ evals:
     enforced_by: [woff/tests/test_composable_transactions.py]
   EVAL-PILOT-STATS-001:
     work_items: [issue-57]
-    status: planned
+    status: implemented
     evidence: Reprocessing Log, Claims, Squads, or partial XML preserves authoritative Dossier pilot statistics.
+    enforced_by: [woff/tests/test_pilot_stat_merge.py, woff/tests/test_database_manager.py]
   EVAL-PILOT-STATS-002:
     work_items: [issue-57]
-    status: planned
+    status: implemented
     evidence: An authoritative Dossier zero remains writable and is distinguishable from an absent numeric field.
+    enforced_by: [woff/tests/test_pilot_stat_merge.py]
   EVAL-CFG-001:
     work_items: [issue-45]
     status: implemented
@@ -362,7 +364,7 @@ work_items:
       - {id: issue-36, status: satisfied}
       - {id: issue-42, status: unsatisfied}
       - {id: issue-39, status: unsatisfied}
-      - {id: issue-57, status: unsatisfied}
+      - {id: issue-57, status: satisfied}
   issue-28:
     title: Validate pilots in every woff_query output format
     module: presentation
@@ -528,7 +530,7 @@ work_items:
   issue-57:
     title: Preserve authoritative pilot statistics when merging partial sources
     module: persistence
-    state: backlog
+    state: done
     evals: [EVAL-PILOT-STATS-001, EVAL-PILOT-STATS-002]
     gates: [Q0, Q1, Q2, Q6-CYCLE-3.3.0]
     depends_on: []
