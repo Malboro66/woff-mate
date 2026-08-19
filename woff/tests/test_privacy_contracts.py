@@ -40,18 +40,22 @@ FORBIDDEN_PERSISTED_CREDENTIAL_NAMES = frozenset(
         "serial_key",
     }
 )
+FORBIDDEN_REGISTRY_ENUMERATION_CALLS = frozenset({"EnumKey", "EnumValue"})
 
 
 def _production_python_files() -> list[Path]:
-    return sorted(
-        path
-        for path in PRODUCTION_ROOT.rglob("*.py")
-        if "tests" not in path.relative_to(PRODUCTION_ROOT).parts
-    )
+    candidates = set(REPO_ROOT.glob("*.py"))
+    candidates.update(PRODUCTION_ROOT.rglob("*.py"))
+    candidates.update((REPO_ROOT / "scripts").rglob("*.py"))
+    return sorted(path for path in candidates if "tests" not in path.parts)
+
+
+def _parse(path: Path) -> ast.AST:
+    return ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
 
 
 def _import_roots(path: Path) -> set[str]:
-    tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+    tree = _parse(path)
     roots: set[str] = set()
     for node in ast.walk(tree):
         if isinstance(node, ast.Import):
@@ -89,6 +93,53 @@ def test_registry_discovery_queries_only_the_install_path_value(monkeypatch) -> 
 
     assert win_registry.get_woff_install_path() == r"C:\OBDSoftware\WOFF"
     assert queried_values == ["CFS3Path"]
+
+
+def test_production_registry_code_never_enumerates_values() -> None:
+    violations: list[str] = []
+    for path in _production_python_files():
+        for node in ast.walk(_parse(path)):
+            if (
+                isinstance(node, ast.Call)
+                and isinstance(node.func, ast.Attribute)
+                and node.func.attr in FORBIDDEN_REGISTRY_ENUMERATION_CALLS
+            ):
+                violations.append(
+                    f"{path.relative_to(REPO_ROOT)}:{node.lineno}:{node.func.attr}"
+                )
+
+    assert violations == []
+
+
+def test_every_registry_value_query_uses_cfs3path_contract() -> None:
+    violations: list[str] = []
+    for path in _production_python_files():
+        for node in ast.walk(_parse(path)):
+            if not (
+                isinstance(node, ast.Call)
+                and isinstance(node.func, ast.Attribute)
+                and node.func.attr == "QueryValueEx"
+            ):
+                continue
+
+            if len(node.args) < 2:
+                violations.append(f"{path.relative_to(REPO_ROOT)}:{node.lineno}:missing-value")
+                continue
+
+            value_arg = node.args[1]
+            approved = (
+                isinstance(value_arg, ast.Name)
+                and value_arg.id == "WOFF_REG_VALUE"
+            ) or (
+                isinstance(value_arg, ast.Constant)
+                and value_arg.value == "CFS3Path"
+            )
+            if not approved:
+                violations.append(
+                    f"{path.relative_to(REPO_ROOT)}:{node.lineno}:unapproved-value"
+                )
+
+    assert violations == []
 
 
 def test_core_runtime_has_no_network_client_imports() -> None:
