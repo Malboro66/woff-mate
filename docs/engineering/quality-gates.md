@@ -50,6 +50,7 @@ Every change requires:
 - `git diff --check` passes
 - the complete diff is reviewed
 - no personal data or generated artifact enters the commit
+- applicable privacy/security structural tests pass
 
 Baseline commands:
 
@@ -59,6 +60,12 @@ python -m pytest path/to/focused_test.py -q
 python -m pytest -q
 pyright
 git diff --check
+```
+
+Privacy/security changes also run:
+
+```bash
+python -m pytest woff/tests/test_privacy_contracts.py -q
 ```
 
 ## Q2: database and data
@@ -87,6 +94,8 @@ Apply Q3 to watchdog, scheduling, snapshots, and parsers:
 - transient access denial uses bounded retry
 - shutdown handles pending work deterministically
 - queue, retry, and retention limits are tested
+- discovery raw previews use an explicit approved WoFF filename/pattern allowlist
+- unknown or credential-like text files remain metadata-only in discovery logs
 
 ## Q4: Windows and packaging
 
@@ -100,6 +109,8 @@ Apply Q4 to registry, launcher, build, installation, and release work:
 - a machine without the development environment is tested
 - installation, upgrade, and rollback are exercised
 - release checksums and notes are prepared
+- WoFF registry access remains read-only and limited to explicitly approved keys and the `CFS3Path` value
+- no activation, serial, product-key, or license credential is queried, enumerated, stored, logged, exported, or transmitted
 
 ## Q5: product decision gates
 
@@ -108,7 +119,23 @@ Apply Q4 to registry, launcher, build, installation, and release work:
 | A. Reliable data | Does the companion avoid losing, mixing, or inventing data? | Critical integrity backlog, stable real cycles, and tested recovery |
 | B. Viable launcher | Does WoFF start and remain observable without fragile automation? | Ten repeatable Windows cycles |
 | C. Social RPG | Is the small social core coherent and testable? | Deterministic model, persistent relationships, and safe simulation |
-| D. Public release | Does a non-technical user install, use, update, and recover? | Installer, diagnostics, documentation, upgrade, and rollback validated |
+| D. Public release | Does a non-technical user install, use, update, recover, and retain control of local data? | Installer, diagnostics, documentation, upgrade, rollback, `PRIV-001`, `LIC-001`, `NET-001`, and their evals validated |
+
+### Privacy and security release evidence
+
+A public release is blocked unless all of the following are true:
+
+- `PRIV-001`, `LIC-001`, and `NET-001` remain present in the project graph
+- `EVAL-PRIV-001`, `EVAL-LIC-001`, `EVAL-NET-001`, and `EVAL-DISC-PRIV-001` pass
+- core WoFF Mate functionality operates without Internet access
+- production source contains no unapproved network-client imports
+- persisted configuration and database surfaces contain no activation/license credential fields
+- registry discovery queries only explicitly approved installation-location data
+- discovery logging does not copy unknown or credential-like file content
+- no telemetry, analytics, tracking, automatic upload, or automatic crash-report transmission has been introduced without a separately approved governance change
+- `docs/security/privacy-and-local-data.md` matches delivered behavior
+
+Green CI without this evidence does not approve a public release.
 
 ## Q6-CYCLE-3.3.0: integrity and ingestion
 
@@ -142,8 +169,9 @@ CI success alone does not close #50 or release 3.3.0.
 | Database or repository | Q0, Q1, Q2 |
 | Watchdog or concurrency | Q0, Q1, Q3, Windows smoke |
 | Registry or launcher | Q0, Q1, Q4 |
+| Privacy/security boundary | Q0, Q1, applicable Q3/Q4, and Q5 public-release evidence |
 | Schema | Q0, Q1, Q2, Q4 |
-| Release | Q1, applicable Q2, Q3, Q4, and the product gate |
+| Release | Q1, applicable Q2, Q3, Q4, privacy/security release evidence, and the product gate |
 
 ## Pull request evidence
 
