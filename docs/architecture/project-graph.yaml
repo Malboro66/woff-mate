@@ -153,6 +153,18 @@ invariants:
     enforced_by:
       - woff/tests/test_database_manager.py
       - woff/tests/test_numeric_fields_migration.py
+  PRIV-001:
+    statement: WoFF-derived and user-local data remains on the user's machine by default and is not automatically transmitted to third parties.
+    enforced_by:
+      - woff/tests/test_privacy_contracts.py
+  LIC-001:
+    statement: WoFF activation, serial, product-key, license, and equivalent credentials are forbidden data and are never intentionally read, enumerated, stored, logged, exported, or transmitted.
+    enforced_by:
+      - woff/tests/test_privacy_contracts.py
+  NET-001:
+    statement: Core WoFF Mate functionality operates offline without telemetry, analytics, tracking, automatic upload, or automatic crash-report transmission.
+    enforced_by:
+      - woff/tests/test_privacy_contracts.py
 
 gates:
   Q0:
@@ -323,6 +335,26 @@ evals:
     work_items: [issue-49]
     status: planned
     evidence: Registry discovery uses deterministic precedence and validates every candidate path.
+  EVAL-PRIV-001:
+    work_items: [issue-65]
+    status: implemented
+    evidence: Persisted configuration and database source define no activation or license credential fields.
+    enforced_by: [woff/tests/test_privacy_contracts.py]
+  EVAL-LIC-001:
+    work_items: [issue-65]
+    status: implemented
+    evidence: Registry discovery explicitly permits and queries only the WoFF installation-path value CFS3Path.
+    enforced_by: [woff/tests/test_privacy_contracts.py]
+  EVAL-NET-001:
+    work_items: [issue-65]
+    status: implemented
+    evidence: Core production Python source contains no network-client imports for telemetry, tracking, upload, or remote diagnostics.
+    enforced_by: [woff/tests/test_privacy_contracts.py]
+  EVAL-DISC-PRIV-001:
+    work_items: [issue-65]
+    status: implemented
+    evidence: Unknown or credential-like text files are metadata-only while approved WoFF files retain bounded local preview.
+    enforced_by: [woff/tests/test_privacy_contracts.py]
   EVAL-LINT-001:
     work_items: [issue-30]
     status: planned
@@ -533,6 +565,13 @@ work_items:
     state: done
     evals: [EVAL-PILOT-STATS-001, EVAL-PILOT-STATS-002]
     gates: [Q0, Q1, Q2, Q6-CYCLE-3.3.0]
+    depends_on: []
+  issue-65:
+    title: Enforce local-only privacy and activation-key isolation
+    module: governance
+    state: in_progress
+    evals: [EVAL-PRIV-001, EVAL-LIC-001, EVAL-NET-001, EVAL-DISC-PRIV-001]
+    gates: [Q0, Q1, Q3, Q4, Q5]
     depends_on: []
 
 cycles:
