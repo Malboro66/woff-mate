@@ -83,7 +83,7 @@ def test_registry_discovery_queries_only_the_install_path_value(monkeypatch) -> 
         @staticmethod
         def QueryValueEx(key, value_name: str):
             queried_values.append(value_name)
-            return (r"C:\\OBDSoftware\\WOFF", 1)
+            return (r"C:\OBDSoftware\WOFF", 1)
 
         @staticmethod
         def CloseKey(key) -> None:
