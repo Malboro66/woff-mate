@@ -114,11 +114,12 @@ Apply Q4 to registry, launcher, build, installation, and release work:
 
 Issue #50 closes only when all conditions below pass:
 
-- #34, #45, #36, #42, #40, #39, and #27 are complete
+- #34, #57, #45, #36, #42, #40, #39, and #27 are complete
 - every dependency in `cycle-3.3.0` is satisfied
 - all member acceptance criteria are demonstrated
 - every applicable eval in `EVAL-CYCLE-330-001` passes
 - atomic writes and rollback are proven
+- partial pilot sources preserve authoritative Dossier statistics, while authoritative integer zero remains writable
 - invalid configuration fails before partial startup
 - event admission, retries, and pending work remain bounded
 - parsers consume stable snapshots
