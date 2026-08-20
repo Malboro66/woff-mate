@@ -108,6 +108,8 @@ Consulte:
 
 - [arquitetura do monólito modular](docs/architecture/modular-monolith.md)
 - [graph file executável](docs/architecture/project-graph.yaml)
+- [ADR proposto para o toolkit de UI](docs/architecture/adr-ui-toolkit.md)
+- [fundação da UI somente leitura](docs/ui/read-only-foundation.md)
 - [catálogo de evals](docs/engineering/evals.md)
 - [quality gates](docs/engineering/quality-gates.md)
 - [autonomia progressiva](docs/engineering/autonomy.md)

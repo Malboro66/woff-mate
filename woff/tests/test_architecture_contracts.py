@@ -1253,3 +1253,57 @@ def test_cycle_330_aggregate_eval_does_not_require_member_eval_references() -> N
     assert "EVAL-CYCLE-330-001" not in issue_34["evals"]
 
     validate_graph(REPOSITORY_ROOT, graph)
+
+
+def test_ui_read_only_foundation_contract() -> None:
+    adr_path = REPOSITORY_ROOT / "docs" / "architecture" / "adr-ui-toolkit.md"
+    foundation_path = REPOSITORY_ROOT / "docs" / "ui" / "read-only-foundation.md"
+    assert adr_path.is_file()
+    assert foundation_path.is_file()
+
+    readme = (REPOSITORY_ROOT / "README.md").read_text(encoding="utf-8")
+    assert "docs/architecture/adr-ui-toolkit.md" in readme
+    assert "docs/ui/read-only-foundation.md" in readme
+
+    adr = adr_path.read_text(encoding="utf-8")
+    assert re.search(r"^Status:\s*Proposed\s*$", adr, re.MULTILINE)
+    assert "PySide6 + Qt Widgets" in adr
+    assert re.search(r"proposed direction", adr, re.IGNORECASE)
+
+    foundation = foundation_path.read_text(encoding="utf-8")
+    for state in ("loading", "ready", "empty", "missing", "stale/unavailable", "error"):
+        assert re.search(rf"`{re.escape(state)}`", foundation, re.IGNORECASE)
+    assert "presentation -> application query services -> repositories -> SQLite" in foundation
+    assert re.search(r"Presentation must never execute SQL", foundation)
+    assert re.search(r"must never read WoFF files directly", foundation)
+    assert re.search(r"Diary.*strictly read-only", foundation, re.DOTALL)
+
+    pyproject = _load_pyproject()
+    project = pyproject["project"]
+    assert isinstance(project, dict)
+    dependencies = project.get("dependencies", [])
+    assert isinstance(dependencies, list)
+    runtime_names = {_requirement_name(dependency) for dependency in dependencies}
+    assert runtime_names.isdisjoint({"pyside2", "pyside6", "pyqt5", "pyqt6"})
+
+    graph = _graph()
+    work_items = graph["work_items"]
+    evals = graph["evals"]
+    cycles = graph["cycles"]
+    assert isinstance(work_items, dict) and isinstance(evals, dict)
+    assert isinstance(cycles, dict)
+    issue = work_items["issue-56"]
+    assert issue == {
+        "title": "Define the read-only UI foundation and proposed toolkit",
+        "module": "presentation",
+        "state": "done",
+        "evals": ["EVAL-UI-FOUNDATION-001"],
+        "gates": ["Q0", "Q1"],
+        "depends_on": [],
+    }
+    ui_eval = evals["EVAL-UI-FOUNDATION-001"]
+    assert ui_eval["status"] == "implemented"
+    assert ui_eval["enforced_by"] == ["woff/tests/test_architecture_contracts.py"]
+    for cycle in cycles.values():
+        assert isinstance(cycle, dict)
+        assert "issue-56" not in cycle.get("members", [])
