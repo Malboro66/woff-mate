@@ -96,18 +96,16 @@ def _set_issue_34_incomplete_state(
     assert isinstance(issue_34, dict)
     issue_34["state"] = state
 
-    for dependent_id in ("issue-37", "issue-43"):
-        dependent = work_items[dependent_id]
+    for dependent in work_items.values():
         assert isinstance(dependent, dict)
         dependencies = dependent["depends_on"]
         assert isinstance(dependencies, list)
-        issue_34_dependency = next(
-            dependency
-            for dependency in dependencies
-            if isinstance(dependency, dict)
-            and dependency.get("id") == "issue-34"
-        )
-        issue_34_dependency["status"] = "unsatisfied"
+        for dependency in dependencies:
+            if (
+                isinstance(dependency, dict)
+                and dependency.get("id") == "issue-34"
+            ):
+                dependency["status"] = "unsatisfied"
 
 
 def test_project_graph_is_valid() -> None:
