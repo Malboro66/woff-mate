@@ -63,12 +63,16 @@ class WoFFDossierParser:
         log.info(f"[BIN] Analisando Dossier: {os.path.basename(path)}")
         try:
             with open(path, "rb") as f:
-                raw_lines = f.readlines()
+                data = f.read()
         except Exception as e:
             log.error(f"  Falha ao ler {path}: {e}")
             return False
+        return self.parse_bytes(data, os.path.basename(path))
 
-        fname = os.path.basename(path)
+    def parse_bytes(self, data: bytes, source_name: str) -> bool:
+        """Decode verified bytes, retaining the filename-derived cipher key."""
+        raw_lines = data.splitlines(keepends=True)
+        fname = os.path.basename(source_name)
         pName = fname.replace(".txt", "")
         current_key = self._create_key(pName)
         

@@ -77,6 +77,18 @@ Green CI alone does not pass this aggregate eval.
   `woff/tests/test_ingestion_scheduler.py` and tmp-to-watched/move-away coverage
   in `woff/tests/test_handler_integration.py`.
 
+### Implemented snapshot evals
+
+- `EVAL-SNAP-001` is enforced by deterministic same-size rewrite, intra-read
+  truncation/replacement, disappearance, and compact live-routing tests for XML,
+  Dossier filename/bytes, mission.log, and Pilot Log/Claims/Squads in
+  `woff/tests/test_stable_snapshot.py`.
+- `EVAL-SNAP-002` is enforced by deterministic transient sharing-denial,
+  exponential-backoff, scheduler exhaustion/diagnostic cleanup, and
+  continuous-mutation attempt-bound tests in `woff/tests/test_stable_snapshot.py`.
+  Retries stay inside the active scheduler worker, so EventScheduler remains the
+  only bounded, coalescing queue.
+
 ## Planned cycle 3.4.0
 
 | Work item | Eval IDs |

@@ -1,5 +1,5 @@
 version: 1
-updated: 2026-08-19
+updated: 2026-08-20
 
 project:
   repository: Malboro66/woff-mate
@@ -237,12 +237,14 @@ evals:
     enforced_by: [woff/tests/test_ingestion_scheduler.py, woff/tests/test_handler_integration.py]
   EVAL-SNAP-001:
     work_items: [issue-42]
-    status: planned
+    status: implemented
     evidence: The parser receives the exact snapshot whose stability was validated.
+    enforced_by: [woff/tests/test_stable_snapshot.py]
   EVAL-SNAP-002:
     work_items: [issue-42]
-    status: planned
+    status: implemented
     evidence: Transient Windows access denial uses bounded retry and a final diagnostic.
+    enforced_by: [woff/tests/test_stable_snapshot.py]
   EVAL-DATE-001:
     work_items: [issue-40]
     status: planned
@@ -394,7 +396,7 @@ work_items:
     gates: [Q0, Q1, Q3, Q6-CYCLE-3.3.0]
     depends_on:
       - {id: issue-36, status: satisfied}
-      - {id: issue-42, status: unsatisfied}
+      - {id: issue-42, status: satisfied}
       - {id: issue-39, status: unsatisfied}
       - {id: issue-57, status: satisfied}
   issue-28:
@@ -484,7 +486,7 @@ work_items:
   issue-42:
     title: Read stable file snapshots and retry transient write races
     module: ingestion
-    state: blocked
+    state: done
     evals: [EVAL-SNAP-001, EVAL-SNAP-002]
     gates: [Q0, Q1, Q3, Q6-CYCLE-3.3.0]
     depends_on:
