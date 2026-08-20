@@ -106,11 +106,13 @@ Issue #65 is a cross-cutting preventive control and is intentionally not added
 to the active 3.3.0 functional cycle. Its invariants apply to every future
 release once merged.
 
+Local watchdog observation of approved WoFF-generated files is permitted core behavior and is not external telemetry. `External telemetry` means automatic collection followed by transmission outside the user's computer.
+
 | Eval | Work item | Evidence | Enforcement |
 |---|---|---|---|
 | `EVAL-PRIV-001` | #65 | Persisted configuration and database source define no activation/license credential fields | `woff/tests/test_privacy_contracts.py` |
 | `EVAL-LIC-001` | #65 | Registry discovery explicitly permits only `CFS3Path` and queries no activation/license value | `woff/tests/test_privacy_contracts.py` |
-| `EVAL-NET-001` | #65 | Core production Python source contains no network-client imports used for telemetry, tracking, upload, or remote diagnostics | `woff/tests/test_privacy_contracts.py` |
+| `EVAL-NET-001` | #65 | Core production Python source contains no network-client imports used for external telemetry, tracking, upload, or remote diagnostics; local watchdog monitoring remains permitted | `woff/tests/test_privacy_contracts.py` |
 | `EVAL-DISC-PRIV-001` | #65 | Unknown or credential-like text files are metadata-only while known WoFF files retain bounded local preview | `woff/tests/test_privacy_contracts.py` |
 
 These evals implement the human-readable contract in
