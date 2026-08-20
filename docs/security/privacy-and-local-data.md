@@ -4,7 +4,15 @@
 
 WoFF Mate is a local, read-only companion for Wings Over Flanders Fields: Between Heaven & Hell II. Its core function is to read game-generated data from a legitimate local WoFF installation, derive companion information, persist that information locally, and present it locally.
 
-This document defines the security boundary for user data, WoFF data, activation credentials, registry access, discovery logs, and network communication.
+This document defines the security boundary for user data, WoFF data, activation credentials, registry access, discovery logs, local monitoring, and network communication.
+
+## Local monitoring is permitted and required
+
+WoFF Mate may remain running while WoFF is in use so its watchdog can observe approved game-generated files, detect local changes, process those changes, persist derived state in the local SQLite database, and refresh the local interface.
+
+This local file observation is part of the companion's core function. It is local monitoring, not external telemetry. The monitored data does not leave the user's computer as part of this process.
+
+Closing WoFF Mate stops its live watchdog activity. Data that still exists in supported WoFF files may be processed when WoFF Mate runs again, subject to the application's normal ingestion rules.
 
 ## PRIV-001: Local Data Only
 
@@ -21,7 +29,9 @@ Core WoFF Mate must not transmit any of the following to WoFF Mate infrastructur
 - SQLite data
 - installation metadata beyond what is processed locally
 
-WoFF Mate has no telemetry, analytics, tracking, automatic upload, or automatic crash-report transmission in the core runtime.
+WoFF Mate has no external telemetry, analytics, tracking, automatic upload, or automatic crash-report transmission in the core runtime.
+
+For this contract, external telemetry means automatic collection followed by transmission of usage, device, diagnostic, WoFF-derived, or user-local data outside the user's computer. Local watchdog observation and local processing of WoFF-generated files are explicitly permitted and are not external telemetry.
 
 Local files created by WoFF Mate, including its SQLite database and logs, remain local artifacts. A user explicitly copying or sharing one of those files is outside automatic application behavior.
 
@@ -58,11 +68,11 @@ value: CFS3Path
 
 Future work under Issue #49 may support additional explicitly approved WoFF manager keys. It may still query only the approved installation-path value. Arbitrary registry enumeration is outside the security contract.
 
-## NET-001: Offline Core Operation
+## NET-001: Offline Core Operation and No External Telemetry
 
-Core WoFF Mate functionality must operate without Internet access.
+Core WoFF Mate functionality must operate without Internet access. Local watchdog monitoring of approved WoFF-generated files remains permitted and is part of normal offline operation.
 
-The core runtime must not introduce network-client imports for telemetry, analytics, upload, synchronization, tracking, or remote diagnostics.
+The core runtime must not introduce network-client imports for external telemetry, analytics, upload, synchronization, tracking, or remote diagnostics.
 
 A future network feature requires a separate tracked decision that explicitly defines:
 
