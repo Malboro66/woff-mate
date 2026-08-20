@@ -14,7 +14,7 @@ document defines the human-readable contract and cycle aggregation rules.
 
 | Type | Use | Preferred evidence |
 |---|---|---|
-| Deterministic | Database, parser, date, CLI, scheduler, migration, and RPG rules | pytest, sanitized fixtures, deterministic simulation |
+| Deterministic | Database, parser, date, CLI, scheduler, migration, privacy, security, and RPG rules | pytest, sanitized fixtures, deterministic simulation, structural source checks |
 | Judgment | Narrative quality, diagnostics, and future social experience | explicit rubric and human review |
 
 WoFF Mate does not need an AI evaluation platform for deterministic behavior.
@@ -99,6 +99,26 @@ Green CI alone does not pass this aggregate eval.
 | #46 | `EVAL-BLOB-001` |
 | #49 | `EVAL-REG-001` |
 | #30 | `EVAL-LINT-001` |
+
+## Cross-cutting privacy and security
+
+Issue #65 is a cross-cutting preventive control and is intentionally not added
+to the active 3.3.0 functional cycle. Its invariants apply to every future
+release once merged.
+
+Local watchdog observation of approved WoFF-generated files is permitted core behavior and is not external telemetry. `External telemetry` means automatic collection followed by transmission outside the user's computer.
+
+| Eval | Work item | Evidence | Enforcement |
+|---|---|---|---|
+| `EVAL-PRIV-001` | #65 | Persisted configuration and database source define no activation/license credential fields | `woff/tests/test_privacy_contracts.py` |
+| `EVAL-LIC-001` | #65 | Registry discovery explicitly permits only `CFS3Path` and queries no activation/license value | `woff/tests/test_privacy_contracts.py` |
+| `EVAL-NET-001` | #65 | Core production Python source contains no network-client imports used for external telemetry, tracking, upload, or remote diagnostics; local watchdog monitoring remains permitted | `woff/tests/test_privacy_contracts.py` |
+| `EVAL-DISC-PRIV-001` | #65 | Unknown or credential-like text files are metadata-only while known WoFF files retain bounded local preview | `woff/tests/test_privacy_contracts.py` |
+
+These evals implement the human-readable contract in
+[`../security/privacy-and-local-data.md`](../security/privacy-and-local-data.md).
+A future network feature requires a new tracked decision and explicit governance
+changes. It must not silently weaken the activation-credential prohibition.
 
 ## Governance eval
 
