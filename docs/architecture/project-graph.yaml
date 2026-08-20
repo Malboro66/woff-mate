@@ -569,7 +569,7 @@ work_items:
   issue-65:
     title: Enforce local-only privacy and activation-key isolation
     module: governance
-    state: in_progress
+    state: done
     evals: [EVAL-PRIV-001, EVAL-LIC-001, EVAL-NET-001, EVAL-DISC-PRIV-001]
     gates: [Q0, Q1, Q3, Q4, Q5]
     depends_on: []
