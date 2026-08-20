@@ -68,6 +68,17 @@ The aggregate eval passes only when:
 
 Green CI alone does not pass this aggregate eval.
 
+## Independent presentation foundation
+
+Issue #56 is completed documentation and architecture-contract work. It is
+intentionally independent of, and is not a member of, the active 3.3.0
+reliability cycle. Its applicable gates are Q0 and Q1 only; this record does not
+claim Q5 or approval of Product Gate A or Gate B.
+
+| Eval | Work item | Evidence | Enforcement |
+|---|---|---|---|
+| `EVAL-UI-FOUNDATION-001` | #56 | Proposed toolkit and read-only presentation boundaries are documented, linked, dependency-free, and structurally enforced | `woff/tests/test_architecture_contracts.py` |
+
 ### Implemented scheduler evals
 
 - `EVAL-SCHED-001` is enforced by deterministic burst, Windows alias,

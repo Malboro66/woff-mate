@@ -359,6 +359,11 @@ evals:
     work_items: [issue-30]
     status: planned
     evidence: The pinned Ruff baseline passes for Python 3.10 without hidden functional changes.
+  EVAL-UI-FOUNDATION-001:
+    work_items: [issue-56]
+    status: implemented
+    evidence: The proposed toolkit and read-only presentation boundaries are documented, linked, dependency-free, and structurally enforced.
+    enforced_by: [woff/tests/test_architecture_contracts.py]
   EVAL-GOV-001:
     work_items: [issue-51]
     status: implemented
@@ -559,6 +564,13 @@ work_items:
     gates: [Q0, Q1]
     depends_on:
       - {id: issue-26, status: satisfied}
+  issue-56:
+    title: Define the read-only UI foundation and proposed toolkit
+    module: presentation
+    state: done
+    evals: [EVAL-UI-FOUNDATION-001]
+    gates: [Q0, Q1]
+    depends_on: []
   issue-57:
     title: Preserve authoritative pilot statistics when merging partial sources
     module: persistence
