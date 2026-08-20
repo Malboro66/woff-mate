@@ -162,7 +162,7 @@ invariants:
     enforced_by:
       - woff/tests/test_privacy_contracts.py
   NET-001:
-    statement: Core WoFF Mate functionality operates offline without telemetry, analytics, tracking, automatic upload, or automatic crash-report transmission.
+    statement: Core WoFF Mate functionality operates offline without external telemetry, analytics, tracking, automatic upload, or automatic crash-report transmission; local watchdog monitoring of approved WoFF-generated files is permitted.
     enforced_by:
       - woff/tests/test_privacy_contracts.py
 
@@ -348,7 +348,7 @@ evals:
   EVAL-NET-001:
     work_items: [issue-65]
     status: implemented
-    evidence: Core production Python source contains no network-client imports for telemetry, tracking, upload, or remote diagnostics.
+    evidence: Core production Python source contains no network-client imports for external telemetry, tracking, upload, or remote diagnostics; local watchdog monitoring remains permitted.
     enforced_by: [woff/tests/test_privacy_contracts.py]
   EVAL-DISC-PRIV-001:
     work_items: [issue-65]
