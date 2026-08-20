@@ -19,6 +19,11 @@ build environment**: PySide and PyQt must never be installed or bundled
 together. Their overlapping Qt modules make imports, plugins, packaging, and
 test selection ambiguous.
 
+Qt's current official lifecycle states that Qt 6.12 is the final Qt release to
+support Windows 10. Future adoption must therefore either pin and validate a
+Windows-10-compatible Qt line or explicitly revise WoFF Mate's supported-Windows
+policy. Neither decision is approved by this ADR.
+
 ## Candidates
 
 | Candidate | Python and Windows | License and distribution | Tests, accessibility, ownership |
@@ -38,7 +43,7 @@ Official evidence:
 - [PyInstaller Qt hooks](https://pyinstaller.org/en/stable/hooks-config.html#qt)
 - [`pytest-qt` supported bindings](https://pytest-qt.readthedocs.io/en/latest/intro.html#pytest-qt)
 - [Qt accessibility overview](https://doc.qt.io/qt-6/accessible.html)
-- [Qt Quick accessibility](https://doc.qt.io/qt-6/qml-qtquick-accessibility.html)
+- [Qt Quick accessibility](https://doc.qt.io/qt-6/accessible-qtquick.html)
 
 These sources establish vendor policy and toolkit capability, not WoFF Mate
 runtime results. Before dependency adoption, the project must pin an eligible
