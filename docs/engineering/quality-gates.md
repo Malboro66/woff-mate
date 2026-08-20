@@ -94,6 +94,7 @@ Apply Q3 to watchdog, scheduling, snapshots, and parsers:
 - transient access denial uses bounded retry
 - shutdown handles pending work deterministically
 - queue, retry, and retention limits are tested
+- local watchdog observation of approved WoFF-generated files remains permitted core behavior
 - discovery raw previews use an explicit approved WoFF filename/pattern allowlist
 - unknown or credential-like text files remain metadata-only in discovery logs
 
@@ -128,11 +129,12 @@ A public release is blocked unless all of the following are true:
 - `PRIV-001`, `LIC-001`, and `NET-001` remain present in the project graph
 - `EVAL-PRIV-001`, `EVAL-LIC-001`, `EVAL-NET-001`, and `EVAL-DISC-PRIV-001` pass
 - core WoFF Mate functionality operates without Internet access
+- local watchdog monitoring of approved WoFF-generated files remains available without being classified as external telemetry
 - production source contains no unapproved network-client imports
 - persisted configuration and database surfaces contain no activation/license credential fields
 - registry discovery queries only explicitly approved installation-location data
 - discovery logging does not copy unknown or credential-like file content
-- no telemetry, analytics, tracking, automatic upload, or automatic crash-report transmission has been introduced without a separately approved governance change
+- no external telemetry, analytics, tracking, automatic upload, or automatic crash-report transmission has been introduced without a separately approved governance change
 - `docs/security/privacy-and-local-data.md` matches delivered behavior
 
 Green CI without this evidence does not approve a public release.
