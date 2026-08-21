@@ -68,6 +68,17 @@ The aggregate eval passes only when:
 
 Green CI alone does not pass this aggregate eval.
 
+## Independent presentation foundation
+
+Issue #56 is completed documentation and architecture-contract work. It is
+intentionally independent of, and is not a member of, the active 3.3.0
+reliability cycle. Its applicable gates are Q0 and Q1 only; this record does not
+claim Q5 or approval of Product Gate A or Gate B.
+
+| Eval | Work item | Evidence | Enforcement |
+|---|---|---|---|
+| `EVAL-UI-FOUNDATION-001` | #56 | Proposed toolkit and read-only presentation boundaries are documented, linked, dependency-free, and structurally enforced | `woff/tests/test_architecture_contracts.py` |
+
 ### Implemented scheduler evals
 
 - `EVAL-SCHED-001` is enforced by deterministic burst, Windows alias,
@@ -76,23 +87,6 @@ Green CI alone does not pass this aggregate eval.
 - `EVAL-SCHED-002` is enforced by destination identity tests in
   `woff/tests/test_ingestion_scheduler.py` and tmp-to-watched/move-away coverage
   in `woff/tests/test_handler_integration.py`.
-
-### Implemented snapshot evals
-
-- `EVAL-SNAP-001` is enforced by deterministic same-size rewrite, intra-read
-  truncation/replacement, disappearance, and compact live-routing tests for XML,
-  Dossier filename/bytes, mission.log, and Pilot Log/Claims/Squads in
-  `woff/tests/test_stable_snapshot.py`.
-- `EVAL-SNAP-002` is enforced by deterministic transient sharing-denial,
-  exponential-backoff, scheduler exhaustion/diagnostic cleanup, and
-  continuous-mutation attempt-bound tests in `woff/tests/test_stable_snapshot.py`.
-  Retries stay inside the active scheduler worker, so EventScheduler remains the
-  only bounded, coalescing queue.
-- Startup reconciliation is enforced in `woff/tests/test_handler_integration.py`:
-  observation begins before baseline admission, repeated startup mutations
-  converge on the latest stable generation, duplicate domain side effects are
-  suppressed, and scheduler admission, retry, metrics, and shutdown drain remain
-  bounded.
 
 ## Planned cycle 3.4.0
 

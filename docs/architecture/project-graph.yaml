@@ -1,5 +1,5 @@
 version: 1
-updated: 2026-08-21
+updated: 2026-08-20
 
 project:
   repository: Malboro66/woff-mate
@@ -180,7 +180,7 @@ gates:
   Q5:
     description: Product decision gates approve data reliability, launcher viability, social core, or public release.
   Q6-CYCLE-3.3.0:
-    description: All eight 3.3.0 work items, applicable evals, functional exit criteria, documentation, and CI are approved.
+    description: All twelve 3.3.0 work items, applicable evals, functional exit criteria, documentation, and CI are approved.
 
 evals:
   EVAL-DIARY-001:
@@ -237,14 +237,16 @@ evals:
     enforced_by: [woff/tests/test_ingestion_scheduler.py, woff/tests/test_handler_integration.py]
   EVAL-SNAP-001:
     work_items: [issue-42]
-    status: implemented
+    status: planned
     evidence: The parser receives the exact snapshot whose stability was validated.
-    enforced_by: [woff/tests/test_stable_snapshot.py, woff/tests/test_handler_integration.py]
   EVAL-SNAP-002:
     work_items: [issue-42]
-    status: implemented
+    status: planned
     evidence: Transient Windows access denial uses bounded retry and a final diagnostic.
-    enforced_by: [woff/tests/test_stable_snapshot.py, woff/tests/test_handler_integration.py]
+  EVAL-SNAP-003:
+    work_items: [issue-42]
+    status: planned
+    evidence: Files created between initial discovery and watcher readiness are processed exactly once.
   EVAL-DATE-001:
     work_items: [issue-40]
     status: planned
@@ -269,6 +271,38 @@ evals:
     work_items: [issue-27]
     status: planned
     evidence: A pending dependency expires with a diagnostic and bounded storage.
+  EVAL-IDENTITY-001:
+    work_items: [issue-70]
+    status: planned
+    evidence: Reusing a pilot slot never mutates or receives history from the prior career generation.
+  EVAL-IDENTITY-002:
+    work_items: [issue-70]
+    status: planned
+    evidence: Same-name careers remain independent and identityless input performs no persistent write.
+  EVAL-PILOT-STATUS-001:
+    work_items: [issue-71]
+    status: planned
+    evidence: Every partial source preserves an authoritative stored pilot status when status is absent.
+  EVAL-PILOT-STATUS-002:
+    work_items: [issue-71]
+    status: planned
+    evidence: Explicit authoritative status transitions remain writable and produce at most one life event.
+  EVAL-DOSSIER-TXN-001:
+    work_items: [issue-72]
+    status: planned
+    evidence: No Dossier-derived write survives a later failure in the same unit of work.
+  EVAL-DOSSIER-TXN-002:
+    work_items: [issue-72]
+    status: planned
+    evidence: A successful or retried Dossier generation produces one consistent pilot, roster, decoration, and diary state.
+  EVAL-VICTORY-MERGE-001:
+    work_items: [issue-73]
+    status: planned
+    evidence: Distinct same-minute victories survive ingestion while exact replay remains idempotent.
+  EVAL-DECORATION-MERGE-001:
+    work_items: [issue-73]
+    status: planned
+    evidence: Richer victory and decoration sources update stable rows while poorer sources preserve richer metadata.
   EVAL-NUM-001:
     work_items: [issue-41]
     status: planned
@@ -285,6 +319,14 @@ evals:
     work_items: [issue-38]
     status: planned
     evidence: A short alias never matches another nation by substring.
+  EVAL-NORM-MISSION-001:
+    work_items: [issue-38]
+    status: planned
+    evidence: Unknown mission aliases remain unknown instead of becoming a known normalized value.
+  EVAL-NORM-VICTORY-001:
+    work_items: [issue-38]
+    status: planned
+    evidence: Unknown victory aliases remain unknown and exact aliases never match by substring.
   EVAL-DOSSIER-001:
     work_items: [issue-35]
     status: planned
@@ -305,6 +347,14 @@ evals:
     work_items: [issue-44]
     status: planned
     evidence: Closing-element text inside a comment or CDATA does not truncate Mission XML.
+  EVAL-PARSE-SEM-001:
+    work_items: [issue-74]
+    status: planned
+    evidence: Negative or unknown confirmation text never becomes confirmed through substring matching.
+  EVAL-PARSE-SEM-002:
+    work_items: [issue-74]
+    status: planned
+    evidence: Missing mission duration remains missing and start time is never reused as duration.
   EVAL-NARR-001:
     work_items: [issue-43]
     status: planned
@@ -313,6 +363,22 @@ evals:
     work_items: [issue-28]
     status: planned
     evidence: An unknown pilot returns the same failure contract in table, JSON, CSV, and Markdown.
+  EVAL-CLI-CONTRACT-001:
+    work_items: [issue-75]
+    status: planned
+    evidence: Fatal command paths return nonzero and write diagnostics outside machine-readable stdout.
+  EVAL-CLI-CONTRACT-002:
+    work_items: [issue-75]
+    status: planned
+    evidence: JSON, CSV, and Markdown successes remain parseable for populated and empty results while zero remains distinct from missing.
+  EVAL-RPG-DOMAIN-001:
+    work_items: [issue-76]
+    status: planned
+    evidence: First import, unchanged state, promotion, and status transition select exactly the intended life event.
+  EVAL-RPG-DOMAIN-002:
+    work_items: [issue-76]
+    status: planned
+    evidence: Derived fatigue, morale, and stress remain within their documented bounds for every accepted input.
   EVAL-DISC-001:
     work_items: [issue-48]
     status: planned
@@ -333,6 +399,14 @@ evals:
     work_items: [issue-46]
     status: planned
     evidence: A hexadecimal TEXT to BLOB migration preserves bytes and reopens safely.
+  EVAL-SCHEMA-CONTRACT-001:
+    work_items: [issue-77]
+    status: planned
+    evidence: Missing required nullability or a changed required default fails schema certification.
+  EVAL-SCHEMA-CONTRACT-002:
+    work_items: [issue-77]
+    status: planned
+    evidence: Optional nullability remains accepted and failed certification cannot stamp the canonical schema version.
   EVAL-REG-001:
     work_items: [issue-49]
     status: planned
@@ -361,6 +435,11 @@ evals:
     work_items: [issue-30]
     status: planned
     evidence: The pinned Ruff baseline passes for Python 3.10 without hidden functional changes.
+  EVAL-UI-FOUNDATION-001:
+    work_items: [issue-56]
+    status: implemented
+    evidence: The proposed toolkit and read-only presentation boundaries are documented, linked, dependency-free, and structurally enforced.
+    enforced_by: [woff/tests/test_architecture_contracts.py]
   EVAL-GOV-001:
     work_items: [issue-51]
     status: implemented
@@ -376,6 +455,10 @@ evals:
       - issue-42
       - issue-40
       - issue-39
+      - issue-70
+      - issue-71
+      - issue-72
+      - issue-73
       - issue-27
     status: planned
     evidence: Every 3.3.0 member passes its acceptance criteria and applicable evals before the tracker closes.
@@ -396,9 +479,11 @@ work_items:
     gates: [Q0, Q1, Q3, Q6-CYCLE-3.3.0]
     depends_on:
       - {id: issue-36, status: satisfied}
-      - {id: issue-42, status: satisfied}
+      - {id: issue-42, status: unsatisfied}
       - {id: issue-39, status: unsatisfied}
       - {id: issue-57, status: satisfied}
+      - {id: issue-70, status: unsatisfied}
+      - {id: issue-71, status: unsatisfied}
   issue-28:
     title: Validate pilots in every woff_query output format
     module: presentation
@@ -455,10 +540,10 @@ work_items:
       - {id: issue-34, status: satisfied}
       - {id: issue-35, status: unsatisfied}
   issue-38:
-    title: Use exact nation aliases and stop defaulting unknown values to RFC
+    title: Use exact aliases and stop fabricating unknown normalized values
     module: domain
     state: backlog
-    evals: [EVAL-NATION-001, EVAL-NATION-002]
+    evals: [EVAL-NATION-001, EVAL-NATION-002, EVAL-NORM-MISSION-001, EVAL-NORM-VICTORY-001]
     gates: [Q0, Q1]
     depends_on: []
   issue-39:
@@ -484,10 +569,10 @@ work_items:
     gates: [Q0, Q1]
     depends_on: []
   issue-42:
-    title: Read stable file snapshots and retry transient write races
+    title: Read stable file snapshots and close startup event-loss gaps
     module: ingestion
-    state: done
-    evals: [EVAL-SNAP-001, EVAL-SNAP-002]
+    state: blocked
+    evals: [EVAL-SNAP-001, EVAL-SNAP-002, EVAL-SNAP-003]
     gates: [Q0, Q1, Q3, Q6-CYCLE-3.3.0]
     depends_on:
       - {id: issue-36, status: satisfied}
@@ -501,6 +586,7 @@ work_items:
       - {id: issue-34, status: satisfied}
       - {id: issue-39, status: unsatisfied}
       - {id: issue-40, status: unsatisfied}
+      - {id: issue-73, status: unsatisfied}
   issue-44:
     title: Extract Mission XML with an XML-aware boundary
     module: ingestion
@@ -561,6 +647,13 @@ work_items:
     gates: [Q0, Q1]
     depends_on:
       - {id: issue-26, status: satisfied}
+  issue-56:
+    title: Define the read-only UI foundation and proposed toolkit
+    module: presentation
+    state: done
+    evals: [EVAL-UI-FOUNDATION-001]
+    gates: [Q0, Q1]
+    depends_on: []
   issue-57:
     title: Preserve authoritative pilot statistics when merging partial sources
     module: persistence
@@ -574,6 +667,63 @@ work_items:
     state: done
     evals: [EVAL-PRIV-001, EVAL-LIC-001, EVAL-NET-001, EVAL-DISC-PRIV-001]
     gates: [Q0, Q1, Q3, Q4, Q5]
+    depends_on: []
+  issue-70:
+    title: Preserve career identity across pilot-slot reuse and reject identityless ingestion
+    module: persistence
+    state: backlog
+    evals: [EVAL-IDENTITY-001, EVAL-IDENTITY-002]
+    gates: [Q0, Q1, Q2, Q3, Q6-CYCLE-3.3.0]
+    depends_on: []
+  issue-71:
+    title: Preserve pilot status provenance across partial sources
+    module: persistence
+    state: backlog
+    evals: [EVAL-PILOT-STATUS-001, EVAL-PILOT-STATUS-002]
+    gates: [Q0, Q1, Q2, Q6-CYCLE-3.3.0]
+    depends_on: []
+  issue-72:
+    title: Make Dossier state and diary effects one atomic unit
+    module: application
+    state: backlog
+    evals: [EVAL-DOSSIER-TXN-001, EVAL-DOSSIER-TXN-002]
+    gates: [Q0, Q1, Q2, Q6-CYCLE-3.3.0]
+    depends_on:
+      - {id: issue-34, status: satisfied}
+  issue-73:
+    title: Define lossless merge identities for victories and decorations
+    module: persistence
+    state: backlog
+    evals: [EVAL-VICTORY-MERGE-001, EVAL-DECORATION-MERGE-001]
+    gates: [Q0, Q1, Q2, Q6-CYCLE-3.3.0]
+    depends_on: []
+  issue-74:
+    title: Parse claim confirmation and mission duration without fabricated values
+    module: ingestion
+    state: backlog
+    evals: [EVAL-PARSE-SEM-001, EVAL-PARSE-SEM-002]
+    gates: [Q0, Q1, Q3]
+    depends_on: []
+  issue-75:
+    title: Enforce machine-readable contracts across command entry points
+    module: presentation
+    state: backlog
+    evals: [EVAL-CLI-CONTRACT-001, EVAL-CLI-CONTRACT-002]
+    gates: [Q0, Q1, Q4]
+    depends_on: []
+  issue-76:
+    title: Enforce life-event and derived RPG domain invariants
+    module: application
+    state: backlog
+    evals: [EVAL-RPG-DOMAIN-001, EVAL-RPG-DOMAIN-002]
+    gates: [Q0, Q1]
+    depends_on: []
+  issue-77:
+    title: Certify SQLite nullability and default constraints
+    module: persistence
+    state: backlog
+    evals: [EVAL-SCHEMA-CONTRACT-001, EVAL-SCHEMA-CONTRACT-002]
+    gates: [Q0, Q1, Q2]
     depends_on: []
 
 cycles:
@@ -595,6 +745,10 @@ cycles:
       - issue-42
       - issue-40
       - issue-39
+      - issue-70
+      - issue-71
+      - issue-72
+      - issue-73
       - issue-27
     aggregate_eval: EVAL-CYCLE-330-001
     gate: Q6-CYCLE-3.3.0
@@ -603,14 +757,18 @@ cycles:
     members:
       - issue-41
       - issue-38
+      - issue-74
       - issue-35
       - issue-37
       - issue-44
       - issue-43
       - issue-28
+      - issue-75
+      - issue-76
   cycle-3.5.0:
     state: planned
     members:
+      - issue-77
       - issue-48
       - issue-47
       - issue-29
