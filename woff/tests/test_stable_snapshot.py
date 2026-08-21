@@ -1,5 +1,7 @@
 from dataclasses import dataclass
+import threading
 from typing import Any, cast
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -238,3 +240,70 @@ def test_scheduler_releases_exhausted_snapshot_without_diagnostic_leak(caplog):
     ]
     assert "Users" not in diagnostics[0]
     assert "Campaigns" not in diagnostics[0]
+
+
+def test_active_acquisition_and_pending_event_persist_new_generation_once():
+    generation_a = b"<Campaign><PilotName>Generation A</PilotName></Campaign>"
+    generation_b = b"<Campaign><PilotName>Generation B</PilotName></Campaign>"
+    blocked = threading.Event()
+    resume = threading.Event()
+
+    class MutableFilesystem:
+        def __init__(self):
+            self.data = generation_a
+            self.version = 1
+            self.reads = 0
+            self.lock = threading.Lock()
+
+        def stat(self, path):
+            with self.lock:
+                return FakeMetadata(
+                    len(self.data), self.version, self.version, 1, self.version
+                )
+
+        def read(self, path):
+            with self.lock:
+                self.reads += 1
+                should_block = self.reads == 2
+            if should_block:
+                blocked.set()
+                assert resume.wait(2)
+            with self.lock:
+                return self.data
+
+        def replace(self):
+            with self.lock:
+                self.data = generation_b
+                self.version = 2
+
+    filesystem = MutableFilesystem()
+    database = cast(Any, MagicMock())
+    database.merge_and_write.return_value = "pilot-id"
+    processor = FileProcessor(database, cast(Any, object()))
+    processor.guard = FileStabilityGuard(
+        timeout=4, interval=1, stat=filesystem.stat, read=filesystem.read,
+        sleep=lambda _: None,
+    )
+    scheduler = EventScheduler(
+        processor.process,
+        max_workers=1,
+        max_pending_events=1,
+        retry_process=lambda path, event, previous: processor.process(
+            path, event, previous_generation=previous
+        ),
+    )
+
+    path = r"C:\Campaign\campaign.xml"
+    assert scheduler.submit(path, "created")
+    assert blocked.wait(2)
+    filesystem.replace()
+    assert scheduler.submit(r"c:/campaign/CAMPAIGN.XML", "modified")
+    resume.set()
+    scheduler.shutdown()
+
+    assert database.merge_and_write.call_count == 1
+    assert database.merge_and_write.call_args.kwargs["pilot"].name == "Generation B"
+    assert scheduler.admitted_paths == 0
+    assert scheduler.metrics() == {
+        "queued": 0, "active": 0, "coalesced": 1, "rejected": 0, "retried": 1,
+    }

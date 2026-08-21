@@ -21,6 +21,7 @@ from .campaign_engine import CampaignEngine
 from .config import SUPPORTED_WATCHED_EXTENSIONS
 from .ingestion.scheduler import EventScheduler
 from .ingestion.snapshot import (
+    FileGeneration,
     SnapshotFailure,
     StableFileSnapshot,
     StableSnapshotReader,
@@ -75,10 +76,18 @@ class FileProcessor:
         self.discovery = discovery
         self.guard = FileStabilityGuard(timeout=stability_timeout, interval=stability_interval)
 
-    def process(self, path: str, event_type: str):
+    def process(
+        self,
+        path: str,
+        event_type: str,
+        previous_generation: Optional[FileGeneration] = None,
+    ) -> Optional[FileGeneration]:
         """Executa a cadeia de processamento."""
         try:
             snapshot = self.guard.acquire(path)
+            if snapshot.generation == previous_generation:
+                log.debug("Snapshot generation already processed: %s", _safe_filename(path))
+                return snapshot.generation
 
             # 2. Discovery (Log)
             if self.discovery and os.path.exists(path):
@@ -92,14 +101,17 @@ class FileProcessor:
                 self._process_xml(path, snapshot)
             elif ext in SUPPORTED_WATCHED_EXTENSIONS:
                 self._process_text(path, fname, snapshot)
+            return snapshot.generation
 
         except SnapshotFailure as failure:
             log.warning(
                 "Snapshot rejected: source=%s state=%s attempts=%d",
                 _safe_filename(path), failure.kind.value, failure.attempts,
             )
+            return None
         except Exception:
             log.exception("Erro no pipeline de processamento para %s", _safe_filename(path))
+            return None
 
     @staticmethod
     def _parser_input(path: str, snapshot: Optional[StableFileSnapshot]) -> tuple[bytes, str]:
@@ -228,6 +240,7 @@ class WoFFEventHandler(FileSystemEventHandler):
             self._execute_pipeline,
             max_workers=config.max_workers,
             max_pending_events=config.max_pending_events,
+            retry_process=self._execute_retry_pipeline,
         )
 
     def on_modified(self, event):
@@ -254,7 +267,14 @@ class WoFFEventHandler(FileSystemEventHandler):
     def _execute_pipeline(self, path: str, event_type: str):
         """Método executado na thread pool."""
         log.info(f"Detectado [{event_type}]: {os.path.basename(path)}")
-        self.processor.process(path, event_type)
+        return self.processor.process(path, event_type)
+
+    def _execute_retry_pipeline(
+        self, path: str, event_type: str, previous_generation: Optional[FileGeneration]
+    ) -> Optional[FileGeneration]:
+        """Process a coalesced event while suppressing an identical generation."""
+        log.info(f"Detectado [{event_type}]: {os.path.basename(path)}")
+        return self.processor.process(path, event_type, previous_generation)
 
     def metrics(self):
         return self.scheduler.metrics()
