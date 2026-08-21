@@ -49,11 +49,12 @@ class EventScheduler:
 
     def __init__(
         self,
-        process: Callable[[str, str], None],
+        process: Callable[[str, str], Any],
         max_workers: int,
         max_pending_events: int,
         *,
         executor: Optional[_Executor] = None,
+        retry_process: Optional[Callable[[str, str, Any], Any]] = None,
     ) -> None:
         if (
             isinstance(max_pending_events, bool)
@@ -62,6 +63,7 @@ class EventScheduler:
         ):
             raise ValueError("max_pending_events must be a positive integer")
         self._process = process
+        self._retry_process = retry_process
         self._executor = executor or ThreadPoolExecutor(
             max_workers=max_workers, thread_name_prefix="woff-worker"
         )
@@ -128,15 +130,21 @@ class EventScheduler:
         log.warning("Filesystem event rejected: scheduler %s", reason)
 
     def _run(self, key: str, event: Event) -> None:
+        previous_result: Any = None
+        is_retry = False
         while True:
             with self._lock:
                 state = self._states[key]
                 self._metrics["queued"] -= 1
                 self._metrics["active"] += 1
             try:
-                self._process(*event)
+                if is_retry and self._retry_process is not None:
+                    previous_result = self._retry_process(*event, previous_result)
+                else:
+                    previous_result = self._process(*event)
             except Exception:
                 log.exception("Unhandled filesystem event processing failure")
+                previous_result = None
             with self._lock:
                 state = self._states[key]
                 self._metrics["active"] -= 1
@@ -146,6 +154,7 @@ class EventScheduler:
                 event = state.pending
                 state.pending = None
                 self._metrics["retried"] += 1
+                is_retry = True
 
     def shutdown(self) -> None:
         """Stop admission and wait for every accepted generation to finish."""

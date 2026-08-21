@@ -10,6 +10,7 @@ from ..config import WatchdogConfig
 from ..database import DatabaseManager
 from ..campaign_engine import CampaignEngine
 from ..handler import WoFFEventHandler
+from ..ingestion.scheduler import EventScheduler
 from .. import woff_watchdog
 
 # Mock de um ficheiro de campanha XML válido
@@ -199,6 +200,106 @@ class TestWatchdogStartup(unittest.TestCase):
         handler.assert_called_once()
         observer.return_value.schedule.assert_called_once()
         observer.return_value.start.assert_called_once()
+
+    def test_observation_precedes_bounded_startup_reconciliation(self):
+        tmp_dir = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, tmp_dir)
+        pilot_path = os.path.join(tmp_dir, "Pilot1Log.txt")
+        with open(pilot_path, "w", encoding="utf-8") as source:
+            source.write("synthetic")
+        config = WatchdogConfig(
+            watch_paths=[tmp_dir],
+            export_path=os.path.join(tmp_dir, "startup.db"),
+            watched_extensions=[".txt"],
+            max_workers=1,
+            max_pending_events=1,
+        )
+        order = []
+        blocked = threading.Event()
+        resume = threading.Event()
+        generation = {"value": "A"}
+        side_effects = {
+            "missions": 0, "victories": 0, "wingmen": 0, "diary": 0,
+        }
+
+        class StartupHandler:
+            def __init__(self, *_args, **_kwargs):
+                self.scheduler = EventScheduler(
+                    self.process, 1, 1, retry_process=self.retry_process
+                )
+
+            def process(self, path, event_type, previous=None):
+                observed = generation["value"]
+                if observed == "A":
+                    blocked.set()
+                    test_case.assertTrue(resume.wait(2))
+                    observed = generation["value"]
+                if observed != previous:
+                    for name in side_effects:
+                        side_effects[name] += 1
+                return observed
+
+            def retry_process(self, path, event_type, previous):
+                return self.process(path, event_type, previous)
+
+            def _handle(self, path, event_type):
+                return self.scheduler.submit(path, event_type)
+
+            def submit_initial(self, path):
+                order.append("baseline")
+                accepted = self.scheduler.submit(path, "initial")
+                resume.set()
+                return accepted
+
+            def shutdown(self):
+                self.scheduler.shutdown()
+
+        test_case = self
+
+        class StartupObserver:
+            def schedule(self, handler, path, recursive=True):
+                self.handler = handler
+
+            def start(self):
+                order.append("observer")
+                self.handler._handle(pilot_path, "created")
+                test_case.assertTrue(blocked.wait(2))
+                generation["value"] = "B"
+                self.handler._handle(pilot_path.upper(), "modified")
+                generation["value"] = "C"
+                self.handler._handle(pilot_path, "modified")
+
+            def stop(self):
+                pass
+
+            def join(self, timeout=None):
+                pass
+
+        with patch.object(woff_watchdog, "catalog_medals"), patch.object(
+            woff_watchdog, "catalog_squadrons"
+        ), patch.object(woff_watchdog, "CampaignEngine"), patch.object(
+            woff_watchdog, "WoFFEventHandler", StartupHandler
+        ), patch.object(woff_watchdog, "Observer", StartupObserver), patch.object(
+            woff_watchdog.glob, "glob", side_effect=[[pilot_path], [], [], []]
+        ):
+            watchdog = woff_watchdog.WoFFWatchdog(config)
+            self.addCleanup(watchdog.db_manager.close)
+            self.assertTrue(watchdog.start())
+            handler = watchdog._handler
+            self.assertIsNotNone(handler)
+            watchdog.stop()
+
+        self.assertEqual(order, ["observer", "baseline"])
+        self.assertEqual(generation["value"], "C")
+        self.assertEqual(side_effects, {
+            "missions": 1, "victories": 1, "wingmen": 1, "diary": 1,
+        })
+        assert handler is not None
+        self.assertEqual(handler.scheduler.admitted_paths, 0)
+        self.assertEqual(handler.scheduler.metrics(), {
+            "queued": 0, "active": 0, "coalesced": 3,
+            "rejected": 0, "retried": 1,
+        })
 
 if __name__ == "__main__":
     unittest.main()

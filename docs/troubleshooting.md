@@ -41,6 +41,32 @@ processing is not blocked by an inaccessible file or database. Then increase
 intentionally omits campaign content and local paths. During an orderly stop,
 new work is rejected and already accepted work is drained before exit.
 
+## Snapshot acquisition messages
+
+Before parsing, WoFF Mate reads each watched file into an immutable snapshot and
+verifies its size, identity, timestamps, and complete bytes. A final
+`Snapshot rejected` warning reports one of these sanitized states:
+
+- `timeout`: the file remained empty or could not produce two identical verified
+  observations within the configured time budget;
+- `inaccessible`: the file disappeared or Windows temporarily denied access,
+  including sharing violations;
+- `changed-generation`: the file was rewritten, truncated, or replaced while it
+  was being observed.
+
+Acquisition retries use deterministic exponential backoff. Both the number of
+attempts and the sum of delays are bounded by `stability_timeout_sec`, starting
+from `stability_check_interval_sec`; no separate retry queue is created. If these
+warnings recur, prefer increasing the timeout for files that take longer to
+finish. The interval controls the initial retry delay and must remain less than
+the timeout.
+
+Snapshot failures occur before parsing. XML syntax errors, missing mission-log
+blocks, unsupported filenames, and other format diagnostics instead mean that a
+stable snapshot was acquired but its format could not be parsed. Share only the
+state and a synthetic reproduction—never campaign contents, personal paths, or
+complete records.
+
 ## Common database messages
 
 ### Future schema

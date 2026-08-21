@@ -31,7 +31,6 @@ import argparse
 import logging
 import threading
 from typing import Optional, List, Any
-from datetime import datetime
 
 # ──────────────────────────────────────────────────────────────
 # VERIFICAÇÃO DE DEPENDÊNCIAS E MÓDULOS
@@ -54,7 +53,7 @@ except Exception as e:
 
 try:
     from .config import WatchdogConfig, load_config
-    from .handler import WoFFEventHandler, get_latest_mission_id
+    from .handler import WoFFEventHandler
     from .database import DatabaseManager
     from .discovery import DiscoveryLogger
     from .medal_cataloger import catalog_medals
@@ -130,6 +129,18 @@ class WoFFWatchdog:
             )
             return False
 
+        # Establish live observation before cataloging or baseline reconciliation,
+        # so changes during startup enter the same bounded/coalesced scheduler.
+        self.campaign_engine = CampaignEngine(self.db_manager)
+        self._handler = WoFFEventHandler(
+            self.config, self.db_manager, self.campaign_engine, self.discovery
+        )
+        for path in valid:
+            obs = Observer()
+            obs.schedule(self._handler, path, recursive=True)
+            obs.start()
+            self.observers.append(obs)
+
         # Procurar as pastas 'Medals' e 'Scratchpad' em todos os caminhos válidos
         medals_path = None
         scratchpad_path = None
@@ -158,9 +169,6 @@ class WoFFWatchdog:
         # ──────────────────────────────────────────────────────────────
         # SINCRONIZAÇÃO INICIAL DE TODOS OS PILOTOS
         # ──────────────────────────────────────────────────────────────
-        # Instanciar o CampaignEngine uma única vez para partilhar entre o arranque e o runtime
-        self.campaign_engine = CampaignEngine(self.db_manager)
-
         file_patterns = []
         if ".txt" in self.config.watched_extensions:
             log.info("A sincronizar dados iniciais dos pilotos...")
@@ -174,129 +182,7 @@ class WoFFWatchdog:
         for path in valid:
             for file_pattern in file_patterns:
                 for file_path in glob.glob(os.path.join(path, file_pattern)):
-                    fname = os.path.basename(file_path).lower()
-
-                    # FIX: Extrair data do ficheiro para eventos históricos
-                    try:
-                        file_mtime = datetime.fromtimestamp(
-                            os.path.getmtime(file_path)
-                        ).strftime("%Y-%m-%d")
-                    except OSError:
-                        file_mtime = None
-
-                    try:
-                        if "dossier" in fname:
-                            parser = WoFFDossierParser()
-                            if parser.parse(file_path):
-                                if not parser.pilot:
-                                    continue
-
-                                old_status, old_rank = self.db_manager.get_pilot_state(
-                                    parser.pilot.name
-                                )
-
-                                # FIX: Passar data do ficheiro para não gerar entradas em 2026
-                                self.campaign_engine.process_wingmen_changes(
-                                    parser.pilot.name,
-                                    parser.wingmen,
-                                    event_date=file_mtime,
-                                )
-
-                                self.db_manager.merge_and_write(
-                                    pilot=parser.pilot,
-                                    missions=[],
-                                    victories=[],
-                                    decorations=parser.decorations,
-                                    wingmen=parser.wingmen,
-                                )
-
-                                new_status = parser.pilot.status
-                                new_rank = parser.pilot.rank
-                                old_status_str = old_status if old_status is not None else ""
-                                old_rank_str = old_rank if old_rank is not None else ""
-
-                                if (old_status_str != new_status) or (
-                                    old_rank_str != new_rank and new_rank
-                                ):
-                                    self.campaign_engine.process_life_events(
-                                        parser.pilot.name,
-                                        str(new_status),
-                                        str(new_rank),
-                                        old_status,
-                                        old_rank,
-                                        event_date=file_mtime,
-                                    )
-
-                        elif "squads" in fname:
-                            parser = WoFFPilotDataParser()
-                            if parser.parse(file_path):
-                                self.db_manager.merge_and_write(
-                                    pilot=parser.pilot,
-                                    missions=[],
-                                    victories=[],
-                                    decorations=[],
-                                    wingmen=None,
-                                )
-
-                        elif "log" in fname and "mission" not in fname:
-                            parser = WoFFPilotDataParser()
-                            if parser.parse(file_path):
-                                self.db_manager.merge_and_write(
-                                    pilot=parser.pilot,
-                                    missions=parser.missions,
-                                    victories=[],
-                                    decorations=[],
-                                    wingmen=None,
-                                )
-                                if (
-                                    parser.missions
-                                    and parser.pilot
-                                    and parser.pilot.name
-                                ):
-                                    # FIX: Usar resolve_pilot_id com source_file para
-                                    # resolver "Pilot 1" (placeholder) → UUID real.
-                                    real_pilot_id = self.db_manager.resolve_pilot_id(
-                                        parser.pilot.name,
-                                        source_file=parser.pilot.source_file,
-                                    )
-                                    latest_mission_id = get_latest_mission_id(parser)
-                                    if real_pilot_id and latest_mission_id:
-                                        self.campaign_engine.process_mission_end(
-                                            real_pilot_id, latest_mission_id
-                                        )
-                                    else:
-                                        log.warning(
-                                            f"[Sync] Não foi possível resolver "
-                                            f"pilot_id real para '{parser.pilot.name}' "
-                                            f"(source: {parser.pilot.source_file}). "
-                                            f"RPG abortado na sincronização inicial."
-                                        )
-
-                        elif "claims" in fname:
-                            parser = WoFFPilotDataParser()
-                            if parser.parse(file_path):
-                                self.db_manager.merge_and_write(
-                                    pilot=None,
-                                    missions=[],
-                                    victories=parser.victories,
-                                    decorations=[],
-                                    wingmen=None,
-                                )
-                    except Exception:
-                        log.exception(
-                            f"Erro ao sincronizar inicialmente {file_path}"
-                        )
-
-        # Injetar a mesma instância do CampaignEngine no Handler
-        self._handler = WoFFEventHandler(
-            self.config, self.db_manager, self.campaign_engine, self.discovery
-        )
-
-        for path in valid:
-            obs = Observer()
-            obs.schedule(self._handler, path, recursive=True)
-            obs.start()
-            self.observers.append(obs)
+                    self._handler.submit_initial(file_path)
 
         log.info(f"\nWatchdog activo — {len(valid)} caminho(s) em monitorização")
         log.info(f"Base de Dados: {self.config.export_path}")

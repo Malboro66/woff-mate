@@ -94,13 +94,23 @@ class WoFFXMLParser:
         """Inicia o parsing do ficheiro XML."""
         log.info(f"[XML] Analisando: {os.path.basename(path)}")
         try:
-            tree = ET.parse(path)
-            root = tree.getroot()
-        except ET.ParseError as e:
-            log.error(f"  Erro de XML em {path}: {e}")
-            return False
+            with open(path, "rb") as source:
+                data = source.read()
+            return self.parse_bytes(data, os.path.basename(path))
         except Exception as e:
             log.error(f"  Falha ao ler {path}: {e}")
+            return False
+
+    def parse_bytes(self, data: bytes, source_name: str) -> bool:
+        """Parse verified bytes without reopening their source path."""
+        log.info(f"[XML] Analisando snapshot: {source_name}")
+        try:
+            root = ET.fromstring(data)
+        except ET.ParseError as e:
+            log.error(f"  Erro de XML em {source_name}: {e}")
+            return False
+        except Exception as e:
+            log.error(f"  Falha ao ler snapshot {source_name}: {e}")
             return False
 
         self._root = root
@@ -111,7 +121,7 @@ class WoFFXMLParser:
         self.victories   = []
         self.decorations = []
 
-        self._parse_pilot(root, path)
+        self._parse_pilot(root, source_name)
         self._parse_missions(root)
         self._parse_victories(root)
         self._parse_decorations(root)
@@ -125,7 +135,7 @@ class WoFFXMLParser:
             )
             return True
 
-        log.debug(f"  Sem dados de piloto em: {os.path.basename(path)}")
+        log.debug(f"  Sem dados de piloto em: {source_name}")
         return False
 
     def _parse_pilot(self, root: ET.Element, path: str):
