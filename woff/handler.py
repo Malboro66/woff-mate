@@ -10,8 +10,8 @@ do processamento de domínio (Parse, DB, RPG).
 from __future__ import annotations
 
 import logging
+import ntpath
 import os
-import time
 from typing import Optional, List
 
 from watchdog.events import FileSystemEventHandler
@@ -20,6 +20,12 @@ from .database import DatabaseManager
 from .campaign_engine import CampaignEngine
 from .config import SUPPORTED_WATCHED_EXTENSIONS
 from .ingestion.scheduler import EventScheduler
+from .ingestion.snapshot import (
+    FileGeneration,
+    SnapshotFailure,
+    StableFileSnapshot,
+    StableSnapshotReader,
+)
 
 from .parsers.xml_parser import WoFFXMLParser
 from .parsers.mission_log_parser import WoFFMissionLogParser
@@ -27,6 +33,11 @@ from .parsers.pilot_data_parser import WoFFPilotDataParser
 from .parsers.dossier_parser import WoFFDossierParser
 
 log = logging.getLogger("WoFFWatch")
+
+
+def _safe_filename(path: str) -> str:
+    """Return only the final component for native or Windows-style paths."""
+    return ntpath.basename(path.replace("/", "\\"))
 
 
 def get_latest_mission_id(parser):
@@ -42,37 +53,8 @@ def get_latest_mission_id(parser):
     return latest.id
 
 
-class FileStabilityGuard:
-    """Verifica se o ficheiro parou de crescer antes de o ler."""
-
-    def __init__(self, timeout: float = 3.0, interval: float = 0.15):
-        self.timeout = timeout
-        self.interval = interval
-
-    def wait(self, path: str) -> bool:
-        if not os.path.exists(path):
-            return False
-        prev_size = -1
-        elapsed = 0.0
-        while elapsed < self.timeout:
-            try:
-                size = os.path.getsize(path)
-            except OSError:
-                time.sleep(self.interval)
-                elapsed += self.interval
-                continue
-            if size == prev_size and size > 0:
-                log.debug(
-                    f"Ficheiro estável em {elapsed:.1f}s: {os.path.basename(path)}"
-                )
-                return True
-            prev_size = size
-            time.sleep(self.interval)
-            elapsed += self.interval
-        log.warning(
-            f"Timeout de estabilidade ({self.timeout}s): {os.path.basename(path)}"
-        )
-        return False
+class FileStabilityGuard(StableSnapshotReader):
+    """Compatibility name for the generation-verifying snapshot reader."""
 
 
 class FileProcessor:
@@ -94,13 +76,18 @@ class FileProcessor:
         self.discovery = discovery
         self.guard = FileStabilityGuard(timeout=stability_timeout, interval=stability_interval)
 
-    def process(self, path: str, event_type: str):
+    def process(
+        self,
+        path: str,
+        event_type: str,
+        previous_generation: Optional[FileGeneration] = None,
+    ) -> Optional[FileGeneration]:
         """Executa a cadeia de processamento."""
         try:
-            # 1. Estabilidade
-            if not self.guard.wait(path):
-                log.warning(f"Ignorado (ficheiro instável): {os.path.basename(path)}")
-                return
+            snapshot = self.guard.acquire(path)
+            if snapshot.generation == previous_generation:
+                log.debug("Snapshot generation already processed: %s", _safe_filename(path))
+                return snapshot.generation
 
             # 2. Discovery (Log)
             if self.discovery and os.path.exists(path):
@@ -111,16 +98,32 @@ class FileProcessor:
             fname = os.path.basename(path).lower()
 
             if ext == ".xml":
-                self._process_xml(path)
+                self._process_xml(path, snapshot)
             elif ext in SUPPORTED_WATCHED_EXTENSIONS:
-                self._process_text(path, fname)
+                self._process_text(path, fname, snapshot)
+            return snapshot.generation
 
+        except SnapshotFailure as failure:
+            log.warning(
+                "Snapshot rejected: source=%s state=%s attempts=%d",
+                _safe_filename(path), failure.kind.value, failure.attempts,
+            )
+            return None
         except Exception:
-            log.exception(f"Erro no pipeline de processamento para {path}")
+            log.exception("Erro no pipeline de processamento para %s", _safe_filename(path))
+            return None
 
-    def _process_xml(self, path: str):
+    @staticmethod
+    def _parser_input(path: str, snapshot: Optional[StableFileSnapshot]) -> tuple[bytes, str]:
+        if snapshot is not None:
+            return snapshot.data, snapshot.name
+        with open(path, "rb") as source:
+            return source.read(), os.path.basename(path)
+
+    def _process_xml(self, path: str, snapshot: Optional[StableFileSnapshot] = None):
         parser = WoFFXMLParser()
-        if parser.parse(path):
+        data, name = self._parser_input(path, snapshot)
+        if parser.parse_bytes(data, name):
             # FIX: Captura o pilot_id real devolvido pelo merge.
             real_pilot_id = self.db_manager.merge_and_write(
                 pilot=parser.pilot,
@@ -135,10 +138,11 @@ class FileProcessor:
                     real_pilot_id, latest_mission_id
                 )
 
-    def _process_text(self, path: str, fname: str):
+    def _process_text(self, path: str, fname: str, snapshot: Optional[StableFileSnapshot] = None):
+        data, name = self._parser_input(path, snapshot)
         if "dossier" in fname:
             parser = WoFFDossierParser()
-            if parser.parse(path) and parser.pilot:
+            if parser.parse_bytes(data, name) and parser.pilot:
                 old_status, old_rank = self.db_manager.get_pilot_state(
                     parser.pilot.name
                 )
@@ -175,7 +179,7 @@ class FileProcessor:
 
         if fname == "mission.log":
             parser = WoFFMissionLogParser()
-            if parser.parse(path):
+            if parser.parse_bytes(data, name):
                 self.db_manager.merge_and_write(
                     pilot=parser.pilot,
                     missions=[parser.mission] if parser.mission else [],
@@ -186,7 +190,7 @@ class FileProcessor:
 
         # Ficheiros de piloto (Log, Claims, Squads)
         parser = WoFFPilotDataParser()
-        if parser.parse(path) and parser.pilot:
+        if parser.parse_bytes(data, name) and parser.pilot:
             # FIX: Usa resolve_pilot_id com source_file para resolver "Pilot X" → UUID real.
             real_pilot_id = self.db_manager.resolve_pilot_id(
                 parser.pilot.name,
@@ -236,6 +240,7 @@ class WoFFEventHandler(FileSystemEventHandler):
             self._execute_pipeline,
             max_workers=config.max_workers,
             max_pending_events=config.max_pending_events,
+            retry_process=self._execute_retry_pipeline,
         )
 
     def on_modified(self, event):
@@ -255,14 +260,25 @@ class WoFFEventHandler(FileSystemEventHandler):
         ext = os.path.splitext(path)[1].lower()
 
         if ext not in self.watched_extensions or any(p in bn for p in self.IGNORED):
-            return
+            return False
 
-        self.scheduler.submit(path, event_type)
+        return self.scheduler.submit(path, event_type)
+
+    def submit_initial(self, path: str) -> bool:
+        """Route startup reconciliation through the bounded live scheduler."""
+        return self._handle(path, "initial")
 
     def _execute_pipeline(self, path: str, event_type: str):
         """Método executado na thread pool."""
         log.info(f"Detectado [{event_type}]: {os.path.basename(path)}")
-        self.processor.process(path, event_type)
+        return self.processor.process(path, event_type)
+
+    def _execute_retry_pipeline(
+        self, path: str, event_type: str, previous_generation: Optional[FileGeneration]
+    ) -> Optional[FileGeneration]:
+        """Process a coalesced event while suppressing an identical generation."""
+        log.info(f"Detectado [{event_type}]: {os.path.basename(path)}")
+        return self.processor.process(path, event_type, previous_generation)
 
     def metrics(self):
         return self.scheduler.metrics()
