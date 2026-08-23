@@ -1,5 +1,5 @@
 version: 1
-updated: 2026-08-20
+updated: 2026-08-23
 
 project:
   repository: Malboro66/woff-mate
@@ -443,6 +443,22 @@ evals:
     status: implemented
     evidence: The proposed toolkit and read-only presentation boundaries are documented, linked, dependency-free, and structurally enforced.
     enforced_by: [woff/tests/test_architecture_contracts.py]
+  EVAL-UI-VISUAL-001:
+    work_items: [issue-79]
+    status: planned
+    evidence: A human walkthrough of the six-screen Figma flow confirms navigation, readability, visible focus, scaling notes, synthetic-state labeling, and no implied unavailable runtime behavior.
+  EVAL-UI-FIXTURES-001:
+    work_items: [issue-80]
+    status: planned
+    evidence: The shared screen-state matrix and synthetic fixture catalog cover every approved state and reject personal, credential, raw-payload, log, database, and installation-path data.
+  EVAL-UI-CONTRACTS-001:
+    work_items: [issue-81]
+    status: planned
+    evidence: Toolkit-independent immutable view models and query-service protocols preserve stable identifiers, defensive copying, state and freshness metadata, and sanitized failures without exposing persistence or parser objects.
+  EVAL-UI-SPIKE-001:
+    work_items: [issue-82]
+    status: planned
+    evidence: A reproducible PySide6 spike report records supported Python and Windows packaging, startup, memory, size, scaling, keyboard and accessibility, licensing, and a Go, Conditional Go, or No-go recommendation without adopting Qt in production.
   EVAL-GOV-001:
     work_items: [issue-51]
     status: implemented
@@ -728,6 +744,40 @@ work_items:
     evals: [EVAL-SCHEMA-CONTRACT-001, EVAL-SCHEMA-CONTRACT-002]
     gates: [Q0, Q1, Q2]
     depends_on: []
+  issue-79:
+    title: Complete the approved Figma V1 flow and visual system
+    module: presentation
+    state: backlog
+    evals: [EVAL-UI-VISUAL-001]
+    gates: [Q0, Q1]
+    depends_on:
+      - {id: issue-56, status: satisfied}
+  issue-80:
+    title: Define sanitized UI fixtures and the shared screen-state matrix
+    module: presentation
+    state: backlog
+    evals: [EVAL-UI-FIXTURES-001]
+    gates: [Q0, Q1]
+    depends_on:
+      - {id: issue-56, status: satisfied}
+  issue-81:
+    title: Define immutable read-only UI view models and query-service contracts
+    module: presentation
+    state: blocked
+    evals: [EVAL-UI-CONTRACTS-001]
+    gates: [Q0, Q1]
+    depends_on:
+      - {id: issue-56, status: satisfied}
+      - {id: issue-80, status: unsatisfied}
+  issue-82:
+    title: Validate PySide6 packaging, startup, scaling, and accessibility
+    module: presentation
+    state: blocked
+    evals: [EVAL-UI-SPIKE-001]
+    gates: [Q0, Q1, Q4]
+    depends_on:
+      - {id: issue-56, status: satisfied}
+      - {id: issue-80, status: unsatisfied}
 
 cycles:
   cycle-3.2.1:
