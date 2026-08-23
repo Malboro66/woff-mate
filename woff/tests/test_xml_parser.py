@@ -181,6 +181,54 @@ class TestWoFFXMLParser(unittest.TestCase):
         self.assertFalse(m.damageReceived)
         self.assertFalse(m.woundsReceived)
 
+    def test_mission_temporal_contract_rejects_invalid_dates_and_times(self):
+        xml = """<?xml version="1.0" encoding="UTF-8"?>
+<Campaign>
+  <Pilot><PilotName>Temporal Test Pilot</PilotName></Pilot>
+  <Missions>
+    <Mission><Date>20/9/1915</Date><Time>9:30</Time><Type>Patrol</Type></Mission>
+    <Mission><Date>1918-11-11</Date><Type>Patrol</Type></Mission>
+    <Mission><Date>1917-02-30</Date><Time>10:30</Time><Type>Patrol</Type></Mission>
+    <Mission><Date>Tomorrow</Date><Time>10:30</Time><Type>Patrol</Type></Mission>
+    <Mission><Date>1918-11-11</Date><Time>24:00</Time><Type>Patrol</Type></Mission>
+  </Missions>
+</Campaign>
+"""
+
+        self.assertTrue(self._write_and_parse(xml))
+        self.assertEqual(
+            [(mission.date, mission.time) for mission in self.parser.missions],
+            [("1915-09-20", "09:30"), ("1918-11-11", "")],
+        )
+
+    def test_generic_time_duration_is_not_rejected_as_a_clock(self):
+        xml = """<?xml version="1.0" encoding="UTF-8"?>
+<Campaign>
+  <Pilot><PilotName>Duration Test Pilot</PilotName></Pilot>
+  <Missions>
+    <Mission>
+      <Date>1917-04-06</Date><Time>1.5</Time><Type>Patrol</Type>
+    </Mission>
+    <Mission>
+      <Date>1917-04-07</Date><MissionTime>9:30</MissionTime>
+      <Time>2.0</Time><Type>Escort</Type>
+    </Mission>
+  </Missions>
+</Campaign>
+"""
+
+        self.assertTrue(self._write_and_parse(xml))
+        self.assertEqual(
+            [
+                (mission.date, mission.time, mission.duration)
+                for mission in self.parser.missions
+            ],
+            [
+                ("1917-04-06", "", "1.5"),
+                ("1917-04-07", "09:30", "2.0"),
+            ],
+        )
+
     def test_victory_data_normalization(self):
         """Testa a extração e normalização da vitória."""
         self._write_and_parse(MOCK_XML_VALID)

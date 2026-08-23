@@ -147,12 +147,12 @@ class WoFFDossierParser:
             
             # Datas (Campanha e Alistamento)
             d, m, y = safe_get(6), safe_get(7), safe_get(8)
-            if d and m and y: 
-                self.pilot.startDate = f"{y}-{m.zfill(2)}-{d.zfill(2)}"
+            if d and m and y:
+                self.pilot.startDate = normalize_date(f"{d}/{m}/{y}")
             
             d, m, y = safe_get(12), safe_get(13), safe_get(14)
-            if d and m and y: 
-                self.pilot.enlisted = f"{y}-{m.zfill(2)}-{d.zfill(2)}"
+            if d and m and y:
+                self.pilot.enlisted = normalize_date(f"{d}/{m}/{y}")
             
             # 2. Heurísticas Dinâmicas com 'break' (para não capturar valores errados)
             for s in player_data:
@@ -227,7 +227,7 @@ class WoFFDossierParser:
                     if medal_name:
                         d = WoFFDecoration()
                         d.name = medal_name
-                        d.date = parts[1].strip() if len(parts) > 1 and parts[1].strip() else ""
+                        d.date = normalize_date(parts[1]) if len(parts) > 1 else ""
                         d.source_file = fname
                         self.decorations.append(d)
             

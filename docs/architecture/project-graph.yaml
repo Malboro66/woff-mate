@@ -253,12 +253,23 @@ evals:
     enforced_by: [woff/tests/test_handler_integration.py]
   EVAL-DATE-001:
     work_items: [issue-40]
-    status: planned
+    status: implemented
     evidence: An invalid game date never enters history as valid.
+    enforced_by:
+      - woff/tests/test_normalization.py
+      - woff/tests/test_xml_parser.py
+      - woff/tests/test_mission_log_parser.py
+      - woff/tests/test_temporal_contract.py
+      - woff/tests/test_rpg_system.py
+      - woff/tests/test_campaign_engine.py
+      - woff/tests/test_stable_snapshot.py
   EVAL-DATE-002:
     work_items: [issue-40]
-    status: planned
+    status: implemented
     evidence: Mission ordering remains deterministic when timestamps tie.
+    enforced_by:
+      - woff/tests/test_bugfixes_review.py
+      - woff/tests/test_temporal_contract.py
   EVAL-MISSION-001:
     work_items: [issue-39]
     status: planned
@@ -562,15 +573,15 @@ work_items:
   issue-39:
     title: Update existing missions instead of silently ignoring refreshed data
     module: persistence
-    state: blocked
+    state: backlog
     evals: [EVAL-MISSION-001, EVAL-MISSION-002]
     gates: [Q0, Q1, Q2, Q6-CYCLE-3.3.0]
     depends_on:
-      - {id: issue-40, status: unsatisfied}
+      - {id: issue-40, status: satisfied}
   issue-40:
     title: Enforce canonical game dates and deterministic mission ordering
     module: domain
-    state: backlog
+    state: done
     evals: [EVAL-DATE-001, EVAL-DATE-002]
     gates: [Q0, Q1, Q6-CYCLE-3.3.0]
     depends_on: []
@@ -598,7 +609,7 @@ work_items:
     depends_on:
       - {id: issue-34, status: satisfied}
       - {id: issue-39, status: unsatisfied}
-      - {id: issue-40, status: unsatisfied}
+      - {id: issue-40, status: satisfied}
       - {id: issue-73, status: unsatisfied}
   issue-44:
     title: Extract Mission XML with an XML-aware boundary

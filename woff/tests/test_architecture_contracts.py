@@ -424,14 +424,14 @@ def test_implementation_work_item_rejects_unsatisfied_dependency(
     assert isinstance(issue_34, dict)
     _set_issue_34_incomplete_state(graph, state)
     issue_34["depends_on"] = [
-        {"id": "issue-40", "status": "unsatisfied"}
+        {"id": "issue-41", "status": "unsatisfied"}
     ]
 
     with pytest.raises(
         GraphValidationError,
         match=(
             f"work_items.issue-34 is {state} but dependency "
-            "issue-40 is unsatisfied"
+            "issue-41 is unsatisfied"
         ),
     ):
         validate_graph(REPOSITORY_ROOT, graph)
@@ -445,7 +445,7 @@ def test_blocked_work_item_accepts_unsatisfied_dependency() -> None:
     assert isinstance(issue_34, dict)
     _set_issue_34_incomplete_state(graph, "blocked")
     issue_34["depends_on"] = [
-        {"id": "issue-40", "status": "unsatisfied"}
+        {"id": "issue-41", "status": "unsatisfied"}
     ]
 
     validate_graph(REPOSITORY_ROOT, graph)

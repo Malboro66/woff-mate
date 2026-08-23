@@ -344,6 +344,28 @@ class TestPilotLogRecordClassification(unittest.TestCase):
         self.assertTrue(ok)
         self.assertEqual(len(parser.missions), 1)
 
+    def test_calendar_validation_covers_1915_and_1918_campaigns(self):
+        campaign_1915 = VERIFIED_FIELDS.copy()
+        campaign_1915[0:5] = ["20", "9", "1915", "9", "30"]
+        campaign_1918 = VERIFIED_FIELDS.copy()
+        campaign_1918[0:5] = ["11", "11", "1918", "10", "30"]
+        impossible = VERIFIED_FIELDS.copy()
+        impossible[0:5] = ["30", "2", "1917", "10", "30"]
+        content = (
+            "3\n" + self.line(campaign_1915) + "\n"
+            + self.line(impossible) + "\n"
+            + self.line(campaign_1918) + "\n"
+        )
+
+        with self.assertLogs("WoFFWatch", level="WARNING"):
+            parser, ok = self.parse_content(content)
+
+        self.assertTrue(ok)
+        self.assertEqual(
+            [(mission.date, mission.time) for mission in parser.missions],
+            [("1915-09-20", "09:30"), ("1918-11-11", "10:30")],
+        )
+
     def test_inline_sanitized_samples_end_to_end(self):
         for filename, sample, count in (("Pilot1Log.txt", PILOT1_SAMPLE, 2), ("Pilot2Log.txt", PILOT2_SAMPLE, 2), ("Pilot3Log.txt", PILOT3_SAMPLE, 0)):
             with self.subTest(filename=filename):

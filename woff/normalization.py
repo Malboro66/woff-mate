@@ -16,7 +16,8 @@ from __future__ import annotations
 import logging
 import re
 import xml.etree.ElementTree as ET
-from typing import Optional
+from datetime import date, time
+from typing import Iterable, Literal, Optional, Tuple
 
 # Importar as tabelas estáticas e regex do maps.py
 from .maps import (
@@ -79,35 +80,105 @@ def normalize_victory_type(raw: str) -> str:
     return _map(raw, VICTORY_TYPE_MAP, "Out of Control (OOC)")
 
 
-def normalize_date(raw: str) -> str:
-    if not raw:
+def _calendar_date(year: str | int, month: str | int, day: str | int) -> str:
+    """Return an ISO date only when the components form a real calendar day."""
+    try:
+        return date(int(year), int(month), int(day)).isoformat()
+    except (OverflowError, TypeError, ValueError):
         return ""
-    raw = raw.strip()
-    
-    if re.match(r"^\d{4}-\d{2}-\d{2}$", raw):
-        return raw
-    
-    m = re.match(r"^(\d{1,2})[/\-.](\d{1,2})[/\-.](\d{4})$", raw)
-    if m:
-        d, mo, y = m.groups()
-        return f"{y}-{mo.zfill(2)}-{d.zfill(2)}"
-        
-    m = re.match(r"^(\d{4})[/\-.](\d{1,2})[/\-.](\d{1,2})$", raw)
-    if m:
-        y, mo, d = m.groups()
-        return f"{y}-{mo.zfill(2)}-{d.zfill(2)}"
-        
-    raw_l = raw.lower()
-    for name, num in MONTHS_MAP.items():
-        if name in raw_l:
-            nums = [int(n) for n in re.findall(r"\d+", raw)]
-            year  = next((n for n in nums if n > 100), None)
-            day   = next((n for n in nums if 1 <= n <= 31), None)
-            if year and day:
-                return f"{year}-{str(num).zfill(2)}-{str(day).zfill(2)}"
-                
-    log.debug(f"Data não reconhecida para normalização: '{raw}'")
-    return raw
+
+
+def normalize_date(
+    raw: str | None,
+    *,
+    numeric_order: Literal["day-first", "month-first"] = "day-first",
+) -> str:
+    """Normalize a supported real date to ``YYYY-MM-DD``.
+
+    Missing, unrecognized, and impossible values all return the explicit absent
+    representation ``""``. Numeric day-first input remains the default;
+    source-specific parsers can select month-first interpretation explicitly.
+    The selected source contract is strict, so an invalid value is never
+    reinterpreted under a different locale order.
+    """
+    value = str(raw or "").strip()
+    if not value:
+        return ""
+
+    match = re.fullmatch(r"(\d{4})-(\d{2})-(\d{2})", value)
+    if match:
+        return _calendar_date(*match.groups())
+
+    match = re.fullmatch(r"(\d{1,2})[/\-.](\d{1,2})[/\-.](\d{4})", value)
+    if match:
+        first, second, year = match.groups()
+        candidate = (
+            (year, second, first)
+            if numeric_order == "day-first"
+            else (year, first, second)
+        )
+        return _calendar_date(*candidate)
+
+    match = re.fullmatch(r"(\d{4})[/\-.](\d{1,2})[/\-.](\d{1,2})", value)
+    if match:
+        year, month, day = match.groups()
+        return _calendar_date(year, month, day)
+
+    lowered = value.lower()
+    for name, month in sorted(MONTHS_MAP.items(), key=lambda item: -len(item[0])):
+        if not re.search(rf"(?<!\w){re.escape(name)}(?!\w)", lowered):
+            continue
+        numbers = [int(number) for number in re.findall(r"\d+", value)]
+        year = next((number for number in numbers if 1000 <= number <= 9999), None)
+        day = next((number for number in numbers if 1 <= number <= 31), None)
+        if year is not None and day is not None:
+            canonical = _calendar_date(year, month, day)
+            if canonical:
+                return canonical
+
+    log.debug("Date value rejected by canonical temporal contract")
+    return ""
+
+
+def normalize_time(raw: str | None) -> str:
+    """Normalize a supported clock time to ``HH:MM`` or return absence.
+
+    Both ``H:MM`` and the WoFF-style ``HhMM`` form are accepted. Calendar-free
+    values such as ``24:00`` are rejected rather than persisted as raw text.
+    """
+    value = str(raw or "").strip()
+    if not value:
+        return ""
+    match = re.fullmatch(r"(\d{1,2})\s*(?::|[hH])\s*(\d{1,2})", value)
+    if not match:
+        return ""
+    try:
+        parsed = time(int(match.group(1)), int(match.group(2)))
+    except ValueError:
+        return ""
+    return parsed.strftime("%H:%M")
+
+
+MissionOrderKey = Tuple[str, int, str, Tuple[str, ...]]
+
+
+def canonical_mission_order_key(
+    raw_date: object,
+    raw_time: object = "",
+    tie_breaker: Iterable[object] = (),
+) -> Optional[MissionOrderKey]:
+    """Return a comparable key for a mission or ``None`` for an invalid date.
+
+    Known canonical times sort after missing or malformed legacy times on the
+    same date. Callers append stable semantic fields as the final tie-breaker so
+    equal timestamps never depend on source or database row order.
+    """
+    canonical_date = normalize_date(str(raw_date or ""))
+    if not canonical_date:
+        return None
+    canonical_time = normalize_time(str(raw_time or ""))
+    stable_tie = tuple(str(value or "") for value in tie_breaker)
+    return canonical_date, int(bool(canonical_time)), canonical_time, stable_tie
 
 # ──────────────────────────────────────────────────────────────
 # CONVERSÃO DE COORDENADAS (Para mapas na Fase 3)

@@ -2,6 +2,7 @@ import unittest
 import tempfile
 import os
 import time
+from datetime import datetime, timedelta
 from typing import Any
 from unittest.mock import patch, mock_open
 
@@ -106,12 +107,13 @@ class TestPerformance(unittest.TestCase):
             pilot, [], [], [], identity=dossier_evidence(1, "performance")
         )
         
-        # Criar 1000 missões únicas (variam a hora para não colidir na UNIQUE constraint)
+        # Criar 1000 missões únicas com datas e horas reais, atravessando a meia-noite.
+        first_mission = datetime(1917, 4, 6, 10, 0)
         missions = [
             WoFFMission(
                 pilotId=pilot.id,
-                date="1917-04-06",
-                time=f"{10 + i//60:02d}:{i%60:02d}", # 10:00 a 26:39
+                date=(first_mission + timedelta(minutes=i)).strftime("%Y-%m-%d"),
+                time=(first_mission + timedelta(minutes=i)).strftime("%H:%M"),
                 missionType="OP",
                 aircraft="SE.5a"
             ) for i in range(1000)

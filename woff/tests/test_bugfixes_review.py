@@ -43,6 +43,50 @@ class TestMissionOrderingFix(unittest.TestCase):
         parser = MagicMock(missions=missions)
         self.assertEqual(get_latest_mission_id(parser), "AFTERNOON")
 
+    def test_unpadded_time_does_not_outrank_a_later_hour(self):
+        missions = [
+            WoFFMission(id="MORNING", date="1918-11-11", time="9:30"),
+            WoFFMission(id="LATER", date="1918-11-11", time="10:30"),
+        ]
+        parser = MagicMock(missions=missions)
+        self.assertEqual(get_latest_mission_id(parser), "LATER")
+
+    def test_invalid_date_cannot_outrank_a_valid_mission(self):
+        missions = [
+            WoFFMission(id="INVALID", date="Tomorrow", time="23:59"),
+            WoFFMission(id="VALID", date="1915-09-20", time="09:30"),
+        ]
+        parser = MagicMock(missions=missions)
+        self.assertEqual(get_latest_mission_id(parser), "VALID")
+
+    def test_known_time_outranks_missing_time_on_the_same_date(self):
+        missions = [
+            WoFFMission(id="UNKNOWN", date="1918-11-11", time=""),
+            WoFFMission(id="KNOWN", date="1918-11-11", time="06:00"),
+        ]
+        parser = MagicMock(missions=missions)
+        self.assertEqual(get_latest_mission_id(parser), "KNOWN")
+
+    def test_timestamp_ties_use_semantic_fields_not_source_order(self):
+        patrol = WoFFMission(
+            id="PATROL", date="1918-11-11", time="10:30",
+            missionType="Patrol", aircraft="Camel",
+        )
+        reconnaissance = WoFFMission(
+            id="RECON", date="1918-11-11", time="10:30",
+            missionType="Reconnaissance", aircraft="Camel",
+        )
+        for missions in ([patrol, reconnaissance], [reconnaissance, patrol]):
+            with self.subTest(order=[mission.id for mission in missions]):
+                parser = MagicMock(missions=missions)
+                self.assertEqual(get_latest_mission_id(parser), "RECON")
+
+    def test_no_valid_mission_returns_none(self):
+        parser = MagicMock(
+            missions=[WoFFMission(id="INVALID", date="1917-02-30", time="09:00")]
+        )
+        self.assertIsNone(get_latest_mission_id(parser))
+
     def test_empty_mission_list_returns_none(self):
         parser = MagicMock(missions=[])
         self.assertIsNone(get_latest_mission_id(parser))
@@ -260,6 +304,7 @@ class TestNewPilotWelcomeMessage(unittest.TestCase):
                 new_rank="Sergeant",
                 old_status=None,   # <- piloto novo: deve permanecer None, não ""
                 old_rank=None,
+                event_date="1917-06-01",
             )
 
             conn = db._get_conn()

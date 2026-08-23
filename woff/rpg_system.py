@@ -10,6 +10,8 @@ from datetime import datetime
 from typing import List, Dict, Any
 import random
 
+from .normalization import normalize_date
+
 class RPGSystem:
     """Calcula o estado RPG usando uma fonte de aleatoriedade configurável.
 
@@ -38,32 +40,29 @@ class RPGSystem:
         
         fatigue = 0
         
-        # HACK ELEGANTE: O formato ISO 8601 (YYYY-MM-DD) permite comparação 
-        # lexicográfica direta. A função max() encontra a data mais recente 
-        # sem necessidade de fazer parse de datas em cada iteração, o que é muito mais rápido.
-        today_str = max((str(m.get("date", "")) for m in missions), default="")
-        if not today_str:
-            return 0
-            
-        try:
-            today = datetime.strptime(today_str, "%Y-%m-%d")
-        except Exception:
+        dated_missions = []
+        for mission in missions:
+            canonical_date = normalize_date(str(mission.get("date", "")))
+            if canonical_date:
+                dated_missions.append((mission, canonical_date))
+
+        if not dated_missions:
             return 0
 
-        for m in missions:
-            try:
-                m_date_str = str(m.get("date", ""))
-                if not m_date_str: continue
-                m_date = datetime.strptime(m_date_str, "%Y-%m-%d")
-                days_ago = (today - m_date).days
-                
-                if 0 <= days_ago <= 3:
-                    is_wounded = m.get("woundsReceived", False)
-                    fatigue += 25 if is_wounded else 15
-                    if m.get("damageReceived", False):
-                        fatigue += 5
-            except Exception:
-                continue
+        today = datetime.strptime(
+            max(canonical_date for _, canonical_date in dated_missions),
+            "%Y-%m-%d",
+        )
+
+        for mission, canonical_date in dated_missions:
+            mission_date = datetime.strptime(canonical_date, "%Y-%m-%d")
+            days_ago = (today - mission_date).days
+
+            if 0 <= days_ago <= 3:
+                is_wounded = mission.get("woundsReceived", False)
+                fatigue += 25 if is_wounded else 15
+                if mission.get("damageReceived", False):
+                    fatigue += 5
 
         # Variável Estocástica: Eventos Raros
         # Ex: "Adrenalina do Combate" reduz a perceived fatigue, ou "Insónia" aumenta.

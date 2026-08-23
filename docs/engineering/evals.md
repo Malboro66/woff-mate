@@ -111,6 +111,51 @@ claim Q5 or approval of Product Gate A or Gate B.
   coalesce a canonical duplicate, process its live generation once, and verify
   drained scheduler shutdown.
 
+### Implemented canonical temporal evals
+
+- `EVAL-DATE-001` is enforced by calendar, parser, write-boundary, legacy-row,
+  campaign-engine, and RPG regressions in
+  `woff/tests/test_normalization.py`, `woff/tests/test_xml_parser.py`,
+  `woff/tests/test_mission_log_parser.py`,
+  `woff/tests/test_temporal_contract.py`,
+  `woff/tests/test_rpg_system.py`, and
+  `woff/tests/test_campaign_engine.py`, plus initial/runtime filesystem-time
+  regressions in `woff/tests/test_stable_snapshot.py`. New missions require a
+  real date and, when supplied, a real clock time. Accepted values are stored
+  as `YYYY-MM-DD` and `HH:MM`; missing time is `""`. Day-first numeric dates
+  are the default, while the confirmed `Mission.log` format is parsed
+  month-first explicitly. In flexible campaign XML, a decimal-only generic
+  `Time` value is retained as flight duration rather than misclassified as a
+  clock; explicit clock fields and clock-shaped generic values still use the
+  strict time contract.
+  Invalid parser records are rejected and invalid direct writes are quarantined
+  with category-only diagnostics.
+- `EVAL-DATE-002` is enforced by
+  `woff/tests/test_bugfixes_review.py` and
+  `woff/tests/test_temporal_contract.py`. Date-dependent reads canonicalize in
+  memory without modifying an existing database, exclude rows with invalid
+  dates, demote missing or malformed legacy times below known times on the same
+  date, and break equal timestamps by mission type, aircraft, sector, source,
+  and stable row ID. RPG history is therefore valid-only and newest-first.
+
+`get_pilot_game_date()` returns `None` when neither mission history nor a real
+career start date exists. Mission, life, and wingman derived effects reject a
+missing game date instead of inventing `1917-01-01`. This issue performs no
+schema migration and no cleanup or rewrite of an existing campaign database.
+Valid legacy date/time spellings participate in the same in-memory mission
+identity during writes and lookups, so a canonical reimport retains the
+original row ID without rewriting its stored text. Malformed legacy values are
+not assumed to identify a valid incoming mission. Child victories supplied
+with that reimport are linked to the retained stored mission ID rather than the
+discarded incoming ID. If an incoming mission is quarantined for an invalid
+date, invalid time, or ID collision, victories explicitly linked to that
+rejected ID are quarantined with it while independent victories remain valid.
+Filesystem creation/modification times remain observation metadata and are
+never passed to campaign effects as historical game dates. A Dossier wingman
+comparison uses the latest stored game date when available; if the career has
+none yet, it may use the canonical incoming Dossier start date before the core
+merge so that the first dated roster event is not lost.
+
 ### Implemented career identity evals
 
 - `EVAL-IDENTITY-001` is enforced by

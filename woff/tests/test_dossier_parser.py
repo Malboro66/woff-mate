@@ -71,7 +71,13 @@ class TestWoFFDossierParser(unittest.TestCase):
         self.mock_lines[3] = "Capitaine"
         self.mock_lines[4] = "James"
         self.mock_lines[5] = "Hartley"
+        self.mock_lines[6] = "20"
+        self.mock_lines[7] = "9"
+        self.mock_lines[8] = "1915"
         self.mock_lines[11] = "1520"  # flminutes
+        self.mock_lines[12] = "11"
+        self.mock_lines[13] = "11"
+        self.mock_lines[14] = "1918"
         self.mock_lines[16] = "5"     # claims
         self.mock_lines[17] = "3"     # kills
         self.mock_lines[19] = "Medaille Militaire;1915-05-10"
@@ -105,6 +111,8 @@ class TestWoFFDossierParser(unittest.TestCase):
         self.assertEqual(self.parser.pilot.nation, "French")
         self.assertEqual(self.parser.pilot.photo, "1")
         self.assertEqual(self.parser.pilot.killsCount, 3)
+        self.assertEqual(self.parser.pilot.startDate, "1915-09-20")
+        self.assertEqual(self.parser.pilot.enlisted, "1918-11-11")
 
     def test_parse_dossier_wrong_filename(self):
         """Testa que chave XOR errada não produz o piloto correto."""
@@ -142,6 +150,21 @@ class TestWoFFDossierParser(unittest.TestCase):
         d = self.parser.decorations[0]
         self.assertEqual(d.name, "Medaille Militaire")
         self.assertEqual(d.date, "1915-05-10")
+
+    def test_impossible_dossier_dates_are_not_exposed_as_canonical_values(self):
+        self.mock_lines[6] = "30"
+        self.mock_lines[7] = "2"
+        self.mock_lines[8] = "1917"
+        self.mock_lines[19] = "Medaille Militaire;1917-02-30"
+        encoded = _encode_dossier(self.mock_lines, self.filename)
+
+        with patch("builtins.open", mock_open(read_data=encoded)):
+            self.assertTrue(self.parser.parse(self.filename))
+
+        self.assertIsNotNone(self.parser.pilot)
+        assert self.parser.pilot is not None
+        self.assertEqual(self.parser.pilot.startDate, "")
+        self.assertEqual(self.parser.decorations[0].date, "")
 
 if __name__ == "__main__":
     unittest.main()

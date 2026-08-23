@@ -216,7 +216,8 @@ class TestCampaignEngine(unittest.TestCase):
         )
         
         self.engine.process_life_events(
-            pilot.id, "Active", "Captain", "Active", "Lieutenant"
+            pilot.id, "Active", "Captain", "Active", "Lieutenant",
+            event_date="1917-06-01",
         )
         
         conn = sqlite3.connect(self.tmp_db.name)
@@ -229,6 +230,91 @@ class TestCampaignEngine(unittest.TestCase):
         self.assertIn("captain", narrative)
         
         conn.close()
+
+    def test_life_event_without_a_game_date_is_not_persisted(self):
+        pilot = WoFFPilot(
+            name="No Date Pilot",
+            rank="Lieutenant",
+            status="Active",
+            source_file="Pilot1Dossier.txt",
+        )
+        self.db.merge_and_write(
+            pilot, [], [], [], identity=dossier_evidence(1)
+        )
+
+        result = self.engine.process_life_events(
+            pilot.id, "Active", "Captain", "Active", "Lieutenant"
+        )
+
+        self.assertFalse(result)
+        self.assertEqual(
+            self.db._get_conn().execute(
+                "SELECT COUNT(*) FROM diary_entries WHERE pilotId = ?",
+                (pilot.id,),
+            ).fetchone(),
+            (0,),
+        )
+
+    def test_life_event_without_explicit_date_uses_campaign_calendar(self):
+        pilot = WoFFPilot(
+            name="Historical Date Pilot",
+            rank="Lieutenant",
+            status="Active",
+            startDate="1917-04-06",
+            source_file="Pilot1Dossier.txt",
+        )
+        self.db.merge_and_write(
+            pilot, [], [], [], identity=dossier_evidence(1)
+        )
+
+        result = self.engine.process_life_events(
+            pilot.id, "Active", "Captain", "Active", "Lieutenant"
+        )
+
+        self.assertTrue(result)
+        self.assertEqual(
+            self.db._get_conn().execute(
+                "SELECT entry_date FROM diary_entries WHERE pilotId = ?",
+                (pilot.id,),
+            ).fetchone(),
+            ("1917-04-06",),
+        )
+
+    def test_invalid_legacy_mission_does_not_create_derived_state(self):
+        pilot = WoFFPilot(
+            name="Legacy Date Pilot",
+            source_file="Pilot1Dossier.txt",
+        )
+        self.db.merge_and_write(
+            pilot, [], [], [], identity=dossier_evidence(1)
+        )
+        with self.db.transaction():
+            self.db._get_conn().execute(
+                """
+                INSERT INTO missions
+                    (id, pilotId, date, time, missionType, aircraft)
+                VALUES ('legacy-invalid', ?, 'Tomorrow', '23:59', 'Patrol', 'Camel')
+                """,
+                (pilot.id,),
+            )
+
+        result = self.engine.process_mission_end(pilot.id, "legacy-invalid")
+
+        self.assertFalse(result)
+        self.assertEqual(
+            self.db._get_conn().execute(
+                "SELECT COUNT(*) FROM pilot_rpg_stats WHERE pilotId = ?",
+                (pilot.id,),
+            ).fetchone(),
+            (0,),
+        )
+        self.assertEqual(
+            self.db._get_conn().execute(
+                "SELECT COUNT(*) FROM diary_entries WHERE pilotId = ?",
+                (pilot.id,),
+            ).fetchone(),
+            (0,),
+        )
 
     def test_life_event_for_duplicate_name_uses_explicit_target_id(self):
         first = WoFFPilot(

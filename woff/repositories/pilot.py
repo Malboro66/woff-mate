@@ -20,7 +20,9 @@ from ..identity import (
     pilot_slot,
 )
 from ..models import WoFFMission, WoFFPilot, WoFFVictory
+from ..normalization import normalize_date
 from .base import BaseRepository
+from .mission import canonicalized_mission_mapping
 
 log = logging.getLogger("WoFFWatch")
 _PLACEHOLDER_NAME = re.compile(r"^Pilot [1-9][0-9]*$")
@@ -338,27 +340,32 @@ class PilotRepository(BaseRepository):
         """Return an ID only when the display name is unambiguous."""
         return self.resolve_pilot_id(pilot_name)
 
-    def get_pilot_game_date(self, pilot_id: str) -> str:
-        """Return the most recent mission date or the career start date."""
+    def get_pilot_game_date(self, pilot_id: str) -> Optional[str]:
+        """Return the latest real game date, or ``None`` when none is known."""
         with self._lock:
             try:
-                row = self._fetch_one(
-                    "SELECT date FROM missions WHERE pilotId = ? "
-                    "ORDER BY date DESC LIMIT 1",
+                rows = self._fetch_all(
+                    "SELECT date FROM missions WHERE pilotId = ?",
                     (pilot_id,),
                 )
-                if row and row[0]:
-                    return str(row[0])
+                valid_dates = [
+                    canonical
+                    for row in rows
+                    if (canonical := normalize_date(str(row[0] or "")))
+                ]
+                if valid_dates:
+                    return max(valid_dates)
 
                 row = self._fetch_one(
                     "SELECT startDate FROM pilots WHERE id = ?", (pilot_id,)
                 )
-                if row and row[0]:
-                    return str(row[0])
-                return "1917-01-01"
+                if not row:
+                    return None
+                start_date = normalize_date(str(row[0] or ""))
+                return start_date or None
             except sqlite3.Error:
                 log.exception("Erro ao buscar data do jogo")
-                return "1917-01-01"
+                return None
 
     def get_mission_and_history(
         self, pilot_identifier: str, mission_id: str
@@ -391,17 +398,28 @@ class PilotRepository(BaseRepository):
                 if not current_mission:
                     return dict(pilot), None, []
 
-                history = conn.execute(
+                history_rows = conn.execute(
                     """
                     SELECT * FROM missions WHERE pilotId = ?
-                    ORDER BY date DESC, time DESC LIMIT 10
                     """,
                     (pilot["id"],),
                 ).fetchall()
+
+                current = dict(current_mission)
+                canonical_current = canonicalized_mission_mapping(current)
+                if canonical_current is not None:
+                    current = canonical_current[1]
+
+                ordered_history = []
+                for mission in history_rows:
+                    canonical = canonicalized_mission_mapping(dict(mission))
+                    if canonical is not None:
+                        ordered_history.append(canonical)
+                ordered_history.sort(key=lambda item: item[0], reverse=True)
                 return (
                     dict(pilot),
-                    dict(current_mission),
-                    [dict(mission) for mission in history],
+                    current,
+                    [mission for _, mission in ordered_history[:10]],
                 )
             except sqlite3.Error:
                 log.exception("Erro ao buscar missão/histórico")

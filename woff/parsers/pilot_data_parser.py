@@ -4,10 +4,14 @@ Parser de Dados do Piloto (parsers/pilot_data_parser.py)
 ══════════════════════════════════════════════════════════════════
 """
 import os, re, logging
-from datetime import datetime
 from typing import List, Optional
 from ..models import WoFFPilot, WoFFMission, WoFFVictory
-from ..normalization import normalize_mission_type, normalize_victory_type, normalize_date
+from ..normalization import (
+    normalize_date,
+    normalize_mission_type,
+    normalize_time,
+    normalize_victory_type,
+)
 
 log = logging.getLogger("WoFFWatch")
 
@@ -49,8 +53,11 @@ class WoFFPilotDataParser:
         minute = parts[4].strip()
         if not all(value.isdigit() for value in (day, month, year, hour, minute)):
             raise ValueError("date or time contains a non-numeric component")
-        parsed = datetime(int(year), int(month), int(day), int(hour), int(minute))
-        return parsed.strftime("%Y-%m-%d"), parsed.strftime("%H:%M")
+        canonical_date = normalize_date(f"{day}/{month}/{year}")
+        canonical_time = normalize_time(f"{hour}:{minute}")
+        if not canonical_date or not canonical_time:
+            raise ValueError("date or time is outside the calendar contract")
+        return canonical_date, canonical_time
 
     @staticmethod
     def _log_rejected(path: str, line_number: int, category: str,

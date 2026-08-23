@@ -37,6 +37,15 @@ class TestRPGSystem(unittest.TestCase):
             {"date": "1917-01-01", "woundsReceived": False, "damageReceived": False},  # Antiga
         ]
         self.assertEqual(self.rpg.calculate_fatigue(missions), 15)
+
+    def test_fatigue_ignores_invalid_candidates_when_selecting_today(self):
+        missions = [
+            {"date": "Tomorrow", "woundsReceived": True},
+            {"date": "1918-11-11", "woundsReceived": False, "damageReceived": False},
+            {"date": "1918-11-01", "woundsReceived": True},
+        ]
+
+        self.assertEqual(self.rpg.calculate_fatigue(missions), 15)
     
     def test_morale_victory_boost(self):
         """Testa que vitórias aumentam a moral."""

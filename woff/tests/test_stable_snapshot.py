@@ -3,7 +3,6 @@ import os
 import threading
 from typing import Any, cast
 from unittest.mock import MagicMock
-from datetime import datetime
 
 import pytest
 
@@ -201,7 +200,10 @@ def test_unsupported_text_filename_never_reaches_snapshot_reader():
     processor.guard.acquire.assert_not_called()
 
 
-def test_dossier_side_effects_use_verified_generation_timestamp(monkeypatch):
+@pytest.mark.parametrize("event_type", ["initial", "modified"])
+def test_dossier_side_effects_never_use_filesystem_timestamp(
+    event_type, monkeypatch
+):
     modified_ns = 1_493_596_200_000_000_000
     snapshot = StableFileSnapshot(
         b"verified", "Pilot1Dossier.txt", "Pilot1Dossier.txt",
@@ -211,6 +213,7 @@ def test_dossier_side_effects_use_verified_generation_timestamp(monkeypatch):
     pilot.name = "Verified Pilot"
     pilot.status = "Active"
     pilot.rank = "Captain"
+    pilot.startDate = "1917-04-01"
 
     class Parser:
         decorations = []
@@ -226,14 +229,17 @@ def test_dossier_side_effects_use_verified_generation_timestamp(monkeypatch):
     database = MagicMock()
     database.resolve_bound_dossier_id.return_value = "pilot-id"
     database.get_pilot_state_by_id.return_value = ("Active", "Lieutenant")
+    database.get_pilot_game_date.return_value = "1917-05-01"
     database.merge_and_write.return_value = "pilot-id"
     engine = MagicMock()
     processor = FileProcessor(database, engine)
-    processor._process_text("Pilot1Dossier.txt", "pilot1dossier.txt", snapshot)
+    processor.guard = MagicMock()
+    processor.guard.acquire.return_value = snapshot
 
-    expected = datetime.fromtimestamp(modified_ns / 1_000_000_000).strftime("%Y-%m-%d")
-    assert engine.process_wingmen_changes.call_args.kwargs["event_date"] == expected
-    assert engine.process_life_events.call_args.kwargs["event_date"] == expected
+    assert processor.process("Pilot1Dossier.txt", event_type) == snapshot.generation
+
+    assert "event_date" not in engine.process_wingmen_changes.call_args.kwargs
+    assert "event_date" not in engine.process_life_events.call_args.kwargs
 
 
 @pytest.mark.parametrize(("path", "parser_target"), [
@@ -573,6 +579,7 @@ def test_dossier_rejection_rolls_back_derived_effects_and_retry_commits_once(
     pilot_name = "Arthur Test"
     old_pilot = WoFFPilot(
         id=pilot_id, name=pilot_name, rank="Lieutenant", status="Active",
+        startDate="1917-04-30",
         source_file="Pilot1Dossier.txt",
     )
     old_wingman = WoFFWingman(
@@ -593,6 +600,7 @@ def test_dossier_rejection_rolls_back_derived_effects_and_retry_commits_once(
 
     new_pilot = WoFFPilot(
         id=pilot_id, name=pilot_name, rank="Captain", status="Wounded",
+        startDate="1917-04-30",
         source_file="Pilot1Dossier.txt",
     )
     new_wingman = WoFFWingman(
@@ -683,6 +691,81 @@ def test_dossier_rejection_rolls_back_derived_effects_and_retry_commits_once(
             ("deterministic wingman event",),
             ("existing diary entry",),
         ]
+    finally:
+        database.close()
+
+
+def test_incoming_dossier_date_preserves_pre_merge_wingman_event(
+    tmp_path, monkeypatch
+):
+    database = DatabaseManager(str(tmp_path / "dossier-first-date.db"))
+    pilot_id = "pilot-first-date"
+    pilot_name = "Arthur First Date"
+    old_pilot = WoFFPilot(
+        id=pilot_id, name=pilot_name, rank="Lieutenant", status="Active",
+        source_file="Pilot1Dossier.txt",
+    )
+    old_wingman = WoFFWingman(
+        id="wingman-first-date", pilotId=pilot_id, rank="Sergeant",
+        fName="William", sName="First Date", status="Active",
+    )
+    assert database.merge_and_write(
+        old_pilot,
+        [],
+        [],
+        [],
+        [old_wingman],
+        identity=dossier_evidence(1, "first-date-old"),
+    ) == pilot_id
+    assert database.get_pilot_game_date(pilot_id) is None
+
+    new_pilot = WoFFPilot(
+        id=pilot_id, name=pilot_name, rank="Lieutenant", status="Active",
+        startDate="1917-04-30", source_file="Pilot1Dossier.txt",
+    )
+    new_wingman = WoFFWingman(
+        id="wingman-first-date", pilotId=pilot_id, rank="Sergeant",
+        fName="William", sName="First Date", status="KIA",
+    )
+
+    class Parser:
+        def __init__(self):
+            self.pilot = new_pilot
+            self.wingmen = [new_wingman]
+            self.decorations = []
+
+        def parse_bytes(self, data, name):
+            return True
+
+    monkeypatch.setattr("woff.handler.WoFFDossierParser", Parser)
+    monkeypatch.setattr(
+        narrative_generator, "generate_wingman_event",
+        lambda *_args: "first dated wingman event",
+    )
+
+    path = str(tmp_path / "Pilot1Dossier.txt")
+    generation = FileGeneration(
+        1, 1, 8, 1_493_596_200_000_000_000, 1, "d" * 64
+    )
+    snapshot = StableFileSnapshot(
+        b"verified", path, "Pilot1Dossier.txt", generation, 2,
+    )
+    processor = FileProcessor(database, CampaignEngine(database))
+    processor.guard = cast(Any, MagicMock())
+    processor.guard.acquire.return_value = snapshot
+
+    try:
+        assert processor.process(path, "initial") == generation
+        assert database.get_wingmen_by_pilot(pilot_id) == [
+            {"fName": "William", "sName": "First Date", "status": "KIA"}
+        ]
+        assert database._get_conn().execute(
+            """
+            SELECT entry_date, narrative FROM diary_entries
+            WHERE pilotId = ?
+            """,
+            (pilot_id,),
+        ).fetchall() == [("1917-04-30", "first dated wingman event")]
     finally:
         database.close()
 
@@ -787,11 +870,13 @@ def test_dossier_life_event_receives_original_optional_prior_state(
     database = DatabaseManager(str(tmp_path / f"prior-{seed_existing}.db"))
     pilot = WoFFPilot(
         id="pilot-1", name="State Pilot", rank="Captain", status="Active",
+        startDate="1917-04-30",
         source_file="Pilot1Dossier.txt",
     )
     if seed_existing:
         old = WoFFPilot(
             id=pilot.id, name=pilot.name, rank="Lieutenant", status="Active",
+            startDate="1917-04-30",
             source_file=pilot.source_file,
         )
         assert database.merge_and_write(

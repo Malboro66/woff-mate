@@ -12,7 +12,8 @@ from ..normalization import (
     normalize_mission_type,
     normalize_status,
     normalize_victory_type,
-    normalize_date
+    normalize_date,
+    normalize_time,
 )
 
 class TestNormalization(unittest.TestCase):
@@ -93,6 +94,13 @@ class TestNormalization(unittest.TestCase):
         self.assertEqual(normalize_date("06/04/1917"), "1917-04-06")
         self.assertEqual(normalize_date("6.4.1917"), "1917-04-06")
 
+    def test_normalize_date_month_first_is_explicit_for_ambiguous_sources(self):
+        self.assertEqual(normalize_date("9/10/1915"), "1915-10-09")
+        self.assertEqual(
+            normalize_date("9/10/1915", numeric_order="month-first"),
+            "1915-09-10",
+        )
+
     def test_normalize_date_yyyy_mm_dd(self):
         self.assertEqual(normalize_date("1917/04/06"), "1917-04-06")
 
@@ -109,7 +117,23 @@ class TestNormalization(unittest.TestCase):
         self.assertEqual(normalize_date(""), "")
 
     def test_normalize_date_invalid(self):
-        self.assertEqual(normalize_date("Tomorrow"), "Tomorrow")
+        self.assertEqual(normalize_date("Tomorrow"), "")
+        self.assertEqual(normalize_date("1917-02-30"), "")
+        self.assertEqual(normalize_date("1918-02-29"), "")
+
+    def test_normalize_date_validates_leap_years(self):
+        self.assertEqual(normalize_date("1916-02-29"), "1916-02-29")
+
+    def test_normalize_time_uses_canonical_hour_and_minute(self):
+        self.assertEqual(normalize_time("9:30"), "09:30")
+        self.assertEqual(normalize_time("09:30"), "09:30")
+        self.assertEqual(normalize_time("9h30"), "09:30")
+
+    def test_normalize_time_distinguishes_absence_from_accepted_values(self):
+        self.assertEqual(normalize_time(""), "")
+        self.assertEqual(normalize_time("24:00"), "")
+        self.assertEqual(normalize_time("09:60"), "")
+        self.assertEqual(normalize_time("Later"), "")
 
 if __name__ == "__main__":
     unittest.main()
