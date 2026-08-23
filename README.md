@@ -70,8 +70,9 @@ O ciclo ativo é o **3.3.0: integridade e ingestão**, acompanhado pela Issue
 [#42](https://github.com/Malboro66/woff-mate/issues/42), concluída pela PR
 [#83](https://github.com/Malboro66/woff-mate/pull/83), já foram concluídas.
 A prioridade técnica atual é a Issue
-[#40](https://github.com/Malboro66/woff-mate/issues/40), que trata datas
-canônicas e ordenação determinística de missões.
+[#70](https://github.com/Malboro66/woff-mate/issues/70), que protege a identidade
+das carreiras contra reutilização de slots, nomes repetidos e entradas sem
+identidade resolvida.
 
 O backlog operacional está no
 [GitHub Project WoFF Mate Development](https://github.com/users/Malboro66/projects/1).
@@ -80,11 +81,12 @@ repositório permanecem como fontes técnicas.
 
 Prioridades atuais:
 
-1. validar datas canônicas e ordenação determinística de missões (#40)
-2. atualizar missões existentes sem degradar dados mais ricos (#39, após #40)
-3. preservar identidade de carreira e proveniência de status em fontes parciais (#70 e #71)
-4. garantir atomicidade do Dossier e merges sem perda para vitórias e condecorações (#72 e #73)
-5. reprocessar ficheiros dependentes sem perda quando o Dossier ainda não está disponível (#27, após #39, #70 e #71)
+1. preservar a identidade de carreira entre reutilizações de slot e nomes repetidos (#70)
+2. preservar a proveniência de status em fontes parciais (#71)
+3. validar datas canônicas e ordenação determinística de missões (#40)
+4. atualizar missões existentes sem degradar dados mais ricos (#39, após #40)
+5. garantir atomicidade do Dossier e merges sem perda para vitórias e condecorações (#72 e #73)
+6. reprocessar ficheiros dependentes sem perda quando o Dossier ainda não está disponível (#27, após #39, #70 e #71)
 
 A investigação do Dossier continua relevante, mas não representa o único
 bloqueador do projeto.
