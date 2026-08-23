@@ -13,7 +13,7 @@ import logging
 import xml.etree.ElementTree as ET
 from typing import Optional, List, Dict, Any
 from ..models import WoFFMission, WoFFPilot
-from ..normalization import normalize_date, normalize_coordinates
+from ..normalization import normalize_date, normalize_time, normalize_coordinates
 
 log = logging.getLogger("WoFFWatch")
 
@@ -40,6 +40,12 @@ class WoFFMissionLogParser:
     def parse_bytes(self, data: bytes, source_name: str) -> bool:
         """Parse verified bytes without reopening their source path."""
         log.info(f"[LOG] Analisando snapshot: {source_name}")
+        self.mission = None
+        self.pilot = None
+        self.briefing = ""
+        self.debriefing = ""
+        self.squad_members = []
+        self.flight_plan = []
         content = data.decode("utf-8", errors="replace")
 
         # 1. Extrair o bloco XML <Mission>...</Mission>
@@ -62,11 +68,24 @@ class WoFFMissionLogParser:
             log.warning("  Tag <Params> não encontrada no XML do log. Abortando parse.")
             return False
             
-        date_str = params.get("Date", "") # Formato: 9/20/1915
-        self.mission = WoFFMission()
-        parts = date_str.split("/")
-        if len(parts) == 3:
-            self.mission.date = f"{parts[2]}-{parts[0].zfill(2)}-{parts[1].zfill(2)}"
+        date_str = params.get("Date", "")  # Formato confirmado: 9/20/1915
+        time_str = params.get("Time", "")
+        canonical_date = normalize_date(date_str, numeric_order="month-first")
+        canonical_time = normalize_time(time_str)
+        if not canonical_date:
+            log.warning(
+                "[LOG] Mission record rejected: source=%s category=invalid-date",
+                os.path.basename(source_name),
+            )
+            return False
+        if time_str.strip() and not canonical_time:
+            log.warning(
+                "[LOG] Mission record rejected: source=%s category=invalid-time",
+                os.path.basename(source_name),
+            )
+            return False
+
+        self.mission = WoFFMission(date=canonical_date, time=canonical_time)
         
         self.mission.weather = params.get("Weather", "Unknown").replace("OFFDynamicMissionWeather.xml", "Dynamic")
 

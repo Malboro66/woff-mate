@@ -26,7 +26,8 @@ from ..normalization import (
     normalize_mission_type,
     normalize_status,
     normalize_victory_type,
-    normalize_date
+    normalize_date,
+    normalize_time,
 )
 
 log = logging.getLogger("WoFFWatch")
@@ -207,13 +208,19 @@ class WoFFXMLParser:
             elem.get("date") or elem.get("Date") or
             self._find(elem, "Date","MissionDate","Datum","date") or ""
         )
-        m.date = normalize_date(raw_date)
-        
-        # FIX: Extrair a hora da missão para deduplicação correta
-        m.time = self._find(elem, "Time", "time", "Uhrzeit") or ""
-        
-        if not m.date:
+        raw_time = self._find(elem, "Time", "time", "Uhrzeit") or ""
+        canonical_date = normalize_date(raw_date)
+        canonical_time = normalize_time(raw_time)
+
+        if not canonical_date:
+            log.warning("[XML] Mission rejected: category=invalid-date")
             return None
+        if raw_time.strip() and not canonical_time:
+            log.warning("[XML] Mission rejected: category=invalid-time")
+            return None
+
+        m.date = canonical_date
+        m.time = canonical_time
 
         m.missionType   = normalize_mission_type(
             elem.get("type") or elem.get("Type") or

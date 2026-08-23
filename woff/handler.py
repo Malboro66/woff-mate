@@ -12,7 +12,6 @@ from __future__ import annotations
 import logging
 import ntpath
 import os
-from datetime import datetime
 from typing import Optional, List
 
 from watchdog.events import FileSystemEventHandler
@@ -36,6 +35,7 @@ from .identity import (
     dossier_source_name,
     pilot_slot,
 )
+from .normalization import canonical_mission_order_key
 
 from .parsers.xml_parser import WoFFXMLParser
 from .parsers.mission_log_parser import WoFFMissionLogParser
@@ -54,17 +54,41 @@ def _safe_filename(path: str) -> str:
     return ntpath.basename(path.replace("/", "\\"))
 
 
-def get_latest_mission_id(parser):
-    """Return the newest mission id from a parser, or None when no missions exist.
+def _mission_order_key(mission):
+    return canonical_mission_order_key(
+        mission.date,
+        mission.time,
+        (
+            mission.missionType,
+            mission.aircraft,
+            mission.sector,
+            mission.source_file,
+            mission.id,
+        ),
+    )
+
+
+def get_latest_mission(parser):
+    """Return the newest valid mission under the canonical temporal contract.
 
     Parser mission lists preserve source order, which may be chronological from
-    oldest to newest. Consumers that trigger RPG/diary processing need the
-    mission with the greatest (date, time) tuple instead of assuming source order.
+    oldest to newest. Known times outrank missing times on the same date, and
+    semantic fields provide a stable final tie-breaker.
     """
-    if not parser.missions:
+    candidates = []
+    for mission in parser.missions:
+        order_key = _mission_order_key(mission)
+        if order_key is not None:
+            candidates.append((order_key, mission))
+    if not candidates:
         return None
-    latest = max(parser.missions, key=lambda m: (m.date, m.time))
-    return latest.id
+    return max(candidates, key=lambda item: item[0])[1]
+
+
+def get_latest_mission_id(parser):
+    """Return the deterministic latest valid mission ID, if one exists."""
+    latest = get_latest_mission(parser)
+    return latest.id if latest is not None else None
 
 
 class FileStabilityGuard(StableSnapshotReader):
@@ -192,9 +216,8 @@ class FileProcessor:
             if not real_pilot_id:
                 return False
             # FIX: Se houver missões e um pilot_id real, processa o fim de missão.
-            latest_mission_id = get_latest_mission_id(parser)
-            if real_pilot_id and latest_mission_id:
-                latest_mission = max(parser.missions, key=lambda m: (m.date, m.time))
+            latest_mission = get_latest_mission(parser)
+            if real_pilot_id and latest_mission is not None:
                 persisted_mission_id = self.db_manager.get_mission_id_by_natural_key(
                     real_pilot_id, latest_mission
                 )
@@ -230,14 +253,13 @@ class FileProcessor:
                     with self.db_manager.transaction():
                         # Compare before the merge, but roll derived writes back if
                         # core persistence rejects this generation.
-                        event_date = datetime.fromtimestamp(
-                            snapshot.generation.modified_ns / 1_000_000_000
-                        ).strftime("%Y-%m-%d") if snapshot is not None else None
+                        # Filesystem timestamps are observation metadata, never
+                        # dates in the historical campaign calendar. The engine
+                        # resolves an existing canonical game date instead.
                         if prior_pilot_id is not None:
                             self.campaign_engine.process_wingmen_changes(
                                 prior_pilot_id,
                                 parser.wingmen,
-                                event_date=event_date,
                             )
 
                         real_pilot_id = self.db_manager.merge_and_write(
@@ -266,7 +288,6 @@ class FileProcessor:
                                 str(new_rank),
                                 old_status,
                                 old_rank,
-                                event_date=event_date,
                             )
                 except _PersistenceRejected:
                     return False
@@ -299,9 +320,8 @@ class FileProcessor:
             if not persisted_pilot_id:
                 return False
             # FIX: Só invoca o RPG se tivermos um ID real e missões.
-            latest_mission_id = get_latest_mission_id(parser)
-            if latest_mission_id:
-                latest_mission = max(parser.missions, key=lambda m: (m.date, m.time))
+            latest_mission = get_latest_mission(parser)
+            if latest_mission is not None:
                 persisted_mission_id = self.db_manager.get_mission_id_by_natural_key(
                     persisted_pilot_id, latest_mission
                 )

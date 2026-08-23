@@ -13,6 +13,7 @@ from .database import DatabaseManager
 from .rpg_system import rpg_system
 from .narrative_generator import narrative_generator
 from .models import WoFFWingman
+from .normalization import normalize_date
 
 log = logging.getLogger("WoFFWatch")
 
@@ -46,6 +47,15 @@ class CampaignEngine:
             )
             return
 
+        mission_date = normalize_date(str(current_mission.get("date", "")))
+        if not mission_date:
+            log.warning(
+                "Mission-derived state rejected: category=invalid-game-date"
+            )
+            return False
+        current_mission = dict(current_mission)
+        current_mission["date"] = mission_date
+
         real_pilot_id = pilot_dict["id"]
 
         fatigue = rpg_system.calculate_fatigue(m_list)
@@ -60,8 +70,7 @@ class CampaignEngine:
         if not narrative:
             return False
 
-        # FIX: Usar data da missão em vez de datetime.now()
-        entry_date = current_mission.get("date", "") or self.db_manager.get_pilot_game_date(real_pilot_id)
+        entry_date = mission_date
 
         try:
             with self.db_manager.transaction():
@@ -98,16 +107,25 @@ class CampaignEngine:
 
         log.info("[RPG] Evento de vida detetado para carreira verificada.")
 
-        # FIX: Usar data do jogo se não fornecida
-        today = event_date or self.db_manager.get_pilot_game_date(pilot_id)
+        today = (
+            normalize_date(event_date)
+            if event_date is not None
+            else self.db_manager.get_pilot_game_date(pilot_id)
+        )
+        if not today:
+            log.warning("Life event rejected: category=missing-game-date")
+            return False
 
-        self.db_manager.save_diary_entry(
+        saved = self.db_manager.save_diary_entry(
             pilot_id=pilot_id,
             mission_id=None,
             entry_date=today,
             narrative=narrative
         )
+        if not saved:
+            return False
         log.info("  📝 Diário de Bordo atualizado com Evento de Vida.")
+        return True
 
     def process_wingmen_changes(
         self, pilot_id: str, new_wingmen: List[WoFFWingman],
@@ -149,8 +167,17 @@ class CampaignEngine:
             if name not in old_map:
                 events.append(("new", name))
 
-        # FIX: Usar data do jogo se não fornecida
-        today = event_date or self.db_manager.get_pilot_game_date(pilot_id)
+        if not events:
+            return True
+
+        today = (
+            normalize_date(event_date)
+            if event_date is not None
+            else self.db_manager.get_pilot_game_date(pilot_id)
+        )
+        if not today:
+            log.warning("Wingman events rejected: category=missing-game-date")
+            return False
 
         for event_type, name in events:
             narrative = narrative_generator.generate_wingman_event(name, event_type)
@@ -161,3 +188,4 @@ class CampaignEngine:
                 log.info(
                     f"  📝 Evento de Wingman registado: {name} ({event_type})"
                 )
+        return True

@@ -1582,7 +1582,7 @@ class DatabaseManager:
         """Return the persisted ID selected by the mission natural key."""
         return self._missions.get_id_by_natural_key(pilot_id, mission)
 
-    def get_pilot_game_date(self, pilot_id: str) -> str:
+    def get_pilot_game_date(self, pilot_id: str) -> Optional[str]:
         return self._pilots.get_pilot_game_date(pilot_id)
 
     def update_pilot_rpg_stats(

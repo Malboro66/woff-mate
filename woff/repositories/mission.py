@@ -15,10 +15,44 @@ import logging
 from typing import List, Dict, Any, Optional, Tuple
 
 from ..models import WoFFMission, WoFFVictory, WoFFDecoration
+from ..normalization import (
+    MissionOrderKey,
+    canonical_mission_order_key,
+    normalize_date,
+    normalize_time,
+)
 
 from .base import BaseRepository
 
 log = logging.getLogger("WoFFWatch")
+
+
+def mission_mapping_order_key(mission: Dict[str, Any]) -> Optional[MissionOrderKey]:
+    """Return the shared deterministic order for a persisted mission mapping."""
+    return canonical_mission_order_key(
+        mission.get("date"),
+        mission.get("time"),
+        (
+            mission.get("missionType"),
+            mission.get("aircraft"),
+            mission.get("sector"),
+            mission.get("source_file"),
+            mission.get("id"),
+        ),
+    )
+
+
+def canonicalized_mission_mapping(
+    mission: Dict[str, Any],
+) -> Optional[Tuple[MissionOrderKey, Dict[str, Any]]]:
+    """Canonicalize a readable legacy row without modifying the database."""
+    order_key = mission_mapping_order_key(mission)
+    if order_key is None:
+        return None
+    canonical = dict(mission)
+    canonical["date"] = order_key[0]
+    canonical["time"] = order_key[2]
+    return order_key, canonical
 
 
 class MissionRepository(BaseRepository):
@@ -35,6 +69,17 @@ class MissionRepository(BaseRepository):
         cursor = self._conn.cursor()
         added_m = 0
         for m in missions:
+            raw_time = str(m.time or "").strip()
+            canonical_date = normalize_date(m.date)
+            canonical_time = normalize_time(raw_time)
+            if not canonical_date:
+                log.warning("Mission quarantined at write boundary: category=invalid-date")
+                continue
+            if raw_time and not canonical_time:
+                log.warning("Mission quarantined at write boundary: category=invalid-time")
+                continue
+            m.date = canonical_date
+            m.time = canonical_time
             m.pilotId = pilot_id
             cursor.execute("""
                 INSERT OR IGNORE INTO missions (
@@ -89,11 +134,16 @@ class MissionRepository(BaseRepository):
             conn.row_factory = sqlite3.Row
             try:
                 rows = conn.execute(
-                    """SELECT * FROM missions WHERE pilotId = ?
-                       ORDER BY date DESC, time DESC LIMIT ?""",
-                    (pilot_id, limit),
+                    "SELECT * FROM missions WHERE pilotId = ?",
+                    (pilot_id,),
                 ).fetchall()
-                return [dict(r) for r in rows]
+                ordered = []
+                for row in rows:
+                    canonical = canonicalized_mission_mapping(dict(row))
+                    if canonical is not None:
+                        ordered.append(canonical)
+                ordered.sort(key=lambda item: item[0], reverse=True)
+                return [mission for _, mission in ordered[:max(0, limit)]]
             except sqlite3.Error:
                 log.exception("Erro ao buscar missões")
                 return []
@@ -104,13 +154,18 @@ class MissionRepository(BaseRepository):
         self, pilot_id: str, mission: WoFFMission
     ) -> Optional[str]:
         """Resolve the stored ID for the schema's mission natural identity."""
+        raw_time = str(mission.time or "").strip()
+        canonical_date = normalize_date(mission.date)
+        canonical_time = normalize_time(raw_time)
+        if not canonical_date or (raw_time and not canonical_time):
+            return None
         with self._lock:
             row = self._fetch_one(
                 """SELECT id FROM missions
                    WHERE pilotId = ? AND date = ? AND time = ?
                      AND missionType = ? AND aircraft = ?""",
                 (
-                    pilot_id, mission.date, mission.time,
+                    pilot_id, canonical_date, canonical_time,
                     mission.missionType, mission.aircraft,
                 ),
             )
