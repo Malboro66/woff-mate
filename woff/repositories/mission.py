@@ -26,6 +26,59 @@ from .base import BaseRepository
 
 log = logging.getLogger("WoFFWatch")
 
+MissionIdentityKey = Tuple[str, str, str, str]
+
+
+def mission_identity_key(
+    raw_date: object,
+    raw_time: object,
+    mission_type: object,
+    aircraft: object,
+) -> Optional[MissionIdentityKey]:
+    """Return the schema identity after strict in-memory canonicalization."""
+    canonical_date = normalize_date(str(raw_date or ""))
+    raw_time_value = str(raw_time or "").strip()
+    canonical_time = normalize_time(raw_time_value)
+    if not canonical_date or (raw_time_value and not canonical_time):
+        return None
+    return (
+        canonical_date,
+        canonical_time,
+        str(mission_type or ""),
+        str(aircraft or ""),
+    )
+
+
+def stored_mission_identity_index(
+    cursor: sqlite3.Cursor, pilot_id: str
+) -> Dict[MissionIdentityKey, str]:
+    """Index valid stored identities without changing legacy database rows.
+
+    Exact canonical storage wins when equivalent duplicates already exist;
+    otherwise the stable row ID breaks the tie deterministically.
+    """
+    choices: Dict[MissionIdentityKey, Tuple[Tuple[int, str], str]] = {}
+    rows = cursor.execute(
+        """
+        SELECT id, date, time, missionType, aircraft
+        FROM missions WHERE pilotId = ?
+        """,
+        (pilot_id,),
+    ).fetchall()
+    for row in rows:
+        identity = mission_identity_key(row[1], row[2], row[3], row[4])
+        if identity is None:
+            continue
+        row_id = str(row[0] or "")
+        stored_date = str(row[1] or "").strip()
+        stored_time = str(row[2] or "").strip()
+        exact_canonical = stored_date == identity[0] and stored_time == identity[1]
+        rank = (0 if exact_canonical else 1, row_id)
+        previous = choices.get(identity)
+        if previous is None or rank < previous[0]:
+            choices[identity] = (rank, row_id)
+    return {identity: choice[1] for identity, choice in choices.items()}
+
 
 def mission_mapping_order_key(mission: Dict[str, Any]) -> Optional[MissionOrderKey]:
     """Return the shared deterministic order for a persisted mission mapping."""
@@ -67,20 +120,31 @@ class MissionRepository(BaseRepository):
     ) -> Tuple[int, int, int]:
         """Insere missões, vitórias e condecorações associadas ao piloto."""
         cursor = self._conn.cursor()
+        identity_index: Optional[Dict[MissionIdentityKey, str]] = None
         added_m = 0
         for m in missions:
             raw_time = str(m.time or "").strip()
             canonical_date = normalize_date(m.date)
-            canonical_time = normalize_time(raw_time)
             if not canonical_date:
                 log.warning("Mission quarantined at write boundary: category=invalid-date")
                 continue
+            canonical_time = normalize_time(raw_time)
             if raw_time and not canonical_time:
                 log.warning("Mission quarantined at write boundary: category=invalid-time")
                 continue
+            identity = (
+                canonical_date,
+                canonical_time,
+                str(m.missionType or ""),
+                str(m.aircraft or ""),
+            )
             m.date = canonical_date
             m.time = canonical_time
             m.pilotId = pilot_id
+            if identity_index is None:
+                identity_index = stored_mission_identity_index(cursor, pilot_id)
+            if identity in identity_index:
+                continue
             cursor.execute("""
                 INSERT OR IGNORE INTO missions (
                     id, pilotId, date, time, missionType, aircraft, duration,
@@ -96,6 +160,8 @@ class MissionRepository(BaseRepository):
                 m.source_file
             ))
             added_m += cursor.rowcount
+            if cursor.rowcount:
+                identity_index[identity] = m.id
 
         added_v = 0
         for v in victories:
@@ -154,22 +220,15 @@ class MissionRepository(BaseRepository):
         self, pilot_id: str, mission: WoFFMission
     ) -> Optional[str]:
         """Resolve the stored ID for the schema's mission natural identity."""
-        raw_time = str(mission.time or "").strip()
-        canonical_date = normalize_date(mission.date)
-        canonical_time = normalize_time(raw_time)
-        if not canonical_date or (raw_time and not canonical_time):
+        identity = mission_identity_key(
+            mission.date, mission.time, mission.missionType, mission.aircraft
+        )
+        if identity is None:
             return None
         with self._lock:
-            row = self._fetch_one(
-                """SELECT id FROM missions
-                   WHERE pilotId = ? AND date = ? AND time = ?
-                     AND missionType = ? AND aircraft = ?""",
-                (
-                    pilot_id, canonical_date, canonical_time,
-                    mission.missionType, mission.aircraft,
-                ),
-            )
-            return str(row[0]) if row else None
+            return stored_mission_identity_index(
+                self._conn.cursor(), pilot_id
+            ).get(identity)
 
     def count_by_pilot(self, pilot_id: str) -> int:
         """Conta missões de um piloto."""

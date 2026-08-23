@@ -71,6 +71,49 @@ class TestCanonicalTemporalPersistence(unittest.TestCase):
         ).fetchall()
         self.assertEqual(rows, [("valid", "1917-04-06", "09:30")])
 
+    def test_reimport_matches_equivalent_legacy_key_without_rewriting_it(self):
+        pilot = self._pilot()
+        with self.db.transaction():
+            self.db._get_conn().execute(
+                """
+                INSERT INTO missions
+                    (id, pilotId, date, time, missionType, aircraft)
+                VALUES (?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    "legacy-existing", pilot.id, "6/4/1917", "9:30",
+                    "Patrol", "Camel",
+                ),
+            )
+
+        reimported = WoFFMission(
+            id="canonical-reimport",
+            pilotId=pilot.id,
+            date="1917-04-06",
+            time="09:30",
+            missionType="Patrol",
+            aircraft="Camel",
+        )
+
+        self.assertEqual(
+            self.db.merge_and_write(None, [reimported], [], []),
+            pilot.id,
+        )
+        self.assertEqual(
+            self.db._get_conn().execute(
+                """
+                SELECT id, date, time FROM missions
+                WHERE pilotId = ? ORDER BY id
+                """,
+                (pilot.id,),
+            ).fetchall(),
+            [("legacy-existing", "6/4/1917", "9:30")],
+        )
+        self.assertEqual(
+            self.db.get_mission_id_by_natural_key(pilot.id, reimported),
+            "legacy-existing",
+        )
+
     def test_game_date_ignores_invalid_legacy_rows_and_never_invents_1917(self):
         no_date = self._pilot("no-date")
         with_start = self._pilot("with-start", "11/11/1918")

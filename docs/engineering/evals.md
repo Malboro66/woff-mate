@@ -139,6 +139,10 @@ claim Q5 or approval of Product Gate A or Gate B.
 career start date exists. Mission, life, and wingman derived effects reject a
 missing game date instead of inventing `1917-01-01`. This issue performs no
 schema migration and no cleanup or rewrite of an existing campaign database.
+Valid legacy date/time spellings participate in the same in-memory mission
+identity during writes and lookups, so a canonical reimport retains the
+original row ID without rewriting its stored text. Malformed legacy values are
+not assumed to identify a valid incoming mission.
 Filesystem creation/modification times remain observation metadata and are
 never passed to campaign effects as historical game dates.
 
