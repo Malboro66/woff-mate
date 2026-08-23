@@ -31,7 +31,6 @@ import argparse
 import logging
 import threading
 from typing import Optional, List, Any
-from datetime import datetime
 
 # ──────────────────────────────────────────────────────────────
 # VERIFICAÇÃO DE DEPENDÊNCIAS E MÓDULOS
@@ -54,7 +53,7 @@ except Exception as e:
 
 try:
     from .config import WatchdogConfig, load_config
-    from .handler import WoFFEventHandler, get_latest_mission_id
+    from .handler import WoFFEventHandler
     from .database import DatabaseManager
     from .discovery import DiscoveryLogger
     from .medal_cataloger import catalog_medals
@@ -128,175 +127,83 @@ class WoFFWatchdog:
                 "\nNenhum caminho válido encontrado!\n"
                 "Edita o config.json com os caminhos correctos.\n"
             )
+            self.db_manager.close()
             return False
 
+        # Establish live observation before cataloging or baseline reconciliation,
+        # so changes during startup enter the same bounded/coalesced scheduler.
+        try:
+            self.campaign_engine = CampaignEngine(self.db_manager)
+            self._handler = WoFFEventHandler(
+                self.config, self.db_manager, self.campaign_engine, self.discovery
+            )
+            for path in valid:
+                obs = Observer()
+                obs.schedule(self._handler, path, recursive=True)
+                self.observers.append(obs)
+                obs.start()
+
         # Procurar as pastas 'Medals' e 'Scratchpad' em todos os caminhos válidos
-        medals_path = None
-        scratchpad_path = None
-        for path in valid:
-            if not medals_path and os.path.exists(os.path.join(path, "Medals")):
-                medals_path = os.path.join(path, "Medals")
-            if not medals_path and os.path.exists(
-                os.path.join(os.path.dirname(path), "Medals")
-            ):
-                medals_path = os.path.join(os.path.dirname(path), "Medals")
+            medals_path = None
+            scratchpad_path = None
+            for path in valid:
+                if not medals_path and os.path.exists(os.path.join(path, "Medals")):
+                    medals_path = os.path.join(path, "Medals")
+                if not medals_path and os.path.exists(
+                    os.path.join(os.path.dirname(path), "Medals")
+                ):
+                    medals_path = os.path.join(os.path.dirname(path), "Medals")
 
-            if not scratchpad_path and os.path.exists(
-                os.path.join(path, "Scratchpad")
-            ):
-                scratchpad_path = os.path.join(path, "Scratchpad")
-            if not scratchpad_path and os.path.exists(
-                os.path.join(os.path.dirname(path), "Scratchpad")
-            ):
-                scratchpad_path = os.path.join(os.path.dirname(path), "Scratchpad")
+                if not scratchpad_path and os.path.exists(
+                    os.path.join(path, "Scratchpad")
+                ):
+                    scratchpad_path = os.path.join(path, "Scratchpad")
+                if not scratchpad_path and os.path.exists(
+                    os.path.join(os.path.dirname(path), "Scratchpad")
+                ):
+                    scratchpad_path = os.path.join(os.path.dirname(path), "Scratchpad")
 
-        if medals_path:
-            catalog_medals(medals_path, self.config.export_path)
-        if scratchpad_path:
-            catalog_squadrons(scratchpad_path, self.config.export_path)
+            if medals_path:
+                catalog_medals(medals_path, self.config.export_path)
+            if scratchpad_path:
+                catalog_squadrons(scratchpad_path, self.config.export_path)
 
         # ──────────────────────────────────────────────────────────────
         # SINCRONIZAÇÃO INICIAL DE TODOS OS PILOTOS
         # ──────────────────────────────────────────────────────────────
-        # Instanciar o CampaignEngine uma única vez para partilhar entre o arranque e o runtime
-        self.campaign_engine = CampaignEngine(self.db_manager)
+            file_patterns = []
+            if ".txt" in self.config.watched_extensions:
+                log.info("A sincronizar dados iniciais dos pilotos...")
+                file_patterns = [
+                    "Pilot*Dossier.txt",
+                    "Pilot*Log.txt",
+                    "Pilot*Claims.txt",
+                    "Pilot*Squads.txt",
+                ]
 
-        file_patterns = []
-        if ".txt" in self.config.watched_extensions:
-            log.info("A sincronizar dados iniciais dos pilotos...")
-            file_patterns = [
-                "Pilot*Dossier.txt",
-                "Pilot*Log.txt",
-                "Pilot*Claims.txt",
-                "Pilot*Squads.txt",
-            ]
-
-        for path in valid:
             for file_pattern in file_patterns:
-                for file_path in glob.glob(os.path.join(path, file_pattern)):
-                    fname = os.path.basename(file_path).lower()
-
-                    # FIX: Extrair data do ficheiro para eventos históricos
-                    try:
-                        file_mtime = datetime.fromtimestamp(
-                            os.path.getmtime(file_path)
-                        ).strftime("%Y-%m-%d")
-                    except OSError:
-                        file_mtime = None
-
-                    try:
-                        if "dossier" in fname:
-                            parser = WoFFDossierParser()
-                            if parser.parse(file_path):
-                                if not parser.pilot:
-                                    continue
-
-                                old_status, old_rank = self.db_manager.get_pilot_state(
-                                    parser.pilot.name
-                                )
-
-                                # FIX: Passar data do ficheiro para não gerar entradas em 2026
-                                self.campaign_engine.process_wingmen_changes(
-                                    parser.pilot.name,
-                                    parser.wingmen,
-                                    event_date=file_mtime,
-                                )
-
-                                self.db_manager.merge_and_write(
-                                    pilot=parser.pilot,
-                                    missions=[],
-                                    victories=[],
-                                    decorations=parser.decorations,
-                                    wingmen=parser.wingmen,
-                                )
-
-                                new_status = parser.pilot.status
-                                new_rank = parser.pilot.rank
-                                old_status_str = old_status if old_status is not None else ""
-                                old_rank_str = old_rank if old_rank is not None else ""
-
-                                if (old_status_str != new_status) or (
-                                    old_rank_str != new_rank and new_rank
-                                ):
-                                    self.campaign_engine.process_life_events(
-                                        parser.pilot.name,
-                                        str(new_status),
-                                        str(new_rank),
-                                        old_status,
-                                        old_rank,
-                                        event_date=file_mtime,
-                                    )
-
-                        elif "squads" in fname:
-                            parser = WoFFPilotDataParser()
-                            if parser.parse(file_path):
-                                self.db_manager.merge_and_write(
-                                    pilot=parser.pilot,
-                                    missions=[],
-                                    victories=[],
-                                    decorations=[],
-                                    wingmen=None,
-                                )
-
-                        elif "log" in fname and "mission" not in fname:
-                            parser = WoFFPilotDataParser()
-                            if parser.parse(file_path):
-                                self.db_manager.merge_and_write(
-                                    pilot=parser.pilot,
-                                    missions=parser.missions,
-                                    victories=[],
-                                    decorations=[],
-                                    wingmen=None,
-                                )
-                                if (
-                                    parser.missions
-                                    and parser.pilot
-                                    and parser.pilot.name
-                                ):
-                                    # FIX: Usar resolve_pilot_id com source_file para
-                                    # resolver "Pilot 1" (placeholder) → UUID real.
-                                    real_pilot_id = self.db_manager.resolve_pilot_id(
-                                        parser.pilot.name,
-                                        source_file=parser.pilot.source_file,
-                                    )
-                                    latest_mission_id = get_latest_mission_id(parser)
-                                    if real_pilot_id and latest_mission_id:
-                                        self.campaign_engine.process_mission_end(
-                                            real_pilot_id, latest_mission_id
-                                        )
-                                    else:
-                                        log.warning(
-                                            f"[Sync] Não foi possível resolver "
-                                            f"pilot_id real para '{parser.pilot.name}' "
-                                            f"(source: {parser.pilot.source_file}). "
-                                            f"RPG abortado na sincronização inicial."
-                                        )
-
-                        elif "claims" in fname:
-                            parser = WoFFPilotDataParser()
-                            if parser.parse(file_path):
-                                self.db_manager.merge_and_write(
-                                    pilot=None,
-                                    missions=[],
-                                    victories=parser.victories,
-                                    decorations=[],
-                                    wingmen=None,
-                                )
-                    except Exception:
-                        log.exception(
-                            f"Erro ao sincronizar inicialmente {file_path}"
+                phase_files = []
+                for path in valid:
+                    phase_files.extend(glob.glob(os.path.join(path, file_pattern)))
+                for file_path in phase_files:
+                    if not self._handler.submit_initial(file_path):
+                        raise RuntimeError(
+                            "bounded startup admission failed for "
+                            f"{os.path.basename(file_path)}"
                         )
-
-        # Injetar a mesma instância do CampaignEngine no Handler
-        self._handler = WoFFEventHandler(
-            self.config, self.db_manager, self.campaign_engine, self.discovery
-        )
-
-        for path in valid:
-            obs = Observer()
-            obs.schedule(self._handler, path, recursive=True)
-            obs.start()
-            self.observers.append(obs)
+                phase_timeout = max(
+                    self.config.stability_timeout_sec,
+                    len(phase_files) * self.config.stability_timeout_sec,
+                )
+                if phase_files and not self._handler.wait_initial(
+                    phase_files, phase_timeout
+                ):
+                    raise RuntimeError(
+                        f"bounded startup reconciliation failed for {file_pattern}"
+                    )
+        except Exception:
+            self._cleanup(suppress_errors=True)
+            raise
 
         log.info(f"\nWatchdog activo — {len(valid)} caminho(s) em monitorização")
         log.info(f"Base de Dados: {self.config.export_path}")
@@ -318,16 +225,28 @@ class WoFFWatchdog:
     def stop(self):
         """Encerra todos os observers e threads de forma graciosa."""
         log.info("A parar watchdog...")
-        self._stop_event.set()
-        for obs in self.observers:
-            obs.stop()
-        for obs in self.observers:
-            obs.join(timeout=5)
-        if self._handler:
-            self._handler.shutdown()
-        # FIX: Libertar conexões thread-local do DatabaseManager
-        self.db_manager.close()
+        self._cleanup(suppress_errors=False)
         log.info("Watchdog parado.")
+
+    def _cleanup(self, *, suppress_errors: bool) -> None:
+        """Release every owned resource, optionally preserving a startup error."""
+        self._stop_event.set()
+        cleanup_actions = (
+            *(lambda obs=obs: obs.stop() for obs in self.observers),
+            *(lambda obs=obs: obs.join(timeout=5) for obs in self.observers),
+            *(() if self._handler is None else (self._handler.shutdown,)),
+            self.db_manager.close,
+        )
+        first_error = None
+        for action in cleanup_actions:
+            try:
+                action()
+            except Exception as error:
+                log.exception("Watchdog resource cleanup failed")
+                if first_error is None:
+                    first_error = error
+        if first_error is not None and not suppress_errors:
+            raise first_error
 
 
 # ──────────────────────────────────────────────────────────────

@@ -1271,6 +1271,12 @@ class DatabaseManager:
     ) -> Tuple[Optional[dict], Optional[dict], List[dict]]:
         return self._pilots.get_mission_and_history(pilot_identifier, mission_id)
 
+    def get_mission_id_by_natural_key(
+        self, pilot_id: str, mission: WoFFMission
+    ) -> Optional[str]:
+        """Return the persisted ID selected by the mission natural key."""
+        return self._missions.get_id_by_natural_key(pilot_id, mission)
+
     def get_pilot_game_date(self, pilot_id: str) -> str:
         return self._pilots.get_pilot_game_date(pilot_id)
 

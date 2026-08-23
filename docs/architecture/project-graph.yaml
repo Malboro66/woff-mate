@@ -237,16 +237,19 @@ evals:
     enforced_by: [woff/tests/test_ingestion_scheduler.py, woff/tests/test_handler_integration.py]
   EVAL-SNAP-001:
     work_items: [issue-42]
-    status: planned
-    evidence: The parser receives the exact snapshot whose stability was validated.
+    status: implemented
+    evidence: Parsers receive generation-verified bytes, changed generations retry, and only successfully persisted generations are acknowledged.
+    enforced_by: [woff/tests/test_stable_snapshot.py]
   EVAL-SNAP-002:
     work_items: [issue-42]
-    status: planned
-    evidence: Transient Windows access denial uses bounded retry and a final diagnostic.
+    status: implemented
+    evidence: Simulated sharing denial, disappearance, replacement, and continuous mutation use bounded retry with sanitized final diagnostics.
+    enforced_by: [woff/tests/test_stable_snapshot.py, woff/tests/test_ingestion_scheduler.py]
   EVAL-SNAP-003:
     work_items: [issue-42]
-    status: planned
-    evidence: Files created between initial discovery and watcher readiness are processed exactly once.
+    status: implemented
+    evidence: Observer coverage precedes baseline discovery and a newly created approved file omitted from baseline is processed exactly once by the live scheduler.
+    enforced_by: [woff/tests/test_handler_integration.py]
   EVAL-DATE-001:
     work_items: [issue-40]
     status: planned
@@ -479,7 +482,7 @@ work_items:
     gates: [Q0, Q1, Q3, Q6-CYCLE-3.3.0]
     depends_on:
       - {id: issue-36, status: satisfied}
-      - {id: issue-42, status: unsatisfied}
+      - {id: issue-42, status: satisfied}
       - {id: issue-39, status: unsatisfied}
       - {id: issue-57, status: satisfied}
       - {id: issue-70, status: unsatisfied}
@@ -571,7 +574,7 @@ work_items:
   issue-42:
     title: Read stable file snapshots and close startup event-loss gaps
     module: ingestion
-    state: blocked
+    state: done
     evals: [EVAL-SNAP-001, EVAL-SNAP-002, EVAL-SNAP-003]
     gates: [Q0, Q1, Q3, Q6-CYCLE-3.3.0]
     depends_on:

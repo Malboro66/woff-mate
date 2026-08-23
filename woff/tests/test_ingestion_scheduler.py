@@ -88,5 +88,54 @@ def test_shutdown_rejects_new_work_and_drains_accepted_work():
     assert scheduler.metrics()["rejected"] == 1
 
 
+def test_bounded_startup_admission_waits_for_capacity_without_second_queue():
+    first_started = threading.Event()
+    release_first = threading.Event()
+    calls = []
+
+    def process(path, event_type):
+        calls.append(path)
+        if path == "Pilot1Dossier.txt":
+            first_started.set()
+            assert release_first.wait(2)
+
+    scheduler = EventScheduler(process, max_workers=2, max_pending_events=1)
+    assert scheduler.submit("Pilot1Dossier.txt", "initial")
+    assert first_started.wait(2)
+
+    admitted = []
+    submitter = threading.Thread(
+        target=lambda: admitted.append(
+            scheduler.submit(
+                "Pilot1Log.txt", "initial", admission_timeout=1.0
+            )
+        )
+    )
+    submitter.start()
+    assert submitter.is_alive()
+    release_first.set()
+    submitter.join(2)
+    scheduler.shutdown()
+
+    assert admitted == [True]
+    assert calls == ["Pilot1Dossier.txt", "Pilot1Log.txt"]
+
+
+def test_startup_admission_timeout_is_bounded_and_diagnostic(caplog):
+    started = threading.Event()
+    release = threading.Event()
+    scheduler = EventScheduler(
+        lambda *_: (started.set(), release.wait(2)), 1, 1
+    )
+    assert scheduler.submit("Pilot1Dossier.txt", "initial")
+    assert started.wait(2)
+    assert not scheduler.submit(
+        "Pilot2Dossier.txt", "initial", admission_timeout=0.01
+    )
+    assert "saturated" in caplog.text.lower()
+    release.set()
+    scheduler.shutdown()
+
+
 def test_scheduler_does_not_depend_on_executor_private_internals():
     assert not any(name.startswith("_") for name in EventScheduler.executor_attributes_used)

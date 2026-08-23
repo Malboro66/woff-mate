@@ -30,11 +30,17 @@ class WoFFMissionLogParser:
     def parse(self, path: str) -> bool:
         log.info(f"[LOG] Analisando Log de Missão: {os.path.basename(path)}")
         try:
-            with open(path, "r", encoding="utf-8", errors="replace") as f:
-                content = f.read()
+            with open(path, "rb") as f:
+                data = f.read()
         except Exception as e:
             log.error(f"  Falha ao ler {path}: {e}")
             return False
+        return self.parse_bytes(data, os.path.basename(path))
+
+    def parse_bytes(self, data: bytes, source_name: str) -> bool:
+        """Parse verified bytes without reopening their source path."""
+        log.info(f"[LOG] Analisando snapshot: {source_name}")
+        content = data.decode("utf-8", errors="replace")
 
         # 1. Extrair o bloco XML <Mission>...</Mission>
         xml_match = re.search(r"<Mission>(.*?)</Mission>", content, re.DOTALL)

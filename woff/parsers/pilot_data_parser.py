@@ -62,7 +62,17 @@ class WoFFPilotDataParser:
         )
 
     def parse(self, path: str) -> bool:
-        fname = os.path.basename(path).lower()
+        try:
+            with open(path, "rb") as source:
+                data = source.read()
+        except Exception as e:
+            log.error(f"  Falha ao ler {path}: {e}")
+            return False
+        return self.parse_bytes(data, os.path.basename(path))
+
+    def parse_bytes(self, data: bytes | str, source_name: str) -> bool:
+        """Parse verified bytes without reopening their source path."""
+        fname = os.path.basename(source_name).lower()
         if "dossier" in fname: return False
 
         pilot_match = re.match(r"(pilot\d+)", fname, re.I)
@@ -70,15 +80,16 @@ class WoFFPilotDataParser:
         
         pilot_name = pilot_match.group(1).replace("pilot", "Pilot ")
         
-        if "squads" in fname: return self._parse_squads(path, pilot_name)
-        elif "log" in fname: return self._parse_log(path, pilot_name)
-        elif "claims" in fname: return self._parse_claims(path, pilot_name)
+        content = data.decode("cp1252", errors="replace") if isinstance(data, bytes) else data
+        lines = content.splitlines(keepends=True)
+        if "squads" in fname: return self._parse_squads(lines, source_name, pilot_name)
+        elif "log" in fname: return self._parse_log(lines, source_name, pilot_name)
+        elif "claims" in fname: return self._parse_claims(lines, source_name, pilot_name)
         return False
 
-    def _parse_squads(self, path: str, pilot_name: str) -> bool:
+    def _parse_squads(self, lines: List[str], path: str, pilot_name: str) -> bool:
         log.info(f"[TXT] Analisando Esquadrões: {os.path.basename(path)}")
         try:
-            with open(path, "r", encoding="cp1252", errors="replace") as f: lines = f.readlines()
             if not lines: return False
             p = WoFFPilot()
             p.name = pilot_name
@@ -94,10 +105,9 @@ class WoFFPilotDataParser:
         except Exception as e:
             log.error(f"  Falha ao ler {path}: {e}"); return False
 
-    def _parse_log(self, path: str, pilot_name: str) -> bool:
+    def _parse_log(self, lines: List[str], path: str, pilot_name: str) -> bool:
         log.info(f"[TXT] Analisando Log de Missões: {os.path.basename(path)}")
         try:
-            with open(path, "r", encoding="cp1252", errors="replace") as f: lines = f.readlines()
             for line_number, raw_line in enumerate(lines, start=1):
                 line = raw_line.rstrip("\r\n")
                 if not line.strip() or line.strip().isdigit():
@@ -152,10 +162,9 @@ class WoFFPilotDataParser:
         except Exception as e:
             log.error(f"  Falha ao ler {path}: {e}"); return False
 
-    def _parse_claims(self, path: str, pilot_name: str) -> bool:
+    def _parse_claims(self, lines: List[str], path: str, pilot_name: str) -> bool:
         log.info(f"[TXT] Analisando Vitórias (Claims): {os.path.basename(path)}")
         try:
-            with open(path, "r", encoding="cp1252", errors="replace") as f: lines = f.readlines()
             for line in lines[1:]:
                 line = line.strip()
                 if not line: continue

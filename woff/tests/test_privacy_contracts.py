@@ -3,10 +3,14 @@ from __future__ import annotations
 import ast
 import sys
 from pathlib import Path
+from unittest.mock import MagicMock
 
 from woff import win_registry
 from woff.config import WatchdogConfig
+from woff.campaign_engine import CampaignEngine
+from woff.database import DatabaseManager
 from woff.discovery import DiscoveryLogger
+from woff.handler import WoFFEventHandler
 
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -187,3 +191,43 @@ def test_discovery_previews_known_woff_pilot_log(tmp_path: Path) -> None:
 
     log_text = log_path.read_text(encoding="utf-8")
     assert "SANITIZED-WOFF-CAMPAIGN-DATA" in log_text
+
+
+def test_unknown_supported_file_is_metadata_only_before_ingestion(
+    tmp_path: Path, monkeypatch
+) -> None:
+    log_path = tmp_path / "woff_discovery.log"
+    unknown = tmp_path / "notes.txt"
+    unknown.write_text("PRIVATE-CONTENT-MUST-NOT-BE-READ", encoding="utf-8")
+    database = DatabaseManager(str(tmp_path / "privacy.db"))
+    discovery = DiscoveryLogger(str(log_path))
+    handler = WoFFEventHandler(
+        WatchdogConfig(watch_paths=[str(tmp_path)], export_path=str(tmp_path / "privacy.db")),
+        database, CampaignEngine(database), discovery,
+    )
+    handler.processor.guard = MagicMock()
+    handler.processor.db_manager.merge_and_write = MagicMock()
+    parsers = [MagicMock(), MagicMock(), MagicMock(), MagicMock()]
+    for target, parser in zip(
+        (
+            "woff.handler.WoFFXMLParser", "woff.handler.WoFFDossierParser",
+            "woff.handler.WoFFMissionLogParser", "woff.handler.WoFFPilotDataParser",
+        ),
+        parsers,
+    ):
+        monkeypatch.setattr(target, parser)
+    try:
+        assert handler._handle(str(unknown), "created") is False
+        handler.processor.guard.acquire.assert_not_called()
+        handler.processor.db_manager.merge_and_write.assert_not_called()
+        for parser in parsers:
+            parser.assert_not_called()
+    finally:
+        handler.shutdown()
+        database.close()
+
+    logged = log_path.read_text(encoding="utf-8")
+    assert "notes.txt" in logged
+    assert "Tamanho:" in logged
+    assert "PRIVATE-CONTENT-MUST-NOT-BE-READ" not in logged
+    assert "preview bloqueado pela política de privacidade" in logged.lower()
