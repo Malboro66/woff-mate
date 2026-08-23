@@ -7,10 +7,16 @@ from pathlib import Path
 from unittest.mock import mock_open, patch
 
 from ..database import DatabaseManager
+from ..identity import (
+    PilotIdentityEvidence,
+    PilotIdentityKind,
+    PilotIdentityRejected,
+)
 from ..parsers.dossier_parser import WoFFDossierParser
 from ..parsers.pilot_data_parser import WoFFPilotDataParser
 from ..parsers.xml_parser import WoFFXMLParser
 from .test_dossier_parser import _encode_dossier
+from .identity_support import dependent_evidence, dossier_evidence
 
 
 STAT_FIELDS = (
@@ -75,7 +81,11 @@ class TestPilotStatisticMerge(unittest.TestCase):
         assert parser.pilot is not None
         pilot = parser.pilot
         self.assertEqual(tuple(getattr(pilot, field) for field in STAT_FIELDS), stats)
-        self.assertIsNotNone(self.db.merge_and_write(pilot, [], [], []))
+        self.assertIsNotNone(
+            self.db.merge_and_write(
+                pilot, [], [], [], identity=dossier_evidence(1, "stats")
+            )
+        )
 
     def _pilot_row(self):
         conn = sqlite3.connect(self.db_path)
@@ -107,7 +117,11 @@ class TestPilotStatisticMerge(unittest.TestCase):
         )
         self.assertEqual(
             self.db.merge_and_write(
-                parser.pilot, parser.missions, parser.victories, []
+                parser.pilot,
+                parser.missions,
+                parser.victories,
+                [],
+                identity=dependent_evidence(1, "stats"),
             ),
             self.db.resolve_pilot_id(
                 parser.pilot.name, source_file=parser.pilot.source_file
@@ -157,7 +171,7 @@ class TestPilotStatisticMerge(unittest.TestCase):
         finally:
             conn.close()
 
-    def test_partial_xml_preserves_statistics_and_updates_supplied_fields(self):
+    def test_partial_xml_is_rejected_without_changing_dossier_state(self):
         self._persist_dossier()
         xml = """<?xml version="1.0" encoding="UTF-8"?>
 <Campaign>
@@ -179,18 +193,24 @@ class TestPilotStatisticMerge(unittest.TestCase):
             all(getattr(parser.pilot, field) is None for field in STAT_FIELDS)
         )
 
-        self.db.merge_and_write(
-            parser.pilot, parser.missions, parser.victories, parser.decorations
-        )
-        self.db.merge_and_write(
-            parser.pilot, parser.missions, parser.victories, parser.decorations
-        )
+        unresolved = PilotIdentityEvidence(PilotIdentityKind.UNRESOLVED)
+        for _ in range(2):
+            with self.assertRaisesRegex(
+                PilotIdentityRejected, "unsupported-identity-source"
+            ):
+                self.db.merge_and_write(
+                    parser.pilot,
+                    parser.missions,
+                    parser.victories,
+                    parser.decorations,
+                    identity=unresolved,
+                )
 
         row = self._pilot_row()
         self.assertEqual(row[:6], AUTHORITATIVE_STATS)
         self.assertEqual(
             row[6:],
-            ("Major", "No. 60 Sqn", "Sopwith Camel", "Valheureux", "Flanders"),
+            ("Captain", "No. 56 Sqn", "SE.5a", "Filescamp", "Arras"),
         )
 
     def test_authoritative_zero_overwrites_older_statistics(self):

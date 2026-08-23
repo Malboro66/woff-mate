@@ -24,7 +24,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Optional, List, Any, Dict, NoReturn, Tuple
 
-from .identity import pilot_slot
+from .identity import PilotIdentityError, PilotIdentityEvidence, pilot_slot
 from .models import WoFFPilot, WoFFMission, WoFFVictory, WoFFDecoration, WoFFWingman
 from .repositories import PilotRepository, MissionRepository, RpgRepository, WingmanRepository
 from .version import SCHEMA_VERSION, __version__
@@ -1503,6 +1503,14 @@ class DatabaseManager:
     def get_pilot_state(self, pilot_name: str) -> Tuple[Optional[str], Optional[str]]:
         return self._pilots.get_pilot_state(pilot_name)
 
+    def get_pilot_state_by_id(
+        self, pilot_id: str
+    ) -> Tuple[Optional[str], Optional[str]]:
+        return self._pilots.get_pilot_state_by_id(pilot_id)
+
+    def resolve_bound_dossier_id(self, name: str, slot: int) -> Optional[str]:
+        return self._pilots.resolve_bound_dossier_id(name, slot)
+
     def resolve_pilot_id(
         self, name: str, source_file: Optional[str] = None
     ) -> Optional[str]:
@@ -1514,12 +1522,22 @@ class DatabaseManager:
         missions: List[WoFFMission],
         victories: List[WoFFVictory],
         decorations: List[WoFFDecoration],
-        wingmen: Optional[List[WoFFWingman]] = None
+        wingmen: Optional[List[WoFFWingman]] = None,
+        *,
+        identity: Optional[PilotIdentityEvidence] = None,
     ) -> Optional[str]:
         """Faz o merge dos novos dados na base de dados SQLite. Retorna o pilot_id ou None."""
         try:
             with self.transaction():
-                pilot_id = self._pilots.upsert_pilot(pilot, missions, victories)
+                related = [*missions, *victories, *decorations, *(wingmen or [])]
+                related_pilot_ids = [item.pilotId for item in related]
+                pilot_id = self._pilots.upsert_pilot(
+                    pilot,
+                    missions,
+                    victories,
+                    identity,
+                    related_pilot_ids,
+                )
                 if not pilot_id:
                     return None
                 added_m, added_v, added_d = self._missions.upsert_mission(
@@ -1539,6 +1557,10 @@ class DatabaseManager:
         except sqlite3.IntegrityError as e:
             log.error(f"Erro de integridade na base de dados: {e}")
             return None
+        except PilotIdentityError:
+            # The application boundary emits one sanitized identity diagnostic.
+            # Do not duplicate it here with a traceback.
+            raise
         except Exception:
             log.exception("Erro ao escrever na base de dados")
             raise

@@ -4,6 +4,7 @@ import pytest
 
 from ..database import DatabaseManager, TransactionRollbackError
 from ..models import WoFFMission, WoFFPilot, WoFFWingman
+from .identity_support import dossier_evidence
 
 
 class BodyError(RuntimeError):
@@ -52,8 +53,14 @@ def db(tmp_path):
 
 @pytest.fixture
 def pilot(db):
-    value = WoFFPilot(id="pilot-34", name="Issue 34 Pilot")
-    assert db.merge_and_write(value, [], [], []) == value.id
+    value = WoFFPilot(
+        id="pilot-34",
+        name="Issue 34 Pilot",
+        source_file="Pilot34Dossier.txt",
+    )
+    assert db.merge_and_write(
+        value, [], [], [], identity=dossier_evidence(34)
+    ) == value.id
     return value
 
 
@@ -104,7 +111,9 @@ def test_duplicate_diary_result_does_not_rollback_other_pending_work(db, pilot):
     connection = db._get_conn()
     mission_id = "duplicate-mission-34"
     mission = WoFFMission(id=mission_id, pilotId=pilot.id, date="1917-05-03")
-    assert db.merge_and_write(pilot, [mission], [], []) == pilot.id
+    assert db.merge_and_write(
+        pilot, [mission], [], [], identity=dossier_evidence(34)
+    ) == pilot.id
 
     with db.transaction():
         assert db.save_diary_entry(
@@ -243,7 +252,9 @@ def test_wingman_personality_and_memory_roll_back_atomically(db, pilot):
     wingman = WoFFWingman(
         id="wingman-34", fName="Ada", sName="Cole", pilotId=pilot.id
     )
-    assert db.merge_and_write(pilot, [], [], [], [wingman]) == pilot.id
+    assert db.merge_and_write(
+        pilot, [], [], [], [wingman], identity=dossier_evidence(34)
+    ) == pilot.id
     connection = db._get_conn()
 
     with pytest.raises(RuntimeError, match="wingman boundary"):
@@ -279,7 +290,9 @@ def test_autonomous_wingman_operations_still_commit(db, pilot):
     wingman = WoFFWingman(
         id="wingman-autonomous-34", fName="Sam", sName="Gray", pilotId=pilot.id
     )
-    assert db.merge_and_write(pilot, [], [], [], [wingman]) == pilot.id
+    assert db.merge_and_write(
+        pilot, [], [], [], [wingman], identity=dossier_evidence(34)
+    ) == pilot.id
 
     assert db.save_wingman_personality(wingman.id, pilot.id, {"aggression": 62})
     assert db.save_wingman_memory(

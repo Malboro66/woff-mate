@@ -1,220 +1,360 @@
 #!/usr/bin/env python3
-"""
-Repositório de Pilotos (repositories/pilot.py)
-══════════════════════════════════════════════════════════════════
-Responsável por:
-  - Queries de estado do piloto
-  - Resolução de identidade (placeholder → UUID)
-  - Datas do jogo
-  - Histórico de missões (cross-query com pilots)
-══════════════════════════════════════════════════════════════════
-"""
+"""Pilot persistence and stable career identity resolution."""
 
 from __future__ import annotations
 
-import re
-import os
-import sqlite3
 import logging
-from typing import Optional, Tuple, Dict, Any, List
+import ntpath
+import re
+import sqlite3
+from datetime import datetime
+from typing import Any, Dict, List, Optional, Tuple
 
-from ..models import WoFFPilot, WoFFMission, WoFFVictory
-
+from ..identity import (
+    PilotIdentityAmbiguous,
+    PilotIdentityEvidence,
+    PilotIdentityKind,
+    PilotIdentityRejected,
+    PilotIdentityUnavailable,
+    dossier_source_name,
+    pilot_slot,
+)
+from ..models import WoFFMission, WoFFPilot, WoFFVictory
 from .base import BaseRepository
 
 log = logging.getLogger("WoFFWatch")
+_PLACEHOLDER_NAME = re.compile(r"^Pilot [1-9][0-9]*$")
 
 
 class PilotRepository(BaseRepository):
-    """Repositório especializado na entidade WoFFPilot."""
+    """Repository specialized in one persistent WoFF career at a time."""
 
     def upsert_pilot(
         self,
         pilot: Optional[WoFFPilot],
         missions: List[WoFFMission],
         victories: List[WoFFVictory],
-    ) -> Optional[str]:
-        """Insere/atualiza o piloto e resolve o pilot_id para ficheiros de missão."""
-        cursor = self._conn.cursor()
-        pilot_id = ""
+        identity: Optional[PilotIdentityEvidence] = None,
+        related_pilot_ids: Optional[List[Optional[str]]] = None,
+    ) -> str:
+        """Persist a pilot only when its career identity is verified."""
 
-        if pilot:
-            cursor.execute("SELECT id FROM pilots WHERE name = ?", (pilot.name,))
-            row = cursor.fetchone()
+        if pilot is None:
+            ids = related_pilot_ids
+            if ids is None:
+                ids = [item.pilotId for item in [*missions, *victories]]
+            return self._resolve_explicit_related_pilot(ids)
+        if identity is None or identity.kind is PilotIdentityKind.UNRESOLVED:
+            raise PilotIdentityRejected("unsupported-identity-source")
+        if identity.kind is PilotIdentityKind.DOSSIER:
+            return self._upsert_dossier_pilot(pilot, identity)
+        return self._upsert_slot_dependent_pilot(pilot, identity)
 
-            if not row and re.match(r"^Pilot \d+$", pilot.name):
-                pilot_num_match = re.match(r"^Pilot (\d+)$", pilot.name)
-                if pilot_num_match:
-                    pilot_num = pilot_num_match.group(1)
-                    cursor.execute(
-                        "SELECT id FROM pilots WHERE source_file GLOB ?",
-                        (f"Pilot{pilot_num}[A-Za-z]*.txt",)
-                    )
-                    row = cursor.fetchone()
-
-            if row:
-                pilot_id = row[0]
-                name_val = "" if re.match(r"^Pilot \d+$", pilot.name) else pilot.name
-
-                cursor.execute("""
-                    UPDATE pilots SET
-                        name=COALESCE(NULLIF(?, ''), name),
-                        fName=COALESCE(NULLIF(?, ''), fName),
-                        sName=COALESCE(NULLIF(?, ''), sName),
-                        nation=COALESCE(NULLIF(?, ''), nation),
-                        rank=COALESCE(NULLIF(?, ''), rank),
-                        squadron=COALESCE(NULLIF(?, ''), squadron),
-                        aircraft=COALESCE(NULLIF(?, ''), aircraft),
-                        aerodrome=COALESCE(NULLIF(?, ''), aerodrome),
-                        sector=COALESCE(NULLIF(?, ''), sector),
-                        startDate=COALESCE(NULLIF(?, ''), startDate),
-                        enlisted=COALESCE(NULLIF(?, ''), enlisted),
-                        status=COALESCE(NULLIF(?, ''), status),
-                        notes=COALESCE(NULLIF(?, ''), notes),
-                        photo=COALESCE(NULLIF(?, ''), photo),
-                        birthDate=COALESCE(NULLIF(?, ''), birthDate),
-                        birthPlace=COALESCE(NULLIF(?, ''), birthPlace),
-                        missions=COALESCE(?, missions),
-                        flminutes=COALESCE(?, flminutes),
-                        claimsCount=COALESCE(?, claimsCount),
-                        killsCount=COALESCE(?, killsCount),
-                        skill=COALESCE(?, skill),
-                        reputation=COALESCE(?, reputation),
-                        source_file=COALESCE(NULLIF(?, ''), source_file),
-                        last_updated=?
-                    WHERE id=?
-                """, (
-                    name_val, pilot.fName, pilot.sName, pilot.nation,
-                    pilot.rank, pilot.squadron, pilot.aircraft, pilot.aerodrome,
-                    pilot.sector, pilot.startDate, pilot.enlisted, pilot.status,
-                    pilot.notes, pilot.photo, pilot.birthDate, pilot.birthPlace,
-                    pilot.missions, pilot.flminutes, pilot.claimsCount,
-                    pilot.killsCount, pilot.skill, pilot.reputation,
-                    pilot.source_file, pilot.last_updated, pilot_id
-                ))
-                log.info(f"  Piloto atualizado na DB: ID {pilot_id}")
-            else:
-                pilot_id = pilot.id
-                cursor.execute("""
-                    INSERT OR IGNORE INTO pilots (
-                        id, name, fName, sName, nation, rank, squadron,
-                        aircraft, aerodrome, sector, startDate, enlisted,
-                        status, notes, photo, birthDate, birthPlace, missions,
-                        flminutes, claimsCount, killsCount, skill, reputation,
-                        source_file, last_updated
-                    ) VALUES (
-                        ?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,
-                        COALESCE(?, 0), COALESCE(?, 0), COALESCE(?, 0),
-                        COALESCE(?, 0), COALESCE(?, 0), COALESCE(?, 0),
-                        ?,?
-                    )
-                """, (
-                    pilot.id, pilot.name, pilot.fName, pilot.sName,
-                    pilot.nation, pilot.rank, pilot.squadron, pilot.aircraft,
-                    pilot.aerodrome, pilot.sector, pilot.startDate,
-                    pilot.enlisted, pilot.status, pilot.notes, pilot.photo,
-                    pilot.birthDate, pilot.birthPlace, pilot.missions,
-                    pilot.flminutes, pilot.claimsCount, pilot.killsCount,
-                    pilot.skill, pilot.reputation, pilot.source_file,
-                    pilot.last_updated
-                ))
-                log.info(f"  Novo piloto adicionado à DB: {pilot.name}")
-        else:
-            source_file = next((m.source_file for m in missions if m.source_file), None)
-            if not source_file and victories:
-                source_file = next(
-                    (v.source_file for v in victories if v.source_file), None
-                )
-
-            if source_file:
-                pilot_num_match = re.match(
-                    r"^Pilot(\d+)", os.path.basename(source_file), re.I
-                )
-                if pilot_num_match:
-                    pilot_num = pilot_num_match.group(1)
-                    cursor.execute(
-                        "SELECT id FROM pilots WHERE source_file GLOB ?",
-                        (f"Pilot{pilot_num}[A-Za-z]*.txt",)
-                    )
-                    row = cursor.fetchone()
-                    if row:
-                        pilot_id = row[0]
-
-        if not pilot_id:
-            pilot_id = next((m.pilotId for m in missions if m.pilotId), "")
-            if not pilot_id:
-                log.warning("  Ficheiro de debrief sem piloto associado. Ignorado.")
-                return None
+    def _resolve_explicit_related_pilot(
+        self, pilot_ids: List[Optional[str]]
+    ) -> str:
+        if not pilot_ids or any(
+            not value or not value.strip() for value in pilot_ids
+        ):
+            raise PilotIdentityRejected("missing-explicit-pilot-id")
+        distinct = {str(value) for value in pilot_ids}
+        if len(distinct) != 1:
+            raise PilotIdentityAmbiguous("mixed-explicit-pilot-ids")
+        pilot_id = next(iter(distinct))
+        row = self._conn.execute(
+            "SELECT 1 FROM pilots WHERE id=?", (pilot_id,)
+        ).fetchone()
+        if row is None:
+            raise PilotIdentityRejected("unknown-explicit-pilot-id")
         return pilot_id
 
+    def _upsert_dossier_pilot(
+        self, pilot: WoFFPilot, identity: PilotIdentityEvidence
+    ) -> str:
+        slot = self._validated_source_slot(pilot, identity, dossier=True)
+        if not pilot.name.strip():
+            raise PilotIdentityRejected("identityless-dossier", slot)
+
+        cursor = self._conn.cursor()
+        bound = cursor.execute(
+            """
+            SELECT p.id, p.name
+            FROM pilot_slot_bindings AS binding
+            JOIN pilots AS p ON p.id = binding.pilotId
+            WHERE binding.slot=?
+            """,
+            (slot,),
+        ).fetchone()
+        if bound is not None and str(bound[1]) == pilot.name:
+            pilot_id = str(bound[0])
+            self._update_pilot(pilot_id, pilot, preserve_name=False)
+        elif bound is not None:
+            pilot_id = pilot.id
+            self._insert_pilot(pilot)
+        else:
+            candidates = [
+                str(row[0])
+                for row in cursor.execute(
+                    "SELECT id, source_file FROM pilots WHERE name=?",
+                    (pilot.name,),
+                ).fetchall()
+                if pilot_slot(str(row[1] or "")) == slot
+            ]
+            if len(candidates) > 1:
+                raise PilotIdentityAmbiguous("ambiguous-legacy-slot", slot)
+            if candidates:
+                pilot_id = candidates[0]
+                self._update_pilot(pilot_id, pilot, preserve_name=False)
+            else:
+                pilot_id = pilot.id
+                self._insert_pilot(pilot)
+
+        cursor.execute(
+            """
+            INSERT INTO pilot_slot_bindings (
+                slot, pilotId, dossier_digest, last_updated
+            ) VALUES (?, ?, ?, ?)
+            ON CONFLICT(slot) DO UPDATE SET
+                pilotId=excluded.pilotId,
+                dossier_digest=excluded.dossier_digest,
+                last_updated=excluded.last_updated
+            """,
+            (
+                slot,
+                pilot_id,
+                identity.dossier_digest,
+                pilot.last_updated or datetime.now().isoformat(),
+            ),
+        )
+        log.info("  Pilot persisted from verified Dossier identity.")
+        return pilot_id
+
+    def _upsert_slot_dependent_pilot(
+        self, pilot: WoFFPilot, identity: PilotIdentityEvidence
+    ) -> str:
+        slot = self._validated_source_slot(pilot, identity, dossier=False)
+        row = self._conn.execute(
+            """
+            SELECT p.id, binding.dossier_digest
+            FROM pilot_slot_bindings AS binding
+            JOIN pilots AS p ON p.id = binding.pilotId
+            WHERE binding.slot=?
+            """,
+            (slot,),
+        ).fetchone()
+        if row is None or row[1] is None:
+            raise PilotIdentityUnavailable("missing-dossier-binding", slot)
+        if str(row[1]) != identity.dossier_digest:
+            raise PilotIdentityUnavailable("stale-dossier-binding", slot)
+        pilot_id = str(row[0])
+        self._update_pilot(pilot_id, pilot, preserve_name=True)
+        log.info("  Pilot updated from verified slot-dependent identity.")
+        return pilot_id
+
+    @staticmethod
+    def _validated_source_slot(
+        pilot: WoFFPilot,
+        identity: PilotIdentityEvidence,
+        *,
+        dossier: bool,
+    ) -> int:
+        slot = identity.slot
+        actual_slot = pilot_slot(pilot.source_file)
+        if slot is None or actual_slot != slot:
+            raise PilotIdentityRejected("invalid-slot-source", slot)
+        source_name = ntpath.basename(pilot.source_file.replace("/", "\\"))
+        is_dossier = source_name.lower() == dossier_source_name(slot).lower()
+        if dossier != is_dossier:
+            raise PilotIdentityRejected("identity-source-kind-mismatch", slot)
+        return slot
+
+    def _insert_pilot(self, pilot: WoFFPilot) -> None:
+        self._conn.execute(
+            """
+            INSERT INTO pilots (
+                id, name, fName, sName, nation, rank, squadron,
+                aircraft, aerodrome, sector, startDate, enlisted,
+                status, notes, photo, birthDate, birthPlace, missions,
+                flminutes, claimsCount, killsCount, skill, reputation,
+                source_file, last_updated
+            ) VALUES (
+                ?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,
+                COALESCE(?, 0), COALESCE(?, 0), COALESCE(?, 0),
+                COALESCE(?, 0), COALESCE(?, 0), COALESCE(?, 0),
+                ?,?
+            )
+            """,
+            (
+                pilot.id,
+                pilot.name,
+                pilot.fName,
+                pilot.sName,
+                pilot.nation,
+                pilot.rank,
+                pilot.squadron,
+                pilot.aircraft,
+                pilot.aerodrome,
+                pilot.sector,
+                pilot.startDate,
+                pilot.enlisted,
+                pilot.status,
+                pilot.notes,
+                pilot.photo,
+                pilot.birthDate,
+                pilot.birthPlace,
+                pilot.missions,
+                pilot.flminutes,
+                pilot.claimsCount,
+                pilot.killsCount,
+                pilot.skill,
+                pilot.reputation,
+                pilot.source_file,
+                pilot.last_updated,
+            ),
+        )
+
+    def _update_pilot(
+        self, pilot_id: str, pilot: WoFFPilot, *, preserve_name: bool
+    ) -> None:
+        name = "" if preserve_name else pilot.name
+        self._conn.execute(
+            """
+            UPDATE pilots SET
+                name=COALESCE(NULLIF(?, ''), name),
+                fName=COALESCE(NULLIF(?, ''), fName),
+                sName=COALESCE(NULLIF(?, ''), sName),
+                nation=COALESCE(NULLIF(?, ''), nation),
+                rank=COALESCE(NULLIF(?, ''), rank),
+                squadron=COALESCE(NULLIF(?, ''), squadron),
+                aircraft=COALESCE(NULLIF(?, ''), aircraft),
+                aerodrome=COALESCE(NULLIF(?, ''), aerodrome),
+                sector=COALESCE(NULLIF(?, ''), sector),
+                startDate=COALESCE(NULLIF(?, ''), startDate),
+                enlisted=COALESCE(NULLIF(?, ''), enlisted),
+                status=COALESCE(NULLIF(?, ''), status),
+                notes=COALESCE(NULLIF(?, ''), notes),
+                photo=COALESCE(NULLIF(?, ''), photo),
+                birthDate=COALESCE(NULLIF(?, ''), birthDate),
+                birthPlace=COALESCE(NULLIF(?, ''), birthPlace),
+                missions=COALESCE(?, missions),
+                flminutes=COALESCE(?, flminutes),
+                claimsCount=COALESCE(?, claimsCount),
+                killsCount=COALESCE(?, killsCount),
+                skill=COALESCE(?, skill),
+                reputation=COALESCE(?, reputation),
+                source_file=COALESCE(NULLIF(?, ''), source_file),
+                last_updated=?
+            WHERE id=?
+            """,
+            (
+                name,
+                pilot.fName,
+                pilot.sName,
+                pilot.nation,
+                pilot.rank,
+                pilot.squadron,
+                pilot.aircraft,
+                pilot.aerodrome,
+                pilot.sector,
+                pilot.startDate,
+                pilot.enlisted,
+                pilot.status,
+                pilot.notes,
+                pilot.photo,
+                pilot.birthDate,
+                pilot.birthPlace,
+                pilot.missions,
+                pilot.flminutes,
+                pilot.claimsCount,
+                pilot.killsCount,
+                pilot.skill,
+                pilot.reputation,
+                pilot.source_file,
+                pilot.last_updated,
+                pilot_id,
+            ),
+        )
+
     def get_pilot_state(self, pilot_name: str) -> Tuple[Optional[str], Optional[str]]:
-        """Busca o status e rank atual do piloto."""
+        """Return state only when a display name identifies one career."""
+        pilot_id = self.resolve_pilot_id(pilot_name)
+        if pilot_id is None:
+            return None, None
+        return self.get_pilot_state_by_id(pilot_id)
+
+    def get_pilot_state_by_id(
+        self, pilot_id: str
+    ) -> Tuple[Optional[str], Optional[str]]:
+        """Return status and rank for one explicit persistent career ID."""
         with self._lock:
             try:
                 row = self._fetch_one(
-                    "SELECT status, rank FROM pilots WHERE name = ?",
-                    (pilot_name,),
+                    "SELECT status, rank FROM pilots WHERE id = ?", (pilot_id,)
                 )
                 return (row[0], row[1]) if row else (None, None)
             except sqlite3.Error:
-                log.exception(f"Erro ao buscar estado do piloto {pilot_name}")
+                log.exception("Erro ao buscar estado do piloto por ID")
                 return None, None
+
+    def resolve_bound_dossier_id(self, name: str, slot: int) -> Optional[str]:
+        """Resolve a Dossier only when the current slot binding has that name."""
+        with self._lock:
+            row = self._fetch_one(
+                """
+                SELECT p.id
+                FROM pilot_slot_bindings AS binding
+                JOIN pilots AS p ON p.id = binding.pilotId
+                WHERE binding.slot=? AND p.name=?
+                """,
+                (slot, name),
+            )
+            return str(row[0]) if row else None
 
     def resolve_pilot_id(
         self, name: str, source_file: Optional[str] = None
     ) -> Optional[str]:
-        """
-        Resolve um nome de piloto (real ou placeholder 'Pilot X') para o UUID.
-        """
+        """Resolve a unique name or a placeholder through the current binding."""
         with self._lock:
             try:
-                # 1. Nome exato
-                row = self._fetch_one(
-                    "SELECT id FROM pilots WHERE name = ?",
-                    (name,),
-                )
-                if row:
-                    return row[0]
-
-                # 2. Fallback GLOB para "Pilot X"
-                if source_file and re.match(r"^Pilot \d+$", name):
-                    match = re.match(
-                        r"^Pilot(\d+)", os.path.basename(source_file), re.I
+                if source_file and _PLACEHOLDER_NAME.fullmatch(name):
+                    slot = pilot_slot(source_file)
+                    if slot is None:
+                        return None
+                    row = self._fetch_one(
+                        "SELECT pilotId FROM pilot_slot_bindings WHERE slot=?",
+                        (slot,),
                     )
-                    if match:
-                        pilot_num = match.group(1)
-                        row = self._fetch_one(
-                            "SELECT id FROM pilots WHERE source_file GLOB ?",
-                            (f"Pilot{pilot_num}[A-Za-z]*.txt",),
-                        )
-                        if row:
-                            return row[0]
-                return None
+                    return str(row[0]) if row else None
+
+                rows = self._fetch_all(
+                    "SELECT id FROM pilots WHERE name = ? LIMIT 2", (name,)
+                )
+                return str(rows[0][0]) if len(rows) == 1 else None
             except sqlite3.Error:
-                log.exception(f"Erro ao resolver pilot_id para {name}")
+                log.exception("Erro ao resolver pilot_id")
                 return None
 
     def get_pilot_id_by_name(self, pilot_name: str) -> Optional[str]:
-        """Busca o ID do piloto pelo nome de forma segura."""
+        """Return an ID only when the display name is unambiguous."""
         return self.resolve_pilot_id(pilot_name)
 
     def get_pilot_game_date(self, pilot_id: str) -> str:
-        """Busca a data mais recente do piloto (missão mais recente ou startDate)."""
+        """Return the most recent mission date or the career start date."""
         with self._lock:
             try:
                 row = self._fetch_one(
-                    "SELECT date FROM missions WHERE pilotId = ? ORDER BY date DESC LIMIT 1",
+                    "SELECT date FROM missions WHERE pilotId = ? "
+                    "ORDER BY date DESC LIMIT 1",
                     (pilot_id,),
                 )
                 if row and row[0]:
-                    return row[0]
+                    return str(row[0])
 
                 row = self._fetch_one(
-                    "SELECT startDate FROM pilots WHERE id = ?",
-                    (pilot_id,),
+                    "SELECT startDate FROM pilots WHERE id = ?", (pilot_id,)
                 )
                 if row and row[0]:
-                    return row[0]
+                    return str(row[0])
                 return "1917-01-01"
             except sqlite3.Error:
                 log.exception("Erro ao buscar data do jogo")
@@ -222,18 +362,27 @@ class PilotRepository(BaseRepository):
 
     def get_mission_and_history(
         self, pilot_identifier: str, mission_id: str
-    ) -> Tuple[Optional[Dict[str, Any]], Optional[Dict[str, Any]], List[Dict[str, Any]]]:
-        """Busca o piloto, a missão EXATA e o histórico de missões."""
+    ) -> Tuple[
+        Optional[Dict[str, Any]],
+        Optional[Dict[str, Any]],
+        List[Dict[str, Any]],
+    ]:
+        """Return one career, one exact mission, and its recent history."""
         with self._lock:
             conn = self._conn
             conn.row_factory = sqlite3.Row
             try:
                 pilot = conn.execute(
-                    "SELECT * FROM pilots WHERE id = ? OR name = ?",
-                    (pilot_identifier, pilot_identifier),
+                    "SELECT * FROM pilots WHERE id = ?", (pilot_identifier,)
                 ).fetchone()
-                if not pilot:
-                    return None, None, []
+                if pilot is None:
+                    candidates = conn.execute(
+                        "SELECT * FROM pilots WHERE name = ? LIMIT 2",
+                        (pilot_identifier,),
+                    ).fetchall()
+                    if len(candidates) != 1:
+                        return None, None, []
+                    pilot = candidates[0]
 
                 current_mission = conn.execute(
                     "SELECT * FROM missions WHERE id = ? AND pilotId = ?",
@@ -243,11 +392,17 @@ class PilotRepository(BaseRepository):
                     return dict(pilot), None, []
 
                 history = conn.execute(
-                    """SELECT * FROM missions WHERE pilotId = ?
-                       ORDER BY date DESC, time DESC LIMIT 10""",
+                    """
+                    SELECT * FROM missions WHERE pilotId = ?
+                    ORDER BY date DESC, time DESC LIMIT 10
+                    """,
                     (pilot["id"],),
                 ).fetchall()
-                return dict(pilot), dict(current_mission), [dict(m) for m in history]
+                return (
+                    dict(pilot),
+                    dict(current_mission),
+                    [dict(mission) for mission in history],
+                )
             except sqlite3.Error:
                 log.exception("Erro ao buscar missão/histórico")
                 return None, None, []
