@@ -40,7 +40,7 @@ public 3.2.1 release unless release evidence is recorded separately.
 
 ## Active cycle 3.3.0
 
-Issue #50 is the official tracker. The eight functional members remain separate
+Issue #50 is the official tracker. The twelve functional members remain separate
 issues and pull requests.
 
 | Work item | Eval IDs | Required evidence |
@@ -52,13 +52,17 @@ issues and pull requests.
 | #42 | `EVAL-SNAP-001`, `EVAL-SNAP-002`, `EVAL-SNAP-003` | Exact stable snapshots, bounded simulated Windows retry, persistence-aware acknowledgement, and observer-first startup coverage |
 | #40 | `EVAL-DATE-001`, `EVAL-DATE-002` | Canonical validation and deterministic ordering |
 | #39 | `EVAL-MISSION-001`, `EVAL-MISSION-002` | Stable identity and non-destructive enrichment |
+| #70 | `EVAL-IDENTITY-001`, `EVAL-IDENTITY-002` | Career isolation across slot reuse, same-name independence, and rejection of identityless persistence |
+| #71 | `EVAL-PILOT-STATUS-001`, `EVAL-PILOT-STATUS-002` | Preservation of authoritative status and idempotent explicit transitions |
+| #72 | `EVAL-DOSSIER-TXN-001`, `EVAL-DOSSIER-TXN-002` | Atomic rollback and exactly-once consistent Dossier state |
+| #73 | `EVAL-VICTORY-MERGE-001`, `EVAL-DECORATION-MERGE-001` | Lossless same-minute victories and non-destructive enrichment of stable rows |
 | #27 | `EVAL-DEFER-001`, `EVAL-DEFER-002` | Deferred reprocessing without loss or unbounded retention |
 
 ### EVAL-CYCLE-330-001
 
 The aggregate eval passes only when:
 
-- all eight member issues satisfy their acceptance criteria
+- all twelve member issues satisfy their acceptance criteria
 - every applicable member eval is implemented and passing
 - dependency relations in the graph are satisfied
 - focused tests, related tests, the full suite, and Pyright pass

@@ -26,6 +26,7 @@ Os guias contêm os limites e procedimentos completos; este resumo não os subst
 ## 🌟 Funcionalidades Principais
 
 - **Monitorização em Tempo Real** — deteta automaticamente quando o jogo guarda progresso e processa os ficheiros sem interferir com o motor (Read-Only).
+- **Ingestão por Snapshot Estável** — lê uma geração verificada de cada ficheiro, coalesce eventos equivalentes e limita retries transitórios antes de reconhecer o processamento.
 - **Engenharia Reversa de Ficheiros Binários** — decifra o `Pilot1Dossier.txt` e os ficheiros de esquadrões (Scratchpad), removendo a camada de ofuscação Hex e investigando a cifra interna (suspeita de ser XOR) implementada pela OBD Software.
 - **Extração de Dados Pessoais** — nome real do piloto, data e local de nascimento, biografia gerada pelo jogo, ID da fotografia e membros do esquadrão (AI Wingmen) com patentes e biografias.
 - **Plano de Voo e Mapa Tático** — lê o `mission.log` gerado pelo motor CFS3, extrai waypoints, converte coordenadas para Graus Decimais e regista a linha da frente de batalha.
@@ -68,10 +69,13 @@ O ciclo ativo é o **3.3.0: integridade e ingestão**, acompanhado pela Issue
 [#34](https://github.com/Malboro66/woff-mate/issues/34),
 [#57](https://github.com/Malboro66/woff-mate/issues/57),
 [#45](https://github.com/Malboro66/woff-mate/issues/45) e
-[#36](https://github.com/Malboro66/woff-mate/issues/36) já foram concluídas.
+[#36](https://github.com/Malboro66/woff-mate/issues/36), além da Issue
+[#42](https://github.com/Malboro66/woff-mate/issues/42), concluída pela PR
+[#83](https://github.com/Malboro66/woff-mate/pull/83), já foram concluídas.
 A prioridade técnica atual é a Issue
-[#42](https://github.com/Malboro66/woff-mate/issues/42), que trata snapshots
-estáveis e retries transitórios limitados antes do restante da cadeia de ingestão.
+[#70](https://github.com/Malboro66/woff-mate/issues/70), que protege a identidade
+das carreiras contra reutilização de slots, nomes repetidos e entradas sem
+identidade resolvida.
 
 O backlog operacional está no
 [GitHub Project WoFF Mate Development](https://github.com/users/Malboro66/projects/1).
@@ -80,10 +84,12 @@ repositório permanecem como fontes técnicas.
 
 Prioridades atuais:
 
-1. processar snapshots estáveis com retry transitório e limitado (#42)
-2. validar datas canônicas e ordenação determinística de missões (#40)
-3. atualizar missões existentes sem degradar dados mais ricos (#39, após #40)
-4. reprocessar ficheiros dependentes sem perda quando o Dossier ainda não está disponível (#27, após #42 e #39)
+1. preservar a identidade de carreira entre reutilizações de slot e nomes repetidos (#70)
+2. preservar a proveniência de status em fontes parciais (#71)
+3. validar datas canônicas e ordenação determinística de missões (#40)
+4. atualizar missões existentes sem degradar dados mais ricos (#39, após #40)
+5. garantir atomicidade do Dossier e merges sem perda para vitórias e condecorações (#72 e #73)
+6. reprocessar ficheiros dependentes sem perda quando o Dossier ainda não está disponível (#27, após #39, #70 e #71)
 
 A investigação do Dossier continua relevante, mas não representa o único
 bloqueador do projeto.
