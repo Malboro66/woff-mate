@@ -4,7 +4,7 @@ This guide describes the existing migration safeguards and an offline manual rec
 
 ## Schema compatibility
 
-Current schema: `3.1`, sourced from `woff.version.SCHEMA_VERSION`.
+Current schema: `3.2`, sourced from `woff.version.SCHEMA_VERSION`.
 
 Schema versions use `MAJOR.MINOR`:
 
@@ -150,4 +150,3 @@ Use this only after automatic recovery failed or under support guidance. These n
 6. Reopen WoFF Mate and verify the expected campaign information. Keep both the migration backup and safety copy until validation and successful reopening are complete.
 
 If any recovery step fails, close every process again, preserve the failed result separately, and restore the original files (database, WAL, SHM, and journal) from the safety directory. Keep both the backup and safety copy until recovery and reopening succeed.
-

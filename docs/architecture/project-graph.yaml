@@ -36,6 +36,7 @@ modules:
   domain:
     responsibility: Campaign entities, normalization, RPG rules, and narratives.
     paths:
+      - woff/identity.py
       - woff/maps.py
       - woff/models.py
       - woff/narrative_generator.py

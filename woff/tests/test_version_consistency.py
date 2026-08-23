@@ -148,8 +148,10 @@ def test_known_2_2_database_migrates_with_backup_and_reopens(tmp_path):
         assert columns.issuperset(SCHEMA_TABLES["pilots"])
         conn.execute("PRAGMA foreign_keys=ON")
         conn.execute("INSERT INTO pilots (id, name) VALUES ('p1', 'Pilot')")
-        with pytest.raises(sqlite3.IntegrityError):
-            conn.execute("INSERT INTO pilots (id, name) VALUES ('p2', 'Pilot')")
+        conn.execute("INSERT INTO pilots (id, name) VALUES ('p2', 'Pilot')")
+        assert conn.execute(
+            "SELECT id FROM pilots WHERE name='Pilot' ORDER BY id"
+        ).fetchall() == [("p1",), ("p2",)]
         with pytest.raises(sqlite3.IntegrityError):
             conn.execute("INSERT INTO missions (id, pilotId) VALUES ('m1', 'missing')")
 
@@ -284,7 +286,7 @@ def test_schema_validation_failure_restores_original_database(tmp_path, monkeypa
     assert _meta(path)["schema_version"] == SCHEMA_VERSION
 
 
-def test_partial_pilots_name_index_cannot_replace_full_unique_constraint(tmp_path):
+def test_legacy_partial_pilots_name_unique_index_is_removed(tmp_path):
     path = tmp_path / "partial-pilots-unique.sqlite"
     manager = DatabaseManager(str(path))
     manager.close()
@@ -301,14 +303,15 @@ def test_partial_pilots_name_index_cannot_replace_full_unique_constraint(tmp_pat
             "WHERE name IS NOT NULL"
         )
         _mark_for_failed_certification(conn)
-    before = _dump(path)
+    migrated = DatabaseManager(str(path))
+    migrated.close()
 
-    with pytest.raises(SchemaCompatibilityError, match="missing UNIQUE pilots"):
-        DatabaseManager(str(path))
-
-    assert _dump(path) == before
-    assert _meta(path)["schema_version"] == "2.2"
-    assert _meta(path)["app_version"] == "legacy-app"
+    with sqlite3.connect(path) as conn:
+        indexes = {row[1] for row in conn.execute("PRAGMA index_list(pilots)")}
+        assert "partial_pilots_name" not in indexes
+        conn.execute("INSERT INTO pilots (id, name) VALUES ('p1', 'Pilot')")
+        conn.execute("INSERT INTO pilots (id, name) VALUES ('p2', 'Pilot')")
+    assert _meta(path)["schema_version"] == SCHEMA_VERSION
 
 
 @pytest.mark.parametrize(

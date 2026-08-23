@@ -24,6 +24,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Optional, List, Any, Dict, NoReturn, Tuple
 
+from .identity import pilot_slot
 from .models import WoFFPilot, WoFFMission, WoFFVictory, WoFFDecoration, WoFFWingman
 from .repositories import PilotRepository, MissionRepository, RpgRepository, WingmanRepository
 from .version import SCHEMA_VERSION, __version__
@@ -76,11 +77,12 @@ ALLOWED_MIGRATIONS: Dict[str, Dict[str, str]] = {
     }
 }
 
-# Canonical schema 3.1 contract. SQLite integrity checks cannot detect missing
+# Canonical schema 3.2 contract. SQLite integrity checks cannot detect missing
 # application columns or constraints, so certification verifies these explicitly.
 SCHEMA_TABLES: Dict[str, Dict[str, str]] = {
     "meta": {"key": "TEXT", "value": "TEXT"},
     "pilots": {"id": "TEXT", "name": "TEXT", "fName": "TEXT", "sName": "TEXT", "nation": "TEXT", "rank": "TEXT", "squadron": "TEXT", "aircraft": "TEXT", "aerodrome": "TEXT", "sector": "TEXT", "startDate": "TEXT", "enlisted": "TEXT", "status": "TEXT", "notes": "TEXT", "photo": "TEXT", "birthDate": "TEXT", "birthPlace": "TEXT", "missions": "INTEGER", "flminutes": "INTEGER", "claimsCount": "INTEGER", "killsCount": "INTEGER", "skill": "INTEGER", "reputation": "INTEGER", "source_file": "TEXT", "last_updated": "TEXT"},
+    "pilot_slot_bindings": {"slot": "INTEGER", "pilotId": "TEXT", "dossier_digest": "TEXT", "last_updated": "TEXT"},
     "missions": {"id": "TEXT", "pilotId": "TEXT", "date": "TEXT", "time": "TEXT", "missionType": "TEXT", "aircraft": "TEXT", "duration": "TEXT", "altitude": "TEXT", "sector": "TEXT", "squadron": "TEXT", "weather": "TEXT", "enemyContacts": "INTEGER", "claimsCount": "INTEGER", "result": "TEXT", "damageReceived": "INTEGER", "woundsReceived": "INTEGER", "notes": "TEXT", "source_file": "TEXT"},
     "victories": {"id": "TEXT", "pilotId": "TEXT", "date": "TEXT", "time": "TEXT", "missionId": "TEXT", "enemyType": "TEXT", "victoryType": "TEXT", "location": "TEXT", "confirmed": "INTEGER", "witnesses": "TEXT", "notes": "TEXT", "sector": "TEXT", "aircraft": "TEXT", "source_file": "TEXT"},
     "decorations": {"id": "TEXT", "pilotId": "TEXT", "name": "TEXT", "date": "TEXT", "citation": "TEXT", "source_file": "TEXT"},
@@ -93,9 +95,21 @@ SCHEMA_TABLES: Dict[str, Dict[str, str]] = {
     "wingmen_memory": {"id": "TEXT", "wingmanId": "TEXT", "event_type": "TEXT", "event_date": "TEXT", "description": "TEXT", "impact_morale": "INTEGER", "impact_stress": "INTEGER"},
 }
 
-SCHEMA_PRIMARY_KEYS = {table: ("pilotId" if table == "pilot_rpg_stats" else "wingmanId" if table == "wingmen_personalities" else "key" if table == "meta" else "id") for table in SCHEMA_TABLES}
+SCHEMA_PRIMARY_KEYS = {
+    table: (
+        "pilotId"
+        if table == "pilot_rpg_stats"
+        else "wingmanId"
+        if table == "wingmen_personalities"
+        else "key"
+        if table == "meta"
+        else "slot"
+        if table == "pilot_slot_bindings"
+        else "id"
+    )
+    for table in SCHEMA_TABLES
+}
 SCHEMA_UNIQUES = {
-    "pilots": [("name",)],
     "missions": [("pilotId", "date", "time", "missionType", "aircraft")],
     "victories": [("pilotId", "date", "time", "enemyType")],
     "decorations": [("pilotId", "name")],
@@ -103,6 +117,7 @@ SCHEMA_UNIQUES = {
     "medals_catalog": [("country", "name")],
 }
 SCHEMA_FOREIGN_KEYS = {
+    "pilot_slot_bindings": {("pilotId", "pilots", "id")},
     "missions": {("pilotId", "pilots", "id")},
     "victories": {("pilotId", "pilots", "id")},
     "decorations": {("pilotId", "pilots", "id")},
@@ -281,7 +296,7 @@ class DatabaseManager:
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS pilots (
                     id TEXT PRIMARY KEY,
-                    name TEXT UNIQUE,
+                    name TEXT,
                     fName TEXT,
                     sName TEXT,
                     nation TEXT,
@@ -305,6 +320,17 @@ class DatabaseManager:
                     reputation INTEGER,
                     source_file TEXT,
                     last_updated TEXT
+                )
+            """)
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_pilots_name ON pilots(name)")
+
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS pilot_slot_bindings (
+                    slot INTEGER PRIMARY KEY CHECK(slot > 0),
+                    pilotId TEXT NOT NULL,
+                    dossier_digest TEXT,
+                    last_updated TEXT NOT NULL,
+                    FOREIGN KEY(pilotId) REFERENCES pilots(id)
                 )
             """)
 
@@ -451,7 +477,9 @@ class DatabaseManager:
                 existing_columns = {row[1] for row in info}
                 if existing_columns and any(col not in existing_columns for col in cols):
                     return True
-            return self._has_numeric_column_type_migration(cursor)
+            return self._has_numeric_column_type_migration(
+                cursor
+            ) or self._has_pilot_identity_schema_migration(cursor)
         finally:
             conn.close()
 
@@ -636,6 +664,10 @@ class DatabaseManager:
                         for col in cols:
                             pending_migration = pending_migration or col not in existing_columns
                 pending_migration = pending_migration or self._has_numeric_column_type_migration(cursor)
+                pending_migration = (
+                    pending_migration
+                    or self._has_pilot_identity_schema_migration(cursor)
+                )
                 if pending_migration and self._migration_backup_path is None:
                     self._migration_backup_path = self._backup_existing_database()
 
@@ -652,11 +684,13 @@ class DatabaseManager:
                             existing_columns.add(col)
 
                 self._migrate_numeric_column_types(cursor)
+                self._migrate_pilot_identity_schema(cursor)
 
                 # Initialization is part of this same transaction: a failure in
                 # any CREATE rolls back migrations and leaves old metadata intact.
                 self._local.conn = conn
                 self._init_db()
+                self._seed_unambiguous_slot_bindings(cursor)
 
                 if table_columns("diary_entries"):
                     cursor.execute("""
@@ -722,7 +756,17 @@ class DatabaseManager:
             indexes = cursor.execute(
                 f"PRAGMA index_list({self._quote_identifier(table)})"
             ).fetchall()
-            unique_columns = {
+            all_unique_columns = {
+                tuple(
+                    row[2]
+                    for row in cursor.execute(
+                        f"PRAGMA index_info({self._quote_identifier(str(index[1]))})"
+                    ).fetchall()
+                )
+                for index in indexes
+                if index[2]
+            }
+            required_unique_columns = {
                 tuple(
                     row[2]
                     for row in cursor.execute(
@@ -736,8 +780,10 @@ class DatabaseManager:
                 if index[2] and index[3] == "u" and not index[4]
             }
             for unique in SCHEMA_UNIQUES.get(table, []):
-                if unique not in unique_columns:
+                if unique not in required_unique_columns:
                     errors.append(f"missing UNIQUE {table}{unique}")
+            if table == "pilots" and ("name",) in all_unique_columns:
+                errors.append("forbidden UNIQUE pilots('name',)")
 
             foreign_keys = {
                 (str(row[3]), str(row[2]), str(row[4]))
@@ -748,6 +794,49 @@ class DatabaseManager:
             for foreign_key in SCHEMA_FOREIGN_KEYS.get(table, set()):
                 if foreign_key not in foreign_keys:
                     errors.append(f"missing foreign key {table}{foreign_key}")
+
+        pilots_indexes = cursor.execute("PRAGMA index_list(pilots)").fetchall()
+        pilots_name_index = next(
+            (row for row in pilots_indexes if row[1] == "idx_pilots_name"), None
+        )
+        if pilots_name_index is None or pilots_name_index[2] or pilots_name_index[4]:
+            errors.append("missing canonical non-unique index idx_pilots_name")
+        else:
+            name_index_columns = tuple(
+                str(row[2])
+                for row in cursor.execute(
+                    "PRAGMA index_info(idx_pilots_name)"
+                ).fetchall()
+            )
+            if name_index_columns != ("name",):
+                errors.append("wrong key semantics for index idx_pilots_name")
+
+        binding_info = {
+            str(row[1]): row
+            for row in cursor.execute(
+                "PRAGMA table_info(pilot_slot_bindings)"
+            ).fetchall()
+        }
+        for required_not_null in ("pilotId", "last_updated"):
+            if required_not_null in binding_info and not binding_info[required_not_null][3]:
+                errors.append(
+                    f"missing NOT NULL pilot_slot_bindings.{required_not_null}"
+                )
+        binding_sql_row = cursor.execute(
+            "SELECT sql FROM sqlite_master WHERE type='table' "
+            "AND name='pilot_slot_bindings'"
+        ).fetchone()
+        binding_sql = (
+            str(binding_sql_row[0])
+            if binding_sql_row is not None and binding_sql_row[0]
+            else ""
+        )
+        if re.search(
+            r"CHECK\s*\(\s*[\"`\[]?slot[\"`\]]?\s*>\s*0\s*\)",
+            binding_sql,
+            flags=re.IGNORECASE,
+        ) is None:
+            errors.append("missing positive slot check pilot_slot_bindings.slot")
 
         diary_indexes = cursor.execute("PRAGMA index_list(diary_entries)").fetchall()
         diary_index = next(
@@ -778,7 +867,8 @@ class DatabaseManager:
 
         if errors:
             raise SchemaCompatibilityError(
-                "Database layout is incompatible with schema 3.1: " + "; ".join(errors)
+                f"Database layout is incompatible with schema {SCHEMA_VERSION}: "
+                + "; ".join(errors)
             )
 
     def _has_canonical_diary_index_predicate(self, sql: str) -> bool:
@@ -851,6 +941,199 @@ class DatabaseManager:
             log.info(
                 f"  [Migração] Tabela '{table}' convertida para colunas numéricas INTEGER: "
                 f"{', '.join(text_numeric)}."
+            )
+
+    def _pilot_name_unique_indexes(
+        self, cursor: sqlite3.Cursor, table: str = "pilots"
+    ) -> List[Tuple[str, Optional[str]]]:
+        """Return every unique index whose only key is the display name."""
+
+        indexes: List[Tuple[str, Optional[str]]] = []
+        for row in cursor.execute(
+            f"PRAGMA index_list({self._quote_identifier(table)})"
+        ).fetchall():
+            if not row[2]:
+                continue
+            index_name = str(row[1])
+            columns = tuple(
+                str(item[2])
+                for item in cursor.execute(
+                    f"PRAGMA index_info({self._quote_identifier(index_name)})"
+                ).fetchall()
+            )
+            if columns != ("name",):
+                continue
+            sql_row = cursor.execute(
+                "SELECT sql FROM sqlite_master WHERE type='index' AND name=?",
+                (index_name,),
+            ).fetchone()
+            indexes.append(
+                (index_name, str(sql_row[0]) if sql_row and sql_row[0] else None)
+            )
+        return indexes
+
+    def _has_pilot_identity_schema_migration(
+        self, cursor: sqlite3.Cursor
+    ) -> bool:
+        pilots = cursor.execute(
+            "SELECT 1 FROM sqlite_master WHERE type='table' AND name='pilots'"
+        ).fetchone()
+        if pilots is None:
+            return False
+        if self._pilot_name_unique_indexes(cursor):
+            return True
+        binding = cursor.execute(
+            "SELECT 1 FROM sqlite_master "
+            "WHERE type='table' AND name='pilot_slot_bindings'"
+        ).fetchone()
+        if binding is None:
+            return True
+        index = cursor.execute(
+            "SELECT 1 FROM sqlite_master "
+            "WHERE type='index' AND name='idx_pilots_name'"
+        ).fetchone()
+        return index is None
+
+    def _migrate_pilot_identity_schema(self, cursor: sqlite3.Cursor) -> None:
+        """Remove display-name uniqueness without changing IDs or relationships."""
+
+        forbidden_indexes = self._pilot_name_unique_indexes(cursor)
+        if not forbidden_indexes:
+            return
+
+        original_row = cursor.execute(
+            "SELECT sql FROM sqlite_master "
+            "WHERE type='table' AND name='pilots' AND sql IS NOT NULL"
+        ).fetchone()
+        if original_row is None:
+            raise SchemaCompatibilityError(
+                "Cannot migrate pilot identity without canonical pilots DDL"
+            )
+
+        dependent_sql = self._dependent_sql_for_table(cursor, "pilots")
+        forbidden_sql = {
+            sql for _name, sql in forbidden_indexes if sql is not None
+        }
+        compatible_sql = [sql for sql in dependent_sql if sql not in forbidden_sql]
+        new_table = self._unique_temp_table_name(cursor, "pilots")
+        rewritten = self._rewrite_pilot_identity_table_sql(
+            str(original_row[0]), "pilots", new_table
+        )
+        cursor.execute(rewritten)
+        if self._pilot_name_unique_indexes(cursor, new_table):
+            raise SchemaCompatibilityError(
+                "Pilot identity migration retained a forbidden UNIQUE(name)"
+            )
+
+        old_columns = [
+            str(row[1])
+            for row in cursor.execute("PRAGMA table_info(pilots)").fetchall()
+        ]
+        new_columns = [
+            str(row[1])
+            for row in cursor.execute(
+                f"PRAGMA table_info({self._quote_identifier(new_table)})"
+            ).fetchall()
+        ]
+        if new_columns != old_columns:
+            raise SchemaCompatibilityError(
+                "Pilot identity migration changed the pilots column contract"
+            )
+        columns = ", ".join(self._quote_identifier(column) for column in old_columns)
+        cursor.execute(
+            f"INSERT INTO {self._quote_identifier(new_table)} ({columns}) "
+            f"SELECT {columns} FROM pilots"
+        )
+        cursor.execute("DROP TABLE pilots")
+        cursor.execute(
+            f"ALTER TABLE {self._quote_identifier(new_table)} RENAME TO pilots"
+        )
+        for sql in compatible_sql:
+            cursor.execute(sql)
+        log.info(
+            "  [Migração] Unicidade de nome removida; IDs de carreira preservados."
+        )
+
+    def _rewrite_pilot_identity_table_sql(
+        self, sql: str, table: str, new_table: str
+    ) -> str:
+        """Rewrite only the pilots display-name UNIQUE constraint."""
+
+        self._reject_unsupported_sql_comments(sql)
+        prefix_end = self._create_table_name_end(sql)
+        open_paren = sql.find("(", prefix_end)
+        if open_paren == -1:
+            raise ValueError(
+                f"Unsupported CREATE TABLE format for {table}: missing column list"
+            )
+        close_paren = self._matching_paren(sql, open_paren)
+        definitions = self._split_top_level_csv(sql[open_paren + 1 : close_paren])
+        rewritten: List[str] = []
+        removed = False
+        for definition in definitions:
+            column_name = self._definition_column_name(definition)
+            if column_name == "name":
+                value, count = re.subn(
+                    r"\s+UNIQUE(?:\s+ON\s+CONFLICT\s+"
+                    r"(?:ROLLBACK|ABORT|FAIL|IGNORE|REPLACE))?",
+                    "",
+                    definition,
+                    count=1,
+                    flags=re.IGNORECASE,
+                )
+                rewritten.append(value)
+                removed = removed or count == 1
+                continue
+            normalized = re.sub(r'[\s"`\[\]]+', "", definition).upper()
+            if re.fullmatch(
+                r"(?:CONSTRAINT[A-Z_][A-Z0-9_]*)?UNIQUE\(NAME\)"
+                r"(?:ONCONFLICT(?:ROLLBACK|ABORT|FAIL|IGNORE|REPLACE))?",
+                normalized,
+            ):
+                removed = True
+                continue
+            rewritten.append(definition)
+        if not removed:
+            # A unique index created outside the table still requires a rebuild
+            # so dependent objects are recreated without that incompatible index.
+            rewritten = definitions
+        suffix = sql[close_paren + 1 :]
+        return (
+            f"CREATE TABLE {self._quote_identifier(new_table)} ("
+            + ",".join(rewritten)
+            + ")"
+            + suffix
+        )
+
+    def _seed_unambiguous_slot_bindings(self, cursor: sqlite3.Cursor) -> None:
+        """Seed only legacy slots that identify exactly one existing career."""
+
+        groups: Dict[int, set[str]] = {}
+        pilot_columns = {
+            str(row[1])
+            for row in cursor.execute("PRAGMA table_info(pilots)").fetchall()
+        }
+        if not {"id", "source_file"}.issubset(pilot_columns):
+            return
+        rows = cursor.execute(
+            "SELECT id, source_file FROM pilots "
+            "WHERE source_file IS NOT NULL AND TRIM(source_file) != ''"
+        ).fetchall()
+        for pilot_id, source_file in rows:
+            slot = pilot_slot(str(source_file))
+            if slot is not None:
+                groups.setdefault(slot, set()).add(str(pilot_id))
+        last_updated = datetime.now().isoformat()
+        for slot, pilot_ids in groups.items():
+            if len(pilot_ids) != 1:
+                continue
+            cursor.execute(
+                """
+                INSERT OR IGNORE INTO pilot_slot_bindings (
+                    slot, pilotId, dossier_digest, last_updated
+                ) VALUES (?, ?, NULL, ?)
+                """,
+                (slot, next(iter(pilot_ids)), last_updated),
             )
 
 
@@ -1183,7 +1466,7 @@ class DatabaseManager:
         statements = {
             "pilots": """
                 CREATE TABLE pilots (
-                    id TEXT PRIMARY KEY, name TEXT UNIQUE, fName TEXT, sName TEXT,
+                    id TEXT PRIMARY KEY, name TEXT, fName TEXT, sName TEXT,
                     nation TEXT, rank TEXT, squadron TEXT, aircraft TEXT,
                     aerodrome TEXT, sector TEXT, startDate TEXT, enlisted TEXT,
                     status TEXT, notes TEXT, photo TEXT, birthDate TEXT,
