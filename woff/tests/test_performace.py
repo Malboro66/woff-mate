@@ -9,6 +9,7 @@ from unittest.mock import patch, mock_open
 from ..parsers.dossier_parser import WoFFDossierParser
 from ..database import DatabaseManager
 from ..models import WoFFPilot, WoFFMission
+from .identity_support import dossier_evidence
 
 def _generate_large_encoded_dossier(filename: str, num_lines: int = 50000) -> bytes:
     """Gera um ficheiro Dossier ofuscado gigante para testes de stress."""
@@ -98,8 +99,12 @@ class TestPerformance(unittest.TestCase):
 
     def test_database_merge_1000_missions(self):
         """Testa inserção em massa de 1000 missões numa única transação."""
-        pilot = WoFFPilot(name="Stress Test Pilot")
-        self.db.merge_and_write(pilot, [], [], [])
+        pilot = WoFFPilot(
+            name="Stress Test Pilot", source_file="Pilot1Dossier.txt"
+        )
+        self.db.merge_and_write(
+            pilot, [], [], [], identity=dossier_evidence(1, "performance")
+        )
         
         # Criar 1000 missões únicas (variam a hora para não colidir na UNIQUE constraint)
         missions = [

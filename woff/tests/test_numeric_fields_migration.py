@@ -12,6 +12,7 @@ from woff.database import (
 )
 from woff.models import WoFFMission, WoFFPilot, WoFFWingman
 from woff.rpg_system import RPGSystem
+from woff.version import SCHEMA_VERSION
 
 
 def test_numeric_model_fields_support_arithmetic_without_casting():
@@ -160,7 +161,9 @@ def test_new_database_has_integer_numeric_columns_and_schema_version(tmp_path):
     try:
         pilot_types = {row[1]: row[2] for row in conn.execute("PRAGMA table_info(pilots)")}
         assert pilot_types["missions"] == "INTEGER"
-        assert conn.execute("SELECT value FROM meta WHERE key='schema_version'").fetchone() == ("3.1",)
+        assert conn.execute(
+            "SELECT value FROM meta WHERE key='schema_version'"
+        ).fetchone() == (SCHEMA_VERSION,)
         assert conn.execute("PRAGMA foreign_key_check").fetchall() == []
         assert conn.execute("PRAGMA integrity_check").fetchone() == ("ok",)
     finally:

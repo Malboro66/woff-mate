@@ -4,5 +4,5 @@
 __version__ = "3.2.0"
 
 # Data-format versions evolve independently from application releases.
-SCHEMA_VERSION = "3.1"
+SCHEMA_VERSION = "3.2"
 CONFIG_VERSION = "1"

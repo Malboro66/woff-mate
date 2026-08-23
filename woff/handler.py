@@ -28,6 +28,14 @@ from .ingestion.snapshot import (
     StableFileSnapshot,
     StableSnapshotReader,
 )
+from .identity import (
+    PilotIdentityError,
+    PilotIdentityEvidence,
+    PilotIdentityKind,
+    PilotIdentityRejected,
+    dossier_source_name,
+    pilot_slot,
+)
 
 from .parsers.xml_parser import WoFFXMLParser
 from .parsers.mission_log_parser import WoFFMissionLogParser
@@ -119,6 +127,14 @@ class FileProcessor:
                 _safe_filename(path), failure.kind.value, failure.attempts,
             )
             return None
+        except PilotIdentityError as error:
+            log.warning(
+                "Pilot identity rejected: source=%s category=%s slot=%s",
+                _safe_filename(path),
+                error.reason,
+                error.slot or "none",
+            )
+            return None
         except Exception:
             log.exception("Erro no pipeline de processamento para %s", _safe_filename(path))
             return None
@@ -130,6 +146,37 @@ class FileProcessor:
         with open(path, "rb") as source:
             return source.read(), os.path.basename(path)
 
+    @staticmethod
+    def _dossier_identity(
+        snapshot: Optional[StableFileSnapshot],
+    ) -> PilotIdentityEvidence:
+        if snapshot is None:
+            raise PilotIdentityRejected("missing-stable-snapshot")
+        slot = pilot_slot(snapshot.name)
+        if slot is None:
+            raise PilotIdentityRejected("invalid-slot-source")
+        return PilotIdentityEvidence(
+            PilotIdentityKind.DOSSIER,
+            slot,
+            snapshot.generation.digest,
+        )
+
+    def _dependent_identity(
+        self, path: str, source_name: str
+    ) -> PilotIdentityEvidence:
+        slot = pilot_slot(source_name)
+        if slot is None:
+            raise PilotIdentityRejected("invalid-slot-source")
+        dossier_path = os.path.join(
+            os.path.dirname(path), dossier_source_name(slot)
+        )
+        dossier = self.guard.acquire(dossier_path)
+        return PilotIdentityEvidence(
+            PilotIdentityKind.SLOT_DEPENDENT,
+            slot,
+            dossier.generation.digest,
+        )
+
     def _process_xml(self, path: str, snapshot: Optional[StableFileSnapshot] = None) -> bool:
         parser = WoFFXMLParser()
         data, name = self._parser_input(path, snapshot)
@@ -140,6 +187,7 @@ class FileProcessor:
                 missions=parser.missions,
                 victories=parser.victories,
                 decorations=parser.decorations,
+                identity=PilotIdentityEvidence(PilotIdentityKind.UNRESOLVED),
             )
             if not real_pilot_id:
                 return False
@@ -167,8 +215,15 @@ class FileProcessor:
         if "dossier" in fname:
             parser = WoFFDossierParser()
             if parser.parse_bytes(data, name) and parser.pilot:
-                old_status, old_rank = self.db_manager.get_pilot_state(
-                    parser.pilot.name
+                identity = self._dossier_identity(snapshot)
+                assert identity.slot is not None
+                prior_pilot_id = self.db_manager.resolve_bound_dossier_id(
+                    parser.pilot.name, identity.slot
+                )
+                old_status, old_rank = (
+                    self.db_manager.get_pilot_state_by_id(prior_pilot_id)
+                    if prior_pilot_id is not None
+                    else (None, None)
                 )
 
                 try:
@@ -178,9 +233,12 @@ class FileProcessor:
                         event_date = datetime.fromtimestamp(
                             snapshot.generation.modified_ns / 1_000_000_000
                         ).strftime("%Y-%m-%d") if snapshot is not None else None
-                        self.campaign_engine.process_wingmen_changes(
-                            parser.pilot.name, parser.wingmen, event_date=event_date
-                        )
+                        if prior_pilot_id is not None:
+                            self.campaign_engine.process_wingmen_changes(
+                                prior_pilot_id,
+                                parser.wingmen,
+                                event_date=event_date,
+                            )
 
                         real_pilot_id = self.db_manager.merge_and_write(
                             pilot=parser.pilot,
@@ -188,6 +246,7 @@ class FileProcessor:
                             victories=[],
                             decorations=parser.decorations,
                             wingmen=parser.wingmen,
+                            identity=identity,
                         )
                         if not real_pilot_id:
                             raise _PersistenceRejected
@@ -197,11 +256,12 @@ class FileProcessor:
                         old_status_str = old_status if old_status is not None else ""
                         old_rank_str = old_rank if old_rank is not None else ""
 
-                        if (old_status_str != new_status) or (
-                            old_rank_str != new_rank and new_rank
+                        if real_pilot_id == prior_pilot_id and (
+                            (old_status_str != new_status)
+                            or (old_rank_str != new_rank and new_rank)
                         ):
                             self.campaign_engine.process_life_events(
-                                parser.pilot.name,
+                                real_pilot_id,
                                 str(new_status),
                                 str(new_rank),
                                 old_status,
@@ -221,6 +281,7 @@ class FileProcessor:
                     missions=[parser.mission] if parser.mission else [],
                     victories=[],
                     decorations=[],
+                    identity=PilotIdentityEvidence(PilotIdentityKind.UNRESOLVED),
                 )
                 return bool(real_pilot_id)
             return False
@@ -228,23 +289,12 @@ class FileProcessor:
         # Ficheiros de piloto (Log, Claims, Squads)
         parser = WoFFPilotDataParser()
         if parser.parse_bytes(data, name) and parser.pilot:
-            # FIX: Usa resolve_pilot_id com source_file para resolver "Pilot X" → UUID real.
-            real_pilot_id = self.db_manager.resolve_pilot_id(
-                parser.pilot.name,
-                source_file=parser.pilot.source_file,
-            )
-            if not real_pilot_id:
-                log.warning(
-                    f"Não foi possível resolver pilot_id para '{parser.pilot.name}' "
-                    f"(source: {parser.pilot.source_file}). Abortando processamento."
-                )
-                return False
-
             persisted_pilot_id = self.db_manager.merge_and_write(
                 pilot=parser.pilot,
                 missions=parser.missions,
                 victories=parser.victories,
                 decorations=[],
+                identity=self._dependent_identity(path, name),
             )
             if not persisted_pilot_id:
                 return False
@@ -253,12 +303,12 @@ class FileProcessor:
             if latest_mission_id:
                 latest_mission = max(parser.missions, key=lambda m: (m.date, m.time))
                 persisted_mission_id = self.db_manager.get_mission_id_by_natural_key(
-                    real_pilot_id, latest_mission
+                    persisted_pilot_id, latest_mission
                 )
                 if not persisted_mission_id:
                     return False
                 derived_result = self.campaign_engine.process_mission_end(
-                    real_pilot_id, persisted_mission_id
+                    persisted_pilot_id, persisted_mission_id
                 )
                 if derived_result is not True:
                     return False

@@ -5,9 +5,12 @@ import sqlite3
 import gc
 from typing import Any
 
+import pytest
 
 from ..database import DatabaseManager
+from ..identity import PilotIdentityRejected
 from ..models import WoFFPilot, WoFFMission, WoFFVictory, WoFFDecoration, WoFFWingman
+from .identity_support import dependent_evidence, dossier_evidence
 
 class TestDatabaseManager(unittest.TestCase):
     
@@ -35,8 +38,14 @@ class TestDatabaseManager(unittest.TestCase):
     
     def test_merge_new_pilot(self):
         """Insere piloto novo e verifica o estado padrão (Active)."""
-        pilot = WoFFPilot(name="John Doe", squadron="No. 56 Sqn")
-        ok = self.db.merge_and_write(pilot, [], [], [])
+        pilot = WoFFPilot(
+            name="John Doe",
+            squadron="No. 56 Sqn",
+            source_file="Pilot1Dossier.txt",
+        )
+        ok = self.db.merge_and_write(
+            pilot, [], [], [], identity=dossier_evidence(1)
+        )
         self.assertTrue(ok)
         
         status, rank = self.db.get_pilot_state("John Doe")
@@ -45,11 +54,24 @@ class TestDatabaseManager(unittest.TestCase):
     
     def test_merge_existing_pilot_by_name(self):
         """Atualiza piloto existente pelo nome, garantindo que o COALESCE preserva dados antigos."""
-        p1 = WoFFPilot(name="John Doe", squadron="No. 56 Sqn", rank="2nd Lieutenant")
-        self.db.merge_and_write(p1, [], [], [])
+        p1 = WoFFPilot(
+            name="John Doe",
+            squadron="No. 56 Sqn",
+            rank="2nd Lieutenant",
+            source_file="Pilot1Dossier.txt",
+        )
+        self.db.merge_and_write(
+            p1, [], [], [], identity=dossier_evidence(1, "initial")
+        )
         
-        p2 = WoFFPilot(name="John Doe", squadron="No. 60 Sqn")
-        self.db.merge_and_write(p2, [], [], [])
+        p2 = WoFFPilot(
+            name="John Doe",
+            squadron="No. 60 Sqn",
+            source_file="Pilot1Dossier.txt",
+        )
+        self.db.merge_and_write(
+            p2, [], [], [], identity=dossier_evidence(1, "updated")
+        )
         
         pilot_dict, _, _ = self.db.get_mission_and_history("John Doe", "")
         
@@ -71,10 +93,14 @@ class TestDatabaseManager(unittest.TestCase):
             reputation=420,
             source_file="Pilot1Dossier.txt",
         )
-        self.db.merge_and_write(real, [], [], [])
+        self.db.merge_and_write(
+            real, [], [], [], identity=dossier_evidence(1)
+        )
         
         generic = WoFFPilot(name="Pilot 1", squadron="No. 56 Sqn", source_file="Pilot1Log.txt")
-        self.db.merge_and_write(generic, [], [], [])
+        self.db.merge_and_write(
+            generic, [], [], [], identity=dependent_evidence(1)
+        )
         
         pilot_dict, _, _ = self.db.get_mission_and_history("James Hartley", "")
         
@@ -103,11 +129,10 @@ class TestDatabaseManager(unittest.TestCase):
     def test_mission_foreign_key_constraint(self):
         """Testa que missão com pilotId inválido é rejeitada pela DB."""
         mission = WoFFMission(pilotId="INVALID_ID", date="1917-04-06")
-        ok = self.db.merge_and_write(None, [mission], [], [])
-        
-        # FIX: FOREIGN KEY constraints NÃO são silenciadas por INSERT OR IGNORE.
-        # A transação falha com IntegrityError e merge_and_write retorna False.
-        self.assertFalse(ok)
+        with pytest.raises(
+            PilotIdentityRejected, match="unknown-explicit-pilot-id"
+        ):
+            self.db.merge_and_write(None, [mission], [], [])
         
         conn = sqlite3.connect(self.tmp_db.name)
         cursor = conn.execute("SELECT COUNT(*) FROM missions WHERE pilotId = ?", ("INVALID_ID",))
@@ -116,8 +141,12 @@ class TestDatabaseManager(unittest.TestCase):
     
     def test_rpg_stats_update(self):
         """Testa UPSERT de stats RPG."""
-        pilot = WoFFPilot(name="Test Pilot")
-        self.db.merge_and_write(pilot, [], [], [])
+        pilot = WoFFPilot(
+            name="Test Pilot", source_file="Pilot1Dossier.txt"
+        )
+        self.db.merge_and_write(
+            pilot, [], [], [], identity=dossier_evidence(1)
+        )
         
         self.db.update_pilot_rpg_stats(pilot.id, 50, 80, 30)
         
@@ -142,8 +171,12 @@ class TestDatabaseManager(unittest.TestCase):
 
     def test_mission_deduplication(self):
         """Testa que missões duplicadas (mesma data/hora/tipo/avião) são ignoradas pela DB."""
-        pilot = WoFFPilot(name="Dedup Pilot")
-        self.db.merge_and_write(pilot, [], [], [])
+        pilot = WoFFPilot(
+            name="Dedup Pilot", source_file="Pilot1Dossier.txt"
+        )
+        self.db.merge_and_write(
+            pilot, [], [], [], identity=dossier_evidence(1)
+        )
         
         m1 = WoFFMission(pilotId=pilot.id, date="1917-04-06", time="10:30", missionType="OP", aircraft="SE.5a")
         m2 = WoFFMission(pilotId=pilot.id, date="1917-04-06", time="10:30", missionType="OP", aircraft="SE.5a") # Duplicada
@@ -202,7 +235,12 @@ class TestDatabaseManager(unittest.TestCase):
         )
 
         pilot_id = self.db.merge_and_write(
-            pilot, [mission], [victory], [decoration], [wingman]
+            pilot,
+            [mission],
+            [victory],
+            [decoration],
+            [wingman],
+            identity=dossier_evidence(9),
         )
 
         self.assertEqual(pilot_id, pilot.id)
@@ -239,7 +277,9 @@ class TestDatabaseManager(unittest.TestCase):
 
     def test_mission_repository_read_methods_exist(self):
         """MissionRepository exposes its read APIs and returns persisted mission data."""
-        pilot = WoFFPilot(name="Mission Repo Pilot")
+        pilot = WoFFPilot(
+            name="Mission Repo Pilot", source_file="Pilot1Dossier.txt"
+        )
         mission = WoFFMission(
             pilotId=pilot.id,
             date="1917-06-01",
@@ -247,7 +287,9 @@ class TestDatabaseManager(unittest.TestCase):
             missionType="Escort",
             aircraft="SE.5a",
         )
-        self.db.merge_and_write(pilot, [mission], [], [])
+        self.db.merge_and_write(
+            pilot, [mission], [], [], identity=dossier_evidence(1)
+        )
 
         self.assertEqual(self.db._missions.count_by_pilot(pilot.id), 1)
         missions = self.db._missions.get_missions_by_pilot(pilot.id)

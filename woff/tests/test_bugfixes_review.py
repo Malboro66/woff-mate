@@ -9,6 +9,7 @@ Testes de regressão para os bugs identificados na revisão de código:
 import os
 import unittest
 import sqlite3
+import hashlib
 
 
 from ..handler import FileProcessor, get_latest_mission_id
@@ -16,6 +17,8 @@ from ..database import DatabaseManager
 from ..campaign_engine import CampaignEngine
 from ..narrative_generator import narrative_generator
 from ..models import WoFFPilot, WoFFMission
+from ..identity import PilotIdentityEvidence, PilotIdentityKind
+from .identity_support import dossier_evidence
 import tempfile
 from unittest.mock import MagicMock
 
@@ -63,7 +66,7 @@ class TestLatestMissionIntegration(unittest.TestCase):
             if os.path.exists(p):
                 os.unlink(p)
 
-    def test_integration_latest_mission_passed_to_campaign_from_xml(self):
+    def test_identityless_xml_cannot_create_pilot_or_missions(self):
         xml = """<?xml version="1.0" encoding="UTF-8"?>
 <Campaign>
   <Pilot><PilotName>Latest XML Pilot</PilotName><Status>Active</Status></Pilot>
@@ -77,28 +80,38 @@ class TestLatestMissionIntegration(unittest.TestCase):
             f.write(xml)
             path = f.name
         try:
-            self.processor._process_xml(path)
+            self.assertIsNone(self.processor.process(path, "created"))
         finally:
             os.unlink(path)
 
-        self.engine.process_mission_end.assert_called_once()
-        pilot_id, mission_id = self.engine.process_mission_end.call_args.args
+        self.engine.process_mission_end.assert_not_called()
         conn = self.db._get_conn()
-        row = conn.execute("SELECT date, time FROM missions WHERE id=? AND pilotId=?", (mission_id, pilot_id)).fetchone()
-        self.assertEqual(tuple(row), ("1917-06-15", "14:30"))
+        self.assertEqual(conn.execute("SELECT COUNT(*) FROM pilots").fetchone(), (0,))
+        self.assertEqual(conn.execute("SELECT COUNT(*) FROM missions").fetchone(), (0,))
 
     def test_integration_latest_mission_passed_to_campaign_from_text_log(self):
         pilot = WoFFPilot(name="Real Text Pilot", source_file="Pilot1Dossier.txt")
-        self.db.merge_and_write(pilot=pilot, missions=[], victories=[], decorations=[])
+        dossier_bytes = b"stable dossier identity"
+        digest = hashlib.sha256(dossier_bytes).hexdigest()
+        self.db.merge_and_write(
+            pilot=pilot,
+            missions=[],
+            victories=[],
+            decorations=[],
+            identity=PilotIdentityEvidence(PilotIdentityKind.DOSSIER, 1, digest),
+        )
         log_text = "Header\n" + "\n".join([
             "01;01;1917;8;00;A;B;Patrol;SE.5a;X;45;Y;Z;No. 56 Squadron RFC;;;;;;Old mission",
             "15;06;1917;14;30;A;B;Patrol;SE.5a;X;45;Y;Z;No. 56 Squadron RFC;;;;;;Latest mission",
         ])
         tmp_dir = tempfile.mkdtemp()
         path = os.path.join(tmp_dir, "Pilot1Log.txt")
+        dossier_path = os.path.join(tmp_dir, "Pilot1Dossier.txt")
         try:
             with open(path, "w", encoding="cp1252") as f:
                 f.write(log_text)
+            with open(dossier_path, "wb") as f:
+                f.write(dossier_bytes)
             self.processor._process_text(path, "pilot1log.txt")
         finally:
             import shutil
@@ -224,14 +237,25 @@ class TestNewPilotWelcomeMessage(unittest.TestCase):
         db = DatabaseManager(tmp.name)
         engine = CampaignEngine(db)
         try:
-            pilot = WoFFPilot(name="Jeanot Ledoux", status="Active", rank="Sergeant")
-            db.merge_and_write(pilot=pilot, missions=[], victories=[], decorations=[])
+            pilot = WoFFPilot(
+                name="Jeanot Ledoux",
+                status="Active",
+                rank="Sergeant",
+                source_file="Pilot1Dossier.txt",
+            )
+            db.merge_and_write(
+                pilot=pilot,
+                missions=[],
+                victories=[],
+                decorations=[],
+                identity=dossier_evidence(1, "welcome"),
+            )
 
             # Simula exatamente o que handler.py/woff_watchdog.py agora fazem:
             # old_status vem de get_pilot_state ANTES do merge_and_write ter corrido
             # (aqui simulamos manualmente um piloto que ainda não existia).
             engine.process_life_events(
-                pilot_name="Jeanot Ledoux",
+                pilot_id=pilot.id,
                 new_status="Active",
                 new_rank="Sergeant",
                 old_status=None,   # <- piloto novo: deve permanecer None, não ""

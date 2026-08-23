@@ -10,7 +10,13 @@ from woff.config import WatchdogConfig
 from woff.campaign_engine import CampaignEngine
 from woff.database import DatabaseManager
 from woff.discovery import DiscoveryLogger
-from woff.handler import WoFFEventHandler
+from woff.handler import FileProcessor, WoFFEventHandler
+from woff.identity import PilotIdentityUnavailable
+from woff.ingestion.snapshot import (
+    FileGeneration,
+    StableFileSnapshot,
+)
+from woff.models import WoFFPilot
 
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -231,3 +237,55 @@ def test_unknown_supported_file_is_metadata_only_before_ingestion(
     assert "Tamanho:" in logged
     assert "PRIVATE-CONTENT-MUST-NOT-BE-READ" not in logged
     assert "preview bloqueado pela política de privacidade" in logged.lower()
+
+
+def test_identity_rejection_diagnostic_omits_personal_data_and_digest(
+    caplog, monkeypatch
+) -> None:
+    private_name = "PRIVATE PILOT NAME"
+    private_directory = "PRIVATE-CAMPAIGN-DIRECTORY"
+    digest = "a" * 64
+    path = rf"C:\Users\{private_directory}\Pilot1Log.txt"
+    snapshot = StableFileSnapshot(
+        b"SANITIZED-WOFF-DATA",
+        path,
+        "Pilot1Log.txt",
+        FileGeneration(1, 1, 19, 1, 1, digest),
+        2,
+    )
+
+    class Parser:
+        def __init__(self) -> None:
+            self.pilot = WoFFPilot(
+                name=private_name, source_file="Pilot1Log.txt"
+            )
+            self.missions = []
+            self.victories = []
+
+        def parse_bytes(self, data: bytes, name: str) -> bool:
+            return True
+
+    monkeypatch.setattr("woff.handler.WoFFPilotDataParser", Parser)
+    database = MagicMock()
+    database.merge_and_write.side_effect = PilotIdentityUnavailable(
+        "stale-dossier-binding", 1
+    )
+    processor = FileProcessor(database, MagicMock())
+    processor.guard = MagicMock()
+    processor.guard.acquire.return_value = snapshot
+
+    assert processor.process(path, "modified") is None
+
+    diagnostics = [
+        record.getMessage()
+        for record in caplog.records
+        if "Pilot identity rejected" in record.getMessage()
+    ]
+    assert diagnostics == [
+        "Pilot identity rejected: source=Pilot1Log.txt "
+        "category=stale-dossier-binding slot=1"
+    ]
+    diagnostic = diagnostics[0]
+    assert private_name not in diagnostic
+    assert private_directory not in diagnostic
+    assert digest not in diagnostic
