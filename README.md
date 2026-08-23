@@ -10,7 +10,6 @@
 [![pytest](https://img.shields.io/badge/tested%20with-pytest-0A9EDC?logo=pytest&logoColor=white)](https://github.com/Malboro66/woff-mate/actions)
 ![Read Only](https://img.shields.io/badge/game%20integration-read--only-success)
 ![Status](https://img.shields.io/badge/status-active%20development-orange)
-
 [![Last Commit](https://img.shields.io/github/last-commit/Malboro66/woff-mate)](https://github.com/Malboro66/woff-mate/commits/main)
 [![Issues](https://img.shields.io/github/issues/Malboro66/woff-mate)](https://github.com/Malboro66/woff-mate/issues)
 [![Contributions Welcome](https://img.shields.io/badge/contributions-welcome-brightgreen)](CONTRIBUTING.md)
