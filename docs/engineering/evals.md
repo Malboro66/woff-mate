@@ -124,7 +124,10 @@ claim Q5 or approval of Product Gate A or Gate B.
   real date and, when supplied, a real clock time. Accepted values are stored
   as `YYYY-MM-DD` and `HH:MM`; missing time is `""`. Day-first numeric dates
   are the default, while the confirmed `Mission.log` format is parsed
-  month-first explicitly.
+  month-first explicitly. In flexible campaign XML, a decimal-only generic
+  `Time` value is retained as flight duration rather than misclassified as a
+  clock; explicit clock fields and clock-shaped generic values still use the
+  strict time contract.
   Invalid parser records are rejected and invalid direct writes are quarantined
   with category-only diagnostics.
 - `EVAL-DATE-002` is enforced by
@@ -144,7 +147,9 @@ identity during writes and lookups, so a canonical reimport retains the
 original row ID without rewriting its stored text. Malformed legacy values are
 not assumed to identify a valid incoming mission. Child victories supplied
 with that reimport are linked to the retained stored mission ID rather than the
-discarded incoming ID.
+discarded incoming ID. If an incoming mission is quarantined for an invalid
+date, invalid time, or ID collision, victories explicitly linked to that
+rejected ID are quarantined with it while independent victories remain valid.
 Filesystem creation/modification times remain observation metadata and are
 never passed to campaign effects as historical game dates. A Dossier wingman
 comparison uses the latest stored game date when available; if the career has

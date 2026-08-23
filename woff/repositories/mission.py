@@ -122,15 +122,20 @@ class MissionRepository(BaseRepository):
         cursor = self._conn.cursor()
         identity_index: Optional[Dict[MissionIdentityKey, str]] = None
         mission_id_remap: Dict[str, str] = {}
+        rejected_mission_ids: set[str] = set()
         added_m = 0
         for m in missions:
             raw_time = str(m.time or "").strip()
             canonical_date = normalize_date(m.date)
             if not canonical_date:
+                if m.id:
+                    rejected_mission_ids.add(m.id)
                 log.warning("Mission quarantined at write boundary: category=invalid-date")
                 continue
             canonical_time = normalize_time(raw_time)
             if raw_time and not canonical_time:
+                if m.id:
+                    rejected_mission_ids.add(m.id)
                 log.warning("Mission quarantined at write boundary: category=invalid-time")
                 continue
             identity = (
@@ -166,10 +171,21 @@ class MissionRepository(BaseRepository):
             added_m += cursor.rowcount
             if cursor.rowcount:
                 identity_index[identity] = m.id
+            elif m.id:
+                rejected_mission_ids.add(m.id)
+                log.warning(
+                    "Mission quarantined at write boundary: category=id-conflict"
+                )
 
         added_v = 0
         for v in victories:
             v.pilotId = pilot_id
+            if v.missionId and v.missionId in rejected_mission_ids:
+                log.warning(
+                    "Victory quarantined at write boundary: "
+                    "category=rejected-parent-mission"
+                )
+                continue
             mission_id = mission_id_remap.get(v.missionId, v.missionId)
             cursor.execute("""
                 INSERT OR IGNORE INTO victories (

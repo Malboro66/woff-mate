@@ -163,6 +163,73 @@ class TestCanonicalTemporalPersistence(unittest.TestCase):
             [("victory-reimport", "legacy-existing", "legacy-existing")],
         )
 
+    def test_rejected_missions_quarantine_only_their_linked_victories(self):
+        pilot = self._pilot()
+        with self.db.transaction():
+            self.db._get_conn().execute(
+                """
+                INSERT INTO missions
+                    (id, pilotId, date, time, missionType, aircraft)
+                VALUES (?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    "id-collision", pilot.id, "1917-04-01", "08:00",
+                    "Patrol", "Camel",
+                ),
+            )
+
+        rejected_missions = [
+            WoFFMission(
+                id="invalid-date-parent", pilotId=pilot.id,
+                date="1917-02-30", time="09:00",
+                missionType="Patrol", aircraft="Camel",
+            ),
+            WoFFMission(
+                id="invalid-time-parent", pilotId=pilot.id,
+                date="1917-04-02", time="24:00",
+                missionType="Patrol", aircraft="Camel",
+            ),
+            WoFFMission(
+                id="id-collision", pilotId=pilot.id,
+                date="1917-04-03", time="09:00",
+                missionType="Escort", aircraft="Camel",
+            ),
+        ]
+        victories = [
+            WoFFVictory(
+                id=f"victory-{mission.id}", pilotId=pilot.id,
+                date="1917-04-03", time=f"09:0{index}",
+                missionId=mission.id, enemyType=f"Enemy {index}",
+            )
+            for index, mission in enumerate(rejected_missions)
+        ]
+        victories.append(
+            WoFFVictory(
+                id="standalone-victory", pilotId=pilot.id,
+                date="1917-04-03", time="10:00",
+                missionId="", enemyType="Standalone enemy",
+            )
+        )
+
+        with self.assertLogs("WoFFWatch", level="WARNING"):
+            self.assertEqual(
+                self.db.merge_and_write(
+                    None, rejected_missions, victories, []
+                ),
+                pilot.id,
+            )
+
+        self.assertEqual(
+            self.db._get_conn().execute(
+                """
+                SELECT id, missionId FROM victories
+                WHERE pilotId = ? ORDER BY id
+                """,
+                (pilot.id,),
+            ).fetchall(),
+            [("standalone-victory", "")],
+        )
+
     def test_game_date_ignores_invalid_legacy_rows_and_never_invents_1917(self):
         no_date = self._pilot("no-date")
         with_start = self._pilot("with-start", "11/11/1918")

@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import logging
 import os
+import re
 import xml.etree.ElementTree as ET
 from datetime import datetime
 from typing import Optional, List, Dict
@@ -90,6 +91,11 @@ class WoFFXMLParser:
     def _bool_field(self, raw: str) -> bool:
         """Converte texto boleano do jogo em True/False."""
         return (raw or "").lower().strip() not in ("0", "false", "no", "none", "", "nein", "non")
+
+    @staticmethod
+    def _is_decimal_duration(raw: str) -> bool:
+        """Return whether ambiguous ``Time`` text is decimal flight duration."""
+        return bool(re.fullmatch(r"\d+(?:[.,]\d+)?", raw.strip()))
 
     def parse(self, path: str) -> bool:
         """Inicia o parsing do ficheiro XML."""
@@ -208,7 +214,22 @@ class WoFFXMLParser:
             elem.get("date") or elem.get("Date") or
             self._find(elem, "Date","MissionDate","Datum","date") or ""
         )
-        raw_time = self._find(elem, "Time", "time", "Uhrzeit") or ""
+        explicit_time = self._find(
+            elem, "MissionTime", "StartTime", "ClockTime", "Uhrzeit"
+        ) or ""
+        generic_time = self._find(elem, "Time", "time") or ""
+        explicit_duration = self._find(
+            elem, "Duration", "FlightTime", "Hours", "Dauer"
+        ) or ""
+        duration_fallback = ""
+        if explicit_time:
+            raw_time = explicit_time
+            duration_fallback = generic_time
+        elif generic_time and self._is_decimal_duration(generic_time):
+            raw_time = ""
+            duration_fallback = generic_time
+        else:
+            raw_time = generic_time
         canonical_date = normalize_date(raw_date)
         canonical_time = normalize_time(raw_time)
 
@@ -227,7 +248,7 @@ class WoFFXMLParser:
             self._find(elem, "Type","MissionType","OrderType","Auftrag") or ""
         )
         m.aircraft      = self._find(elem, "Aircraft","Plane","AircraftType","Flugzeug") or ""
-        m.duration      = self._find(elem, "Duration","Time","FlightTime","Hours","Dauer") or ""
+        m.duration      = explicit_duration or duration_fallback
         m.altitude      = self._find(elem, "Altitude","Height","MaxAltitude","Hoehe") or ""
         m.sector        = self._find(elem, "Sector","Area","Zone","Location","Abschnitt") or ""
         m.weather       = self._find(elem, "Weather","Conditions","Wetter") or ""
