@@ -213,6 +213,7 @@ def test_dossier_side_effects_never_use_filesystem_timestamp(
     pilot.name = "Verified Pilot"
     pilot.status = "Active"
     pilot.rank = "Captain"
+    pilot.startDate = "1917-04-01"
 
     class Parser:
         decorations = []
@@ -228,6 +229,7 @@ def test_dossier_side_effects_never_use_filesystem_timestamp(
     database = MagicMock()
     database.resolve_bound_dossier_id.return_value = "pilot-id"
     database.get_pilot_state_by_id.return_value = ("Active", "Lieutenant")
+    database.get_pilot_game_date.return_value = "1917-05-01"
     database.merge_and_write.return_value = "pilot-id"
     engine = MagicMock()
     processor = FileProcessor(database, engine)
@@ -689,6 +691,81 @@ def test_dossier_rejection_rolls_back_derived_effects_and_retry_commits_once(
             ("deterministic wingman event",),
             ("existing diary entry",),
         ]
+    finally:
+        database.close()
+
+
+def test_incoming_dossier_date_preserves_pre_merge_wingman_event(
+    tmp_path, monkeypatch
+):
+    database = DatabaseManager(str(tmp_path / "dossier-first-date.db"))
+    pilot_id = "pilot-first-date"
+    pilot_name = "Arthur First Date"
+    old_pilot = WoFFPilot(
+        id=pilot_id, name=pilot_name, rank="Lieutenant", status="Active",
+        source_file="Pilot1Dossier.txt",
+    )
+    old_wingman = WoFFWingman(
+        id="wingman-first-date", pilotId=pilot_id, rank="Sergeant",
+        fName="William", sName="First Date", status="Active",
+    )
+    assert database.merge_and_write(
+        old_pilot,
+        [],
+        [],
+        [],
+        [old_wingman],
+        identity=dossier_evidence(1, "first-date-old"),
+    ) == pilot_id
+    assert database.get_pilot_game_date(pilot_id) is None
+
+    new_pilot = WoFFPilot(
+        id=pilot_id, name=pilot_name, rank="Lieutenant", status="Active",
+        startDate="1917-04-30", source_file="Pilot1Dossier.txt",
+    )
+    new_wingman = WoFFWingman(
+        id="wingman-first-date", pilotId=pilot_id, rank="Sergeant",
+        fName="William", sName="First Date", status="KIA",
+    )
+
+    class Parser:
+        def __init__(self):
+            self.pilot = new_pilot
+            self.wingmen = [new_wingman]
+            self.decorations = []
+
+        def parse_bytes(self, data, name):
+            return True
+
+    monkeypatch.setattr("woff.handler.WoFFDossierParser", Parser)
+    monkeypatch.setattr(
+        narrative_generator, "generate_wingman_event",
+        lambda *_args: "first dated wingman event",
+    )
+
+    path = str(tmp_path / "Pilot1Dossier.txt")
+    generation = FileGeneration(
+        1, 1, 8, 1_493_596_200_000_000_000, 1, "d" * 64
+    )
+    snapshot = StableFileSnapshot(
+        b"verified", path, "Pilot1Dossier.txt", generation, 2,
+    )
+    processor = FileProcessor(database, CampaignEngine(database))
+    processor.guard = cast(Any, MagicMock())
+    processor.guard.acquire.return_value = snapshot
+
+    try:
+        assert processor.process(path, "initial") == generation
+        assert database.get_wingmen_by_pilot(pilot_id) == [
+            {"fName": "William", "sName": "First Date", "status": "KIA"}
+        ]
+        assert database._get_conn().execute(
+            """
+            SELECT entry_date, narrative FROM diary_entries
+            WHERE pilotId = ?
+            """,
+            (pilot_id,),
+        ).fetchall() == [("1917-04-30", "first dated wingman event")]
     finally:
         database.close()
 

@@ -121,6 +121,7 @@ class MissionRepository(BaseRepository):
         """Insere missões, vitórias e condecorações associadas ao piloto."""
         cursor = self._conn.cursor()
         identity_index: Optional[Dict[MissionIdentityKey, str]] = None
+        mission_id_remap: Dict[str, str] = {}
         added_m = 0
         for m in missions:
             raw_time = str(m.time or "").strip()
@@ -143,7 +144,10 @@ class MissionRepository(BaseRepository):
             m.pilotId = pilot_id
             if identity_index is None:
                 identity_index = stored_mission_identity_index(cursor, pilot_id)
-            if identity in identity_index:
+            stored_mission_id = identity_index.get(identity)
+            if stored_mission_id is not None:
+                if m.id and m.id != stored_mission_id:
+                    mission_id_remap[m.id] = stored_mission_id
                 continue
             cursor.execute("""
                 INSERT OR IGNORE INTO missions (
@@ -166,6 +170,7 @@ class MissionRepository(BaseRepository):
         added_v = 0
         for v in victories:
             v.pilotId = pilot_id
+            mission_id = mission_id_remap.get(v.missionId, v.missionId)
             cursor.execute("""
                 INSERT OR IGNORE INTO victories (
                     id, pilotId, date, time, missionId, enemyType, victoryType,
@@ -173,7 +178,7 @@ class MissionRepository(BaseRepository):
                     source_file
                 ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)
             """, (
-                v.id, v.pilotId, v.date, v.time, v.missionId, v.enemyType,
+                v.id, v.pilotId, v.date, v.time, mission_id, v.enemyType,
                 v.victoryType, v.location, v.confirmed, v.witnesses,
                 v.notes, v.sector, v.aircraft, v.source_file
             ))

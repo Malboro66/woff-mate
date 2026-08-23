@@ -5,7 +5,7 @@ import unittest
 from unittest.mock import patch
 
 from ..database import DatabaseManager
-from ..models import WoFFMission, WoFFPilot
+from ..models import WoFFMission, WoFFPilot, WoFFVictory
 from .identity_support import dossier_evidence
 
 
@@ -112,6 +112,55 @@ class TestCanonicalTemporalPersistence(unittest.TestCase):
         self.assertEqual(
             self.db.get_mission_id_by_natural_key(pilot.id, reimported),
             "legacy-existing",
+        )
+
+    def test_reimport_remaps_linked_victory_to_reused_legacy_id(self):
+        pilot = self._pilot()
+        with self.db.transaction():
+            self.db._get_conn().execute(
+                """
+                INSERT INTO missions
+                    (id, pilotId, date, time, missionType, aircraft)
+                VALUES (?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    "legacy-existing", pilot.id, "6/4/1917", "9:30",
+                    "Patrol", "Camel",
+                ),
+            )
+
+        reimported = WoFFMission(
+            id="canonical-reimport",
+            pilotId=pilot.id,
+            date="1917-04-06",
+            time="09:30",
+            missionType="Patrol",
+            aircraft="Camel",
+        )
+        victory = WoFFVictory(
+            id="victory-reimport",
+            pilotId=pilot.id,
+            date="1917-04-06",
+            time="09:35",
+            missionId=reimported.id,
+            enemyType="Albatros D.III",
+        )
+
+        self.assertEqual(
+            self.db.merge_and_write(None, [reimported], [victory], []),
+            pilot.id,
+        )
+        self.assertEqual(
+            self.db._get_conn().execute(
+                """
+                SELECT victories.id, victories.missionId, missions.id
+                FROM victories
+                LEFT JOIN missions ON missions.id = victories.missionId
+                WHERE victories.pilotId = ?
+                """,
+                (pilot.id,),
+            ).fetchall(),
+            [("victory-reimport", "legacy-existing", "legacy-existing")],
         )
 
     def test_game_date_ignores_invalid_legacy_rows_and_never_invents_1917(self):

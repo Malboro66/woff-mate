@@ -35,7 +35,7 @@ from .identity import (
     dossier_source_name,
     pilot_slot,
 )
-from .normalization import canonical_mission_order_key
+from .normalization import canonical_mission_order_key, normalize_date
 
 from .parsers.xml_parser import WoFFXMLParser
 from .parsers.mission_log_parser import WoFFMissionLogParser
@@ -254,13 +254,28 @@ class FileProcessor:
                         # Compare before the merge, but roll derived writes back if
                         # core persistence rejects this generation.
                         # Filesystem timestamps are observation metadata, never
-                        # dates in the historical campaign calendar. The engine
-                        # resolves an existing canonical game date instead.
+                        # dates in the historical campaign calendar. Stored
+                        # history remains authoritative; only a canonical
+                        # incoming Dossier date can bridge a career that has no
+                        # game date before this merge.
                         if prior_pilot_id is not None:
-                            self.campaign_engine.process_wingmen_changes(
-                                prior_pilot_id,
-                                parser.wingmen,
+                            stored_game_date = self.db_manager.get_pilot_game_date(
+                                prior_pilot_id
                             )
+                            incoming_game_date = normalize_date(
+                                parser.pilot.startDate
+                            )
+                            if stored_game_date or not incoming_game_date:
+                                self.campaign_engine.process_wingmen_changes(
+                                    prior_pilot_id,
+                                    parser.wingmen,
+                                )
+                            else:
+                                self.campaign_engine.process_wingmen_changes(
+                                    prior_pilot_id,
+                                    parser.wingmen,
+                                    event_date=incoming_game_date,
+                                )
 
                         real_pilot_id = self.db_manager.merge_and_write(
                             pilot=parser.pilot,

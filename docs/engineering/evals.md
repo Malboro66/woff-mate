@@ -142,9 +142,14 @@ schema migration and no cleanup or rewrite of an existing campaign database.
 Valid legacy date/time spellings participate in the same in-memory mission
 identity during writes and lookups, so a canonical reimport retains the
 original row ID without rewriting its stored text. Malformed legacy values are
-not assumed to identify a valid incoming mission.
+not assumed to identify a valid incoming mission. Child victories supplied
+with that reimport are linked to the retained stored mission ID rather than the
+discarded incoming ID.
 Filesystem creation/modification times remain observation metadata and are
-never passed to campaign effects as historical game dates.
+never passed to campaign effects as historical game dates. A Dossier wingman
+comparison uses the latest stored game date when available; if the career has
+none yet, it may use the canonical incoming Dossier start date before the core
+merge so that the first dated roster event is not lost.
 
 ### Implemented career identity evals
 
