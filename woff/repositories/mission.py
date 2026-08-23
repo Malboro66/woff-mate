@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import sqlite3
 import logging
-from typing import List, Dict, Any, Tuple
+from typing import List, Dict, Any, Optional, Tuple
 
 from ..models import WoFFMission, WoFFVictory, WoFFDecoration
 
@@ -99,6 +99,22 @@ class MissionRepository(BaseRepository):
                 return []
             finally:
                 conn.row_factory = None
+
+    def get_id_by_natural_key(
+        self, pilot_id: str, mission: WoFFMission
+    ) -> Optional[str]:
+        """Resolve the stored ID for the schema's mission natural identity."""
+        with self._lock:
+            row = self._fetch_one(
+                """SELECT id FROM missions
+                   WHERE pilotId = ? AND date = ? AND time = ?
+                     AND missionType = ? AND aircraft = ?""",
+                (
+                    pilot_id, mission.date, mission.time,
+                    mission.missionType, mission.aircraft,
+                ),
+            )
+            return str(row[0]) if row else None
 
     def count_by_pilot(self, pilot_id: str) -> int:
         """Conta missões de um piloto."""

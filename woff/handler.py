@@ -146,10 +146,16 @@ class FileProcessor:
             # FIX: Se houver missões e um pilot_id real, processa o fim de missão.
             latest_mission_id = get_latest_mission_id(parser)
             if real_pilot_id and latest_mission_id:
-                derived_result = self.campaign_engine.process_mission_end(
-                    real_pilot_id, latest_mission_id
+                latest_mission = max(parser.missions, key=lambda m: (m.date, m.time))
+                persisted_mission_id = self.db_manager.get_mission_id_by_natural_key(
+                    real_pilot_id, latest_mission
                 )
-                if derived_result is False:
+                if not persisted_mission_id:
+                    return False
+                derived_result = self.campaign_engine.process_mission_end(
+                    real_pilot_id, persisted_mission_id
+                )
+                if derived_result is not True:
                     return False
             return True
         return False
@@ -198,8 +204,8 @@ class FileProcessor:
                                 parser.pilot.name,
                                 str(new_status),
                                 str(new_rank),
-                                old_status_str,
-                                old_rank_str,
+                                old_status,
+                                old_rank,
                                 event_date=event_date,
                             )
                 except _PersistenceRejected:
@@ -245,10 +251,16 @@ class FileProcessor:
             # FIX: Só invoca o RPG se tivermos um ID real e missões.
             latest_mission_id = get_latest_mission_id(parser)
             if latest_mission_id:
-                derived_result = self.campaign_engine.process_mission_end(
-                    real_pilot_id, latest_mission_id
+                latest_mission = max(parser.missions, key=lambda m: (m.date, m.time))
+                persisted_mission_id = self.db_manager.get_mission_id_by_natural_key(
+                    real_pilot_id, latest_mission
                 )
-                if derived_result is False:
+                if not persisted_mission_id:
+                    return False
+                derived_result = self.campaign_engine.process_mission_end(
+                    real_pilot_id, persisted_mission_id
+                )
+                if derived_result is not True:
                     return False
             return True
         return False
@@ -272,6 +284,7 @@ class WoFFEventHandler(FileSystemEventHandler):
         config.validate()
         self.config = config
         self.watched_extensions = set(config.watched_extensions)
+        self.discovery = discovery
         self.processor = FileProcessor(db_manager, campaign_engine, discovery, config.stability_timeout_sec, config.stability_check_interval_sec)
         self.scheduler = EventScheduler(
             self._execute_pipeline,
@@ -300,6 +313,8 @@ class WoFFEventHandler(FileSystemEventHandler):
         if ext not in self.watched_extensions or any(p in bn for p in self.IGNORED):
             return False
         if ext in {".txt", ".log"} and not is_preview_allowed(path):
+            if self.discovery:
+                self.discovery.log_file(path, event_type)
             return False
 
         return self.scheduler.submit(path, event_type)
