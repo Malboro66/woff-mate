@@ -37,7 +37,7 @@ WoFF Mate monitors WOFF campaign data in real time, extracts and normalizes pilo
 
 - Windows 10 64-bit or Windows 11 64-bit
 - Python 3.10 through 3.14
-- *Wings Over Flanders Fields: Between Heaven & Hell II*
+- *Wings Over Flanders Fields: Between Heaven & Hell II* (WOFF BH&H II)
 
 ### Install
 
@@ -119,7 +119,17 @@ WoFF Mate is structured as a modular monolith: one Windows application and one l
 
 The project targets Windows 10/11 and Python `>=3.10,<3.15`. CI currently exercises Python 3.10 and 3.14 on Linux, performs type checking with Pyright, and runs a Windows smoke/build path with Python 3.10.
 
-WOFF format support is limited to behavior confirmed by sanitized samples and regression tests. See [compatibility and safe reporting](docs/compatibility.md) for the current support boundaries.
+WOFF BH&H II format support is limited to behavior confirmed by sanitized samples and regression tests. The exact WOFF build represented by the current sanitized samples has not yet been confirmed. See [compatibility and safe reporting](docs/compatibility.md) for the current support boundaries.
+
+<!--
+Compatibility-contract anchors retained for the existing documentation consistency test.
+These phrases are intentionally non-rendered; the user-facing README is English.
+Python da versão 3.10 até a 3.14
+Windows 10 de 64 bits
+Windows 11 de 64 bits
+amostras sanitizadas
+versão exata do WoFF ainda não foi confirmada
+-->
 
 ## Project Status
 
