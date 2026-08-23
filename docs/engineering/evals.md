@@ -83,6 +83,17 @@ claim Q5 or approval of Product Gate A or Gate B.
 |---|---|---|---|
 | `EVAL-UI-FOUNDATION-001` | #56 | Proposed toolkit and read-only presentation boundaries are documented, linked, dependency-free, and structurally enforced | `woff/tests/test_architecture_contracts.py` |
 
+The parallel UI-foundation workstream remains outside cycle 3.3.0 and does not
+approve a production GUI, Qt runtime dependency, or Product Gate A/B. Its evals
+remain planned until their issue-specific evidence is produced.
+
+| Eval | Work item | Type | Required evidence |
+|---|---|---|---|
+| `EVAL-UI-VISUAL-001` | #79 | Judgment | Human walkthrough of the six-screen Figma flow confirms navigation, readability, visible focus, scaling notes, synthetic-state labeling, and no implied unavailable runtime behavior |
+| `EVAL-UI-FIXTURES-001` | #80 | Deterministic | Shared screen-state matrix and synthetic fixture catalog cover every approved state, preserve state distinctions, and reject personal, credential, raw-payload, log, database, and installation-path data |
+| `EVAL-UI-CONTRACTS-001` | #81 | Deterministic | Toolkit-independent immutable view models and query-service protocols preserve stable identifiers, defensive copying, state/freshness metadata, and sanitized failures without exposing persistence or parser objects |
+| `EVAL-UI-SPIKE-001` | #82 | Measured procedure | Reproducible PySide6 spike report records supported Python/Windows packaging, startup, memory, size, scaling, keyboard/accessibility, licensing, and a Go/Conditional Go/No-go recommendation without adopting Qt in production |
+
 ### Implemented scheduler evals
 
 - `EVAL-SCHED-001` is enforced by deterministic burst, Windows alias,
@@ -116,17 +127,21 @@ claim Q5 or approval of Product Gate A or Gate B.
 | Work item | Eval IDs |
 |---|---|
 | #41 | `EVAL-NUM-001`, `EVAL-NUM-002` |
-| #38 | `EVAL-NATION-001`, `EVAL-NATION-002` |
+| #38 | `EVAL-NATION-001`, `EVAL-NATION-002`, `EVAL-NORM-MISSION-001`, `EVAL-NORM-VICTORY-001` |
+| #74 | `EVAL-PARSE-SEM-001`, `EVAL-PARSE-SEM-002` |
 | #35 | `EVAL-DOSSIER-001`, `EVAL-DOSSIER-002` |
 | #37 | `EVAL-ROSTER-001`, `EVAL-ROSTER-002` |
 | #44 | `EVAL-XML-001` |
 | #43 | `EVAL-NARR-001` |
 | #28 | `EVAL-CLI-001` |
+| #75 | `EVAL-CLI-CONTRACT-001`, `EVAL-CLI-CONTRACT-002` |
+| #76 | `EVAL-RPG-DOMAIN-001`, `EVAL-RPG-DOMAIN-002` |
 
 ## Planned cycle 3.5.0
 
 | Work item | Eval IDs |
 |---|---|
+| #77 | `EVAL-SCHEMA-CONTRACT-001`, `EVAL-SCHEMA-CONTRACT-002` |
 | #48 | `EVAL-DISC-001` |
 | #47 | `EVAL-DECODE-001`, `EVAL-DECODE-002` |
 | #29 | `EVAL-CATALOG-001` |
