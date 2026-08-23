@@ -143,7 +143,7 @@ Green CI without this evidence does not approve a public release.
 
 Issue #50 closes only when all conditions below pass:
 
-- #34, #57, #45, #36, #42, #40, #39, and #27 are complete
+- #34, #57, #45, #36, #42, #40, #39, #70, #71, #72, #73, and #27 are complete
 - every dependency in `cycle-3.3.0` is satisfied
 - all member acceptance criteria are demonstrated
 - every applicable eval in `EVAL-CYCLE-330-001` passes
@@ -152,6 +152,10 @@ Issue #50 closes only when all conditions below pass:
 - invalid configuration fails before partial startup
 - event admission, retries, and pending work remain bounded
 - parsers consume stable snapshots
+- career identity survives `Pilot{N}` slot reuse, same-name careers remain independent, and identityless input performs no persistent write
+- partial sources preserve authoritative pilot status and explicit status transitions remain idempotent
+- one Dossier generation commits pilot, decorations, roster, and diary effects atomically or rolls back as one unit
+- victory and decoration persistence preserves distinct occurrences and richer metadata without destructive downgrades
 - mission dates, ordering, identity, and enrichment converge deterministically
 - dependent pilot files are reprocessed without duplication or silent loss
 - focused tests, related tests, full suite, and Pyright pass
