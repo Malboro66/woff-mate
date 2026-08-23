@@ -12,6 +12,7 @@ from ..campaign_engine import CampaignEngine
 from ..handler import WoFFEventHandler
 from ..ingestion.scheduler import EventScheduler
 from .. import woff_watchdog
+from .test_dossier_parser import _encode_dossier
 
 # Mock de um ficheiro de campanha XML válido
 MOCK_XML_VALID = """<?xml version="1.0" encoding="UTF-8"?>
@@ -26,6 +27,27 @@ MOCK_XML_VALID = """<?xml version="1.0" encoding="UTF-8"?>
   </Pilot>
 </Campaign>
 """
+
+
+def _encoded_dossier(first_name: str, last_name: str, rank: str, squadron: str):
+    lines = ["Null"] * 105
+    for index, value in {
+        3: rank,
+        4: first_name,
+        5: last_name,
+        11: "60",
+        16: "1",
+        17: "1",
+        41: "50",
+        46: "2",
+        52: "10",
+        83: squadron,
+        84: "SE.5a",
+        88: "Filescamp",
+        89: "Arras",
+    }.items():
+        lines[index] = value
+    return _encode_dossier(lines, "Pilot1Dossier.txt")
 
 class TestHandlerIntegration(unittest.TestCase):
     """Testa o handler com ficheiros reais temporários."""
@@ -82,8 +104,121 @@ class TestHandlerIntegration(unittest.TestCase):
         self.handler.shutdown()
 
         status, rank = self.db.get_pilot_state("James Percival Hartley")
-        self.assertIsNotNone(status)
-        self.assertEqual(status, "Active")
+        self.assertIsNone(status)
+        self.assertIsNone(rank)
+        self.assertEqual(
+            self.db._get_conn().execute("SELECT COUNT(*) FROM pilots").fetchone(),
+            (0,),
+        )
+
+    def test_pilot_log_without_sibling_dossier_performs_no_write(self):
+        log_path = os.path.join(self.tmp_dir, "Pilot1Log.txt")
+        with open(log_path, "w", encoding="cp1252") as source:
+            source.write(
+                "1\n6;4;1917;10;30;Arras;Filescamp;OP;SE.5a;;45;100;"
+                "SE.5a;No. 56 Squadron RFC;troops;Target;N50;E2;;"
+                "Mission completed.\n"
+            )
+
+        self.assertIsNone(self.handler.processor.process(log_path, "created"))
+        self.assertEqual(
+            self.db._get_conn().execute("SELECT COUNT(*) FROM pilots").fetchone(),
+            (0,),
+        )
+        self.assertEqual(
+            self.db._get_conn().execute("SELECT COUNT(*) FROM missions").fetchone(),
+            (0,),
+        )
+
+    def test_mission_log_cannot_create_identityless_pilot(self):
+        mission_log_path = os.path.join(self.tmp_dir, "mission.log")
+        with open(mission_log_path, "w", encoding="utf-8") as source:
+            source.write(
+                "<Mission><Params Date=\"6/15/1917\" "
+                "Weather=\"OFFDynamicMissionWeather.xml\"/>"
+                "<AirFormation Country=\"RFC\" SquadName=\"No. 56\">"
+                "<Unit IsPlayer=\"y\" Type=\"SE.5a\"/>"
+                "</AirFormation></Mission>\nMissionEnded"
+            )
+
+        self.assertIsNone(
+            self.handler.processor.process(mission_log_path, "created")
+        )
+        self.assertEqual(
+            self.db._get_conn().execute("SELECT COUNT(*) FROM pilots").fetchone(),
+            (0,),
+        )
+        self.assertEqual(
+            self.db._get_conn().execute("SELECT COUNT(*) FROM missions").fetchone(),
+            (0,),
+        )
+
+    def test_new_slot_log_waits_for_changed_dossier_before_writing(self):
+        dossier_path = os.path.join(self.tmp_dir, "Pilot1Dossier.txt")
+        log_path = os.path.join(self.tmp_dir, "Pilot1Log.txt")
+        with open(dossier_path, "wb") as source:
+            source.write(
+                _encoded_dossier("Alice", "Able", "Captain", "Old Sqn")
+            )
+        with open(log_path, "w", encoding="cp1252") as source:
+            source.write(
+                "1\n6;4;1917;10;30;Arras;Filescamp;OP;SE.5a;;45;100;"
+                "SE.5a;New Sqn;troops;Target;N50;E2;;Mission completed.\n"
+            )
+
+        processor = self.handler.processor
+        self.assertIsNotNone(processor.process(dossier_path, "initial"))
+        old_id = self.db._get_conn().execute(
+            "SELECT id FROM pilots"
+        ).fetchone()[0]
+        old_snapshot = self.db._get_conn().execute(
+            "SELECT name, rank, squadron, source_file FROM pilots WHERE id=?",
+            (old_id,),
+        ).fetchone()
+
+        with open(dossier_path, "wb") as source:
+            source.write(
+                _encoded_dossier("Bob", "Baker", "Lieutenant", "New Sqn")
+            )
+        self.assertIsNone(processor.process(log_path, "modified"))
+        self.assertEqual(
+            self.db._get_conn().execute("SELECT COUNT(*) FROM missions").fetchone(),
+            (0,),
+        )
+        self.assertEqual(
+            self.db._get_conn().execute(
+                "SELECT name, rank, squadron, source_file FROM pilots WHERE id=?",
+                (old_id,),
+            ).fetchone(),
+            old_snapshot,
+        )
+
+        self.assertIsNotNone(processor.process(dossier_path, "modified"))
+        new_id = self.db._get_conn().execute(
+            "SELECT pilotId FROM pilot_slot_bindings WHERE slot=1"
+        ).fetchone()[0]
+        self.assertNotEqual(new_id, old_id)
+        self.assertEqual(
+            self.db._get_conn().execute(
+                "SELECT COUNT(*) FROM diary_entries WHERE pilotId IN (?, ?)",
+                (old_id, new_id),
+            ).fetchone(),
+            (0,),
+        )
+        self.assertIsNotNone(processor.process(log_path, "retry"))
+        self.assertEqual(
+            self.db._get_conn().execute(
+                "SELECT pilotId FROM missions"
+            ).fetchone(),
+            (new_id,),
+        )
+        self.assertEqual(
+            self.db._get_conn().execute(
+                "SELECT name, rank, squadron, source_file FROM pilots WHERE id=?",
+                (old_id,),
+            ).fetchone(),
+            old_snapshot,
+        )
 
     def test_move_uses_destination_and_filters_moves_away(self):
         from watchdog.events import FileMovedEvent
