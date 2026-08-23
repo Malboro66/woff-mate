@@ -1,6 +1,9 @@
 # ✈️ WoFF BHaH II Watchdog
 
-[![CI](https://github.com/Malboro66/Woff_Mate/actions/workflows/ci.yml/badge.svg)](https://github.com/Malboro66/Woff_Mate/actions/workflows/ci.yml)
+[![Tests](https://img.shields.io/github/actions/workflow/status/Malboro66/woff-mate/ci.yml?branch=main&label=Tests&logo=github)](https://github.com/Malboro66/woff-mate/actions/workflows/ci.yml)
+[![Python](https://img.shields.io/badge/Python-3.10--3.14-blue?logo=python&logoColor=white)](https://www.python.org/)
+[![Platform](https://img.shields.io/badge/platform-Windows-0078D4?logo=windows)](https://github.com/Malboro66/woff-mate)
+[![Contributions Welcome](https://img.shields.io/badge/contributions-welcome-brightgreen)](https://github.com/Malboro66/woff-mate/issues)
 
 **WoFF BHaH II Watchdog** é uma aplicação companion em segundo plano para o simulador de voo *Wings over Flanders Fields: Between Heaven and Hell II* (WOFF BHaH II).
 
