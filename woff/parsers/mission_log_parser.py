@@ -85,7 +85,11 @@ class WoFFMissionLogParser:
             )
             return False
 
-        self.mission = WoFFMission(date=canonical_date, time=canonical_time)
+        self.mission = WoFFMission(
+            date=canonical_date,
+            time=canonical_time,
+            source_file=os.path.basename(source_name),
+        )
         
         self.mission.weather = params.get("Weather", "Unknown").replace("OFFDynamicMissionWeather.xml", "Dynamic")
 

@@ -156,6 +156,37 @@ comparison uses the latest stored game date when available; if the career has
 none yet, it may use the canonical incoming Dossier start date before the core
 merge so that the first dated roster event is not lost.
 
+### Implemented mission merge evals
+
+- `EVAL-MISSION-001` is enforced by
+  `woff/tests/test_mission_upsert.py`. Reimport resolves the canonical natural
+  identity supplied by Issue #40, updates the existing row in place, retains
+  its `missionId`, keeps diary foreign keys valid, remains idempotent, and
+  reports inserted, updated, and unchanged records separately.
+- `EVAL-MISSION-002` is enforced by
+  `woff/tests/test_mission_upsert.py`, with parser provenance checks in
+  `woff/tests/test_mission_log_parser.py` and
+  `woff/tests/test_xml_parser.py`. Row-level source authority is, from highest
+  to lowest: live `mission.log` debrief, XML, historical `PilotNLog.txt`, and
+  unknown sources. A lower source may fill an empty or parser-default field but
+  cannot replace richer stored data.
+
+The immutable identity fields are `pilotId`, `date`, `time`, `missionType`,
+and `aircraft`; a merge also never replaces the stored row ID. Mutable text
+fields are `duration`, `altitude`, `sector`, `squadron`, `weather`, `result`,
+and `notes`. Blank text never erases stored text, while `Unknown` weather and
+`Uneventful` results are treated as parser defaults rather than enrichment.
+Positive contact and claim counts may enrich an empty/default count; a same- or
+higher-authority source may correct another positive value. Default zero never
+erases a positive value. Damage and wound flags are monotonic because current
+parser models cannot distinguish an explicit false correction from an absent
+field: `True` enriches `False`, while a parser-default `False` never clears
+stored evidence. The row retains the highest-authority source observed.
+
+This contract changes no schema and rewrites no identity field in an existing
+campaign database. Victory and decoration merge behavior remains owned by
+Issue #73.
+
 ### Implemented career identity evals
 
 - `EVAL-IDENTITY-001` is enforced by

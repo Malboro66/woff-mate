@@ -180,6 +180,7 @@ class TestWoFFXMLParser(unittest.TestCase):
         self.assertEqual(m.result, "Major Engagement")
         self.assertFalse(m.damageReceived)
         self.assertFalse(m.woundsReceived)
+        self.assertEqual(m.source_file, os.path.basename(self.tmp_file.name))
 
     def test_mission_temporal_contract_rejects_invalid_dates_and_times(self):
         xml = """<?xml version="1.0" encoding="UTF-8"?>
