@@ -12,6 +12,7 @@ from __future__ import annotations
 import logging
 import ntpath
 import os
+from datetime import datetime
 from typing import Optional, List
 
 from watchdog.events import FileSystemEventHandler
@@ -19,6 +20,7 @@ from watchdog.events import FileSystemEventHandler
 from .database import DatabaseManager
 from .campaign_engine import CampaignEngine
 from .config import SUPPORTED_WATCHED_EXTENSIONS
+from .discovery import is_preview_allowed
 from .ingestion.scheduler import EventScheduler
 from .ingestion.snapshot import (
     FileGeneration,
@@ -33,6 +35,10 @@ from .parsers.pilot_data_parser import WoFFPilotDataParser
 from .parsers.dossier_parser import WoFFDossierParser
 
 log = logging.getLogger("WoFFWatch")
+
+
+class _PersistenceRejected(Exception):
+    """Abort a composable transaction when core persistence reports failure."""
 
 
 def _safe_filename(path: str) -> str:
@@ -84,6 +90,10 @@ class FileProcessor:
     ) -> Optional[FileGeneration]:
         """Executa a cadeia de processamento."""
         try:
+            ext = os.path.splitext(path)[1].lower()
+            if ext in {".txt", ".log"} and not is_preview_allowed(path):
+                log.debug("Unsupported WoFF filename ignored: %s", _safe_filename(path))
+                return None
             snapshot = self.guard.acquire(path)
             if snapshot.generation == previous_generation:
                 log.debug("Snapshot generation already processed: %s", _safe_filename(path))
@@ -94,14 +104,14 @@ class FileProcessor:
                 self.discovery.log_file(path, event_type)
 
             # 3. Roteamento e Parse
-            ext = os.path.splitext(path)[1].lower()
             fname = os.path.basename(path).lower()
 
+            persisted = False
             if ext == ".xml":
-                self._process_xml(path, snapshot)
+                persisted = self._process_xml(path, snapshot)
             elif ext in SUPPORTED_WATCHED_EXTENSIONS:
-                self._process_text(path, fname, snapshot)
-            return snapshot.generation
+                persisted = self._process_text(path, fname, snapshot)
+            return snapshot.generation if persisted else None
 
         except SnapshotFailure as failure:
             log.warning(
@@ -120,7 +130,7 @@ class FileProcessor:
         with open(path, "rb") as source:
             return source.read(), os.path.basename(path)
 
-    def _process_xml(self, path: str, snapshot: Optional[StableFileSnapshot] = None):
+    def _process_xml(self, path: str, snapshot: Optional[StableFileSnapshot] = None) -> bool:
         parser = WoFFXMLParser()
         data, name = self._parser_input(path, snapshot)
         if parser.parse_bytes(data, name):
@@ -131,14 +141,22 @@ class FileProcessor:
                 victories=parser.victories,
                 decorations=parser.decorations,
             )
+            if not real_pilot_id:
+                return False
             # FIX: Se houver missões e um pilot_id real, processa o fim de missão.
             latest_mission_id = get_latest_mission_id(parser)
             if real_pilot_id and latest_mission_id:
-                self.campaign_engine.process_mission_end(
+                derived_result = self.campaign_engine.process_mission_end(
                     real_pilot_id, latest_mission_id
                 )
+                if derived_result is False:
+                    return False
+            return True
+        return False
 
-    def _process_text(self, path: str, fname: str, snapshot: Optional[StableFileSnapshot] = None):
+    def _process_text(
+        self, path: str, fname: str, snapshot: Optional[StableFileSnapshot] = None
+    ) -> bool:
         data, name = self._parser_input(path, snapshot)
         if "dossier" in fname:
             parser = WoFFDossierParser()
@@ -147,46 +165,59 @@ class FileProcessor:
                     parser.pilot.name
                 )
 
-                # Processar Wingmen ANTES do merge
-                self.campaign_engine.process_wingmen_changes(
-                    parser.pilot.name, parser.wingmen
-                )
+                try:
+                    with self.db_manager.transaction():
+                        # Compare before the merge, but roll derived writes back if
+                        # core persistence rejects this generation.
+                        event_date = datetime.fromtimestamp(
+                            snapshot.generation.modified_ns / 1_000_000_000
+                        ).strftime("%Y-%m-%d") if snapshot is not None else None
+                        self.campaign_engine.process_wingmen_changes(
+                            parser.pilot.name, parser.wingmen, event_date=event_date
+                        )
 
-                self.db_manager.merge_and_write(
-                    pilot=parser.pilot,
-                    missions=[],
-                    victories=[],
-                    decorations=parser.decorations,
-                    wingmen=parser.wingmen,
-                )
+                        real_pilot_id = self.db_manager.merge_and_write(
+                            pilot=parser.pilot,
+                            missions=[],
+                            victories=[],
+                            decorations=parser.decorations,
+                            wingmen=parser.wingmen,
+                        )
+                        if not real_pilot_id:
+                            raise _PersistenceRejected
 
-                new_status = parser.pilot.status
-                new_rank = parser.pilot.rank
-                old_status_str = old_status if old_status is not None else ""
-                old_rank_str = old_rank if old_rank is not None else ""
+                        new_status = parser.pilot.status
+                        new_rank = parser.pilot.rank
+                        old_status_str = old_status if old_status is not None else ""
+                        old_rank_str = old_rank if old_rank is not None else ""
 
-                if (old_status_str != new_status) or (
-                    old_rank_str != new_rank and new_rank
-                ):
-                    self.campaign_engine.process_life_events(
-                        parser.pilot.name,
-                        str(new_status),
-                        str(new_rank),
-                        old_status_str,
-                        old_rank_str,
-                    )
-            return
+                        if (old_status_str != new_status) or (
+                            old_rank_str != new_rank and new_rank
+                        ):
+                            self.campaign_engine.process_life_events(
+                                parser.pilot.name,
+                                str(new_status),
+                                str(new_rank),
+                                old_status_str,
+                                old_rank_str,
+                                event_date=event_date,
+                            )
+                except _PersistenceRejected:
+                    return False
+                return True
+            return False
 
         if fname == "mission.log":
             parser = WoFFMissionLogParser()
             if parser.parse_bytes(data, name):
-                self.db_manager.merge_and_write(
+                real_pilot_id = self.db_manager.merge_and_write(
                     pilot=parser.pilot,
                     missions=[parser.mission] if parser.mission else [],
                     victories=[],
                     decorations=[],
                 )
-            return
+                return bool(real_pilot_id)
+            return False
 
         # Ficheiros de piloto (Log, Claims, Squads)
         parser = WoFFPilotDataParser()
@@ -201,20 +232,26 @@ class FileProcessor:
                     f"Não foi possível resolver pilot_id para '{parser.pilot.name}' "
                     f"(source: {parser.pilot.source_file}). Abortando processamento."
                 )
-                return
+                return False
 
-            self.db_manager.merge_and_write(
+            persisted_pilot_id = self.db_manager.merge_and_write(
                 pilot=parser.pilot,
                 missions=parser.missions,
                 victories=parser.victories,
                 decorations=[],
             )
+            if not persisted_pilot_id:
+                return False
             # FIX: Só invoca o RPG se tivermos um ID real e missões.
             latest_mission_id = get_latest_mission_id(parser)
             if latest_mission_id:
-                self.campaign_engine.process_mission_end(
+                derived_result = self.campaign_engine.process_mission_end(
                     real_pilot_id, latest_mission_id
                 )
+                if derived_result is False:
+                    return False
+            return True
+        return False
 
 
 class WoFFEventHandler(FileSystemEventHandler):
@@ -242,6 +279,7 @@ class WoFFEventHandler(FileSystemEventHandler):
             max_pending_events=config.max_pending_events,
             retry_process=self._execute_retry_pipeline,
         )
+        self._startup_admission_timeout = config.stability_timeout_sec
 
     def on_modified(self, event):
         if not event.is_directory:
@@ -261,12 +299,20 @@ class WoFFEventHandler(FileSystemEventHandler):
 
         if ext not in self.watched_extensions or any(p in bn for p in self.IGNORED):
             return False
+        if ext in {".txt", ".log"} and not is_preview_allowed(path):
+            return False
 
         return self.scheduler.submit(path, event_type)
 
     def submit_initial(self, path: str) -> bool:
         """Route startup reconciliation through the bounded live scheduler."""
-        return self._handle(path, "initial")
+        return self.scheduler.submit(
+            path, "initial", admission_timeout=self._startup_admission_timeout
+        )
+
+    def wait_initial(self, paths: list[str], timeout: float) -> bool:
+        """Wait for a startup dependency phase without creating another queue."""
+        return self.scheduler.wait_for_paths(paths, timeout)
 
     def _execute_pipeline(self, path: str, event_type: str):
         """Método executado na thread pool."""

@@ -49,7 +49,7 @@ issues and pull requests.
 | #57 | `EVAL-PILOT-STATS-001`, `EVAL-PILOT-STATS-002` | Partial-source preservation and authoritative zero writes |
 | #45 | `EVAL-CFG-001`, `EVAL-CFG-002` | Early validation and preservation of invalid personal config |
 | #36 | `EVAL-SCHED-001`, `EVAL-SCHED-002` | Bounded scheduling and correct move handling |
-| #42 | `EVAL-SNAP-001`, `EVAL-SNAP-002` | Exact stable snapshots and bounded Windows retry |
+| #42 | `EVAL-SNAP-001`, `EVAL-SNAP-002`, `EVAL-SNAP-003` | Exact stable snapshots, bounded simulated Windows retry, persistence-aware acknowledgement, and observer-first startup coverage |
 | #40 | `EVAL-DATE-001`, `EVAL-DATE-002` | Canonical validation and deterministic ordering |
 | #39 | `EVAL-MISSION-001`, `EVAL-MISSION-002` | Stable identity and non-destructive enrichment |
 | #27 | `EVAL-DEFER-001`, `EVAL-DEFER-002` | Deferred reprocessing without loss or unbounded retention |
@@ -87,6 +87,25 @@ claim Q5 or approval of Product Gate A or Gate B.
 - `EVAL-SCHED-002` is enforced by destination identity tests in
   `woff/tests/test_ingestion_scheduler.py` and tmp-to-watched/move-away coverage
   in `woff/tests/test_handler_integration.py`.
+
+### Implemented snapshot evals
+
+- `EVAL-SNAP-001` is enforced by deterministic snapshot/parser and processing
+  contract tests in `woff/tests/test_stable_snapshot.py`. They prove that parsers
+  consume verified bytes, changed generations retry, failed identity or
+  persistence remains unacknowledged, and an acknowledged unchanged generation
+  is suppressed.
+- `EVAL-SNAP-002` is enforced by bounded denial, disappearance, replacement,
+  mutation, backoff, saturation, and drained-shutdown simulations in
+  `woff/tests/test_stable_snapshot.py` and
+  `woff/tests/test_ingestion_scheduler.py`. These are deterministic simulations;
+  this evidence does not claim a Windows-native run.
+- `EVAL-SNAP-003` is enforced by
+  `TestWatchdogStartup::test_live_file_created_after_observer_start_is_not_baseline_submitted`
+  in `woff/tests/test_handler_integration.py`. Synchronization events create an
+  approved file only after observer startup, exclude it from baseline globbing,
+  coalesce a canonical duplicate, process its live generation once, and verify
+  drained scheduler shutdown.
 
 ## Planned cycle 3.4.0
 

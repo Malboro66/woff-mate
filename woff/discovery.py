@@ -22,6 +22,7 @@ Procedimento de utilização:
 from __future__ import annotations
 
 import logging
+import ntpath
 import re
 from datetime import datetime
 from pathlib import Path
@@ -41,7 +42,7 @@ PREVIEW_ALLOWED_PATTERNS: tuple[Pattern[str], ...] = (
 
 def is_preview_allowed(path: str | Path) -> bool:
     """Return True only for explicitly approved WoFF-generated filenames."""
-    name = Path(path).name
+    name = ntpath.basename(str(path).replace("/", "\\"))
     return any(pattern.fullmatch(name) for pattern in PREVIEW_ALLOWED_PATTERNS)
 
 

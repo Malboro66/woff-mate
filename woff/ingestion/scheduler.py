@@ -5,6 +5,7 @@ from __future__ import annotations
 import logging
 import ntpath
 import threading
+import time
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from typing import Any, Callable, Dict, Optional, Protocol, Tuple
@@ -70,6 +71,7 @@ class EventScheduler:
         self._max_pending_events = max_pending_events
         self._states: Dict[str, _PathState] = {}
         self._lock = threading.Lock()
+        self._changed = threading.Condition(self._lock)
         self._accepting = True
         self._metrics = {
             "queued": 0,
@@ -93,11 +95,14 @@ class EventScheduler:
         with self._lock:
             return dict(self._metrics)
 
-    def submit(self, path: str, event_type: str) -> bool:
-        """Admit without blocking; return false when shutdown or capacity rejects."""
+    def submit(
+        self, path: str, event_type: str, *, admission_timeout: float = 0.0
+    ) -> bool:
+        """Admit within a bounded deadline; return false on shutdown/saturation."""
         key = canonical_windows_path(path)
         event = (path, event_type)
-        with self._lock:
+        deadline = time.monotonic() + admission_timeout
+        with self._changed:
             if not self._accepting:
                 self._reject_locked("shutdown")
                 return False
@@ -108,9 +113,15 @@ class EventScheduler:
                 state.pending = event
                 self._metrics["coalesced"] += 1
                 return True
-            if len(self._states) >= self._max_pending_events:
-                self._reject_locked("saturated")
-                return False
+            while len(self._states) >= self._max_pending_events:
+                remaining = deadline - time.monotonic()
+                if remaining <= 0:
+                    self._reject_locked("saturated")
+                    return False
+                self._changed.wait(remaining)
+                if not self._accepting:
+                    self._reject_locked("shutdown")
+                    return False
             self._states[key] = _PathState()
             self._metrics["queued"] += 1
             try:
@@ -150,6 +161,7 @@ class EventScheduler:
                 self._metrics["active"] -= 1
                 if state.pending is None:
                     del self._states[key]
+                    self._changed.notify_all()
                     return
                 event = state.pending
                 state.pending = None
@@ -158,6 +170,19 @@ class EventScheduler:
 
     def shutdown(self) -> None:
         """Stop admission and wait for every accepted generation to finish."""
-        with self._lock:
+        with self._changed:
             self._accepting = False
+            self._changed.notify_all()
         self._executor.shutdown(wait=True)
+
+    def wait_for_paths(self, paths: list[str], timeout: float) -> bool:
+        """Wait at most ``timeout`` for the named admitted paths to drain."""
+        keys = {canonical_windows_path(path) for path in paths}
+        deadline = time.monotonic() + timeout
+        with self._changed:
+            while keys.intersection(self._states):
+                remaining = deadline - time.monotonic()
+                if remaining <= 0:
+                    return False
+                self._changed.wait(remaining)
+            return True

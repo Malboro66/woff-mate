@@ -2,10 +2,13 @@ from dataclasses import dataclass
 import threading
 from typing import Any, cast
 from unittest.mock import MagicMock
+from datetime import datetime
 
 import pytest
 
 from ..handler import FileProcessor, FileStabilityGuard
+from ..campaign_engine import CampaignEngine
+from ..database import DatabaseManager
 from ..ingestion.scheduler import EventScheduler
 from ..ingestion.snapshot import (
     FileGeneration,
@@ -14,6 +17,8 @@ from ..ingestion.snapshot import (
     StableFileSnapshot,
     StableSnapshotReader,
 )
+from ..models import WoFFPilot, WoFFWingman
+from ..narrative_generator import narrative_generator
 
 
 @dataclass
@@ -181,6 +186,47 @@ def test_processor_parses_exact_verified_bytes_after_source_changes(tmp_path, mo
     assert received == [(verified, "campaign.xml")]
 
 
+def test_unsupported_text_filename_never_reaches_snapshot_reader():
+    processor = FileProcessor(cast(Any, object()), cast(Any, object()))
+    processor.guard = cast(Any, MagicMock())
+
+    assert processor.process(r"C:\Users\Alice\activation_key.txt", "created") is None
+    processor.guard.acquire.assert_not_called()
+
+
+def test_dossier_side_effects_use_verified_generation_timestamp(monkeypatch):
+    modified_ns = 1_493_596_200_000_000_000
+    snapshot = StableFileSnapshot(
+        b"verified", "Pilot1Dossier.txt", "Pilot1Dossier.txt",
+        FileGeneration(1, 1, 8, modified_ns, modified_ns, "digest"), 2,
+    )
+    pilot = MagicMock(name="pilot")
+    pilot.name = "Verified Pilot"
+    pilot.status = "Active"
+    pilot.rank = "Captain"
+
+    class Parser:
+        decorations = []
+        wingmen = [MagicMock()]
+
+        def __init__(self):
+            self.pilot = pilot
+
+        def parse_bytes(self, data, name):
+            return True
+
+    monkeypatch.setattr("woff.handler.WoFFDossierParser", Parser)
+    database = MagicMock()
+    database.get_pilot_state.return_value = ("Active", "Lieutenant")
+    engine = MagicMock()
+    processor = FileProcessor(database, engine)
+    processor._process_text("Pilot1Dossier.txt", "pilot1dossier.txt", snapshot)
+
+    expected = datetime.fromtimestamp(modified_ns / 1_000_000_000).strftime("%Y-%m-%d")
+    assert engine.process_wingmen_changes.call_args.kwargs["event_date"] == expected
+    assert engine.process_life_events.call_args.kwargs["event_date"] == expected
+
+
 @pytest.mark.parametrize(("path", "parser_target"), [
     ("campaign.xml", "woff.handler.WoFFXMLParser"),
     ("Pilot1Dossier.txt", "woff.handler.WoFFDossierParser"),
@@ -218,7 +264,7 @@ def test_live_routing_supplies_verified_bytes_and_original_name(
 
 
 def test_scheduler_releases_exhausted_snapshot_without_diagnostic_leak(caplog):
-    personal_path = r"C:\Users\Alice\Campaigns\private-Pilot1Log.txt"
+    personal_path = r"C:\Users\Alice\Campaigns\Pilot1Log.txt"
     filesystem = ScriptedFilesystem([PermissionError()] * 3)
     processor = FileProcessor(cast(Any, object()), cast(Any, object()))
     processor.guard = FileStabilityGuard(
@@ -236,7 +282,7 @@ def test_scheduler_releases_exhausted_snapshot_without_diagnostic_leak(caplog):
     }
     diagnostics = [r.getMessage() for r in caplog.records if "Snapshot rejected" in r.getMessage()]
     assert diagnostics == [
-        "Snapshot rejected: source=private-Pilot1Log.txt state=inaccessible attempts=3"
+        "Snapshot rejected: source=Pilot1Log.txt state=inaccessible attempts=3"
     ]
     assert "Users" not in diagnostics[0]
     assert "Campaigns" not in diagnostics[0]
@@ -307,3 +353,322 @@ def test_active_acquisition_and_pending_event_persist_new_generation_once():
     assert scheduler.metrics() == {
         "queued": 0, "active": 0, "coalesced": 1, "rejected": 0, "retried": 1,
     }
+
+
+def test_unresolved_identity_does_not_acknowledge_coalesced_generation(monkeypatch):
+    path = r"C:\Campaign\Pilot1Log.txt"
+    snapshot = StableFileSnapshot(
+        b"verified", path, "Pilot1Log.txt",
+        FileGeneration(1, 1, 8, 1, 1, "digest"), 2,
+    )
+    resolve_started = threading.Event()
+    dossier_ready = threading.Event()
+    database = cast(Any, MagicMock())
+
+    pilot = MagicMock()
+    pilot.name = "Pilot 1"
+    pilot.source_file = "Pilot1Log.txt"
+
+    class Parser:
+        def __init__(self):
+            self.pilot = pilot
+            self.missions = [MagicMock(date="1917-01-01", time="08:00", id="m1")]
+            self.victories = [MagicMock()]
+
+        def parse_bytes(self, data, name):
+            return True
+
+    first_resolution = True
+
+    def resolve(*_args, **_kwargs):
+        nonlocal first_resolution
+        if first_resolution:
+            first_resolution = False
+            resolve_started.set()
+            assert dossier_ready.wait(2)
+            return None
+        return "pilot-id"
+
+    database.resolve_pilot_id.side_effect = resolve
+    monkeypatch.setattr("woff.handler.WoFFPilotDataParser", Parser)
+    processor = FileProcessor(database, cast(Any, MagicMock()))
+    processor.guard = cast(Any, MagicMock())
+    processor.guard.acquire.return_value = snapshot
+    scheduler = EventScheduler(
+        processor.process, max_workers=2, max_pending_events=2,
+        retry_process=lambda submitted_path, event, previous: processor.process(
+            submitted_path, event, previous_generation=previous
+        ),
+    )
+
+    assert scheduler.submit(path, "modified")
+    assert resolve_started.wait(2)
+    assert scheduler.submit(path.upper(), "initial")
+    dossier_ready.set()
+    scheduler.shutdown()
+
+    database.merge_and_write.assert_called_once()
+    persisted = database.merge_and_write.call_args.kwargs
+    assert persisted["pilot"] is pilot
+    assert len(persisted["missions"]) == len(persisted["victories"]) == 1
+    assert persisted["decorations"] == []
+    assert processor.guard.acquire.call_count == 2
+    assert scheduler.admitted_paths == 0
+    assert scheduler.metrics()["retried"] == 1
+
+
+@pytest.mark.parametrize(
+    ("path", "parser_target"),
+    [
+        ("campaign.xml", "woff.handler.WoFFXMLParser"),
+        ("Pilot1Dossier.txt", "woff.handler.WoFFDossierParser"),
+        ("mission.log", "woff.handler.WoFFMissionLogParser"),
+        ("Pilot1Log.txt", "woff.handler.WoFFPilotDataParser"),
+        ("Pilot1Claims.txt", "woff.handler.WoFFPilotDataParser"),
+        ("Pilot1Squads.txt", "woff.handler.WoFFPilotDataParser"),
+    ],
+)
+def test_merge_rejection_never_acknowledges_any_ingestion_route(
+    path, parser_target, monkeypatch
+):
+    pilot = MagicMock(name="pilot", source_file=path)
+
+    class Parser:
+        def __init__(self):
+            self.pilot = pilot
+            self.mission = MagicMock()
+            self.missions = []
+            self.victories = []
+            self.decorations = []
+            self.wingmen = []
+
+        def parse_bytes(self, data, name):
+            return True
+
+    monkeypatch.setattr(parser_target, Parser)
+    database = cast(Any, MagicMock())
+    database.resolve_pilot_id.return_value = "pilot-id"
+    database.get_pilot_state.return_value = (None, None)
+    database.merge_and_write.return_value = None
+    processor = FileProcessor(database, cast(Any, MagicMock()))
+    snapshot = StableFileSnapshot(
+        b"verified", path, path,
+        FileGeneration(1, 1, 8, 1, 1, "digest"), 2,
+    )
+    processor.guard = cast(Any, MagicMock())
+    processor.guard.acquire.return_value = snapshot
+
+    assert processor.process(path, "initial") is None
+    database.merge_and_write.assert_called_once()
+
+
+def test_merge_rejection_retries_same_generation_then_acknowledges_once(monkeypatch):
+    path = r"C:\Campaign\Pilot1Log.txt"
+    snapshot = StableFileSnapshot(
+        b"verified", path, "Pilot1Log.txt",
+        FileGeneration(1, 1, 8, 1, 1, "digest"), 2,
+    )
+    first_merge_started = threading.Event()
+    allow_failure = threading.Event()
+    database = cast(Any, MagicMock())
+    database.resolve_pilot_id.return_value = "pilot-id"
+    merge_results = iter((None, "pilot-id"))
+
+    pilot = MagicMock(name="pilot", source_file="Pilot1Log.txt")
+    mission = MagicMock(date="1917-01-01", time="08:00", id="m1")
+
+    class Parser:
+        def __init__(self):
+            self.pilot = pilot
+            self.missions = [mission]
+            self.victories = [MagicMock()]
+
+        def parse_bytes(self, data, name):
+            return True
+
+    def merge(**_kwargs):
+        result = next(merge_results)
+        if result is None:
+            first_merge_started.set()
+            assert allow_failure.wait(2)
+        return result
+
+    database.merge_and_write.side_effect = merge
+    engine = cast(Any, MagicMock())
+    monkeypatch.setattr("woff.handler.WoFFPilotDataParser", Parser)
+    processor = FileProcessor(database, engine)
+    processor.guard = cast(Any, MagicMock())
+    processor.guard.acquire.return_value = snapshot
+    scheduler = EventScheduler(
+        processor.process, max_workers=2, max_pending_events=2,
+        retry_process=lambda submitted_path, event, previous: processor.process(
+            submitted_path, event, previous_generation=previous
+        ),
+    )
+
+    assert scheduler.submit(path, "modified")
+    assert first_merge_started.wait(2)
+    assert scheduler.submit(path.upper(), "initial")
+    allow_failure.set()
+    scheduler.shutdown()
+
+    assert database.merge_and_write.call_count == 2
+    engine.process_mission_end.assert_called_once_with("pilot-id", "m1")
+    assert scheduler.admitted_paths == 0
+    assert scheduler.metrics() == {
+        "queued": 0, "active": 0, "coalesced": 1,
+        "rejected": 0, "retried": 1,
+    }
+
+
+@pytest.mark.parametrize(
+    ("path", "parser_target"),
+    [
+        ("campaign.xml", "woff.handler.WoFFXMLParser"),
+        ("Pilot1Log.txt", "woff.handler.WoFFPilotDataParser"),
+    ],
+)
+def test_explicit_derived_failure_does_not_acknowledge_generation(
+    path, parser_target, monkeypatch
+):
+    pilot = MagicMock(name="pilot", source_file=path)
+    mission = MagicMock(date="1917-01-01", time="08:00", id="m1")
+
+    class Parser:
+        def __init__(self):
+            self.pilot = pilot
+            self.missions = [mission]
+            self.victories = []
+            self.decorations = []
+
+        def parse_bytes(self, data, name):
+            return True
+
+    monkeypatch.setattr(parser_target, Parser)
+    database = cast(Any, MagicMock())
+    database.resolve_pilot_id.return_value = "pilot-id"
+    database.merge_and_write.return_value = "pilot-id"
+    engine = cast(Any, MagicMock())
+    engine.process_mission_end.return_value = False
+    processor = FileProcessor(database, engine)
+    processor.guard = cast(Any, MagicMock())
+    processor.guard.acquire.return_value = StableFileSnapshot(
+        b"verified", path, path,
+        FileGeneration(1, 1, 8, 1, 1, "digest"), 2,
+    )
+
+    assert processor.process(path, "initial") is None
+    engine.process_mission_end.assert_called_once_with("pilot-id", "m1")
+
+
+def test_dossier_rejection_rolls_back_derived_effects_and_retry_commits_once(
+    tmp_path, monkeypatch
+):
+    database = DatabaseManager(str(tmp_path / "dossier-rollback.db"))
+    pilot_id = "pilot-1"
+    pilot_name = "Arthur Test"
+    old_pilot = WoFFPilot(
+        id=pilot_id, name=pilot_name, rank="Lieutenant", status="Active",
+        source_file="Pilot1Dossier.txt",
+    )
+    old_wingman = WoFFWingman(
+        id="wingman-1", pilotId=pilot_id, rank="Sergeant",
+        fName="William", sName="Test", status="Active",
+    )
+    assert database.merge_and_write(old_pilot, [], [], [], [old_wingman]) == pilot_id
+    assert database.save_diary_entry(
+        pilot_id, None, "1917-04-30", "existing diary entry"
+    )
+
+    new_pilot = WoFFPilot(
+        id=pilot_id, name=pilot_name, rank="Captain", status="Wounded",
+        source_file="Pilot1Dossier.txt",
+    )
+    new_wingman = WoFFWingman(
+        id="wingman-1", pilotId=pilot_id, rank="Sergeant",
+        fName="William", sName="Test", status="KIA",
+    )
+    parser_calls = []
+
+    class Parser:
+        def __init__(self):
+            self.pilot = new_pilot
+            self.wingmen = [new_wingman]
+            self.decorations = []
+
+        def parse_bytes(self, data, name):
+            parser_calls.append((data, name))
+            return True
+
+    monkeypatch.setattr("woff.handler.WoFFDossierParser", Parser)
+    monkeypatch.setattr(
+        narrative_generator, "generate_life_event",
+        lambda *_args: "deterministic life event",
+    )
+    monkeypatch.setattr(
+        narrative_generator, "generate_wingman_event",
+        lambda *_args: "deterministic wingman event",
+    )
+
+    original_merge = database.merge_and_write
+    merge_calls = 0
+
+    def reject_once(*args, **kwargs):
+        nonlocal merge_calls
+        merge_calls += 1
+        if merge_calls == 1:
+            return None
+        return original_merge(*args, **kwargs)
+
+    monkeypatch.setattr(database, "merge_and_write", reject_once)
+    path = str(tmp_path / "Pilot1Dossier.txt")
+    generation = FileGeneration(1, 1, 8, 1_493_596_200_000_000_000, 1, "digest")
+    snapshot = StableFileSnapshot(
+        b"verified", path, "Pilot1Dossier.txt", generation, 2,
+    )
+    processor = FileProcessor(database, CampaignEngine(database))
+    processor.guard = cast(Any, MagicMock())
+    processor.guard.acquire.return_value = snapshot
+
+    def diary_rows():
+        return database._get_conn().execute(
+            "SELECT narrative FROM diary_entries WHERE pilotId = ? ORDER BY narrative",
+            (pilot_id,),
+        ).fetchall()
+
+    try:
+        assert processor.process(path, "initial") is None
+        assert database.get_pilot_state(pilot_name) == ("Active", "Lieutenant")
+        assert database.get_wingmen_by_pilot(pilot_id) == [
+            {"fName": "William", "sName": "Test", "status": "Active"}
+        ]
+        assert diary_rows() == [("existing diary entry",)]
+
+        acknowledged = processor.process(path, "initial")
+        assert acknowledged == generation
+        assert database.get_pilot_state(pilot_name) == ("Wounded", "Captain")
+        assert database.get_wingmen_by_pilot(pilot_id) == [
+            {"fName": "William", "sName": "Test", "status": "KIA"}
+        ]
+        assert diary_rows() == [
+            ("deterministic life event",),
+            ("deterministic wingman event",),
+            ("existing diary entry",),
+        ]
+
+        assert processor.process(
+            path, "modified", previous_generation=acknowledged
+        ) == generation
+        assert merge_calls == 2
+        assert len(parser_calls) == 2
+        assert database.get_pilot_state(pilot_name) == ("Wounded", "Captain")
+        assert database.get_wingmen_by_pilot(pilot_id) == [
+            {"fName": "William", "sName": "Test", "status": "KIA"}
+        ]
+        assert diary_rows() == [
+            ("deterministic life event",),
+            ("deterministic wingman event",),
+            ("existing diary entry",),
+        ]
+    finally:
+        database.close()
