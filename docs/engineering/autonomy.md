@@ -27,14 +27,12 @@ action than database migrations, destructive operations, merges, and releases.
 | Concurrency and watchdog | L1 | Failures may lose events |
 | Transactions and repositories | L1 | Partial-state risk |
 | Schema and migration | L0 or L1 | Direct database risk |
-| Read-only interface | L2 after Product Gate A | Lower risk while rules stay outside UI |
+| Privacy and security boundary | L1 | Changes data handling, credential isolation, or network-security guarantees |
+| UI design, sanitized fixtures, and toolkit-independent contracts | L2 | Reversible foundation work without live data or production GUI dependencies |
+| Production UI or runtime-toolkit adoption | L1 after Product Gate A and explicit toolkit approval | Adds production dependencies, packaging, lifecycle, and user-facing runtime behavior |
 | Merge to `main` | Human only | Official integration point |
 | Release and distribution | Human only | Affects real users |
 | Destructive operation | Human only | May be irreversible |
-
-Issue #51 is authorized through L2. It may publish a branch and open a draft
-pull request. It may not mark the pull request ready, merge, or publish a
-release without a new maintainer decision.
 
 ## Permanently human decisions
 
@@ -43,6 +41,7 @@ release without a new maintainer decision.
 - destructive campaign-data operation
 - acceptance of a migration without tested recovery
 - product scope or product-gate change
+- acceptance of a production UI toolkit or runtime dependency
 - reduced data-protection requirement
 - autonomy promotion
 
@@ -71,9 +70,11 @@ Autonomy drops when:
 
 | Date | Area | Level | Evidence or decision |
 |---|---|---|---|
-| 2026-08-14 | Documentation and executable governance | L2 | Issue #51 authorized as a small independent draft PR |
+| 2026-08-14 | Documentation and executable governance | L2 | Issue #51 authorized as a small independent draft PR; retained here as historical evidence after completion |
 | 2026-08-14 | Issue #34 transactions and repositories | L1 | Structural data work remains under human publication and merge control |
 | 2026-08-14 | Merge and release | Human only | Approved Master Plan and repository policy |
+| 2026-08-23 | Privacy and security boundary | L1 | PRIV-001, LIC-001, and NET-001 are cross-cutting protected contracts; weakening them remains a human decision |
+| 2026-08-23 | UI design, sanitized fixtures, and toolkit-independent contracts | L2 | Issues #79-#82 may prepare evidence before Product Gates A/B without adopting a production GUI runtime |
 
 ## Updating this record
 
