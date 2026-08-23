@@ -111,6 +111,29 @@ claim Q5 or approval of Product Gate A or Gate B.
   coalesce a canonical duplicate, process its live generation once, and verify
   drained scheduler shutdown.
 
+### Implemented career identity evals
+
+- `EVAL-IDENTITY-001` is enforced by
+  `woff/tests/test_pilot_identity.py`,
+  `woff/tests/test_pilot_identity_migration.py`, and
+  `woff/tests/test_handler_integration.py`. The tests preserve IDs and every
+  covered relationship through schema 3.2, rotate a reused slot to a distinct
+  career, reject a partial file observed against a changed Dossier, and prove
+  that the old career receives no new fields, mission history, or diary effects.
+- `EVAL-IDENTITY-002` is enforced by
+  `woff/tests/test_pilot_identity.py`,
+  `woff/tests/test_campaign_engine.py`,
+  `woff/tests/test_handler_integration.py`, and
+  `woff/tests/test_privacy_contracts.py`. The tests keep same-name careers in
+  separate slots independent, target derived state by explicit career ID,
+  reject identityless XML and `Mission.log` writes, and constrain rejection
+  diagnostics to sanitized filename, reason category, and slot.
+
+Same-name replacement in the same pilot slot remains an explicit evidence gap:
+without sanitized longitudinal Dossier samples, an equal slot-and-name Dossier
+is treated as a replay. The `needs-real-fixture` follow-up does not weaken or
+block the verified Issue #70 cases.
+
 ## Planned cycle 3.4.0
 
 | Work item | Eval IDs |

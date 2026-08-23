@@ -487,7 +487,8 @@ def test_database_migration_guide_documents_versioning_backup_and_recovery_contr
     assert "MAJOR.MINOR" in guide
     assert "schema versions identify stored database formats" in guide
     assert "compatible migration path" in guide and "passes certification" in guide
-    assert "`2.2` to `3.1`" in guide
+    assert "`2.2` to `3.2`" in guide
+    assert "`3.1` to `3.2`" in guide
     assert "MAJOR" in guide and "alone does not determine" in guide
     assert "manual intervention" not in guide
     assert "same transaction" in guide and "future schema" in guide

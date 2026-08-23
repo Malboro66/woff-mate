@@ -1,5 +1,5 @@
 version: 1
-updated: 2026-08-20
+updated: 2026-08-23
 
 project:
   repository: Malboro66/woff-mate
@@ -277,12 +277,21 @@ evals:
     evidence: A pending dependency expires with a diagnostic and bounded storage.
   EVAL-IDENTITY-001:
     work_items: [issue-70]
-    status: planned
+    status: implemented
     evidence: Reusing a pilot slot never mutates or receives history from the prior career generation.
+    enforced_by:
+      - woff/tests/test_pilot_identity.py
+      - woff/tests/test_pilot_identity_migration.py
+      - woff/tests/test_handler_integration.py
   EVAL-IDENTITY-002:
     work_items: [issue-70]
-    status: planned
+    status: implemented
     evidence: Same-name careers remain independent and identityless input performs no persistent write.
+    enforced_by:
+      - woff/tests/test_pilot_identity.py
+      - woff/tests/test_campaign_engine.py
+      - woff/tests/test_handler_integration.py
+      - woff/tests/test_privacy_contracts.py
   EVAL-PILOT-STATUS-001:
     work_items: [issue-71]
     status: planned
@@ -486,7 +495,7 @@ work_items:
       - {id: issue-42, status: satisfied}
       - {id: issue-39, status: unsatisfied}
       - {id: issue-57, status: satisfied}
-      - {id: issue-70, status: unsatisfied}
+      - {id: issue-70, status: satisfied}
       - {id: issue-71, status: unsatisfied}
   issue-28:
     title: Validate pilots in every woff_query output format
@@ -675,7 +684,7 @@ work_items:
   issue-70:
     title: Preserve career identity across pilot-slot reuse and reject identityless ingestion
     module: persistence
-    state: backlog
+    state: done
     evals: [EVAL-IDENTITY-001, EVAL-IDENTITY-002]
     gates: [Q0, Q1, Q2, Q3, Q6-CYCLE-3.3.0]
     depends_on: []

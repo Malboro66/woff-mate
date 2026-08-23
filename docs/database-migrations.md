@@ -11,10 +11,43 @@ Schema versions use `MAJOR.MINOR`:
 - schema versions identify stored database formats;
 - future schema versions are rejected;
 - an automatic migration is supported only when the installed application has a compatible migration path and the resulting schema passes certification;
-- `2.2` to `3.1` is the currently tested historical migration path; and
+- `2.2` to `3.2` and `3.1` to `3.2` are tested historical migration paths; and
 - the **MAJOR** component alone does not determine whether migration is automatic.
 
 The application persists the new schema version in the same transaction as the schema and data changes. A database declaring a future schema is rejected before application DDL, a migration backup, or any downgrade. During the read-only compatibility probe, SQLite may open or create WAL coordination sidecars such as `-shm`; this is SQLite coordination rather than application DDL or migration. Use a compatible newer version instead.
+
+## Schema 3.2 career identity migration
+
+Schema 3.2 removes the uniqueness constraint from `pilots.name`. A display name
+is presentation data and may belong to more than one career. The migration
+rebuilds the table without changing existing pilot IDs, then preserves the
+foreign-key ownership of missions, victories, decorations, squad members, RPG
+state, and diary entries. A non-unique `idx_pilots_name` remains available for
+lookup.
+
+The new `pilot_slot_bindings` table records one current `pilotId` for each
+positive WoFF pilot slot together with the verified Dossier digest. Migration
+seeds a binding only when legacy source filenames identify exactly one pilot for
+that slot. Ambiguous slots remain unbound. Every migrated binding starts with a
+NULL digest and therefore rejects `Log`, `Claims`, and `Squads` writes until a
+stable `Pilot{N}Dossier.txt` snapshot refreshes it.
+
+A Dossier whose display name changes in an already bound slot creates a new
+career and rotates only the current binding. The prior pilot row, relationships,
+RPG state, and diary remain attached to the prior ID. A matching-name Dossier in
+the same slot is currently treated as a replay of the bound career; distinguishing
+a same-name replacement in that same slot requires sanitized longitudinal WOFF
+fixtures and is tracked separately with `needs-real-fixture`.
+
+Live XML and `Mission.log` ingestion cannot establish a supported career
+identity and performs no persistent write. Slot-dependent files require both a
+current binding and an exact match with the stable sibling Dossier digest.
+
+The 3.1-to-3.2 transformation uses the same pre-migration SQLite backup and
+transactional rollback procedure described below. Certification requires
+`PRAGMA foreign_key_check` to return no rows, `PRAGMA integrity_check` to return
+`ok`, and the migrated database to reopen under the current schema contract.
+The migration backup is retained after both successful migration and recovery.
 
 ## Automatic migration protection
 

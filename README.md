@@ -21,7 +21,7 @@ WoFF Mate monitors WOFF campaign data in real time, extracts and normalizes pilo
 ## Features
 
 - 🛩️ **Real-time campaign monitoring** — reacts to game-generated file changes while keeping ingestion bounded and deterministic.
-- 👨‍✈️ **Pilot tracking** — builds a persistent record from WOFF pilot and dossier data.
+- 👨‍✈️ **Pilot tracking** — keeps persistent career records separate with Dossier-backed pilot-slot identity; display names are not treated as unique IDs.
 - 🎯 **Mission ingestion** — parses mission logs and stores structured mission information.
 - 🎖️ **Victories and awards** — tracks combat victories, medals, and related campaign data.
 - 👥 **Wingmen and squadron context** — maintains AI pilot and squadron information.
@@ -113,6 +113,16 @@ WoFF Mate presentation layer / future UI
 ```
 
 WoFF Mate is structured as a modular monolith: one Windows application and one local SQLite database, split into foundation, domain, persistence, platform, ingestion, application, presentation, and governance responsibilities.
+
+### Career identity boundary
+
+Stable `Pilot{N}Dossier.txt` snapshots establish the current career for a pilot
+slot. `Log`, `Claims`, and `Squads` files may update that career only when the
+simultaneously observed Dossier digest matches the stored binding. Reusing a
+slot with a different pilot name creates a separate career ID and leaves the
+prior career and its history unchanged. Parsed campaign XML and `Mission.log`
+remain available to parser/reporting workflows, but the live persistence path
+rejects them when they cannot supply a supported career identity.
 
 ## Compatibility
 
