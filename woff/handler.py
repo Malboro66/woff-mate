@@ -233,9 +233,12 @@ class FileProcessor:
                         event_date = datetime.fromtimestamp(
                             snapshot.generation.modified_ns / 1_000_000_000
                         ).strftime("%Y-%m-%d") if snapshot is not None else None
-                        self.campaign_engine.process_wingmen_changes(
-                            parser.pilot.name, parser.wingmen, event_date=event_date
-                        )
+                        if prior_pilot_id is not None:
+                            self.campaign_engine.process_wingmen_changes(
+                                prior_pilot_id,
+                                parser.wingmen,
+                                event_date=event_date,
+                            )
 
                         real_pilot_id = self.db_manager.merge_and_write(
                             pilot=parser.pilot,
@@ -253,11 +256,12 @@ class FileProcessor:
                         old_status_str = old_status if old_status is not None else ""
                         old_rank_str = old_rank if old_rank is not None else ""
 
-                        if (old_status_str != new_status) or (
-                            old_rank_str != new_rank and new_rank
+                        if real_pilot_id == prior_pilot_id and (
+                            (old_status_str != new_status)
+                            or (old_rank_str != new_rank and new_rank)
                         ):
                             self.campaign_engine.process_life_events(
-                                parser.pilot.name,
+                                real_pilot_id,
                                 str(new_status),
                                 str(new_rank),
                                 old_status,

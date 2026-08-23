@@ -84,7 +84,7 @@ class CampaignEngine:
         return True
 
     def process_life_events(
-        self, pilot_name: str, new_status: str, new_rank: str,
+        self, pilot_id: str, new_status: str, new_rank: str,
         old_status: Optional[str], old_rank: Optional[str],
         event_date: Optional[str] = None
     ):
@@ -96,18 +96,13 @@ class CampaignEngine:
         if not narrative:
             return
 
-        log.info(f"[RPG] Evento de vida detetado para {pilot_name}!")
-
-        real_pilot_id = self.db_manager.resolve_pilot_id(pilot_name)
-        if not real_pilot_id:
-            log.warning(f"Piloto {pilot_name} não resolvido para evento de vida.")
-            return
+        log.info("[RPG] Evento de vida detetado para carreira verificada.")
 
         # FIX: Usar data do jogo se não fornecida
-        today = event_date or self.db_manager.get_pilot_game_date(real_pilot_id)
+        today = event_date or self.db_manager.get_pilot_game_date(pilot_id)
 
         self.db_manager.save_diary_entry(
-            pilot_id=real_pilot_id,
+            pilot_id=pilot_id,
             mission_id=None,
             entry_date=today,
             narrative=narrative
@@ -115,28 +110,23 @@ class CampaignEngine:
         log.info("  📝 Diário de Bordo atualizado com Evento de Vida.")
 
     def process_wingmen_changes(
-        self, pilot_name: str, new_wingmen: List[WoFFWingman],
+        self, pilot_id: str, new_wingmen: List[WoFFWingman],
         event_date: Optional[str] = None
     ):
         """
         Compara os wingmen recém-extraídos com os guardados na DB.
         Gera entradas de diário para mortes, ferimentos e chegadas.
         """
-        log.info(f"[RPG] A verificar mudanças nos wingmen de {pilot_name}...")
+        log.info("[RPG] A verificar mudanças nos wingmen da carreira verificada...")
 
         if not new_wingmen:
             log.warning(
-                f"  Lista de wingmen vazia para {pilot_name}. "
-                "Abortando comparação para evitar falsos positivos."
+                "  Lista de wingmen vazia. Abortando comparação para evitar "
+                "falsos positivos."
             )
             return
 
-        real_pilot_id = self.db_manager.resolve_pilot_id(pilot_name)
-        if not real_pilot_id:
-            log.warning(f"Piloto {pilot_name} não resolvido para verificar wingmen.")
-            return
-
-        old_wingmen = self.db_manager.get_wingmen_by_pilot(real_pilot_id)
+        old_wingmen = self.db_manager.get_wingmen_by_pilot(pilot_id)
 
         old_map = {f"{w['fName']} {w['sName']}": w['status'] for w in old_wingmen}
         new_map = {f"{w.fName} {w.sName}": w.status for w in new_wingmen}
@@ -160,13 +150,13 @@ class CampaignEngine:
                 events.append(("new", name))
 
         # FIX: Usar data do jogo se não fornecida
-        today = event_date or self.db_manager.get_pilot_game_date(real_pilot_id)
+        today = event_date or self.db_manager.get_pilot_game_date(pilot_id)
 
         for event_type, name in events:
             narrative = narrative_generator.generate_wingman_event(name, event_type)
             if narrative:
                 self.db_manager.save_diary_entry(
-                    real_pilot_id, None, today, narrative
+                    pilot_id, None, today, narrative
                 )
                 log.info(
                     f"  📝 Evento de Wingman registado: {name} ({event_type})"

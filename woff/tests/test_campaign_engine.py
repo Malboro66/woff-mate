@@ -10,6 +10,7 @@ from unittest.mock import patch
 from ..database import DatabaseManager
 from ..campaign_engine import CampaignEngine
 from ..models import WoFFPilot, WoFFMission
+from .identity_support import dossier_evidence
 
 class TestCampaignEngine(unittest.TestCase):
     # Anotações de tipo ao nível da classe
@@ -41,11 +42,15 @@ class TestCampaignEngine(unittest.TestCase):
         """
         Testa a Race Condition de forma determinística.
         """
-        pilot = WoFFPilot(name="Race Pilot")
-        self.db.merge_and_write(pilot, [], [], [])
+        pilot = WoFFPilot(
+            name="Race Pilot", source_file="Pilot1Dossier.txt"
+        )
+        self.db.merge_and_write(
+            pilot, [], [], [], identity=dossier_evidence(1)
+        )
         
         with patch.object(self.db, 'get_mission_and_history', return_value=(None, None, [])):
-            result = self.engine.process_mission_end(pilot.name, "M_RACE")
+            result = self.engine.process_mission_end(pilot.id, "M_RACE")
         
         self.assertIsNone(result)
         
@@ -59,11 +64,15 @@ class TestCampaignEngine(unittest.TestCase):
     
     def test_process_mission_end_success(self):
         """Testa processamento completo de missão (RPG Stats e Diário)."""
-        pilot = WoFFPilot(name="Test Pilot")
+        pilot = WoFFPilot(
+            name="Test Pilot", source_file="Pilot1Dossier.txt"
+        )
         mission = WoFFMission(id="M001", pilotId=pilot.id, date="1917-04-06", time="10:30", missionType="OP")
-        self.db.merge_and_write(pilot, [mission], [], [])
+        self.db.merge_and_write(
+            pilot, [mission], [], [], identity=dossier_evidence(1)
+        )
         
-        self.engine.process_mission_end(pilot.name, "M001")
+        self.engine.process_mission_end(pilot.id, "M001")
         
         conn = sqlite3.connect(self.tmp_db.name)
         
@@ -78,13 +87,20 @@ class TestCampaignEngine(unittest.TestCase):
         conn.close()
 
     def _mission_fixture(self, suffix):
-        pilot = WoFFPilot(id=f"P_{suffix}", name=f"Pilot {suffix}")
+        pilot = WoFFPilot(
+            id=f"P_{suffix}",
+            name=f"Pilot {suffix}",
+            source_file="Pilot1Dossier.txt",
+        )
         mission = WoFFMission(
             id=f"M_{suffix}", pilotId=pilot.id, date="1917-05-10",
             time="09:00", missionType="Patrol"
         )
         self.assertEqual(
-            self.db.merge_and_write(pilot, [mission], [], []), pilot.id
+            self.db.merge_and_write(
+                pilot, [mission], [], [], identity=dossier_evidence(1)
+            ),
+            pilot.id,
         )
         return pilot, mission
 
@@ -96,7 +112,7 @@ class TestCampaignEngine(unittest.TestCase):
             side_effect=RuntimeError("narrative failure"),
         ):
             with self.assertRaisesRegex(RuntimeError, "narrative failure"):
-                self.engine.process_mission_end(pilot.name, mission.id)
+                self.engine.process_mission_end(pilot.id, mission.id)
 
         conn = self.db._get_conn()
         self.assertIsNone(conn.execute(
@@ -116,7 +132,7 @@ class TestCampaignEngine(unittest.TestCase):
             self.db, "save_diary_entry", side_effect=RuntimeError("diary failure")
         ), self.assertLogs("WoFFWatch", level="INFO") as captured:
             with self.assertRaisesRegex(RuntimeError, "diary failure"):
-                self.engine.process_mission_end(pilot.name, mission.id)
+                self.engine.process_mission_end(pilot.id, mission.id)
 
         self.assertIsNone(self.db._get_conn().execute(
             "SELECT 1 FROM pilot_rpg_stats WHERE pilotId = ?", (pilot.id,)
@@ -152,7 +168,7 @@ class TestCampaignEngine(unittest.TestCase):
         ), patch.object(
             self.db, "save_diary_entry", side_effect=observed_save
         ), patch("woff.campaign_engine.log.info", side_effect=observed_log):
-            result = self.engine.process_mission_end(pilot.name, mission.id)
+            result = self.engine.process_mission_end(pilot.id, mission.id)
 
         self.assertEqual(
             (result, transaction_state),
@@ -177,7 +193,7 @@ class TestCampaignEngine(unittest.TestCase):
             "woff.campaign_engine.narrative_generator.generate",
             return_value="Duplicate narrative",
         ), self.assertLogs("WoFFWatch", level="INFO") as captured:
-            result = self.engine.process_mission_end(pilot.name, mission.id)
+            result = self.engine.process_mission_end(pilot.id, mission.id)
 
         self.assertFalse(result)
         messages = "\n".join(captured.output)
@@ -189,11 +205,18 @@ class TestCampaignEngine(unittest.TestCase):
     
     def test_process_life_events_promotion(self):
         """Testa deteção de promoção e geração de entrada de diário."""
-        pilot = WoFFPilot(name="Promo Pilot", rank="Lieutenant", status="Active")
-        self.db.merge_and_write(pilot, [], [], [])
+        pilot = WoFFPilot(
+            name="Promo Pilot",
+            rank="Lieutenant",
+            status="Active",
+            source_file="Pilot1Dossier.txt",
+        )
+        self.db.merge_and_write(
+            pilot, [], [], [], identity=dossier_evidence(1)
+        )
         
         self.engine.process_life_events(
-            "Promo Pilot", "Active", "Captain", "Active", "Lieutenant"
+            pilot.id, "Active", "Captain", "Active", "Lieutenant"
         )
         
         conn = sqlite3.connect(self.tmp_db.name)
@@ -206,6 +229,51 @@ class TestCampaignEngine(unittest.TestCase):
         self.assertIn("captain", narrative)
         
         conn.close()
+
+    def test_life_event_for_duplicate_name_uses_explicit_target_id(self):
+        first = WoFFPilot(
+            id="same-name-a",
+            name="Same Name",
+            rank="Lieutenant",
+            source_file="Pilot1Dossier.txt",
+        )
+        second = WoFFPilot(
+            id="same-name-b",
+            name="Same Name",
+            rank="Lieutenant",
+            source_file="Pilot2Dossier.txt",
+        )
+        self.db.merge_and_write(
+            first, [], [], [], identity=dossier_evidence(1, "first")
+        )
+        self.db.merge_and_write(
+            second, [], [], [], identity=dossier_evidence(2, "second")
+        )
+
+        self.engine.process_life_events(
+            second.id,
+            "Active",
+            "Captain",
+            "Active",
+            "Lieutenant",
+            event_date="1917-06-01",
+        )
+
+        conn = self.db._get_conn()
+        self.assertEqual(
+            conn.execute(
+                "SELECT COUNT(*) FROM diary_entries WHERE pilotId=?",
+                (first.id,),
+            ).fetchone(),
+            (0,),
+        )
+        self.assertEqual(
+            conn.execute(
+                "SELECT COUNT(*) FROM diary_entries WHERE pilotId=?",
+                (second.id,),
+            ).fetchone(),
+            (1,),
+        )
 
 if __name__ == "__main__":
     unittest.main()
