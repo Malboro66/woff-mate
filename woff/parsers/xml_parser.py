@@ -175,7 +175,7 @@ class WoFFXMLParser:
         p.startDate = normalize_date(
             self._find(root, "StartDate","JoinDate","CreatedDate","DateDebut","start_date") or ""
         )
-        raw_status  = self._find(root, "Status","PilotStatus","Etat","state","alive") or ""
+        raw_status  = self._find(root, "Status","PilotStatus","Etat","state","alive")
         p.status    = normalize_status(raw_status, root)
         p.notes     = self._find(root, "Notes","Biography","History","Background","Historique") or ""
 

@@ -56,7 +56,7 @@ class TestNormalization(unittest.TestCase):
 
     def test_normalize_status_false_positive(self):
         """Garantia que a palavra 'deadline' não ativa o status 'dead'."""
-        self.assertEqual(normalize_status("Missed a deadline"), "Active")
+        self.assertIsNone(normalize_status("Missed a deadline"))
 
     def test_normalize_status_wounded_no_root(self):
         """Testa ferimentos quando não há nó XML para avaliar gravidade."""
@@ -75,7 +75,10 @@ class TestNormalization(unittest.TestCase):
 
     def test_normalize_status_active(self):
         self.assertEqual(normalize_status("Active"), "Active")
-        self.assertEqual(normalize_status(""), "Active")
+        self.assertEqual(normalize_status("  Active  "), "Active")
+        self.assertEqual(normalize_status("In Service"), "Active")
+        self.assertEqual(normalize_status("true"), "Active")
+        self.assertIsNone(normalize_status(""))
 
     # ── Testes de Tipo de Vitória ──
 

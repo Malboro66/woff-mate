@@ -65,16 +65,20 @@ class NarrativeGenerator:
 
         return narrative
 
-    def generate_life_event(self, new_status: str, old_status: Optional[str], new_rank: str, old_rank: Optional[str]) -> Optional[str]:
+    def generate_life_event(self, new_status: Optional[str], old_status: Optional[str], new_rank: str, old_rank: Optional[str]) -> Optional[str]:
         """Gera texto para eventos de vida (ferimentos, promoções, etc.)"""
         event_text = ""
         
         # Se o piloto é novo (old_status é None)
-        if old_status is None:
+        if old_status is None and new_status is not None:
             return f"Cheguei à esquadrilha como {new_rank}. Sinto uma mistura de ansiedade e patriotismo. É o início da minha jornada nestes céus."
         
         # Mudança de Status (Ferimentos / Hospital / Licença)
-        if old_status != new_status:
+        if (
+            new_status is not None
+            and old_status is not None
+            and old_status != new_status
+        ):
             new_s = new_status.lower()
             old_s = old_status.lower()
             

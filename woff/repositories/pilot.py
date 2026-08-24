@@ -26,6 +26,7 @@ from .mission import canonicalized_mission_mapping
 
 log = logging.getLogger("WoFFWatch")
 _PLACEHOLDER_NAME = re.compile(r"^Pilot [1-9][0-9]*$")
+_STATUS_WRITABLE_BY = frozenset({PilotIdentityKind.DOSSIER})
 
 
 class PilotRepository(BaseRepository):
@@ -89,10 +90,12 @@ class PilotRepository(BaseRepository):
         ).fetchone()
         if bound is not None and str(bound[1]) == pilot.name:
             pilot_id = str(bound[0])
-            self._update_pilot(pilot_id, pilot, preserve_name=False)
+            self._update_pilot(
+                pilot_id, pilot, identity.kind, preserve_name=False
+            )
         elif bound is not None:
             pilot_id = pilot.id
-            self._insert_pilot(pilot)
+            self._insert_pilot(pilot, identity.kind)
         else:
             candidates = [
                 str(row[0])
@@ -106,10 +109,12 @@ class PilotRepository(BaseRepository):
                 raise PilotIdentityAmbiguous("ambiguous-legacy-slot", slot)
             if candidates:
                 pilot_id = candidates[0]
-                self._update_pilot(pilot_id, pilot, preserve_name=False)
+                self._update_pilot(
+                    pilot_id, pilot, identity.kind, preserve_name=False
+                )
             else:
                 pilot_id = pilot.id
-                self._insert_pilot(pilot)
+                self._insert_pilot(pilot, identity.kind)
 
         cursor.execute(
             """
@@ -149,7 +154,9 @@ class PilotRepository(BaseRepository):
         if str(row[1]) != identity.dossier_digest:
             raise PilotIdentityUnavailable("stale-dossier-binding", slot)
         pilot_id = str(row[0])
-        self._update_pilot(pilot_id, pilot, preserve_name=True)
+        self._update_pilot(
+            pilot_id, pilot, identity.kind, preserve_name=True
+        )
         log.info("  Pilot updated from verified slot-dependent identity.")
         return pilot_id
 
@@ -170,7 +177,19 @@ class PilotRepository(BaseRepository):
             raise PilotIdentityRejected("identity-source-kind-mismatch", slot)
         return slot
 
-    def _insert_pilot(self, pilot: WoFFPilot) -> None:
+    @staticmethod
+    def _status_value(
+        pilot: WoFFPilot, identity_kind: PilotIdentityKind
+    ) -> Optional[str]:
+        """Return status only for a source authorized to replace stored state."""
+        if identity_kind not in _STATUS_WRITABLE_BY or pilot.status is None:
+            return None
+        value = pilot.status.strip()
+        return value or None
+
+    def _insert_pilot(
+        self, pilot: WoFFPilot, identity_kind: PilotIdentityKind
+    ) -> None:
         self._conn.execute(
             """
             INSERT INTO pilots (
@@ -199,7 +218,7 @@ class PilotRepository(BaseRepository):
                 pilot.sector,
                 pilot.startDate,
                 pilot.enlisted,
-                pilot.status,
+                self._status_value(pilot, identity_kind),
                 pilot.notes,
                 pilot.photo,
                 pilot.birthDate,
@@ -216,9 +235,15 @@ class PilotRepository(BaseRepository):
         )
 
     def _update_pilot(
-        self, pilot_id: str, pilot: WoFFPilot, *, preserve_name: bool
+        self,
+        pilot_id: str,
+        pilot: WoFFPilot,
+        identity_kind: PilotIdentityKind,
+        *,
+        preserve_name: bool,
     ) -> None:
         name = "" if preserve_name else pilot.name
+        status = self._status_value(pilot, identity_kind)
         self._conn.execute(
             """
             UPDATE pilots SET
@@ -233,7 +258,7 @@ class PilotRepository(BaseRepository):
                 sector=COALESCE(NULLIF(?, ''), sector),
                 startDate=COALESCE(NULLIF(?, ''), startDate),
                 enlisted=COALESCE(NULLIF(?, ''), enlisted),
-                status=COALESCE(NULLIF(?, ''), status),
+                status=COALESCE(?, status),
                 notes=COALESCE(NULLIF(?, ''), notes),
                 photo=COALESCE(NULLIF(?, ''), photo),
                 birthDate=COALESCE(NULLIF(?, ''), birthDate),
@@ -260,7 +285,7 @@ class PilotRepository(BaseRepository):
                 pilot.sector,
                 pilot.startDate,
                 pilot.enlisted,
-                pilot.status,
+                status,
                 pilot.notes,
                 pilot.photo,
                 pilot.birthDate,

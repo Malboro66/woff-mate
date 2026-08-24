@@ -7,7 +7,7 @@ de personalidades únicas para os Wingmen (Sistema 3P).
 ══════════════════════════════════════════════════════════════════
 """
 from datetime import datetime
-from typing import List, Dict, Any
+from typing import Any, Dict, List, Optional
 import random
 
 from .normalization import normalize_date
@@ -75,7 +75,9 @@ class RPGSystem:
                 
         return max(0, min(fatigue, self.MAX_FATIGUE))
 
-    def calculate_morale(self, missions: List[Dict[str, Any]], pilot_status: str) -> int:
+    def calculate_morale(
+        self, missions: List[Dict[str, Any]], pilot_status: Optional[str]
+    ) -> int:
         """Calcula a moral (0-100) com base em vitórias e baixas recentes.
 
         Pré-condição: ``missions`` deve estar ordenada da mais recente para a
@@ -91,7 +93,9 @@ class RPGSystem:
             elif m.get("damageReceived", False):
                 morale -= 3
                 
-        if pilot_status.lower() in ["wounded", "hospital", "leave", "invalided"]:
+        if pilot_status is not None and pilot_status.lower() in [
+            "wounded", "hospital", "leave", "invalided"
+        ]:
             morale -= 20
             
         # Variável Estocástica: Notícias de casa, clima de humor na esquadrilha

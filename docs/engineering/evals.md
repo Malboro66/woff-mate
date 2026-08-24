@@ -210,6 +210,29 @@ without sanitized longitudinal Dossier samples, an equal slot-and-name Dossier
 is treated as a replay. The `needs-real-fixture` follow-up does not weaken or
 block the verified Issue #70 cases.
 
+### Implemented pilot status provenance evals
+
+- `EVAL-PILOT-STATUS-001` is enforced by
+  `woff/tests/test_pilot_status_merge.py` and
+  `woff/tests/test_normalization.py`. The model and parsers use `None` as the
+  sole representation of absent status. Log, Claims, Squads, status-free
+  Dossier, partial XML, and `Mission.log` therefore never fabricate `Active`;
+  repeated partial-source merges preserve both stored status and the six
+  numeric statistics governed by Issue #57.
+- `EVAL-PILOT-STATUS-002` is enforced by
+  `woff/tests/test_pilot_status_merge.py`. Only a Dossier carrying verified
+  `PilotIdentityKind.DOSSIER` evidence may write pilot status. An explicit
+  `Active`/`In Service` value remains writable, a real transition is persisted,
+  and replay produces at most one matching life event. Slot-dependent sources
+  cannot replace status even if a future parser accidentally supplies one.
+
+XML and `Mission.log` remain identityless persistence sources under Issue #70.
+The XML parser preserves explicit status presence, but neither source can update
+a career until a separate verified identity contract exists. A new verified
+Dossier with no status stores SQL `NULL`, and a later missing status preserves
+the stored value without emitting a status life event. This contract changes no
+schema and uses neither `Active` nor an empty string as an absence sentinel.
+
 ## Planned cycle 3.4.0
 
 | Work item | Eval IDs |

@@ -307,12 +307,16 @@ evals:
       - woff/tests/test_privacy_contracts.py
   EVAL-PILOT-STATUS-001:
     work_items: [issue-71]
-    status: planned
+    status: implemented
     evidence: Every partial source preserves an authoritative stored pilot status when status is absent.
+    enforced_by:
+      - woff/tests/test_pilot_status_merge.py
+      - woff/tests/test_normalization.py
   EVAL-PILOT-STATUS-002:
     work_items: [issue-71]
-    status: planned
+    status: implemented
     evidence: Explicit authoritative status transitions remain writable and produce at most one life event.
+    enforced_by: [woff/tests/test_pilot_status_merge.py]
   EVAL-DOSSIER-TXN-001:
     work_items: [issue-72]
     status: planned
@@ -500,7 +504,7 @@ work_items:
   issue-27:
     title: Reprocess pilot files when the Dossier is not available yet
     module: ingestion
-    state: blocked
+    state: backlog
     evals: [EVAL-DEFER-001, EVAL-DEFER-002]
     gates: [Q0, Q1, Q3, Q6-CYCLE-3.3.0]
     depends_on:
@@ -509,7 +513,7 @@ work_items:
       - {id: issue-39, status: satisfied}
       - {id: issue-57, status: satisfied}
       - {id: issue-70, status: satisfied}
-      - {id: issue-71, status: unsatisfied}
+      - {id: issue-71, status: satisfied}
   issue-28:
     title: Validate pilots in every woff_query output format
     module: presentation
@@ -704,7 +708,7 @@ work_items:
   issue-71:
     title: Preserve pilot status provenance across partial sources
     module: persistence
-    state: backlog
+    state: done
     evals: [EVAL-PILOT-STATUS-001, EVAL-PILOT-STATUS-002]
     gates: [Q0, Q1, Q2, Q6-CYCLE-3.3.0]
     depends_on: []

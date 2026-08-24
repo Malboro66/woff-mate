@@ -164,7 +164,10 @@ class WoFFDossierParser:
                 if not self.pilot.nation and s_clean in ("France", "Britain", "Germany", "USA", "Belgium"):
                     self.pilot.nation = normalize_nation(s_clean)
                     continue
-                if not self.pilot.status and s_clean in ("In Service", "Wounded", "KIA", "Leave", "Prisoner", "Dead", "Retired"):
+                if self.pilot.status is None and s_clean in (
+                    "Active", "In Service", "Wounded", "KIA", "Leave",
+                    "Prisoner", "Dead", "Retired",
+                ):
                     self.pilot.status = s_clean
                     continue
                 # FIX: Aplica normalize_date() para converter "11/09/1896" -> "1896-09-11".

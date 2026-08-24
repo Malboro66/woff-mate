@@ -52,15 +52,19 @@ def normalize_mission_type(raw: str) -> str:
     return _map(raw, MISSION_TYPE_MAP, raw.strip() if raw else "")
 
 
-def normalize_status(raw: str, root: Optional[ET.Element] = None) -> str:
-    if not raw:
-        return "Active"
+def normalize_status(
+    raw: Optional[str], root: Optional[ET.Element] = None
+) -> Optional[str]:
+    """Normalize an explicit status or preserve its absence as ``None``."""
+    if not raw or not raw.strip():
+        return None
+    value = raw.strip()
     
     for pattern, status in STATUS_PATTERNS:
-        if pattern.search(raw):
+        if pattern.search(value):
             return status
             
-    if WOUND_RE.search(raw):
+    if WOUND_RE.search(value):
         severity = ""
         if root is not None:
             sev_elem = root.find(".//WoundSeverity")
@@ -73,7 +77,7 @@ def normalize_status(raw: str, root: Optional[ET.Element] = None) -> str:
             return "Seriously Wounded"
         return "Lightly Wounded"
         
-    return "Active"
+    return None
 
 
 def normalize_victory_type(raw: str) -> str:

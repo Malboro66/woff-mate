@@ -37,7 +37,7 @@ class TestDatabaseManager(unittest.TestCase):
                     pass
     
     def test_merge_new_pilot(self):
-        """Insere piloto novo e verifica o estado padrão (Active)."""
+        """Insere piloto novo sem fabricar um estado autoritativo."""
         pilot = WoFFPilot(
             name="John Doe",
             squadron="No. 56 Sqn",
@@ -49,8 +49,7 @@ class TestDatabaseManager(unittest.TestCase):
         self.assertTrue(ok)
         
         status, rank = self.db.get_pilot_state("John Doe")
-        self.assertIsNotNone(status)
-        self.assertEqual(status, "Active")
+        self.assertIsNone(status)
     
     def test_merge_existing_pilot_by_name(self):
         """Atualiza piloto existente pelo nome, garantindo que o COALESCE preserva dados antigos."""
