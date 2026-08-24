@@ -319,12 +319,16 @@ evals:
     enforced_by: [woff/tests/test_pilot_status_merge.py]
   EVAL-DOSSIER-TXN-001:
     work_items: [issue-72]
-    status: planned
+    status: implemented
     evidence: No Dossier-derived write survives a later failure in the same unit of work.
+    enforced_by: [woff/tests/test_dossier_transactions.py]
   EVAL-DOSSIER-TXN-002:
     work_items: [issue-72]
-    status: planned
+    status: implemented
     evidence: A successful or retried Dossier generation produces one consistent pilot, roster, decoration, and diary state.
+    enforced_by:
+      - woff/tests/test_dossier_transactions.py
+      - woff/tests/test_stable_snapshot.py
   EVAL-VICTORY-MERGE-001:
     work_items: [issue-73]
     status: planned
@@ -715,7 +719,7 @@ work_items:
   issue-72:
     title: Make Dossier state and diary effects one atomic unit
     module: application
-    state: backlog
+    state: done
     evals: [EVAL-DOSSIER-TXN-001, EVAL-DOSSIER-TXN-002]
     gates: [Q0, Q1, Q2, Q6-CYCLE-3.3.0]
     depends_on:

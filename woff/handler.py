@@ -35,7 +35,7 @@ from .identity import (
     dossier_source_name,
     pilot_slot,
 )
-from .normalization import canonical_mission_order_key, normalize_date
+from .normalization import canonical_mission_order_key
 
 from .parsers.xml_parser import WoFFXMLParser
 from .parsers.mission_log_parser import WoFFMissionLogParser
@@ -43,10 +43,6 @@ from .parsers.pilot_data_parser import WoFFPilotDataParser
 from .parsers.dossier_parser import WoFFDossierParser
 
 log = logging.getLogger("WoFFWatch")
-
-
-class _PersistenceRejected(Exception):
-    """Abort a composable transaction when core persistence reports failure."""
 
 
 def _safe_filename(path: str) -> str:
@@ -239,81 +235,13 @@ class FileProcessor:
             parser = WoFFDossierParser()
             if parser.parse_bytes(data, name) and parser.pilot:
                 identity = self._dossier_identity(snapshot)
-                assert identity.slot is not None
-                prior_pilot_id = self.db_manager.resolve_bound_dossier_id(
-                    parser.pilot.name, identity.slot
+                real_pilot_id = self.campaign_engine.process_dossier_import(
+                    pilot=parser.pilot,
+                    decorations=parser.decorations,
+                    wingmen=parser.wingmen,
+                    identity=identity,
                 )
-                old_status, old_rank = (
-                    self.db_manager.get_pilot_state_by_id(prior_pilot_id)
-                    if prior_pilot_id is not None
-                    else (None, None)
-                )
-
-                try:
-                    with self.db_manager.transaction():
-                        # Compare before the merge, but roll derived writes back if
-                        # core persistence rejects this generation.
-                        # Filesystem timestamps are observation metadata, never
-                        # dates in the historical campaign calendar. Stored
-                        # history remains authoritative; only a canonical
-                        # incoming Dossier date can bridge a career that has no
-                        # game date before this merge.
-                        if prior_pilot_id is not None:
-                            stored_game_date = self.db_manager.get_pilot_game_date(
-                                prior_pilot_id
-                            )
-                            incoming_game_date = normalize_date(
-                                parser.pilot.startDate
-                            )
-                            if stored_game_date or not incoming_game_date:
-                                self.campaign_engine.process_wingmen_changes(
-                                    prior_pilot_id,
-                                    parser.wingmen,
-                                )
-                            else:
-                                self.campaign_engine.process_wingmen_changes(
-                                    prior_pilot_id,
-                                    parser.wingmen,
-                                    event_date=incoming_game_date,
-                                )
-
-                        real_pilot_id = self.db_manager.merge_and_write(
-                            pilot=parser.pilot,
-                            missions=[],
-                            victories=[],
-                            decorations=parser.decorations,
-                            wingmen=parser.wingmen,
-                            identity=identity,
-                        )
-                        if not real_pilot_id:
-                            raise _PersistenceRejected
-
-                        new_status = parser.pilot.status
-                        new_rank = parser.pilot.rank
-                        old_rank_str = old_rank if old_rank is not None else ""
-                        status_changed = (
-                            new_status is not None
-                            and old_status is not None
-                            and old_status != new_status
-                        )
-                        rank_changed = old_rank_str != new_rank and bool(new_rank)
-
-                        if real_pilot_id == prior_pilot_id and (
-                            status_changed or rank_changed
-                        ):
-                            event_status = (
-                                new_status if status_changed else old_status
-                            )
-                            self.campaign_engine.process_life_events(
-                                real_pilot_id,
-                                event_status,
-                                str(new_rank),
-                                old_status,
-                                old_rank,
-                            )
-                except _PersistenceRejected:
-                    return False
-                return True
+                return bool(real_pilot_id)
             return False
 
         if fname == "mission.log":
