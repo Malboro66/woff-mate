@@ -94,18 +94,25 @@ def export_data(data: list, format_type: str, headers: list):
             print(f"| {' | '.join(vals)} |")
 
 def list_pilots(conn, c: Colors, args):
-    careers = {career.pilot_id: career for career in list_careers(conn)}
-    cursor = conn.execute(
-        """
-        SELECT id AS pilot_id, name, rank, squadron, status, missions, killsCount
-        FROM pilots
-        """
-    )
-    pilots = []
-    for row in cursor.fetchall():
-        pilot = dict(row)
-        pilot["slot"] = careers[str(pilot["pilot_id"])].slot
-        pilots.append(pilot)
+    owns_snapshot = not conn.in_transaction
+    if owns_snapshot:
+        conn.execute("BEGIN")
+    try:
+        careers = {career.pilot_id: career for career in list_careers(conn)}
+        cursor = conn.execute(
+            """
+            SELECT id AS pilot_id, name, rank, squadron, status, missions, killsCount
+            FROM pilots
+            """
+        )
+        pilots = []
+        for row in cursor.fetchall():
+            pilot = dict(row)
+            pilot["slot"] = careers[str(pilot["pilot_id"])].slot
+            pilots.append(pilot)
+    finally:
+        if owns_snapshot:
+            conn.rollback()
     pilots.sort(
         key=lambda pilot: (
             str(pilot["name"]),

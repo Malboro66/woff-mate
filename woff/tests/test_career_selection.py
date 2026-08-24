@@ -213,6 +213,66 @@ def test_machine_readable_pilot_list_exposes_stable_ids_and_slots(
     ]
 
 
+def test_pilot_list_uses_one_snapshot_during_concurrent_insert(
+    same_name_database: Path,
+    capsys: pytest.CaptureFixture[str],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    with sqlite3.connect(same_name_database) as reader:
+        reader.row_factory = sqlite3.Row
+        assert reader.execute("PRAGMA journal_mode=WAL").fetchone()[0] == "wal"
+        original_list_careers = woff_query.list_careers
+
+        def list_then_insert(conn: sqlite3.Connection):
+            careers = original_list_careers(conn)
+            with sqlite3.connect(same_name_database) as writer:
+                writer.execute(
+                    """
+                    INSERT INTO pilots VALUES
+                        ('career-late', 'Late Pilot', 'L', 'Captain L',
+                         'L Squadron', 'L Aircraft', 'L Field', 'L Sector',
+                         'Active', '1893-01-01', 'L Place', 'l.png',
+                         44, 444, 7, 8, 84, 404)
+                    """
+                )
+            return careers
+
+        monkeypatch.setattr(woff_query, "list_careers", list_then_insert)
+        woff_query.list_pilots(
+            reader,
+            woff_query.Colors(enabled=False),
+            SimpleNamespace(format="json"),
+        )
+        assert reader.in_transaction is False
+
+    rows = json.loads(capsys.readouterr().out)
+    assert "career-late" not in {row["pilot_id"] for row in rows}
+    with sqlite3.connect(same_name_database) as verifier:
+        assert verifier.execute(
+            "SELECT 1 FROM pilots WHERE id = 'career-late'"
+        ).fetchone() == (1,)
+
+
+def test_pilot_list_preserves_caller_owned_transaction(
+    same_name_database: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    with sqlite3.connect(same_name_database) as conn:
+        conn.row_factory = sqlite3.Row
+        conn.execute("BEGIN")
+
+        woff_query.list_pilots(
+            conn,
+            woff_query.Colors(enabled=False),
+            SimpleNamespace(format="json"),
+        )
+
+        assert conn.in_transaction is True
+        conn.rollback()
+
+    assert json.loads(capsys.readouterr().out)
+
+
 def test_ambiguous_query_name_fails_with_deterministic_sanitized_candidates(
     same_name_database: Path,
     capsys: pytest.CaptureFixture[str],
