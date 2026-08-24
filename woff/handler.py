@@ -290,16 +290,23 @@ class FileProcessor:
 
                         new_status = parser.pilot.status
                         new_rank = parser.pilot.rank
-                        old_status_str = old_status if old_status is not None else ""
                         old_rank_str = old_rank if old_rank is not None else ""
+                        status_changed = (
+                            new_status is not None
+                            and old_status is not None
+                            and old_status != new_status
+                        )
+                        rank_changed = old_rank_str != new_rank and bool(new_rank)
 
                         if real_pilot_id == prior_pilot_id and (
-                            (old_status_str != new_status)
-                            or (old_rank_str != new_rank and new_rank)
+                            status_changed or rank_changed
                         ):
+                            event_status = (
+                                new_status if status_changed else old_status
+                            )
                             self.campaign_engine.process_life_events(
                                 real_pilot_id,
-                                str(new_status),
+                                event_status,
                                 str(new_rank),
                                 old_status,
                                 old_rank,

@@ -49,6 +49,7 @@ MISSION_TYPE_MAP = {
 # ──────────────────────────────────────────────────────────────
 
 STATUS_PATTERNS = [
+    (re.compile(r"^(active|in\s+service|alive|true|yes|1)$", re.I), "Active"),
     (re.compile(r"\b(kia|killed|mort|tot|deceased)\b", re.I), "KIA"),
     (re.compile(r"\b(pow|prisoner|captured|prisonnier)\b", re.I), "PoW"),
     (re.compile(r"\bmia\b|\bmissing\b", re.I), "MIA"),

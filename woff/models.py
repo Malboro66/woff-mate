@@ -26,7 +26,10 @@ class WoFFPilot:
     sector:       str = ""
     startDate:    str = ""
     enlisted:     str = "" 
-    status:       str = "Active"
+    # ``None`` means that this source did not provide pilot status.  A real
+    # ``Active`` value remains distinct and writable when supplied by an
+    # authoritative source.
+    status:       Optional[str] = None
     notes:        str = ""
     photo:        str = ""
     

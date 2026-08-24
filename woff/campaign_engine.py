@@ -60,7 +60,7 @@ class CampaignEngine:
 
         fatigue = rpg_system.calculate_fatigue(m_list)
         morale = rpg_system.calculate_morale(
-            m_list, pilot_dict.get("status", "Active")
+            m_list, pilot_dict.get("status")
         )
         stress = rpg_system.calculate_stress(m_list)
 
@@ -93,7 +93,7 @@ class CampaignEngine:
         return True
 
     def process_life_events(
-        self, pilot_id: str, new_status: str, new_rank: str,
+        self, pilot_id: str, new_status: Optional[str], new_rank: str,
         old_status: Optional[str], old_rank: Optional[str],
         event_date: Optional[str] = None
     ):
