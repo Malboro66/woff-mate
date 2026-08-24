@@ -313,20 +313,10 @@ for the broader roster-generation and truncated-input policy.
 | #97 | `EVAL-DIARY-EMPTY-001` |
 | #101 | `EVAL-WINGMAN-TRANSFER-001`, `EVAL-WINGMAN-TRANSFER-002`, `EVAL-WINGMAN-TRANSFER-003` |
 
-### EVAL-CYCLE-340-001
-
-The aggregate eval passes only when:
-
-- all thirteen member issues satisfy their acceptance criteria
-- every applicable member eval is implemented and passing
-- dependency relations in the graph are satisfied, including #101 after #37 and #96
-- roster lifecycle and wingman identity remain deterministic across replay, homonyms, incomplete input, and transfer detection
-- a transfer destination is presented only when reliable source evidence supports it, with unknown assignment preserved explicitly otherwise
-- focused tests, related tests, the full suite, Pyright, project-graph validation, and applicable Q2/Q3/Windows evidence pass
-- project graph, eval catalog, quality gates, and public documentation reflect the delivered behavior
-- `Q6-CYCLE-3.4.0` passes
-
-Green CI alone does not pass this aggregate eval.
+Cycle 3.4.0 remains `planned`, so it intentionally has no aggregate eval yet.
+Its thirteen members reference `Q6-CYCLE-3.4.0`, which defines the eventual
+cycle-exit contract. An aggregate eval may be introduced when the cycle becomes
+active without weakening the individual member evals registered above.
 
 ## Planned cycle 3.5.0
 
