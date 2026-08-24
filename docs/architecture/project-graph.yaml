@@ -1,5 +1,5 @@
 version: 1
-updated: 2026-08-23
+updated: 2026-08-24
 
 project:
   repository: Malboro66/woff-mate
@@ -182,6 +182,8 @@ gates:
     description: Product decision gates approve data reliability, launcher viability, social core, or public release.
   Q6-CYCLE-3.3.0:
     description: All fifteen 3.3.0 work items, applicable evals, functional exit criteria, documentation, and CI are approved.
+  Q6-CYCLE-3.4.0:
+    description: All thirteen 3.4.0 work items, applicable evals, functional exit criteria, documentation, and CI are approved.
 
 evals:
   EVAL-DIARY-001:
@@ -361,6 +363,18 @@ evals:
     work_items: [issue-96]
     status: planned
     evidence: A poorer roster source never erases richer stored wingman fields or reassigns personality to another occurrence.
+  EVAL-WINGMAN-TRANSFER-001:
+    work_items: [issue-101]
+    status: planned
+    evidence: A confirmed transfer with reliable destination evidence creates exactly one event for the correct persistent wingman with source and destination squadrons.
+  EVAL-WINGMAN-TRANSFER-002:
+    work_items: [issue-101]
+    status: planned
+    evidence: A confirmed transfer without destination evidence creates exactly one event with an explicit unknown destination and never fabricates an assignment.
+  EVAL-WINGMAN-TRANSFER-003:
+    work_items: [issue-101]
+    status: planned
+    evidence: Same-squadron disappearance, partial or failed roster input, replay, and same-name members cannot produce a false or misattributed transfer.
   EVAL-DIARY-EMPTY-001:
     work_items: [issue-97]
     status: planned
@@ -551,6 +565,23 @@ evals:
       - issue-27
     status: planned
     evidence: Every 3.3.0 member passes its acceptance criteria and applicable evals before the tracker closes.
+  EVAL-CYCLE-340-001:
+    work_items:
+      - issue-41
+      - issue-38
+      - issue-74
+      - issue-35
+      - issue-37
+      - issue-44
+      - issue-43
+      - issue-28
+      - issue-75
+      - issue-76
+      - issue-96
+      - issue-97
+      - issue-101
+    status: planned
+    evidence: Every 3.4.0 member passes its acceptance criteria and applicable evals before the cycle is approved.
 
 work_items:
   issue-26:
@@ -867,6 +898,15 @@ work_items:
     evals: [EVAL-PILOT-PROVENANCE-001, EVAL-PILOT-PROVENANCE-002]
     gates: [Q0, Q1, Q2]
     depends_on: []
+  issue-101:
+    title: Track wingman squadron transfers and notify the player
+    module: application
+    state: blocked
+    evals: [EVAL-WINGMAN-TRANSFER-001, EVAL-WINGMAN-TRANSFER-002, EVAL-WINGMAN-TRANSFER-003]
+    gates: [Q0, Q1, Q2, Q6-CYCLE-3.4.0]
+    depends_on:
+      - {id: issue-37, status: unsatisfied}
+      - {id: issue-96, status: unsatisfied}
 
 cycles:
   cycle-3.2.1:
@@ -912,6 +952,9 @@ cycles:
       - issue-76
       - issue-96
       - issue-97
+      - issue-101
+    aggregate_eval: EVAL-CYCLE-340-001
+    gate: Q6-CYCLE-3.4.0
   cycle-3.5.0:
     state: planned
     members:
