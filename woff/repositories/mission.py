@@ -10,6 +10,9 @@ porque é coordenado dentro de uma transação cross-entidade.
 
 from __future__ import annotations
 
+from dataclasses import dataclass
+import ntpath
+import re
 import sqlite3
 import logging
 from typing import List, Dict, Any, Optional, Tuple
@@ -27,6 +30,139 @@ from .base import BaseRepository
 log = logging.getLogger("WoFFWatch")
 
 MissionIdentityKey = Tuple[str, str, str, str]
+
+
+@dataclass(frozen=True)
+class MissionMergeCounts:
+    """Observable outcomes for every valid incoming mission record."""
+
+    inserted: int = 0
+    updated: int = 0
+    unchanged: int = 0
+
+
+_MISSION_TEXT_FIELDS = (
+    "duration",
+    "altitude",
+    "sector",
+    "squadron",
+    "weather",
+    "result",
+    "notes",
+)
+_MISSION_INTEGER_FIELDS = ("enemyContacts", "claimsCount")
+_MISSION_BOOLEAN_FIELDS = ("damageReceived", "woundsReceived")
+_DEFAULT_TEXT_VALUES = {
+    "weather": frozenset({"unknown"}),
+    "result": frozenset({"uneventful"}),
+}
+
+
+def mission_source_priority(source_file: object) -> int:
+    """Return the documented row-level authority of a mission source.
+
+    The live ``mission.log`` debrief is authoritative over exported XML, which
+    is authoritative over the historical PilotLog. Unknown sources remain
+    mergeable but cannot overwrite a known, richer source.
+    """
+    filename = ntpath.basename(str(source_file or "").replace("/", "\\")).lower()
+    if filename == "mission.log":
+        return 30
+    if filename.endswith(".xml"):
+        return 20
+    if re.fullmatch(r"pilot\d+log\.txt", filename):
+        return 10
+    return 0
+
+
+def _is_default_text(field: str, value: object) -> bool:
+    return str(value or "").strip().casefold() in _DEFAULT_TEXT_VALUES.get(
+        field, frozenset()
+    )
+
+
+def _mission_merge_updates(
+    stored: Dict[str, Any], incoming: WoFFMission
+) -> Dict[str, Any]:
+    """Select non-destructive mutable-field updates for a stable mission row."""
+    updates: Dict[str, Any] = {}
+    stored_priority = mission_source_priority(stored.get("source_file"))
+    incoming_priority = mission_source_priority(incoming.source_file)
+    incoming_is_authoritative = incoming_priority >= stored_priority
+
+    for field in _MISSION_TEXT_FIELDS:
+        stored_value = str(stored.get(field) or "").strip()
+        incoming_value = str(getattr(incoming, field) or "").strip()
+        if not incoming_value or incoming_value == stored_value:
+            continue
+        if not stored_value:
+            updates[field] = incoming_value
+            continue
+        if _is_default_text(field, stored_value) and not _is_default_text(
+            field, incoming_value
+        ):
+            updates[field] = incoming_value
+            continue
+        if _is_default_text(field, incoming_value) and not _is_default_text(
+            field, stored_value
+        ):
+            continue
+        if incoming_is_authoritative:
+            updates[field] = incoming_value
+
+    for field in _MISSION_INTEGER_FIELDS:
+        stored_value = int(stored.get(field) or 0)
+        incoming_value = int(getattr(incoming, field) or 0)
+        if incoming_value == stored_value:
+            continue
+        if stored_value <= 0 < incoming_value:
+            updates[field] = incoming_value
+        elif incoming_value > 0 and incoming_is_authoritative:
+            updates[field] = incoming_value
+
+    for field in _MISSION_BOOLEAN_FIELDS:
+        stored_value = bool(stored.get(field))
+        incoming_value = bool(getattr(incoming, field))
+        if incoming_value and not stored_value:
+            updates[field] = 1
+
+    stored_source = str(stored.get("source_file") or "").strip()
+    incoming_source = str(incoming.source_file or "").strip()
+    if incoming_source and (
+        not stored_source or incoming_priority > stored_priority
+    ):
+        updates["source_file"] = incoming_source
+
+    return updates
+
+
+def _merge_existing_mission(
+    cursor: sqlite3.Cursor, stored_mission_id: str, incoming: WoFFMission
+) -> bool:
+    mutable_fields = (
+        *_MISSION_TEXT_FIELDS,
+        *_MISSION_INTEGER_FIELDS,
+        *_MISSION_BOOLEAN_FIELDS,
+        "source_file",
+    )
+    row = cursor.execute(
+        f"SELECT {', '.join(mutable_fields)} FROM missions WHERE id = ?",
+        (stored_mission_id,),
+    ).fetchone()
+    if row is None:
+        raise sqlite3.IntegrityError("stable mission identity disappeared")
+    stored: Dict[str, Any] = {
+        field: value for field, value in zip(mutable_fields, row)
+    }
+    updates = _mission_merge_updates(stored, incoming)
+    if not updates:
+        return False
+    assignments = ", ".join(f"{field} = ?" for field in updates)
+    cursor.execute(
+        f"UPDATE missions SET {assignments} WHERE id = ?",
+        (*updates.values(), stored_mission_id),
+    )
+    return True
 
 
 def mission_identity_key(
@@ -117,13 +253,15 @@ class MissionRepository(BaseRepository):
         missions: List[WoFFMission],
         victories: List[WoFFVictory],
         decorations: List[WoFFDecoration],
-    ) -> Tuple[int, int, int]:
-        """Insere missões, vitórias e condecorações associadas ao piloto."""
+    ) -> Tuple[MissionMergeCounts, int, int]:
+        """Merge missions and insert victories/decorations for one pilot."""
         cursor = self._conn.cursor()
         identity_index: Optional[Dict[MissionIdentityKey, str]] = None
         mission_id_remap: Dict[str, str] = {}
         rejected_mission_ids: set[str] = set()
-        added_m = 0
+        inserted_m = 0
+        updated_m = 0
+        unchanged_m = 0
         for m in missions:
             raw_time = str(m.time or "").strip()
             canonical_date = normalize_date(m.date)
@@ -153,9 +291,21 @@ class MissionRepository(BaseRepository):
             if stored_mission_id is not None:
                 if m.id and m.id != stored_mission_id:
                     mission_id_remap[m.id] = stored_mission_id
+                if _merge_existing_mission(cursor, stored_mission_id, m):
+                    updated_m += 1
+                else:
+                    unchanged_m += 1
+                continue
+            if m.id and cursor.execute(
+                "SELECT 1 FROM missions WHERE id = ?", (m.id,)
+            ).fetchone() is not None:
+                rejected_mission_ids.add(m.id)
+                log.warning(
+                    "Mission quarantined at write boundary: category=id-conflict"
+                )
                 continue
             cursor.execute("""
-                INSERT OR IGNORE INTO missions (
+                INSERT INTO missions (
                     id, pilotId, date, time, missionType, aircraft, duration,
                     altitude, sector, squadron, weather, enemyContacts,
                     claimsCount, result, damageReceived, woundsReceived, notes,
@@ -168,14 +318,8 @@ class MissionRepository(BaseRepository):
                 m.damageReceived, m.woundsReceived, m.notes,
                 m.source_file
             ))
-            added_m += cursor.rowcount
-            if cursor.rowcount:
-                identity_index[identity] = m.id
-            elif m.id:
-                rejected_mission_ids.add(m.id)
-                log.warning(
-                    "Mission quarantined at write boundary: category=id-conflict"
-                )
+            inserted_m += 1
+            identity_index[identity] = m.id
 
         added_v = 0
         for v in victories:
@@ -210,7 +354,11 @@ class MissionRepository(BaseRepository):
             """, (d.id, d.pilotId, d.name, d.date, d.citation, d.source_file))
             added_d += cursor.rowcount
 
-        return added_m, added_v, added_d
+        return (
+            MissionMergeCounts(inserted_m, updated_m, unchanged_m),
+            added_v,
+            added_d,
+        )
 
     def get_missions_by_pilot(
         self, pilot_id: str, limit: int = 10

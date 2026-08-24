@@ -272,12 +272,14 @@ evals:
       - woff/tests/test_temporal_contract.py
   EVAL-MISSION-001:
     work_items: [issue-39]
-    status: planned
+    status: implemented
     evidence: Reimport updates permitted fields without replacing missionId.
+    enforced_by: [woff/tests/test_mission_upsert.py]
   EVAL-MISSION-002:
     work_items: [issue-39]
-    status: planned
+    status: implemented
     evidence: A poorer source never erases richer stored mission data.
+    enforced_by: [woff/tests/test_mission_upsert.py]
   EVAL-DEFER-001:
     work_items: [issue-27]
     status: planned
@@ -504,7 +506,7 @@ work_items:
     depends_on:
       - {id: issue-36, status: satisfied}
       - {id: issue-42, status: satisfied}
-      - {id: issue-39, status: unsatisfied}
+      - {id: issue-39, status: satisfied}
       - {id: issue-57, status: satisfied}
       - {id: issue-70, status: satisfied}
       - {id: issue-71, status: unsatisfied}
@@ -573,7 +575,7 @@ work_items:
   issue-39:
     title: Update existing missions instead of silently ignoring refreshed data
     module: persistence
-    state: backlog
+    state: done
     evals: [EVAL-MISSION-001, EVAL-MISSION-002]
     gates: [Q0, Q1, Q2, Q6-CYCLE-3.3.0]
     depends_on:
@@ -608,7 +610,7 @@ work_items:
     gates: [Q0, Q1]
     depends_on:
       - {id: issue-34, status: satisfied}
-      - {id: issue-39, status: unsatisfied}
+      - {id: issue-39, status: satisfied}
       - {id: issue-40, status: satisfied}
       - {id: issue-73, status: unsatisfied}
   issue-44:

@@ -198,6 +198,7 @@ class WoFFXMLParser:
                     m = self._parse_mission_elem(elem)
                     if m:
                         m.pilotId = self.pilot.id
+                        m.source_file = self.pilot.source_file
                         self.missions.append(m)
                         
         # Fallback: Mission diretamente sob root
@@ -206,6 +207,7 @@ class WoFFXMLParser:
                 m = self._parse_mission_elem(elem)
                 if m:
                     m.pilotId = self.pilot.id
+                    m.source_file = self.pilot.source_file
                     self.missions.append(m)
 
     def _parse_mission_elem(self, elem: ET.Element) -> Optional[WoFFMission]:

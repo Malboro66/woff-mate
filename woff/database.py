@@ -1540,14 +1540,21 @@ class DatabaseManager:
                 )
                 if not pilot_id:
                     return None
-                added_m, added_v, added_d = self._missions.upsert_mission(
+                mission_counts, added_v, added_d = self._missions.upsert_mission(
                     pilot_id, missions, victories, decorations
                 )
                 added_w = self._wingmen.upsert_wingmen_batch(pilot_id, wingmen)
-                if added_m or added_v or added_d or added_w:
+                if missions:
                     log.info(
-                        f"  + {added_m} missões, {added_v} vitórias, {added_d} "
-                        f"condecorações, {added_w} wingmen inseridos."
+                        "Mission merge outcomes: inserted=%d updated=%d unchanged=%d",
+                        mission_counts.inserted,
+                        mission_counts.updated,
+                        mission_counts.unchanged,
+                    )
+                if added_v or added_d or added_w:
+                    log.info(
+                        f"  + {added_v} vitórias, {added_d} condecorações, "
+                        f"{added_w} wingmen inseridos."
                     )
                 self._get_conn().execute(
                     "INSERT OR REPLACE INTO meta (key, value) VALUES ('last_updated', ?)",

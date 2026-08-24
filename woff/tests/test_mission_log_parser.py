@@ -25,8 +25,12 @@ class TestMissionLogTemporalContract(unittest.TestCase):
         self.assertIsNotNone(parser.mission)
         assert parser.mission is not None
         self.assertEqual(
-            (parser.mission.date, parser.mission.time),
-            ("1915-09-20", "09:30"),
+            (
+                parser.mission.date,
+                parser.mission.time,
+                parser.mission.source_file,
+            ),
+            ("1915-09-20", "09:30", "Mission.log"),
         )
 
     def test_missing_time_is_preserved_as_explicit_absence(self):
