@@ -171,7 +171,7 @@ Cycle 3.4.0 is approved only when all conditions below pass:
 - #41, #38, #74, #35, #37, #44, #43, #28, #75, #76, #96, #97, and #101 are complete
 - every dependency in `cycle-3.4.0` is satisfied
 - all member acceptance criteria are demonstrated
-- every applicable eval in `EVAL-CYCLE-340-001` passes
+- every applicable member eval passes
 - numeric, nation, mission, victory, and Dossier parsing never fabricate known values from unknown or invalid input
 - roster lifecycle distinguishes transfers, arrivals, genuine disappearances, incomplete input, and replay without duplicate events
 - same-name wingmen retain distinct persistent identity, personality, memory, and history
