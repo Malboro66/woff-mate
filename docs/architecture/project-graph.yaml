@@ -120,6 +120,7 @@ modules:
       - woff_editor.py
       - woff_query.py
       - woff_watchdog_entry.py
+      - woff/career_selection.py
       - woff/gerar_relatorio.py
     may_depend_on:
       - foundation
@@ -148,6 +149,7 @@ invariants:
   DATA-001:
     statement: No operation may delete or modify data belonging to another pilot.
     enforced_by:
+      - woff/tests/test_career_selection.py
       - woff/tests/test_woff_editor.py
   DATA-002:
     statement: Every schema change requires backup, migration validation, rollback, and a reopen test.
@@ -333,12 +335,14 @@ evals:
       - woff/tests/test_stable_snapshot.py
   EVAL-CAREER-SELECT-001:
     work_items: [issue-93]
-    status: planned
+    status: implemented
     evidence: Same-name careers remain separate in every query and editor flow when selected by stable pilot ID.
+    enforced_by: [woff/tests/test_career_selection.py]
   EVAL-CAREER-SELECT-002:
     work_items: [issue-93]
-    status: planned
+    status: implemented
     evidence: An ambiguous display name fails before export or mutation and returns a deterministic candidate contract.
+    enforced_by: [woff/tests/test_career_selection.py]
   EVAL-ROOT-BINDING-001:
     work_items: [issue-94]
     status: planned
@@ -835,7 +839,7 @@ work_items:
   issue-93:
     title: Resolve same-name careers by stable pilot ID in CLI and journal editor
     module: presentation
-    state: backlog
+    state: done
     evals: [EVAL-CAREER-SELECT-001, EVAL-CAREER-SELECT-002]
     gates: [Q0, Q1, Q2, Q6-CYCLE-3.3.0]
     depends_on: []

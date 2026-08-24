@@ -13,6 +13,14 @@ import csv
 import sqlite3
 import argparse
 import textwrap
+from typing import Optional
+
+from woff.career_selection import (
+    CareerResolutionError,
+    CareerSelection,
+    list_careers,
+    resolve_career,
+)
 
 class Colors:
     """Gestão de cores ANSI. Desativadas automaticamente se não for um TTY."""
@@ -86,11 +94,49 @@ def export_data(data: list, format_type: str, headers: list):
             print(f"| {' | '.join(vals)} |")
 
 def list_pilots(conn, c: Colors, args):
-    cursor = conn.execute("SELECT name, rank, squadron, status, missions, killsCount FROM pilots ORDER BY name")
-    pilots = [dict(row) for row in cursor.fetchall()]
+    owns_snapshot = not conn.in_transaction
+    if owns_snapshot:
+        conn.execute("BEGIN")
+    try:
+        careers = {career.pilot_id: career for career in list_careers(conn)}
+        cursor = conn.execute(
+            """
+            SELECT id AS pilot_id, name, rank, squadron, status, missions, killsCount
+            FROM pilots
+            """
+        )
+        pilots = []
+        for row in cursor.fetchall():
+            pilot = dict(row)
+            pilot["slot"] = careers[str(pilot["pilot_id"])].slot
+            pilots.append(pilot)
+    finally:
+        if owns_snapshot:
+            conn.rollback()
+    pilots.sort(
+        key=lambda pilot: (
+            str(pilot["name"]),
+            pilot["slot"] is None,
+            pilot["slot"] if pilot["slot"] is not None else 0,
+            str(pilot["pilot_id"]),
+        )
+    )
     
     if args.format != "table":
-        export_data(pilots, args.format, ["name", "rank", "squadron", "status", "missions", "killsCount"])
+        export_data(
+            pilots,
+            args.format,
+            [
+                "pilot_id",
+                "slot",
+                "name",
+                "rank",
+                "squadron",
+                "status",
+                "missions",
+                "killsCount",
+            ],
+        )
         return
 
     print(f"\n{c.HEADER}{c.BOLD}✈ Lista de Pilotos{c.RESET}")
@@ -102,20 +148,27 @@ def list_pilots(conn, c: Colors, args):
     for p in pilots:
         status_color = c.GREEN if p["status"] in ("Active", "In Service") else c.RED
         print(f"{c.BOLD}{p['name']}{c.RESET} ({p['rank']})")
+        slot = p["slot"] if p["slot"] is not None else "não vinculado"
+        print(f"  ID da carreira: {p['pilot_id']} | Slot: {slot}")
         print(f"  Esquadrão: {p['squadron']} | Status: {status_color}{p['status']}{c.RESET}")
         print(f"  Missões: {p['missions']} | Vitórias: {p['killsCount']}")
         print()
 
-def show_pilot_details(conn, pilot_name, c: Colors) -> bool:
-    cursor = conn.execute("SELECT * FROM pilots WHERE name = ?", (pilot_name,))
+def show_pilot_details(
+    conn, career: CareerSelection, c: Colors
+) -> bool:
+    cursor = conn.execute("SELECT * FROM pilots WHERE id = ?", (career.pilot_id,))
     p = cursor.fetchone()
     
     if not p:
-        print(f"{c.RED}Piloto '{pilot_name}' não encontrado.{c.RESET}")
+        print(f"{c.RED}A carreira selecionada não foi encontrada.{c.RESET}")
         return False
         
     print(f"\n{c.HEADER}{c.BOLD}🧑‍✈️ Perfil do Piloto{c.RESET}")
     print("-" * 60)
+    slot = career.slot if career.slot is not None else "não vinculado"
+    print(f"{c.BOLD}ID da carreira:{c.RESET} {career.pilot_id}")
+    print(f"{c.BOLD}Slot:{c.RESET} {slot}")
     print(f"{c.BOLD}Nome:{c.RESET} {p['name']}")
     print(f"{c.BOLD}Nação:{c.RESET} {p['nation']}")
     print(f"{c.BOLD}Patente:{c.RESET} {p['rank']}")
@@ -133,12 +186,7 @@ def show_pilot_details(conn, pilot_name, c: Colors) -> bool:
     print(f"  Skill: {p['skill']} | Reputação: {p['reputation']}")
     return True
 
-def show_rpg_stats(conn, pilot_name, c: Colors):
-    cursor = conn.execute("SELECT id FROM pilots WHERE name = ?", (pilot_name,))
-    row = cursor.fetchone()
-    if not row: return
-    pilot_id = row["id"]
-    
+def show_rpg_stats(conn, pilot_id, c: Colors):
     cursor = conn.execute("SELECT * FROM pilot_rpg_stats WHERE pilotId = ?", (pilot_id,))
     stats = cursor.fetchone()
     
@@ -159,14 +207,14 @@ def show_rpg_stats(conn, pilot_name, c: Colors):
     print(f"  Stress : {s_color}{stress}/100{c.RESET} {'█' * (stress // 10)}")
     print(f"  Atualizado: {stats['last_updated']}")
 
-def show_missions(conn, pilot_name, c: Colors, args):
+def show_missions(conn, pilot_id, c: Colors, args):
     query = """
-        SELECT m.date, m.time, m.missionType, m.aircraft, m.result, m.damageReceived, m.woundsReceived
+        SELECT m.pilotId AS pilot_id, m.date, m.time, m.missionType,
+               m.aircraft, m.result, m.damageReceived, m.woundsReceived
         FROM missions m
-        JOIN pilots p ON m.pilotId = p.id
-        WHERE p.name = ?
+        WHERE m.pilotId = ?
     """
-    params = [pilot_name]
+    params = [pilot_id]
     
     if args.since:
         query += " AND m.date >= ?"
@@ -185,7 +233,20 @@ def show_missions(conn, pilot_name, c: Colors, args):
     missions = [dict(row) for row in cursor.fetchall()]
     
     if args.format != "table":
-        export_data(missions, args.format, ["date", "time", "missionType", "aircraft", "result", "damageReceived", "woundsReceived"])
+        export_data(
+            missions,
+            args.format,
+            [
+                "pilot_id",
+                "date",
+                "time",
+                "missionType",
+                "aircraft",
+                "result",
+                "damageReceived",
+                "woundsReceived",
+            ],
+        )
         return
 
     print(f"\n{c.CYAN}📜 Missões (Filtrado: {len(missions)} resultados){c.RESET}")
@@ -200,14 +261,13 @@ def show_missions(conn, pilot_name, c: Colors, args):
         print(f"  [{m['date']} {m['time']}] {m['missionType']} ({m['aircraft']}){dmg}{wnd}")
         print(f"    Resultado: {m['result']}")
 
-def show_diary(conn, pilot_name, c: Colors, args):
+def show_diary(conn, pilot_id, c: Colors, args):
     query = """
-        SELECT d.entry_date, d.narrative
+        SELECT d.pilotId AS pilot_id, d.entry_date, d.narrative
         FROM diary_entries d
-        JOIN pilots p ON d.pilotId = p.id
-        WHERE p.name = ?
+        WHERE d.pilotId = ?
     """
-    params = [pilot_name]
+    params = [pilot_id]
     
     if args.since:
         query += " AND d.entry_date >= ?"
@@ -220,7 +280,7 @@ def show_diary(conn, pilot_name, c: Colors, args):
     entries = [dict(row) for row in cursor.fetchall()]
     
     if args.format != "table":
-        export_data(entries, args.format, ["entry_date", "narrative"])
+        export_data(entries, args.format, ["pilot_id", "entry_date", "narrative"])
         return
 
     print(f"\n{c.CYAN}📝 Diário de Bordo (Últimas {len(entries)} entradas){c.RESET}")
@@ -235,17 +295,21 @@ def show_diary(conn, pilot_name, c: Colors, args):
         print(indented_narrative)
         print("-" * 60)
 
-def show_wingmen(conn, pilot_name, c: Colors, args):
+def show_wingmen(conn, pilot_id, c: Colors, args):
     cursor = conn.execute("""
-        SELECT s.rank, s.fName, s.sName, s.status, s.skill, s.bio
+        SELECT s.pilotId AS pilot_id, s.rank, s.fName, s.sName,
+               s.status, s.skill, s.bio
         FROM squad_members s
-        JOIN pilots p ON s.pilotId = p.id
-        WHERE p.name = ?
-    """, (pilot_name,))
+        WHERE s.pilotId = ?
+    """, (pilot_id,))
     wingmen = [dict(row) for row in cursor.fetchall()]
     
     if args.format != "table":
-        export_data(wingmen, args.format, ["rank", "fName", "sName", "status", "skill", "bio"])
+        export_data(
+            wingmen,
+            args.format,
+            ["pilot_id", "rank", "fName", "sName", "status", "skill", "bio"],
+        )
         return
 
     print(f"\n{c.CYAN}👥 Membros do Esquadrão (AI){c.RESET}")
@@ -260,9 +324,11 @@ def show_wingmen(conn, pilot_name, c: Colors, args):
         if w["bio"]:
             print(f"    Bio: {w['bio'][:80]}...")
 
-def main():
+def main(argv: Optional[list[str]] = None) -> int:
     ap = argparse.ArgumentParser(description="WoFF Query Tool - Consulta a Base de Dados do WoFF Watchdog")
-    ap.add_argument("--pilot", help="Nome do piloto a consultar")
+    selector = ap.add_mutually_exclusive_group()
+    selector.add_argument("--pilot", help="Nome do piloto a consultar (deve ser único)")
+    selector.add_argument("--pilot-id", help="ID persistente da carreira a consultar")
     ap.add_argument("--missions", action="store_true", help="Mostrar histórico de missões do piloto")
     ap.add_argument("--diary", action="store_true", help="Mostrar o diário de bordo do piloto")
     ap.add_argument("--wingmen", action="store_true", help="Mostrar os membros do esquadrão (AI)")
@@ -276,7 +342,7 @@ def main():
     ap.add_argument("--result", help="Filtrar missões por resultado (ex: KIA, Damaged, Completed)")
     ap.add_argument("--format", choices=["table", "json", "csv", "md"], default="table", help="Formato de saída dos dados")
     
-    args = ap.parse_args()
+    args = ap.parse_args(argv)
 
     use_color = sys.stdout.isatty() and not args.no_color
     c = Colors(enabled=use_color)
@@ -286,24 +352,34 @@ def main():
         db_path = get_db_path(args.config, args.db)
         conn = connect_db(db_path)
 
-        if not args.pilot:
+        if not args.pilot and not args.pilot_id:
             list_pilots(conn, c, args)
             print(f"\nPara ver detalhes de um piloto, use: python woff_query.py --pilot \"Nome do Piloto\"")
         else:
+            try:
+                career = resolve_career(
+                    conn,
+                    pilot_id=args.pilot_id,
+                    pilot_name=args.pilot,
+                )
+            except CareerResolutionError as error:
+                print(f"[ERRO] {error}", file=sys.stderr)
+                return 2
+
             if args.format == "table":
-                found = show_pilot_details(conn, args.pilot, c)
+                found = show_pilot_details(conn, career, c)
                 if found:
-                    show_rpg_stats(conn, args.pilot, c)
+                    show_rpg_stats(conn, career.pilot_id, c)
             else:
                 found = True
 
             if found:
                 if args.missions:
-                    show_missions(conn, args.pilot, c, args)
+                    show_missions(conn, career.pilot_id, c, args)
                 if args.wingmen:
-                    show_wingmen(conn, args.pilot, c, args)
+                    show_wingmen(conn, career.pilot_id, c, args)
                 if args.diary:
-                    show_diary(conn, args.pilot, c, args)
+                    show_diary(conn, career.pilot_id, c, args)
                     
             if args.format == "table" and not (args.missions or args.wingmen or args.diary):
                 print(f"\n{c.YELLOW}Dica: Adiciona --missions, --wingmen ou --diary para ver mais detalhes.{c.RESET}")
@@ -317,6 +393,7 @@ def main():
     finally:
         if conn:
             conn.close()
+    return 0
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())
