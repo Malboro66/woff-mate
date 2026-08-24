@@ -39,11 +39,11 @@ Result: Issues #93 through #99.
 
 ## Task 3: Update persistent audit and planning documents
 
-- [ ] Add one current checkpoint section to each canonical planning document without rewriting historical sections.
-- [ ] Map every `F-2026-08-23-*` alias to its final issue number.
-- [ ] Record that PR #92 merged and Issue #72 is complete.
-- [ ] Validate headings, counts, links, sequence, and current-state statements.
-- [ ] Replace each persistent file using its stable file ID.
+- [x] Add one current checkpoint section to each canonical planning document without rewriting historical sections.
+- [x] Map every `F-2026-08-23-*` alias to its final issue number.
+- [x] Record that PR #92 merged and Issue #72 is complete.
+- [x] Validate headings, counts, links, sequence, and current-state statements.
+- [x] Replace each persistent file using its stable file ID.
 
 ## Task 4: Synchronize executable governance
 
@@ -53,14 +53,14 @@ Result: Issues #93 through #99.
 - [x] Add matching eval definitions and cycle summaries to `docs/engineering/evals.md`.
 - [x] Update Q6 membership and exit criteria in `docs/engineering/quality-gates.md`.
 - [x] Run graph validation, architecture contracts, Pyright, full suite, and diff checks.
-- [ ] Commit the governance-only diff with an English commit message.
-- [ ] Open a draft PR with an English title and no implementation-issue closing keywords.
+- [x] Commit the governance-only diff with an English commit message.
+- [x] Open a draft PR with an English title and no implementation-issue closing keywords.
 
 ## Task 5: Final verification
 
-- [ ] Confirm the seven issues exist exactly once and all have milestones.
-- [ ] Confirm Issue #72 and PR #92 were not modified by the registration work.
-- [ ] Confirm all dependency references resolve to existing issue numbers.
-- [ ] Confirm every persistent document has a successful replacement result.
-- [ ] Confirm the governance PR is draft and unmerged.
+- [x] Confirm the seven issues exist exactly once and all have milestones.
+- [x] Confirm Issue #72 and PR #92 were not modified by the registration work.
+- [x] Confirm all dependency references resolve to existing issue numbers.
+- [x] Confirm every persistent document has a successful replacement result.
+- [x] Confirm the governance PR is draft and unmerged.
 - [ ] Report issue URLs, updated documents, checks, and remaining implementation work.
