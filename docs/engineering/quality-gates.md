@@ -164,6 +164,26 @@ Issue #50 closes only when all conditions below pass:
 
 CI success alone does not close #50 or release 3.3.0.
 
+## Q6-CYCLE-3.4.0: parser, roster, presentation, and RPG integrity
+
+Cycle 3.4.0 is approved only when all conditions below pass:
+
+- #41, #38, #74, #35, #37, #44, #43, #28, #75, #76, #96, #97, and #101 are complete
+- every dependency in `cycle-3.4.0` is satisfied
+- all member acceptance criteria are demonstrated
+- every applicable member eval passes
+- numeric, nation, mission, victory, and Dossier parsing never fabricate known values from unknown or invalid input
+- roster lifecycle distinguishes transfers, arrivals, genuine disappearances, incomplete input, and replay without duplicate events
+- same-name wingmen retain distinct persistent identity, personality, memory, and history
+- wingman transfer notifications identify the correct member and source squadron, expose a destination only when reliable evidence exists, and keep an unknown destination explicit otherwise
+- diary, CLI, narrative, and RPG presentation contracts preserve machine-readable and domain invariants
+- any database or schema change satisfies Q2, including backup, rollback, integrity, foreign-key, and reopen evidence
+- focused tests, related tests, full suite, Pyright, project-graph validation, and applicable Windows checks pass
+- project graph, eval catalog, quality gates, and public documentation are current
+- the maintainer approves completion
+
+CI success alone does not approve cycle 3.4.0.
+
 ## Minimum gate matrix
 
 | Change | Minimum gates |

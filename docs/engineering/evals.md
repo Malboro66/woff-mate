@@ -97,6 +97,14 @@ not make independent items artificial prerequisites of one another.
 | `EVAL-PILOT-PROVENANCE-001` | #99 | Partial sources preserve authoritative Dossier provenance and non-empty update time |
 | `EVAL-PILOT-PROVENANCE-002` | #99 | Richer and poorer source replay converges without provenance regression |
 
+## Planned wingman transfer feature evals
+
+| Eval | Work item | Required evidence |
+|---|---|---|
+| `EVAL-WINGMAN-TRANSFER-001` | #101 | A confirmed transfer with reliable destination evidence creates exactly one event for the correct persistent wingman with source and destination squadrons |
+| `EVAL-WINGMAN-TRANSFER-002` | #101 | A confirmed transfer without destination evidence creates exactly one event with an explicit unknown destination and never fabricates an assignment |
+| `EVAL-WINGMAN-TRANSFER-003` | #101 | Same-squadron disappearance, partial or failed roster input, replay, and same-name members cannot produce a false or misattributed transfer |
+
 ## Independent presentation foundation
 
 Issue #56 is completed documentation and architecture-contract work. It is
@@ -303,6 +311,12 @@ for the broader roster-generation and truncated-input policy.
 | #76 | `EVAL-RPG-DOMAIN-001`, `EVAL-RPG-DOMAIN-002` |
 | #96 | `EVAL-WINGMAN-IDENTITY-001`, `EVAL-WINGMAN-MERGE-001` |
 | #97 | `EVAL-DIARY-EMPTY-001` |
+| #101 | `EVAL-WINGMAN-TRANSFER-001`, `EVAL-WINGMAN-TRANSFER-002`, `EVAL-WINGMAN-TRANSFER-003` |
+
+Cycle 3.4.0 remains `planned`, so it intentionally has no aggregate eval yet.
+Its thirteen members reference `Q6-CYCLE-3.4.0`, which defines the eventual
+cycle-exit contract. An aggregate eval may be introduced when the cycle becomes
+active without weakening the individual member evals registered above.
 
 ## Planned cycle 3.5.0
 
