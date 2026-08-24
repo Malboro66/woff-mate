@@ -565,23 +565,6 @@ evals:
       - issue-27
     status: planned
     evidence: Every 3.3.0 member passes its acceptance criteria and applicable evals before the tracker closes.
-  EVAL-CYCLE-340-001:
-    work_items:
-      - issue-41
-      - issue-38
-      - issue-74
-      - issue-35
-      - issue-37
-      - issue-44
-      - issue-43
-      - issue-28
-      - issue-75
-      - issue-76
-      - issue-96
-      - issue-97
-      - issue-101
-    status: planned
-    evidence: Every 3.4.0 member passes its acceptance criteria and applicable evals before the cycle is approved.
 
 work_items:
   issue-26:
@@ -953,7 +936,6 @@ cycles:
       - issue-96
       - issue-97
       - issue-101
-    aggregate_eval: EVAL-CYCLE-340-001
     gate: Q6-CYCLE-3.4.0
   cycle-3.5.0:
     state: planned
