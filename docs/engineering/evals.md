@@ -40,7 +40,7 @@ public 3.2.1 release unless release evidence is recorded separately.
 
 ## Active cycle 3.3.0
 
-Issue #50 is the official tracker. The twelve functional members remain separate
+Issue #50 is the official tracker. The fifteen functional members remain separate
 issues and pull requests.
 
 | Work item | Eval IDs | Required evidence |
@@ -55,6 +55,9 @@ issues and pull requests.
 | #70 | `EVAL-IDENTITY-001`, `EVAL-IDENTITY-002` | Career isolation across slot reuse, same-name independence, and rejection of identityless persistence |
 | #71 | `EVAL-PILOT-STATUS-001`, `EVAL-PILOT-STATUS-002` | Preservation of authoritative status and idempotent explicit transitions |
 | #72 | `EVAL-DOSSIER-TXN-001`, `EVAL-DOSSIER-TXN-002` | Atomic rollback and exactly-once consistent Dossier state |
+| #93 | `EVAL-CAREER-SELECT-001`, `EVAL-CAREER-SELECT-002` | Stable career selection and pre-mutation rejection of ambiguous names |
+| #94 | `EVAL-ROOT-BINDING-001`, `EVAL-ROOT-BINDING-002` | Root-namespaced slot identity and migration recovery evidence |
+| #95 | `EVAL-PERSIST-RETRY-001`, `EVAL-PERSIST-RETRY-002` | Exactly-once persistence after transient contention and bounded terminal handling |
 | #73 | `EVAL-VICTORY-MERGE-001`, `EVAL-DECORATION-MERGE-001` | Lossless same-minute victories and non-destructive enrichment of stable rows |
 | #27 | `EVAL-DEFER-001`, `EVAL-DEFER-002` | Deferred reprocessing without loss or unbounded retention |
 
@@ -62,7 +65,7 @@ issues and pull requests.
 
 The aggregate eval passes only when:
 
-- all twelve member issues satisfy their acceptance criteria
+- all fifteen member issues satisfy their acceptance criteria
 - every applicable member eval is implemented and passing
 - dependency relations in the graph are satisfied
 - focused tests, related tests, the full suite, and Pyright pass
@@ -71,6 +74,28 @@ The aggregate eval passes only when:
 - `Q6-CYCLE-3.3.0` passes
 
 Green CI alone does not pass this aggregate eval.
+
+The remaining operational sequence is #93, #94, #95, #73, and #27. The graph
+encodes only technical dependencies: #94 and #95 block #27. The sequence does
+not make independent items artificial prerequisites of one another.
+
+## Newly registered data-integrity evals
+
+| Eval | Work item | Required evidence |
+|---|---|---|
+| `EVAL-CAREER-SELECT-001` | #93 | Same-name careers stay separate in every query and editor flow selected by stable pilot ID |
+| `EVAL-CAREER-SELECT-002` | #93 | Ambiguous names fail before export or mutation with a deterministic candidate contract |
+| `EVAL-ROOT-BINDING-001` | #94 | Equal slots in distinct watched roots keep independent bindings and correct dependent-file routing |
+| `EVAL-ROOT-BINDING-002` | #94 | Any binding migration proves backup, integrity, rollback, and reopen behavior |
+| `EVAL-PERSIST-RETRY-001` | #95 | Real transient SQLite contention retains the admitted generation and persists it exactly once after retry |
+| `EVAL-PERSIST-RETRY-002` | #95 | Exhaustion and shutdown are bounded and leave a durable sanitized diagnostic without acknowledgement |
+| `EVAL-WINGMAN-IDENTITY-001` | #96 | Distinct same-name wingmen retain separate histories and personality ownership |
+| `EVAL-WINGMAN-MERGE-001` | #96 | Poorer roster data cannot erase richer fields or reassign personality |
+| `EVAL-DIARY-EMPTY-001` | #97 | Empty narrative in a retained block does not delete the row, while removed blocks follow explicit deletion semantics |
+| `EVAL-CATALOG-STABILITY-001` | #98 | Empty, truncated, or changing input cannot replace the last known-good squadron payload |
+| `EVAL-CATALOG-STABILITY-002` | #98 | Stable validated input replaces atomically and remains idempotent on replay |
+| `EVAL-PILOT-PROVENANCE-001` | #99 | Partial sources preserve authoritative Dossier provenance and non-empty update time |
+| `EVAL-PILOT-PROVENANCE-002` | #99 | Richer and poorer source replay converges without provenance regression |
 
 ## Independent presentation foundation
 
@@ -268,22 +293,30 @@ for the broader roster-generation and truncated-input policy.
 |---|---|
 | #41 | `EVAL-NUM-001`, `EVAL-NUM-002` |
 | #38 | `EVAL-NATION-001`, `EVAL-NATION-002` |
+| #74 | `EVAL-PARSE-SEM-001`, `EVAL-PARSE-SEM-002` |
 | #35 | `EVAL-DOSSIER-001`, `EVAL-DOSSIER-002` |
 | #37 | `EVAL-ROSTER-001`, `EVAL-ROSTER-002` |
 | #44 | `EVAL-XML-001` |
 | #43 | `EVAL-NARR-001` |
 | #28 | `EVAL-CLI-001` |
+| #75 | `EVAL-CLI-CONTRACT-001`, `EVAL-CLI-CONTRACT-002` |
+| #76 | `EVAL-RPG-DOMAIN-001`, `EVAL-RPG-DOMAIN-002` |
+| #96 | `EVAL-WINGMAN-IDENTITY-001`, `EVAL-WINGMAN-MERGE-001` |
+| #97 | `EVAL-DIARY-EMPTY-001` |
 
 ## Planned cycle 3.5.0
 
 | Work item | Eval IDs |
 |---|---|
+| #77 | `EVAL-SCHEMA-CONTRACT-001`, `EVAL-SCHEMA-CONTRACT-002` |
 | #48 | `EVAL-DISC-001` |
 | #47 | `EVAL-DECODE-001`, `EVAL-DECODE-002` |
 | #29 | `EVAL-CATALOG-001` |
 | #46 | `EVAL-BLOB-001` |
 | #49 | `EVAL-REG-001` |
 | #30 | `EVAL-LINT-001` |
+| #98 | `EVAL-CATALOG-STABILITY-001`, `EVAL-CATALOG-STABILITY-002` |
+| #99 | `EVAL-PILOT-PROVENANCE-001`, `EVAL-PILOT-PROVENANCE-002` |
 
 ## Cross-cutting privacy and security
 
