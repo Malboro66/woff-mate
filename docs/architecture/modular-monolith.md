@@ -68,6 +68,7 @@ No operation may delete or modify data belonging to another pilot.
 
 Current enforcement evidence:
 
+- `woff/tests/test_career_selection.py`
 - `woff/tests/test_woff_editor.py`
 
 ### DATA-002: recoverable schema changes

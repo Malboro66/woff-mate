@@ -75,7 +75,7 @@ The aggregate eval passes only when:
 
 Green CI alone does not pass this aggregate eval.
 
-The remaining operational sequence is #93, #94, #95, #73, and #27. The graph
+The remaining operational sequence is #94, #95, #73, and #27. The graph
 encodes only technical dependencies: #94 and #95 block #27. The sequence does
 not make independent items artificial prerequisites of one another.
 
@@ -294,6 +294,24 @@ rejections, and split orchestration across handler and campaign methods. Issue
 #72 is limited to those remaining gaps. It changes no SQLite schema and leaves
 mission-end behavior from Issue #34 unchanged. Issue #37 remains responsible
 for the broader roster-generation and truncated-input policy.
+
+### Implemented stable career-selection evals
+
+- `EVAL-CAREER-SELECT-001` is enforced by
+  `woff/tests/test_career_selection.py`. Query details, RPG state, missions,
+  diary entries, wingmen, and journal exports resolve one persistent
+  `pilot_id`; table, JSON, CSV, and Markdown evidence keeps two same-name
+  careers in different slots isolated. Pilot listings and selected rows expose
+  the stable ID, while a unique display name remains a compatibility selector.
+- `EVAL-CAREER-SELECT-002` is enforced by
+  `woff/tests/test_career_selection.py`. Ambiguous display names produce a
+  deterministic slot-and-ID candidate list and return nonzero before query
+  output, journal export, editor launch, backup, or database mutation. The
+  editor resolves once and passes that explicit ID through export and import,
+  preserving the ownership and verified-backup contract delivered by #26.
+  Issue #28 still owns the complete unknown-pilot and valid-empty-output
+  behavior across formats, while #75 owns the broader exit-code and stream
+  contract for every command failure.
 
 ## Planned cycle 3.4.0
 

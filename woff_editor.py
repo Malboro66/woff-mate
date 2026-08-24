@@ -17,6 +17,9 @@ import tempfile
 import argparse
 from datetime import datetime
 from pathlib import Path
+from typing import Optional
+
+from woff.career_selection import CareerResolutionError, resolve_career
 
 def get_db_path():
     config_path = "config.json"
@@ -26,18 +29,25 @@ def get_db_path():
             return cfg.get("export_path", "woff_data.db")
     return "woff_data.db"
 
-def export_diary_to_file(conn, pilot_name: str, filepath: str):
+def export_diary_to_file(conn, pilot_id: str, filepath: str):
+    pilot = conn.execute(
+        "SELECT name FROM pilots WHERE id = ?",
+        (pilot_id,),
+    ).fetchone()
+    if pilot is None:
+        raise ValueError(f"Selected pilot {pilot_id} no longer exists")
+    pilot_name = str(pilot[0])
     cursor = conn.execute("""
         SELECT d.id, d.entry_date, d.narrative
         FROM diary_entries d
-        JOIN pilots p ON d.pilotId = p.id
-        WHERE p.name = ?
+        WHERE d.pilotId = ?
         ORDER BY d.entry_date ASC
-    """, (pilot_name,))
+    """, (pilot_id,))
     entries = cursor.fetchall()
     
     with open(filepath, "w", encoding="utf-8") as f:
         f.write(f"DIÁRIO DE BORDO DE {pilot_name.upper()}\n")
+        f.write(f"CARREIRA ID: {pilot_id}\n")
         f.write("INSTRUÇÕES: Edite o texto livremente. Para APAGAR uma entrada, apague o bloco inteiro (incluindo as linhas === ID === e DATA). Guarde e feche o ficheiro para aplicar as alterações.\n")
         f.write("=" * 60 + "\n")
         for entry in entries:
@@ -260,46 +270,56 @@ def open_editor(filepath: str):
     
     input(f"\nPressione ENTER quando terminar de editar e guardar o ficheiro...")
 
-def main():
+def main(argv: Optional[list[str]] = None) -> int:
     ap = argparse.ArgumentParser(description="WoFF Journal Editor - Editar o Diário de Bordo")
-    ap.add_argument("--pilot", required=True, help="Nome do piloto")
+    selector = ap.add_mutually_exclusive_group(required=True)
+    selector.add_argument("--pilot", help="Nome do piloto (deve ser único)")
+    selector.add_argument("--pilot-id", help="ID persistente da carreira")
     ap.add_argument("--db", default=None, help="Caminho direto para a base de dados SQLite")
-    args = ap.parse_args()
+    args = ap.parse_args(argv)
 
     db_path = args.db if args.db else get_db_path()
     if not os.path.exists(db_path):
         print(f"[ERRO] Base de dados não encontrada: {db_path}")
-        sys.exit(1)
+        return 1
 
     conn = sqlite3.connect(db_path)
     conn.row_factory = sqlite3.Row
-
-    # Verificar se o piloto existe
-    cursor = conn.execute("SELECT id FROM pilots WHERE name = ?", (args.pilot,))
-    pilot = cursor.fetchone()
-    if not pilot:
-        print(f"[ERRO] Piloto '{args.pilot}' não encontrado.")
-        sys.exit(1)
-
-    # Criar ficheiro temporário
-    with tempfile.NamedTemporaryFile(mode="w+", suffix=".txt", delete=False, encoding="utf-8") as tmp:
-        tmp_path = tmp.name
-
+    tmp_path = None
     try:
-        print(f"A exportar diário de {args.pilot} para {tmp_path}...")
-        export_diary_to_file(conn, args.pilot, tmp_path)
+        try:
+            career = resolve_career(
+                conn,
+                pilot_id=args.pilot_id,
+                pilot_name=args.pilot,
+            )
+        except CareerResolutionError as error:
+            print(f"[ERRO] {error}", file=sys.stderr)
+            return 2
+
+        with tempfile.NamedTemporaryFile(
+            mode="w+", suffix=".txt", delete=False, encoding="utf-8"
+        ) as tmp:
+            tmp_path = tmp.name
+
+        print(
+            f"A exportar diário de {career.name} "
+            f"[{career.pilot_id}] para {tmp_path}..."
+        )
+        export_diary_to_file(conn, career.pilot_id, tmp_path)
         
         print("A abrir o editor de texto...")
         open_editor(tmp_path)
         
         print("A importar alterações do ficheiro...")
-        backup_path = import_diary_from_file(conn, tmp_path, pilot["id"])
+        backup_path = import_diary_from_file(conn, tmp_path, career.pilot_id)
         print(f"✓ Backup pré-importação guardado em: {backup_path}")
         print("✓ Diário atualizado com sucesso na Base de Dados!")
+        return 0
     finally:
-        if os.path.exists(tmp_path):
+        if tmp_path is not None and os.path.exists(tmp_path):
             os.unlink(tmp_path)
         conn.close()
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())
