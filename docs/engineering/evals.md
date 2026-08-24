@@ -233,6 +233,35 @@ Dossier with no status stores SQL `NULL`, and a later missing status preserves
 the stored value without emitting a status life event. This contract changes no
 schema and uses neither `Active` nor an empty string as an absence sentinel.
 
+### Implemented Dossier transaction evals
+
+- `EVAL-DOSSIER-TXN-001` is enforced by
+  `woff/tests/test_dossier_transactions.py`. A Dossier application service loads
+  the bound pilot and current roster inside the outer transaction, plans all
+  narratives before the first write, and then composes pilot, decoration,
+  roster, roster-snapshot, and diary writes under that caller-owned boundary.
+  Deterministic failures after each core write and on a later diary write prove
+  that no new state or earlier diary entry survives. Repository exceptions keep
+  their original type, while an explicit Boolean diary rejection aborts the
+  generation without acknowledgement.
+- `EVAL-DOSSIER-TXN-002` is enforced by
+  `woff/tests/test_dossier_transactions.py` and
+  `woff/tests/test_stable_snapshot.py`. Retry after rollback reaches the same
+  final state as first-attempt success, a completed Dossier digest performs no
+  second merge, and both startup and live routing call the same application
+  service. The latest non-empty roster is recorded in existing `meta` storage
+  inside the same transaction, so a squadron transfer emits neither false
+  missing nor mass-arrival events while historical `squad_members`, personality,
+  and memory rows remain untouched.
+
+PR #83 introduced an outer transaction around the then-current handler path and
+therefore partially reduced the original Issue #72 failure window. It still
+loaded some prior state before that transaction, ignored Boolean derived-write
+rejections, and split orchestration across handler and campaign methods. Issue
+#72 is limited to those remaining gaps. It changes no SQLite schema and leaves
+mission-end behavior from Issue #34 unchanged. Issue #37 remains responsible
+for the broader roster-generation and truncated-input policy.
+
 ## Planned cycle 3.4.0
 
 | Work item | Eval IDs |

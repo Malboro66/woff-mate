@@ -227,19 +227,23 @@ def test_dossier_side_effects_never_use_filesystem_timestamp(
 
     monkeypatch.setattr("woff.handler.WoFFDossierParser", Parser)
     database = MagicMock()
-    database.resolve_bound_dossier_id.return_value = "pilot-id"
-    database.get_pilot_state_by_id.return_value = ("Active", "Lieutenant")
-    database.get_pilot_game_date.return_value = "1917-05-01"
-    database.merge_and_write.return_value = "pilot-id"
     engine = MagicMock()
+    engine.process_dossier_import.return_value = "pilot-id"
     processor = FileProcessor(database, engine)
     processor.guard = MagicMock()
     processor.guard.acquire.return_value = snapshot
 
     assert processor.process("Pilot1Dossier.txt", event_type) == snapshot.generation
 
-    assert "event_date" not in engine.process_wingmen_changes.call_args.kwargs
-    assert "event_date" not in engine.process_life_events.call_args.kwargs
+    engine.process_dossier_import.assert_called_once()
+    call = engine.process_dossier_import.call_args
+    assert call.kwargs["pilot"] is pilot
+    assert call.kwargs["decorations"] == Parser.decorations
+    assert call.kwargs["wingmen"] == Parser.wingmen
+    assert call.kwargs["identity"] == PilotIdentityEvidence(
+        PilotIdentityKind.DOSSIER, 1, "d" * 64
+    )
+    assert "event_date" not in call.kwargs
 
 
 @pytest.mark.parametrize(("path", "parser_target"), [
@@ -467,7 +471,10 @@ def test_merge_rejection_never_acknowledges_any_ingestion_route(
     database = cast(Any, MagicMock())
     database.resolve_bound_dossier_id.return_value = None
     database.merge_and_write.return_value = None
-    processor = FileProcessor(database, cast(Any, MagicMock()))
+    engine = cast(Any, MagicMock())
+    if path == "Pilot1Dossier.txt":
+        engine.process_dossier_import.return_value = None
+    processor = FileProcessor(database, engine)
     snapshot = StableFileSnapshot(
         b"verified", path, path,
         FileGeneration(1, 1, 8, 1, 1, "d" * 64), 2,
@@ -476,7 +483,11 @@ def test_merge_rejection_never_acknowledges_any_ingestion_route(
     processor.guard.acquire.return_value = snapshot
 
     assert processor.process(path, "initial") is None
-    database.merge_and_write.assert_called_once()
+    if path == "Pilot1Dossier.txt":
+        engine.process_dossier_import.assert_called_once()
+        database.merge_and_write.assert_not_called()
+    else:
+        database.merge_and_write.assert_called_once()
 
 
 def test_merge_rejection_retries_same_generation_then_acknowledges_once(monkeypatch):
@@ -885,7 +896,7 @@ def test_dossier_life_event_receives_original_optional_prior_state(
             [],
             [],
             identity=PilotIdentityEvidence(
-                PilotIdentityKind.DOSSIER, 1, "d" * 64
+                PilotIdentityKind.DOSSIER, 1, "a" * 64
             ),
         ) == pilot.id
 

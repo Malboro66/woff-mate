@@ -106,6 +106,8 @@ def _set_issue_34_incomplete_state(
                 and dependency.get("id") == "issue-34"
             ):
                 dependency["status"] = "unsatisfied"
+                if dependent.get("state") in {"ready", "in_progress", "done"}:
+                    dependent["state"] = "blocked"
 
 
 def test_project_graph_is_valid() -> None:

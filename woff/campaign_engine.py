@@ -7,18 +7,23 @@ o NarrativeGenerator, e guarda os resultados.
 ══════════════════════════════════════════════════════════════════
 """
 import logging
-from typing import List, Optional
+from typing import Dict, List, Optional, Tuple
 
-from .database import DatabaseManager
+from .database import DatabaseManager, DossierState
+from .identity import PilotIdentityEvidence, PilotIdentityKind
 from .rpg_system import rpg_system
 from .narrative_generator import narrative_generator
-from .models import WoFFWingman
+from .models import WoFFDecoration, WoFFPilot, WoFFWingman
 from .normalization import normalize_date
 
 log = logging.getLogger("WoFFWatch")
 
 
 class _DiaryWriteRejected(Exception):
+    pass
+
+
+class _DossierWriteRejected(Exception):
     pass
 
 
@@ -92,6 +97,161 @@ class CampaignEngine:
         )
         return True
 
+    @staticmethod
+    def _wingman_events(
+        old_map: Dict[str, str], new_map: Dict[str, str]
+    ) -> List[Tuple[str, str]]:
+        events: List[Tuple[str, str]] = []
+        for name in sorted(old_map):
+            old_status = old_map[name]
+            if name in new_map:
+                new_status = new_map[name]
+                if old_status != new_status:
+                    normalized = new_status.lower()
+                    if "wound" in normalized or "hospital" in normalized:
+                        events.append(("wounded", name))
+                    elif "kia" in normalized or "dead" in normalized:
+                        events.append(("kia", name))
+            else:
+                events.append(("missing", name))
+
+        for name in sorted(new_map):
+            if name not in old_map:
+                events.append(("new", name))
+        return events
+
+    def _plan_dossier_diary_effects(
+        self,
+        stored: DossierState,
+        pilot: WoFFPilot,
+        wingmen: List[WoFFWingman],
+    ) -> Tuple[List[Tuple[str, str]], bool]:
+        """Compute deterministic narratives before any Dossier write occurs."""
+        effects: List[Tuple[str, str]] = []
+        transfer = bool(
+            stored.squadron
+            and pilot.squadron
+            and stored.squadron != pilot.squadron
+        )
+
+        if wingmen and not transfer:
+            old_map = {
+                f"{wingman.first_name} {wingman.last_name}".strip(): wingman.status
+                for wingman in stored.wingmen
+            }
+            new_map = {
+                f"{wingman.fName} {wingman.sName}".strip(): wingman.status
+                for wingman in wingmen
+            }
+            for event_type, name in self._wingman_events(old_map, new_map):
+                narrative = narrative_generator.generate_wingman_event(
+                    name, event_type
+                )
+                if narrative:
+                    effects.append((f"wingman:{event_type}", narrative))
+
+        status_changed = (
+            pilot.status is not None
+            and stored.status is not None
+            and stored.status != pilot.status
+        )
+        rank_changed = bool(pilot.rank) and (stored.rank or "") != pilot.rank
+        if status_changed or rank_changed:
+            event_status = pilot.status if status_changed else stored.status
+            narrative = narrative_generator.generate_life_event(
+                event_status,
+                stored.status,
+                pilot.rank,
+                stored.rank,
+            )
+            if narrative:
+                effects.append(("life", narrative))
+        return effects, transfer
+
+    def process_dossier_import(
+        self,
+        pilot: WoFFPilot,
+        decorations: List[WoFFDecoration],
+        wingmen: List[WoFFWingman],
+        identity: PilotIdentityEvidence,
+    ) -> Optional[str]:
+        """Persist one Dossier generation and all derived diary effects atomically."""
+        if identity.kind is not PilotIdentityKind.DOSSIER or identity.slot is None:
+            raise ValueError("Dossier import requires verified Dossier identity")
+
+        effects: List[Tuple[str, str]] = []
+        transferred = False
+        replayed = False
+        real_pilot_id: Optional[str] = None
+        try:
+            with self.db_manager.transaction():
+                stored = self.db_manager.load_dossier_state(
+                    pilot.name, identity.slot
+                )
+                if (
+                    stored is not None
+                    and stored.dossier_digest == identity.dossier_digest
+                ):
+                    real_pilot_id = stored.pilot_id
+                    replayed = True
+                else:
+                    event_date: Optional[str] = None
+                    if stored is not None:
+                        effects, transferred = self._plan_dossier_diary_effects(
+                            stored, pilot, wingmen
+                        )
+                        event_date = self.db_manager.get_pilot_game_date(
+                            stored.pilot_id
+                        ) or normalize_date(pilot.startDate)
+                        if effects and not event_date:
+                            raise _DossierWriteRejected("missing-game-date")
+
+                    real_pilot_id = self.db_manager.merge_and_write(
+                        pilot=pilot,
+                        missions=[],
+                        victories=[],
+                        decorations=decorations,
+                        wingmen=wingmen,
+                        identity=identity,
+                    )
+                    if not real_pilot_id:
+                        raise _DossierWriteRejected("core-write")
+                    if stored is not None and real_pilot_id != stored.pilot_id:
+                        raise RuntimeError(
+                            "Dossier identity changed inside one transaction"
+                        )
+                    self.db_manager.save_dossier_roster_state(
+                        real_pilot_id, wingmen
+                    )
+
+                    for _category, narrative in effects:
+                        if not self.db_manager.save_diary_entry(
+                            pilot_id=real_pilot_id,
+                            mission_id=None,
+                            entry_date=event_date or "",
+                            narrative=narrative,
+                        ):
+                            raise _DossierWriteRejected("diary-write")
+        except _DossierWriteRejected as error:
+            log.warning("Dossier import rejected: category=%s", error)
+            return None
+
+        if real_pilot_id is None:
+            return None
+        if replayed:
+            log.info("Dossier generation already applied for verified career.")
+            return real_pilot_id
+        if transferred:
+            log.info(
+                "Dossier squadron transfer persisted without roster absence events."
+            )
+        if effects:
+            log.info(
+                "Dossier import committed with %d derived diary event(s).",
+                len(effects),
+            )
+        return real_pilot_id
+
     def process_life_events(
         self, pilot_id: str, new_status: Optional[str], new_rank: str,
         old_status: Optional[str], old_rank: Optional[str],
@@ -149,23 +309,7 @@ class CampaignEngine:
         old_map = {f"{w['fName']} {w['sName']}": w['status'] for w in old_wingmen}
         new_map = {f"{w.fName} {w.sName}": w.status for w in new_wingmen}
 
-        events = []
-
-        for name, old_status in old_map.items():
-            if name in new_map:
-                new_status = new_map[name]
-                if old_status != new_status:
-                    new_s = new_status.lower()
-                    if "wound" in new_s or "hospital" in new_s:
-                        events.append(("wounded", name))
-                    elif "kia" in new_s or "dead" in new_s:
-                        events.append(("kia", name))
-            else:
-                events.append(("missing", name))
-
-        for name in new_map.keys():
-            if name not in old_map:
-                events.append(("new", name))
+        events = self._wingman_events(old_map, new_map)
 
         if not events:
             return True

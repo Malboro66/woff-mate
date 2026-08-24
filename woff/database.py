@@ -13,6 +13,7 @@ o Sistema 3P (Personalidades e Memória de Wingmen).
 
 from __future__ import annotations
 
+import json
 import logging
 import os
 import re
@@ -20,6 +21,7 @@ import sqlite3
 import time
 import threading
 from contextlib import contextmanager
+from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 from typing import Optional, List, Any, Dict, NoReturn, Tuple
@@ -30,6 +32,7 @@ from .repositories import PilotRepository, MissionRepository, RpgRepository, Win
 from .version import SCHEMA_VERSION, __version__
 
 log = logging.getLogger("WoFFWatch")
+_DOSSIER_ROSTER_META_PREFIX = "dossier_roster:"
 
 
 class UnsupportedSchemaVersion(RuntimeError):
@@ -46,6 +49,27 @@ class MigrationBackupUnavailableError(RuntimeError):
 
 class TransactionRollbackError(RuntimeError):
     """Raised when caught nested failure makes an outer transaction rollback-only."""
+
+
+@dataclass(frozen=True)
+class DossierWingmanState:
+    """Roster fields needed to derive one Dossier generation's diary effects."""
+
+    first_name: str
+    last_name: str
+    status: str
+
+
+@dataclass(frozen=True)
+class DossierState:
+    """One consistent persisted view used by the Dossier application service."""
+
+    pilot_id: str
+    status: Optional[str]
+    rank: Optional[str]
+    squadron: str
+    dossier_digest: Optional[str]
+    wingmen: Tuple[DossierWingmanState, ...]
 
 
 def _version_tuple(version: str) -> Tuple[int, ...]:
@@ -1510,6 +1534,102 @@ class DatabaseManager:
 
     def resolve_bound_dossier_id(self, name: str, slot: int) -> Optional[str]:
         return self._pilots.resolve_bound_dossier_id(name, slot)
+
+    def load_dossier_state(self, name: str, slot: int) -> Optional[DossierState]:
+        """Load pilot, binding, and roster state inside a caller-owned transaction."""
+        with self._lock:
+            connection = self._get_conn()
+            if not connection.in_transaction:
+                raise RuntimeError(
+                    "Dossier state requires a caller-owned transaction"
+                )
+            pilot = connection.execute(
+                """
+                SELECT p.id, p.status, p.rank, p.squadron,
+                       binding.dossier_digest
+                FROM pilot_slot_bindings AS binding
+                JOIN pilots AS p ON p.id = binding.pilotId
+                WHERE binding.slot = ? AND p.name = ?
+                """,
+                (slot, name),
+            ).fetchone()
+            if pilot is None:
+                return None
+
+            roster = connection.execute(
+                "SELECT value FROM meta WHERE key = ?",
+                (f"{_DOSSIER_ROSTER_META_PREFIX}{pilot[0]}",),
+            ).fetchone()
+            if roster is None:
+                wingmen = [
+                    tuple(str(value or "") for value in row)
+                    for row in connection.execute(
+                        """
+                        SELECT fName, sName, status
+                        FROM squad_members
+                        WHERE pilotId = ?
+                        ORDER BY fName COLLATE NOCASE, sName COLLATE NOCASE, id
+                        """,
+                        (pilot[0],),
+                    ).fetchall()
+                ]
+            else:
+                try:
+                    decoded = json.loads(str(roster[0]))
+                    valid = isinstance(decoded, list) and all(
+                        isinstance(item, list)
+                        and len(item) == 3
+                        and all(isinstance(value, str) for value in item)
+                        for item in decoded
+                    )
+                    if not valid:
+                        raise ValueError("invalid roster payload")
+                    wingmen = [tuple(item) for item in decoded]
+                except (TypeError, ValueError, json.JSONDecodeError) as error:
+                    raise sqlite3.DatabaseError(
+                        "Invalid persisted Dossier roster state"
+                    ) from error
+            return DossierState(
+                pilot_id=str(pilot[0]),
+                status=str(pilot[1]) if pilot[1] is not None else None,
+                rank=str(pilot[2]) if pilot[2] is not None else None,
+                squadron=str(pilot[3] or ""),
+                dossier_digest=(
+                    str(pilot[4]) if pilot[4] is not None else None
+                ),
+                wingmen=tuple(
+                    DossierWingmanState(
+                        first_name=str(row[0] or ""),
+                        last_name=str(row[1] or ""),
+                        status=str(row[2] or ""),
+                    )
+                    for row in wingmen
+                ),
+            )
+
+    def save_dossier_roster_state(
+        self, pilot_id: str, wingmen: List[WoFFWingman]
+    ) -> None:
+        """Record the current roster without retiring historical wingman rows."""
+        if not wingmen:
+            return
+        with self._lock:
+            connection = self._get_conn()
+            if not connection.in_transaction:
+                raise RuntimeError(
+                    "Dossier roster state requires a caller-owned transaction"
+                )
+            roster = sorted(
+                [[wingman.fName, wingman.sName, wingman.status] for wingman in wingmen],
+                key=lambda item: (item[0].casefold(), item[1].casefold()),
+            )
+            connection.execute(
+                "INSERT OR REPLACE INTO meta (key, value) VALUES (?, ?)",
+                (
+                    f"{_DOSSIER_ROSTER_META_PREFIX}{pilot_id}",
+                    json.dumps(roster, ensure_ascii=True, separators=(",", ":")),
+                ),
+            )
 
     def resolve_pilot_id(
         self, name: str, source_file: Optional[str] = None
