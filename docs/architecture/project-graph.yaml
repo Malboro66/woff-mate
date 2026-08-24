@@ -611,7 +611,7 @@ work_items:
     module: presentation
     state: backlog
     evals: [EVAL-CLI-001]
-    gates: [Q0, Q1]
+    gates: [Q0, Q1, Q6-CYCLE-3.4.0]
     depends_on: []
   issue-29:
     title: Centralize SQLite connections used by catalogers
@@ -641,7 +641,7 @@ work_items:
     module: ingestion
     state: blocked
     evals: [EVAL-DOSSIER-001, EVAL-DOSSIER-002]
-    gates: [Q0, Q1, Q3]
+    gates: [Q0, Q1, Q3, Q6-CYCLE-3.4.0]
     depends_on:
       - {id: issue-41, status: unsatisfied}
       - {id: issue-38, status: unsatisfied}
@@ -658,7 +658,7 @@ work_items:
     module: application
     state: blocked
     evals: [EVAL-ROSTER-001, EVAL-ROSTER-002]
-    gates: [Q0, Q1, Q2]
+    gates: [Q0, Q1, Q2, Q6-CYCLE-3.4.0]
     depends_on:
       - {id: issue-34, status: satisfied}
       - {id: issue-35, status: unsatisfied}
@@ -667,7 +667,7 @@ work_items:
     module: domain
     state: backlog
     evals: [EVAL-NATION-001, EVAL-NATION-002, EVAL-NORM-MISSION-001, EVAL-NORM-VICTORY-001]
-    gates: [Q0, Q1]
+    gates: [Q0, Q1, Q6-CYCLE-3.4.0]
     depends_on: []
   issue-39:
     title: Update existing missions instead of silently ignoring refreshed data
@@ -689,7 +689,7 @@ work_items:
     module: domain
     state: backlog
     evals: [EVAL-NUM-001, EVAL-NUM-002]
-    gates: [Q0, Q1]
+    gates: [Q0, Q1, Q6-CYCLE-3.4.0]
     depends_on: []
   issue-42:
     title: Read stable file snapshots and close startup event-loss gaps
@@ -704,7 +704,7 @@ work_items:
     module: application
     state: blocked
     evals: [EVAL-NARR-001]
-    gates: [Q0, Q1]
+    gates: [Q0, Q1, Q6-CYCLE-3.4.0]
     depends_on:
       - {id: issue-34, status: satisfied}
       - {id: issue-39, status: satisfied}
@@ -715,7 +715,7 @@ work_items:
     module: ingestion
     state: backlog
     evals: [EVAL-XML-001]
-    gates: [Q0, Q1, Q3]
+    gates: [Q0, Q1, Q3, Q6-CYCLE-3.4.0]
     depends_on: []
   issue-45:
     title: Validate and honor watchdog configuration before startup
@@ -826,21 +826,21 @@ work_items:
     module: ingestion
     state: backlog
     evals: [EVAL-PARSE-SEM-001, EVAL-PARSE-SEM-002]
-    gates: [Q0, Q1, Q3]
+    gates: [Q0, Q1, Q3, Q6-CYCLE-3.4.0]
     depends_on: []
   issue-75:
     title: Enforce machine-readable contracts across command entry points
     module: presentation
     state: backlog
     evals: [EVAL-CLI-CONTRACT-001, EVAL-CLI-CONTRACT-002]
-    gates: [Q0, Q1, Q4]
+    gates: [Q0, Q1, Q4, Q6-CYCLE-3.4.0]
     depends_on: []
   issue-76:
     title: Enforce life-event and derived RPG domain invariants
     module: application
     state: backlog
     evals: [EVAL-RPG-DOMAIN-001, EVAL-RPG-DOMAIN-002]
-    gates: [Q0, Q1]
+    gates: [Q0, Q1, Q6-CYCLE-3.4.0]
     depends_on: []
   issue-77:
     title: Certify SQLite nullability and default constraints
@@ -875,14 +875,14 @@ work_items:
     module: persistence
     state: backlog
     evals: [EVAL-WINGMAN-IDENTITY-001, EVAL-WINGMAN-MERGE-001]
-    gates: [Q0, Q1, Q2]
+    gates: [Q0, Q1, Q2, Q6-CYCLE-3.4.0]
     depends_on: []
   issue-97:
     title: Do not delete retained diary blocks with an empty narrative
     module: presentation
     state: backlog
     evals: [EVAL-DIARY-EMPTY-001]
-    gates: [Q0, Q1, Q2]
+    gates: [Q0, Q1, Q2, Q6-CYCLE-3.4.0]
     depends_on: []
   issue-98:
     title: Reject empty or unstable squadron catalog generations before replacing data
