@@ -181,7 +181,7 @@ gates:
   Q5:
     description: Product decision gates approve data reliability, launcher viability, social core, or public release.
   Q6-CYCLE-3.3.0:
-    description: All twelve 3.3.0 work items, applicable evals, functional exit criteria, documentation, and CI are approved.
+    description: All fifteen 3.3.0 work items, applicable evals, functional exit criteria, documentation, and CI are approved.
 
 evals:
   EVAL-DIARY-001:
@@ -329,6 +329,58 @@ evals:
     enforced_by:
       - woff/tests/test_dossier_transactions.py
       - woff/tests/test_stable_snapshot.py
+  EVAL-CAREER-SELECT-001:
+    work_items: [issue-93]
+    status: planned
+    evidence: Same-name careers remain separate in every query and editor flow when selected by stable pilot ID.
+  EVAL-CAREER-SELECT-002:
+    work_items: [issue-93]
+    status: planned
+    evidence: An ambiguous display name fails before export or mutation and returns a deterministic candidate contract.
+  EVAL-ROOT-BINDING-001:
+    work_items: [issue-94]
+    status: planned
+    evidence: Equal pilot slots in distinct watched campaign roots retain independent bindings and route dependent files to the correct career.
+  EVAL-ROOT-BINDING-002:
+    work_items: [issue-94]
+    status: planned
+    evidence: Any binding migration preserves existing careers through backup, integrity checks, rollback, and reopen validation.
+  EVAL-PERSIST-RETRY-001:
+    work_items: [issue-95]
+    status: planned
+    evidence: Real transient SQLite contention keeps the admitted file generation pending and persists it exactly once after retry.
+  EVAL-PERSIST-RETRY-002:
+    work_items: [issue-95]
+    status: planned
+    evidence: Retry exhaustion and shutdown remain bounded and produce a durable sanitized diagnostic without acknowledging the failed generation.
+  EVAL-WINGMAN-IDENTITY-001:
+    work_items: [issue-96]
+    status: planned
+    evidence: Distinct same-name wingmen retain separate identities, histories, and personality ownership across Dossier replays.
+  EVAL-WINGMAN-MERGE-001:
+    work_items: [issue-96]
+    status: planned
+    evidence: A poorer roster source never erases richer stored wingman fields or reassigns personality to another occurrence.
+  EVAL-DIARY-EMPTY-001:
+    work_items: [issue-97]
+    status: planned
+    evidence: Clearing a retained diary block narrative does not delete the row, while removing the block follows the explicit deletion contract.
+  EVAL-CATALOG-STABILITY-001:
+    work_items: [issue-98]
+    status: planned
+    evidence: Empty, truncated, or changing squadron input cannot replace the last known-good catalog payload.
+  EVAL-CATALOG-STABILITY-002:
+    work_items: [issue-98]
+    status: planned
+    evidence: A stable validated squadron generation replaces data atomically and remains idempotent on replay.
+  EVAL-PILOT-PROVENANCE-001:
+    work_items: [issue-99]
+    status: planned
+    evidence: Log, Claims, Squads, and partial XML merges preserve authoritative Dossier source provenance and non-empty update time.
+  EVAL-PILOT-PROVENANCE-002:
+    work_items: [issue-99]
+    status: planned
+    evidence: Replaying richer and poorer pilot sources converges without regressing provenance fields to empty or lower-authority values.
   EVAL-VICTORY-MERGE-001:
     work_items: [issue-73]
     status: planned
@@ -492,6 +544,9 @@ evals:
       - issue-70
       - issue-71
       - issue-72
+      - issue-93
+      - issue-94
+      - issue-95
       - issue-73
       - issue-27
     status: planned
@@ -508,7 +563,7 @@ work_items:
   issue-27:
     title: Reprocess pilot files when the Dossier is not available yet
     module: ingestion
-    state: backlog
+    state: blocked
     evals: [EVAL-DEFER-001, EVAL-DEFER-002]
     gates: [Q0, Q1, Q3, Q6-CYCLE-3.3.0]
     depends_on:
@@ -518,6 +573,8 @@ work_items:
       - {id: issue-57, status: satisfied}
       - {id: issue-70, status: satisfied}
       - {id: issue-71, status: satisfied}
+      - {id: issue-94, status: unsatisfied}
+      - {id: issue-95, status: unsatisfied}
   issue-28:
     title: Validate pilots in every woff_query output format
     module: presentation
@@ -528,10 +585,11 @@ work_items:
   issue-29:
     title: Centralize SQLite connections used by catalogers
     module: persistence
-    state: backlog
+    state: blocked
     evals: [EVAL-CATALOG-001]
     gates: [Q0, Q1, Q2]
-    depends_on: []
+    depends_on:
+      - {id: issue-98, status: unsatisfied}
   issue-30:
     title: Define a Ruff baseline and eliminate lint debt
     module: governance
@@ -643,6 +701,7 @@ work_items:
     gates: [Q0, Q1, Q2, Q4]
     depends_on:
       - {id: issue-29, status: unsatisfied}
+      - {id: issue-98, status: unsatisfied}
   issue-47:
     title: Decode obfuscated files without per-token allocations
     module: ingestion
@@ -759,6 +818,55 @@ work_items:
     evals: [EVAL-SCHEMA-CONTRACT-001, EVAL-SCHEMA-CONTRACT-002]
     gates: [Q0, Q1, Q2]
     depends_on: []
+  issue-93:
+    title: Resolve same-name careers by stable pilot ID in CLI and journal editor
+    module: presentation
+    state: backlog
+    evals: [EVAL-CAREER-SELECT-001, EVAL-CAREER-SELECT-002]
+    gates: [Q0, Q1, Q2, Q6-CYCLE-3.3.0]
+    depends_on: []
+  issue-94:
+    title: Namespace pilot-slot bindings across watched campaign roots
+    module: persistence
+    state: backlog
+    evals: [EVAL-ROOT-BINDING-001, EVAL-ROOT-BINDING-002]
+    gates: [Q0, Q1, Q2, Q3, Q6-CYCLE-3.3.0]
+    depends_on: []
+  issue-95:
+    title: Retry transient SQLite write failures without dropping file generations
+    module: ingestion
+    state: backlog
+    evals: [EVAL-PERSIST-RETRY-001, EVAL-PERSIST-RETRY-002]
+    gates: [Q0, Q1, Q2, Q3, Q6-CYCLE-3.3.0]
+    depends_on: []
+  issue-96:
+    title: Preserve distinct wingman identities and richer roster data
+    module: persistence
+    state: backlog
+    evals: [EVAL-WINGMAN-IDENTITY-001, EVAL-WINGMAN-MERGE-001]
+    gates: [Q0, Q1, Q2]
+    depends_on: []
+  issue-97:
+    title: Do not delete retained diary blocks with an empty narrative
+    module: presentation
+    state: backlog
+    evals: [EVAL-DIARY-EMPTY-001]
+    gates: [Q0, Q1, Q2]
+    depends_on: []
+  issue-98:
+    title: Reject empty or unstable squadron catalog generations before replacing data
+    module: ingestion
+    state: backlog
+    evals: [EVAL-CATALOG-STABILITY-001, EVAL-CATALOG-STABILITY-002]
+    gates: [Q0, Q1, Q2, Q3]
+    depends_on: []
+  issue-99:
+    title: Preserve pilot source provenance across partial-source merges
+    module: persistence
+    state: backlog
+    evals: [EVAL-PILOT-PROVENANCE-001, EVAL-PILOT-PROVENANCE-002]
+    gates: [Q0, Q1, Q2]
+    depends_on: []
 
 cycles:
   cycle-3.2.1:
@@ -782,6 +890,9 @@ cycles:
       - issue-70
       - issue-71
       - issue-72
+      - issue-93
+      - issue-94
+      - issue-95
       - issue-73
       - issue-27
     aggregate_eval: EVAL-CYCLE-330-001
@@ -799,6 +910,8 @@ cycles:
       - issue-28
       - issue-75
       - issue-76
+      - issue-96
+      - issue-97
   cycle-3.5.0:
     state: planned
     members:
@@ -809,3 +922,5 @@ cycles:
       - issue-46
       - issue-49
       - issue-30
+      - issue-98
+      - issue-99
