@@ -97,6 +97,14 @@ not make independent items artificial prerequisites of one another.
 | `EVAL-PILOT-PROVENANCE-001` | #99 | Partial sources preserve authoritative Dossier provenance and non-empty update time |
 | `EVAL-PILOT-PROVENANCE-002` | #99 | Richer and poorer source replay converges without provenance regression |
 
+## Planned wingman transfer feature evals
+
+| Eval | Work item | Required evidence |
+|---|---|---|
+| `EVAL-WINGMAN-TRANSFER-001` | #101 | A confirmed transfer with reliable destination evidence creates exactly one event for the correct persistent wingman with source and destination squadrons |
+| `EVAL-WINGMAN-TRANSFER-002` | #101 | A confirmed transfer without destination evidence creates exactly one event with an explicit unknown destination and never fabricates an assignment |
+| `EVAL-WINGMAN-TRANSFER-003` | #101 | Same-squadron disappearance, partial or failed roster input, replay, and same-name members cannot produce a false or misattributed transfer |
+
 ## Independent presentation foundation
 
 Issue #56 is completed documentation and architecture-contract work. It is
@@ -303,6 +311,22 @@ for the broader roster-generation and truncated-input policy.
 | #76 | `EVAL-RPG-DOMAIN-001`, `EVAL-RPG-DOMAIN-002` |
 | #96 | `EVAL-WINGMAN-IDENTITY-001`, `EVAL-WINGMAN-MERGE-001` |
 | #97 | `EVAL-DIARY-EMPTY-001` |
+| #101 | `EVAL-WINGMAN-TRANSFER-001`, `EVAL-WINGMAN-TRANSFER-002`, `EVAL-WINGMAN-TRANSFER-003` |
+
+### EVAL-CYCLE-340-001
+
+The aggregate eval passes only when:
+
+- all thirteen member issues satisfy their acceptance criteria
+- every applicable member eval is implemented and passing
+- dependency relations in the graph are satisfied, including #101 after #37 and #96
+- roster lifecycle and wingman identity remain deterministic across replay, homonyms, incomplete input, and transfer detection
+- a transfer destination is presented only when reliable source evidence supports it, with unknown assignment preserved explicitly otherwise
+- focused tests, related tests, the full suite, Pyright, project-graph validation, and applicable Q2/Q3/Windows evidence pass
+- project graph, eval catalog, quality gates, and public documentation reflect the delivered behavior
+- `Q6-CYCLE-3.4.0` passes
+
+Green CI alone does not pass this aggregate eval.
 
 ## Planned cycle 3.5.0
 
