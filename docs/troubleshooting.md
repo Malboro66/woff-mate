@@ -75,6 +75,18 @@ complete records.
 
 ## Common database messages
 
+### Victory merge outcomes
+
+`Victory merge outcomes` and `Decoration merge outcomes` report separate
+`inserted`, `updated`, `unchanged`, and `unresolved` counts. An
+`ambiguous-occurrence` warning means that a record from another source could
+match more than one stored same-minute victory. WoFF Mate leaves the stable rows
+unchanged instead of guessing. An `equal-authority-conflict` similarly preserves
+the existing value until a higher-authority or same-source correction arrives.
+`count-mismatch` means the mission's source claim count differs from the number
+of currently associated victory rows; neither record is deleted or rewritten.
+Report only the category and counters, never the claim text or database.
+
 ### Future schema
 
 A **future schema** error means the database was created by a newer, incompatible application version. WoFF Mate rejects it before migration or backup. Do not edit its version or attempt a downgrade. Install a compatible newer application and keep the database unchanged.
@@ -117,7 +129,7 @@ report only a sanitized diagnostic excerpt.
 ### Migration and restoration
 
 When upgrading a schema 3.2 database that already contains pilot-slot bindings,
-configure exactly one watch root for the first schema 3.3 startup. Multiple roots
+configure exactly one watch root for the first current-schema startup. Multiple roots
 make the legacy owner unknowable, so WoFF Mate aborts and restores the database
 instead of assigning careers speculatively. After the single-root migration and
 successful reopen, additional distinct roots can be configured normally.

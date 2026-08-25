@@ -4,7 +4,7 @@ This guide describes the existing migration safeguards and an offline manual rec
 
 ## Schema compatibility
 
-Current schema: `3.3`, sourced from `woff.version.SCHEMA_VERSION`.
+Current schema: `3.4`, sourced from `woff.version.SCHEMA_VERSION`.
 
 Schema versions use `MAJOR.MINOR`:
 
@@ -12,10 +12,36 @@ Schema versions use `MAJOR.MINOR`:
 - future schema versions are rejected;
 - an automatic migration is supported only when the installed application has a compatible migration path and the resulting schema passes certification;
 - `2.2` to `3.2` and `3.1` to `3.2` remain tested historical migration paths;
-- `2.2`, `3.1`, and `3.2` to `3.3` are tested current migration paths; and
+- `2.2`, `3.1`, `3.2`, and `3.3` to `3.4` are tested current migration paths; and
 - the **MAJOR** component alone does not determine whether migration is automatic.
 
 The application persists the new schema version in the same transaction as the schema and data changes. A database declaring a future schema is rejected before application DDL, a migration backup, or any downgrade. During the read-only compatibility probe, SQLite may open or create WAL coordination sidecars such as `-shm`; this is SQLite coordination rather than application DDL or migration. Use a compatible newer version instead.
+
+## Schema 3.4 victory occurrence migration
+
+Schema 3.4 removes the lossy victory uniqueness rule on
+`(pilotId, date, time, enemyType)`. Those values describe a visible claim but
+cannot identify one occurrence: two valid claims may share every value in that
+tuple. The replacement `victory_source_records` table maps a privacy-safe,
+versioned source-position digest to one stable victory ID. A second verified
+position in the same source therefore remains a distinct row, while replaying
+the same position resolves the existing row. Compatible records from another
+source may become aliases of that row only when the match is unambiguous;
+ambiguous records are left unchanged and reported as unresolved instead of
+being guessed or silently discarded.
+
+Existing victory IDs, pilot ownership, mission associations, and every victory
+column are copied unchanged during the table rebuild. Existing rows begin with
+no fabricated source alias. Their first deterministic replay may attach a
+verified alias when exactly one compatible row exists. Decoration rows are not
+rebuilt: their stable `(pilotId, name)` row is enriched in place under the same
+non-destructive source-authority policy.
+
+The 3.3-to-3.4 transformation is performed inside one migration transaction
+after a validated SQLite backup. Failure rolls back and restores that backup.
+Success requires `PRAGMA foreign_key_check`, `PRAGMA integrity_check`, complete
+schema certification, and a successful close and reopen. The retained backup
+continues to use the recovery procedure below.
 
 ## Schema 3.3 campaign namespace migration
 

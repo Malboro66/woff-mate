@@ -4,12 +4,37 @@ Modelos de Dados (models.py)
 ══════════════════════════════════════════════════════════════════
 """
 
+import hashlib
+import ntpath
 import uuid
 from dataclasses import dataclass, field
 from typing import List, Optional
 
 def _uid() -> str:
     return uuid.uuid4().hex[:12]
+
+
+def stable_source_record_key(
+    record_kind: str,
+    source_name: str,
+    source_position: int,
+) -> str:
+    """Return a privacy-safe identity for one stable source record position."""
+    kind = str(record_kind or "").strip().casefold()
+    filename = ntpath.basename(str(source_name or "").replace("/", "\\")).casefold()
+    if not kind or not filename:
+        raise ValueError("record kind and source filename are required")
+    if (
+        not isinstance(source_position, int)
+        or isinstance(source_position, bool)
+        or source_position < 1
+    ):
+        raise ValueError("source position must be a positive integer")
+    source_payload = f"{kind}\0{filename}".encode("utf-8")
+    source_digest = hashlib.sha256(source_payload).hexdigest()
+    record_payload = source_payload + f"\0{source_position}".encode("ascii")
+    record_digest = hashlib.sha256(record_payload).hexdigest()
+    return f"source-v1:{source_digest}:{record_digest}"
 
 @dataclass
 class WoFFPilot:
@@ -85,6 +110,7 @@ class WoFFVictory:
     sector:      str  = ""
     aircraft:    str  = ""
     source_file: str  = ""
+    source_record_key: str = ""
 
 @dataclass
 class WoFFDecoration:

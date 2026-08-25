@@ -232,9 +232,33 @@ parser models cannot distinguish an explicit false correction from an absent
 field: `True` enriches `False`, while a parser-default `False` never clears
 stored evidence. The row retains the highest-authority source observed.
 
-This contract changes no schema and rewrites no identity field in an existing
-campaign database. Victory and decoration merge behavior remains owned by
-Issue #73.
+This mission contract changes no schema and rewrites no mission identity field
+in an existing campaign database.
+
+### Implemented victory and decoration merge evals
+
+- `EVAL-VICTORY-MERGE-001` is enforced by
+  `woff/tests/test_victory_decoration_merge.py` and
+  `woff/tests/test_victory_identity_migration.py`. Claims and XML parsers create
+  privacy-safe identities from the sanitized source basename plus deterministic
+  record position. Schema 3.4 maps each identity to a stable victory row. Two
+  same-minute, same-type positions remain distinct, exact replay is idempotent,
+  and the migration removes the lossy natural-key constraint without changing
+  existing IDs, ownership, data, or mission relationships.
+- `EVAL-DECORATION-MERGE-001` is enforced by the same tests. Unambiguous richer
+  victory data and decoration date/citation data update the stable row in place.
+  Source authority is XML, then `PilotNClaims.txt` or `PilotNDossier.txt`, then
+  unknown input. Blank or lower-authority values never erase richer state;
+  equal-authority conflicts and ambiguous cross-source occurrence matches are
+  preserved as unresolved, category-only diagnostics.
+
+Victory insertion links an otherwise unassociated row only when one positive-
+claim mission for the same pilot and canonical date has a compatible start
+time. It never rewrites `missions.claimsCount`: that value remains independent
+source evidence. A difference between it and the associated victory-row count
+is retained and reported as `count-mismatch`. Every batch emits inserted,
+updated, unchanged, and unresolved counters. Backup, rollback, integrity,
+foreign-key, and reopen evidence covers the 3.3-to-3.4 migration.
 
 ### Implemented career identity evals
 

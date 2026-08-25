@@ -146,7 +146,7 @@ def test_new_schema_allows_duplicate_names_and_has_slot_binding_contract(tmp_pat
     manager.close()
 
     with sqlite3.connect(path) as conn:
-        assert SCHEMA_VERSION == "3.3"
+        assert SCHEMA_VERSION == "3.4"
         assert ("name",) not in _unique_index_columns(conn, "pilots")
         assert conn.execute(
             "SELECT 1 FROM sqlite_master WHERE type='index' AND name='idx_pilots_name'"

@@ -5,7 +5,12 @@ Parser de Dados do Piloto (parsers/pilot_data_parser.py)
 """
 import os, re, logging
 from typing import List, Optional
-from ..models import WoFFPilot, WoFFMission, WoFFVictory
+from ..models import (
+    WoFFMission,
+    WoFFPilot,
+    WoFFVictory,
+    stable_source_record_key,
+)
 from ..normalization import (
     normalize_date,
     normalize_mission_type,
@@ -172,13 +177,16 @@ class WoFFPilotDataParser:
     def _parse_claims(self, lines: List[str], path: str, pilot_name: str) -> bool:
         log.info(f"[TXT] Analisando Vitórias (Claims): {os.path.basename(path)}")
         try:
-            for line in lines[1:]:
+            for line_number, line in enumerate(lines[1:], start=2):
                 line = line.strip()
                 if not line: continue
                 parts = [part.strip() for part in line.split(";")]
                 if len(parts) >= 12:
                     v = WoFFVictory()
                     v.source_file = os.path.basename(path)
+                    v.source_record_key = stable_source_record_key(
+                        "victory", path, line_number
+                    )
                     v.pilotId = pilot_name
                     v.date = normalize_date(f"{parts[0]}/{parts[1]}/{parts[2]}")
                     v.time = f"{parts[3].replace('h','').zfill(2)}:{parts[4].zfill(2)}"
