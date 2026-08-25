@@ -20,8 +20,12 @@ import logging
 import math
 from dataclasses import dataclass, asdict, field
 from pathlib import Path
-from typing import Any, List
+from typing import Any, List, Tuple
 
+from .campaign_namespace import (
+    CampaignNamespaceConflict,
+    campaign_namespaces_for_roots,
+)
 from .version import CONFIG_VERSION
 
 log = logging.getLogger("WoFFWatch")
@@ -60,6 +64,10 @@ class WatchdogConfig:
         if not isinstance(self.watch_paths, list):
             raise InvalidConfigurationError("watch_paths must be a list")
         self._validate_strings(self.watch_paths, "watch_paths")
+        try:
+            campaign_namespaces_for_roots(self.watch_paths)
+        except CampaignNamespaceConflict as error:
+            raise InvalidConfigurationError(str(error)) from error
         for name in ("export_path", "discovery_log_path"):
             value = getattr(self, name)
             if not isinstance(value, str) or not value.strip():
@@ -135,6 +143,12 @@ class WatchdogConfig:
     def to_dict(self) -> dict:
         """Converte a configuração para dicionário (para guardar em JSON)."""
         return asdict(self)
+
+    @property
+    def campaign_namespaces(self) -> Tuple[str, ...]:
+        """Return sanitized stable identities for configured watch roots."""
+
+        return campaign_namespaces_for_roots(self.watch_paths)
 
 
 def load_config(path: str) -> WatchdogConfig:

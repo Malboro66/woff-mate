@@ -6,6 +6,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
+from ..campaign_namespace import campaign_namespace_for_root
 from ..handler import FileProcessor, FileStabilityGuard
 from ..campaign_engine import CampaignEngine
 from ..database import DatabaseManager
@@ -241,7 +242,10 @@ def test_dossier_side_effects_never_use_filesystem_timestamp(
     assert call.kwargs["decorations"] == Parser.decorations
     assert call.kwargs["wingmen"] == Parser.wingmen
     assert call.kwargs["identity"] == PilotIdentityEvidence(
-        PilotIdentityKind.DOSSIER, 1, "d" * 64
+        PilotIdentityKind.DOSSIER,
+        1,
+        "d" * 64,
+        processor._campaign_namespaces.namespace_for(snapshot.path),
     )
     assert "event_date" not in call.kwargs
 
@@ -603,7 +607,11 @@ def test_dossier_rejection_rolls_back_derived_effects_and_retry_commits_once(
         [],
         [],
         [old_wingman],
-        identity=dossier_evidence(1, "rollback-old"),
+        identity=dossier_evidence(
+            1,
+            "rollback-old",
+            campaign_namespace_for_root(str(tmp_path)),
+        ),
     ) == pilot_id
     assert database.save_diary_entry(
         pilot_id, None, "1917-04-30", "existing diary entry"
@@ -726,7 +734,11 @@ def test_incoming_dossier_date_preserves_pre_merge_wingman_event(
         [],
         [],
         [old_wingman],
-        identity=dossier_evidence(1, "first-date-old"),
+        identity=dossier_evidence(
+            1,
+            "first-date-old",
+            campaign_namespace_for_root(str(tmp_path)),
+        ),
     ) == pilot_id
     assert database.get_pilot_game_date(pilot_id) is None
 
@@ -789,7 +801,12 @@ def test_mission_retry_uses_persisted_natural_identity_and_acknowledges_once(
         id="pilot-1", name="Mission Pilot", rank="Lieutenant",
         source_file="Pilot1Dossier.txt",
     )
-    identity = PilotIdentityEvidence(PilotIdentityKind.DOSSIER, 1, "d" * 64)
+    identity = PilotIdentityEvidence(
+        PilotIdentityKind.DOSSIER,
+        1,
+        "d" * 64,
+        campaign_namespace_for_root(str(tmp_path)),
+    )
     assert database.merge_and_write(
         pilot, [], [], [], identity=identity
     ) == pilot.id
@@ -896,7 +913,10 @@ def test_dossier_life_event_receives_original_optional_prior_state(
             [],
             [],
             identity=PilotIdentityEvidence(
-                PilotIdentityKind.DOSSIER, 1, "a" * 64
+                PilotIdentityKind.DOSSIER,
+                1,
+                "a" * 64,
+                campaign_namespace_for_root(str(tmp_path)),
             ),
         ) == pilot.id
 

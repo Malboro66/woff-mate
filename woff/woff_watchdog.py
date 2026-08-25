@@ -52,6 +52,10 @@ except Exception as e:
     sys.exit(1)
 
 try:
+    from .campaign_namespace import (
+        campaign_namespace_for_root,
+        campaign_namespace_label,
+    )
     from .config import WatchdogConfig, load_config
     from .handler import WoFFEventHandler
     from .database import DatabaseManager
@@ -102,7 +106,10 @@ class WoFFWatchdog:
     ):
         config.validate()
         self.config = config
-        self.db_manager = DatabaseManager(config.export_path)
+        self.db_manager = DatabaseManager(
+            config.export_path,
+            campaign_namespaces=config.campaign_namespaces,
+        )
         self.discovery = (
             DiscoveryLogger(config.discovery_log_path) if discovery else None
         )
@@ -118,9 +125,15 @@ class WoFFWatchdog:
         missing = [p for p in paths if not os.path.exists(p)]
 
         for p in valid:
-            log.info(f"  ✓ Monitorizar: {p}")
+            log.info(
+                "  ✓ Monitorizar namespace: %s",
+                campaign_namespace_label(campaign_namespace_for_root(p)),
+            )
         for p in missing:
-            log.warning(f"  ✗ Não encontrado: {p}")
+            log.warning(
+                "  ✗ Namespace não encontrado: %s",
+                campaign_namespace_label(campaign_namespace_for_root(p)),
+            )
 
         if not valid:
             log.error(

@@ -24,6 +24,12 @@ and `.log`. Extension filtering applies both to initial synchronization and to
 runtime file events. Supported log levels are
 `DEBUG`, `INFO`, `WARNING`, `ERROR`, and `CRITICAL` (case-insensitive).
 
+Configured watch roots must be distinct and non-overlapping. Equivalent Windows
+spellings of one root—such as drive-letter case, slash direction, or a Win32
+extended-length prefix—resolve to one namespace and therefore must not be listed
+twice. A `duplicate or overlapping campaign roots` error contains no local path;
+remove the duplicate or nested entry from `watch_paths`.
+
 An existing malformed or invalid configuration is never replaced or repaired
 automatically. Auto-detection and defaults apply only when the file is missing.
 
@@ -78,6 +84,12 @@ A **future schema** error means the database was created by a newer, incompatibl
 Close WoFF Mate, SQLite viewers, backup programs, and every process that could have the database open, then retry. Do not delete SQLite sidecars or copy a live database. If it continues, preserve the files and report a sanitized excerpt.
 
 ### Migration and restoration
+
+When upgrading a schema 3.2 database that already contains pilot-slot bindings,
+configure exactly one watch root for the first schema 3.3 startup. Multiple roots
+make the legacy owner unknowable, so WoFF Mate aborts and restores the database
+instead of assigning careers speculatively. After the single-root migration and
+successful reopen, additional distinct roots can be configured normally.
 
 A validated backup was created when you see the following message. On Windows,
 this does not include a directory-`fsync` guarantee and does not guarantee survival after sudden power loss:

@@ -3,12 +3,13 @@
 from __future__ import annotations
 
 import logging
-import ntpath
 import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from typing import Any, Callable, Dict, Optional, Protocol, Tuple
+
+from ..campaign_namespace import canonical_windows_path
 
 log = logging.getLogger("WoFFWatch")
 
@@ -19,22 +20,6 @@ class _Executor(Protocol):
     def submit(self, fn: Callable[..., Any], *args: Any) -> Any: ...
 
     def shutdown(self, wait: bool = True) -> None: ...
-
-
-def canonical_windows_path(path: str) -> str:
-    """Return a Windows identity key while leaving the submitted path untouched.
-
-    Watchdog's path remains the path supplied to the processor.  This function is
-    used only for identity so that drive-letter, separator, case, UNC, and Win32
-    extended-length spellings cannot occupy separate scheduler slots.
-    """
-    normalized = path.replace("/", "\\")
-    lowered = normalized.lower()
-    if lowered.startswith("\\\\?\\unc\\"):
-        normalized = "\\\\" + normalized[8:]
-    elif lowered.startswith("\\\\?\\"):
-        normalized = normalized[4:]
-    return ntpath.normcase(ntpath.normpath(normalized))
 
 
 @dataclass

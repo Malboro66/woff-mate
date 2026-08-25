@@ -4,17 +4,50 @@ This guide describes the existing migration safeguards and an offline manual rec
 
 ## Schema compatibility
 
-Current schema: `3.2`, sourced from `woff.version.SCHEMA_VERSION`.
+Current schema: `3.3`, sourced from `woff.version.SCHEMA_VERSION`.
 
 Schema versions use `MAJOR.MINOR`:
 
 - schema versions identify stored database formats;
 - future schema versions are rejected;
 - an automatic migration is supported only when the installed application has a compatible migration path and the resulting schema passes certification;
-- `2.2` to `3.2` and `3.1` to `3.2` are tested historical migration paths; and
+- `2.2` to `3.2` and `3.1` to `3.2` remain tested historical migration paths;
+- `2.2`, `3.1`, and `3.2` to `3.3` are tested current migration paths; and
 - the **MAJOR** component alone does not determine whether migration is automatic.
 
 The application persists the new schema version in the same transaction as the schema and data changes. A database declaring a future schema is rejected before application DDL, a migration backup, or any downgrade. During the read-only compatibility probe, SQLite may open or create WAL coordination sidecars such as `-shm`; this is SQLite coordination rather than application DDL or migration. Use a compatible newer version instead.
+
+## Schema 3.3 campaign namespace migration
+
+Schema 3.3 replaces the global `pilot_slot_bindings.slot` primary key with the
+composite key `(campaign_namespace, slot)`. A slot is now reusable across
+configured campaign roots without allowing one root to replace another root's
+active binding. Dossier, Log, Claims, and Squads processing carries the same
+namespace to the persistence boundary, so a dependent file can resolve only the
+career bound inside its own root.
+
+The namespace is `root-v1:` plus the SHA-256 digest of the canonical configured
+root. Canonicalization uses Windows path identity rules for drive-letter case,
+separator aliases, `.`/`..`, UNC paths, and Win32 extended-length spellings.
+The database and diagnostics retain only the versioned digest, never the raw
+configured path. Duplicate or overlapping configured roots are rejected before
+database or worker startup because a file would not have one unambiguous owner.
+
+Existing 3.2 bindings require an explicit legacy decision:
+
+- with exactly one configured root, every legacy binding is assigned to that
+  root's namespace;
+- with more than one configured root and any legacy binding, migration aborts
+  and restores the verified backup instead of guessing ownership;
+- when no root context is available, bindings use the documented reserved
+  namespace `legacy-v3.2`; a later startup may assign it to exactly one
+  configured root, while multi-root startup still aborts safely.
+
+Pilot IDs and every existing mission, victory, decoration, squad member, RPG
+state, and diary relationship remain unchanged. The 3.2-to-3.3 rebuild uses the
+pre-migration SQLite backup and one transaction, then requires
+`PRAGMA foreign_key_check`, `PRAGMA integrity_check`, schema certification, and
+a successful reopen. The migration backup is retained after success or recovery.
 
 ## Schema 3.2 career identity migration
 

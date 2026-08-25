@@ -8,6 +8,8 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Optional
 
+from .campaign_namespace import is_campaign_namespace
+
 
 class PilotIdentityKind(str, Enum):
     """Supported evidence classes at the persistence boundary."""
@@ -24,10 +26,15 @@ class PilotIdentityEvidence:
     kind: PilotIdentityKind
     slot: Optional[int] = None
     dossier_digest: Optional[str] = None
+    campaign_namespace: Optional[str] = None
 
     def __post_init__(self) -> None:
         if self.kind is PilotIdentityKind.UNRESOLVED:
-            if self.slot is not None or self.dossier_digest is not None:
+            if (
+                self.slot is not None
+                or self.dossier_digest is not None
+                or self.campaign_namespace is not None
+            ):
                 raise ValueError("unresolved identity cannot carry slot evidence")
             return
         if self.slot is None or self.slot <= 0:
@@ -35,6 +42,16 @@ class PilotIdentityEvidence:
         digest = self.dossier_digest or ""
         if re.fullmatch(r"[0-9a-f]{64}", digest) is None:
             raise ValueError("identity evidence requires a lowercase SHA-256 digest")
+        if not is_campaign_namespace(self.campaign_namespace):
+            raise ValueError("identity evidence requires a campaign namespace")
+
+    @property
+    def binding_key(self) -> tuple[str, int]:
+        """Return the namespace-aware key shared by persistence and future deferral."""
+
+        if self.campaign_namespace is None or self.slot is None:
+            raise ValueError("unresolved identity has no binding key")
+        return self.campaign_namespace, self.slot
 
 
 class PilotIdentityError(RuntimeError):

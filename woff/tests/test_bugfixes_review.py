@@ -12,6 +12,7 @@ import sqlite3
 import hashlib
 
 
+from ..campaign_namespace import campaign_namespace_for_root
 from ..handler import FileProcessor, get_latest_mission_id
 from ..database import DatabaseManager
 from ..campaign_engine import CampaignEngine
@@ -134,6 +135,7 @@ class TestLatestMissionIntegration(unittest.TestCase):
         self.assertEqual(conn.execute("SELECT COUNT(*) FROM missions").fetchone(), (0,))
 
     def test_integration_latest_mission_passed_to_campaign_from_text_log(self):
+        tmp_dir = tempfile.mkdtemp()
         pilot = WoFFPilot(name="Real Text Pilot", source_file="Pilot1Dossier.txt")
         dossier_bytes = b"stable dossier identity"
         digest = hashlib.sha256(dossier_bytes).hexdigest()
@@ -142,13 +144,17 @@ class TestLatestMissionIntegration(unittest.TestCase):
             missions=[],
             victories=[],
             decorations=[],
-            identity=PilotIdentityEvidence(PilotIdentityKind.DOSSIER, 1, digest),
+            identity=PilotIdentityEvidence(
+                PilotIdentityKind.DOSSIER,
+                1,
+                digest,
+                campaign_namespace_for_root(tmp_dir),
+            ),
         )
         log_text = "Header\n" + "\n".join([
             "01;01;1917;8;00;A;B;Patrol;SE.5a;X;45;Y;Z;No. 56 Squadron RFC;;;;;;Old mission",
             "15;06;1917;14;30;A;B;Patrol;SE.5a;X;45;Y;Z;No. 56 Squadron RFC;;;;;;Latest mission",
         ])
-        tmp_dir = tempfile.mkdtemp()
         path = os.path.join(tmp_dir, "Pilot1Log.txt")
         dossier_path = os.path.join(tmp_dir, "Pilot1Dossier.txt")
         try:

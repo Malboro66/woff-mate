@@ -24,8 +24,12 @@ from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Optional, List, Any, Dict, NoReturn, Tuple
+from typing import Optional, List, Any, Dict, NoReturn, Sequence, Tuple
 
+from .campaign_namespace import (
+    LEGACY_CAMPAIGN_NAMESPACE,
+    is_campaign_namespace,
+)
 from .identity import PilotIdentityError, PilotIdentityEvidence, pilot_slot
 from .models import WoFFPilot, WoFFMission, WoFFVictory, WoFFDecoration, WoFFWingman
 from .repositories import PilotRepository, MissionRepository, RpgRepository, WingmanRepository
@@ -101,12 +105,12 @@ ALLOWED_MIGRATIONS: Dict[str, Dict[str, str]] = {
     }
 }
 
-# Canonical schema 3.2 contract. SQLite integrity checks cannot detect missing
+# Canonical schema 3.3 contract. SQLite integrity checks cannot detect missing
 # application columns or constraints, so certification verifies these explicitly.
 SCHEMA_TABLES: Dict[str, Dict[str, str]] = {
     "meta": {"key": "TEXT", "value": "TEXT"},
     "pilots": {"id": "TEXT", "name": "TEXT", "fName": "TEXT", "sName": "TEXT", "nation": "TEXT", "rank": "TEXT", "squadron": "TEXT", "aircraft": "TEXT", "aerodrome": "TEXT", "sector": "TEXT", "startDate": "TEXT", "enlisted": "TEXT", "status": "TEXT", "notes": "TEXT", "photo": "TEXT", "birthDate": "TEXT", "birthPlace": "TEXT", "missions": "INTEGER", "flminutes": "INTEGER", "claimsCount": "INTEGER", "killsCount": "INTEGER", "skill": "INTEGER", "reputation": "INTEGER", "source_file": "TEXT", "last_updated": "TEXT"},
-    "pilot_slot_bindings": {"slot": "INTEGER", "pilotId": "TEXT", "dossier_digest": "TEXT", "last_updated": "TEXT"},
+    "pilot_slot_bindings": {"campaign_namespace": "TEXT", "slot": "INTEGER", "pilotId": "TEXT", "dossier_digest": "TEXT", "last_updated": "TEXT"},
     "missions": {"id": "TEXT", "pilotId": "TEXT", "date": "TEXT", "time": "TEXT", "missionType": "TEXT", "aircraft": "TEXT", "duration": "TEXT", "altitude": "TEXT", "sector": "TEXT", "squadron": "TEXT", "weather": "TEXT", "enemyContacts": "INTEGER", "claimsCount": "INTEGER", "result": "TEXT", "damageReceived": "INTEGER", "woundsReceived": "INTEGER", "notes": "TEXT", "source_file": "TEXT"},
     "victories": {"id": "TEXT", "pilotId": "TEXT", "date": "TEXT", "time": "TEXT", "missionId": "TEXT", "enemyType": "TEXT", "victoryType": "TEXT", "location": "TEXT", "confirmed": "INTEGER", "witnesses": "TEXT", "notes": "TEXT", "sector": "TEXT", "aircraft": "TEXT", "source_file": "TEXT"},
     "decorations": {"id": "TEXT", "pilotId": "TEXT", "name": "TEXT", "date": "TEXT", "citation": "TEXT", "source_file": "TEXT"},
@@ -119,17 +123,17 @@ SCHEMA_TABLES: Dict[str, Dict[str, str]] = {
     "wingmen_memory": {"id": "TEXT", "wingmanId": "TEXT", "event_type": "TEXT", "event_date": "TEXT", "description": "TEXT", "impact_morale": "INTEGER", "impact_stress": "INTEGER"},
 }
 
-SCHEMA_PRIMARY_KEYS = {
+SCHEMA_PRIMARY_KEYS: Dict[str, Tuple[str, ...]] = {
     table: (
-        "pilotId"
+        ("pilotId",)
         if table == "pilot_rpg_stats"
-        else "wingmanId"
+        else ("wingmanId",)
         if table == "wingmen_personalities"
-        else "key"
+        else ("key",)
         if table == "meta"
-        else "slot"
+        else ("campaign_namespace", "slot")
         if table == "pilot_slot_bindings"
-        else "id"
+        else ("id",)
     )
     for table in SCHEMA_TABLES
 }
@@ -154,9 +158,25 @@ SCHEMA_FOREIGN_KEYS = {
 
 
 class DatabaseManager:
-    def __init__(self, db_path: str):
+    def __init__(
+        self,
+        db_path: str,
+        *,
+        campaign_namespaces: Optional[Sequence[str]] = None,
+    ):
         self.db_path = Path(db_path)
         self.schema_version = SCHEMA_VERSION
+        self._configured_campaign_namespaces = tuple(campaign_namespaces or ())
+        invalid_namespace = any(
+            not is_campaign_namespace(namespace)
+            for namespace in self._configured_campaign_namespaces
+        )
+        if (
+            invalid_namespace
+            or len(self._configured_campaign_namespaces)
+            != len(set(self._configured_campaign_namespaces))
+        ):
+            raise ValueError("campaign_namespaces must contain unique root identifiers")
         self._lock = threading.RLock()
         self._local = threading.local()
 
@@ -350,10 +370,13 @@ class DatabaseManager:
 
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS pilot_slot_bindings (
-                    slot INTEGER PRIMARY KEY CHECK(slot > 0),
+                    campaign_namespace TEXT NOT NULL
+                        CHECK(length(campaign_namespace) > 0),
+                    slot INTEGER NOT NULL CHECK(slot > 0),
                     pilotId TEXT NOT NULL,
                     dossier_digest TEXT,
                     last_updated TEXT NOT NULL,
+                    PRIMARY KEY(campaign_namespace, slot),
                     FOREIGN KEY(pilotId) REFERENCES pilots(id)
                 )
             """)
@@ -503,7 +526,11 @@ class DatabaseManager:
                     return True
             return self._has_numeric_column_type_migration(
                 cursor
-            ) or self._has_pilot_identity_schema_migration(cursor)
+            ) or self._has_pilot_identity_schema_migration(
+                cursor
+            ) or self._has_campaign_namespace_schema_migration(
+                cursor
+            ) or self._has_legacy_namespace_reconciliation(cursor)
         finally:
             conn.close()
 
@@ -658,6 +685,10 @@ class DatabaseManager:
                 has_meta = cursor.execute(
                     "SELECT 1 FROM sqlite_master WHERE type='table' AND name='meta'"
                 ).fetchone()
+                binding_existed_before = cursor.execute(
+                    "SELECT 1 FROM sqlite_master "
+                    "WHERE type='table' AND name='pilot_slot_bindings'"
+                ).fetchone() is not None
                 stored_version = (
                     cursor.execute(
                         "SELECT value FROM meta WHERE key='schema_version'"
@@ -692,6 +723,11 @@ class DatabaseManager:
                     pending_migration
                     or self._has_pilot_identity_schema_migration(cursor)
                 )
+                pending_migration = (
+                    pending_migration
+                    or self._has_campaign_namespace_schema_migration(cursor)
+                    or self._has_legacy_namespace_reconciliation(cursor)
+                )
                 if pending_migration and self._migration_backup_path is None:
                     self._migration_backup_path = self._backup_existing_database()
 
@@ -709,12 +745,15 @@ class DatabaseManager:
 
                 self._migrate_numeric_column_types(cursor)
                 self._migrate_pilot_identity_schema(cursor)
+                self._migrate_campaign_namespace_schema(cursor)
 
                 # Initialization is part of this same transaction: a failure in
                 # any CREATE rolls back migrations and leaves old metadata intact.
                 self._local.conn = conn
                 self._init_db()
-                self._seed_unambiguous_slot_bindings(cursor)
+                if not binding_existed_before:
+                    self._seed_unambiguous_slot_bindings(cursor)
+                self._reconcile_legacy_campaign_namespace(cursor)
 
                 if table_columns("diary_entries"):
                     cursor.execute("""
@@ -771,7 +810,7 @@ class DatabaseManager:
             primary_key = tuple(
                 row[1] for row in sorted(info, key=lambda item: item[5]) if row[5]
             )
-            expected_pk = (SCHEMA_PRIMARY_KEYS[table],)
+            expected_pk = SCHEMA_PRIMARY_KEYS[table]
             if primary_key != expected_pk:
                 errors.append(
                     f"wrong primary key {table}: {primary_key}, expected {expected_pk}"
@@ -808,6 +847,11 @@ class DatabaseManager:
                     errors.append(f"missing UNIQUE {table}{unique}")
             if table == "pilots" and ("name",) in all_unique_columns:
                 errors.append("forbidden UNIQUE pilots('name',)")
+            if (
+                table == "pilot_slot_bindings"
+                and ("slot",) in all_unique_columns
+            ):
+                errors.append("forbidden global UNIQUE pilot_slot_bindings('slot',)")
 
             foreign_keys = {
                 (str(row[3]), str(row[2]), str(row[4]))
@@ -841,7 +885,12 @@ class DatabaseManager:
                 "PRAGMA table_info(pilot_slot_bindings)"
             ).fetchall()
         }
-        for required_not_null in ("pilotId", "last_updated"):
+        for required_not_null in (
+            "campaign_namespace",
+            "slot",
+            "pilotId",
+            "last_updated",
+        ):
             if required_not_null in binding_info and not binding_info[required_not_null][3]:
                 errors.append(
                     f"missing NOT NULL pilot_slot_bindings.{required_not_null}"
@@ -861,6 +910,26 @@ class DatabaseManager:
             flags=re.IGNORECASE,
         ) is None:
             errors.append("missing positive slot check pilot_slot_bindings.slot")
+        if re.search(
+            r"CHECK\s*\(\s*length\s*\(\s*[\"`\[]?campaign_namespace"
+            r"[\"`\]]?\s*\)\s*>\s*0\s*\)",
+            binding_sql,
+            flags=re.IGNORECASE,
+        ) is None:
+            errors.append(
+                "missing nonblank namespace check "
+                "pilot_slot_bindings.campaign_namespace"
+            )
+        invalid_namespaces = [
+            str(row[0])
+            for row in cursor.execute(
+                "SELECT DISTINCT campaign_namespace "
+                "FROM pilot_slot_bindings"
+            ).fetchall()
+            if not is_campaign_namespace(row[0], allow_legacy=True)
+        ]
+        if invalid_namespaces:
+            errors.append("unsupported pilot-slot campaign namespace value")
 
         diary_indexes = cursor.execute("PRAGMA index_list(diary_entries)").fetchall()
         diary_index = next(
@@ -1018,6 +1087,195 @@ class DatabaseManager:
         ).fetchone()
         return index is None
 
+    def _has_campaign_namespace_schema_migration(
+        self, cursor: sqlite3.Cursor
+    ) -> bool:
+        binding = cursor.execute(
+            "SELECT 1 FROM sqlite_master "
+            "WHERE type='table' AND name='pilot_slot_bindings'"
+        ).fetchone()
+        if binding is None:
+            return False
+        info = cursor.execute(
+            "PRAGMA table_info(pilot_slot_bindings)"
+        ).fetchall()
+        columns = {str(row[1]) for row in info}
+        primary_key = tuple(
+            str(row[1]) for row in sorted(info, key=lambda item: item[5]) if row[5]
+        )
+        return (
+            "campaign_namespace" not in columns
+            or primary_key != ("campaign_namespace", "slot")
+        )
+
+    def _has_legacy_namespace_reconciliation(
+        self, cursor: sqlite3.Cursor
+    ) -> bool:
+        if not self._configured_campaign_namespaces:
+            return False
+        columns = {
+            str(row[1])
+            for row in cursor.execute(
+                "PRAGMA table_info(pilot_slot_bindings)"
+            ).fetchall()
+        }
+        if "campaign_namespace" not in columns:
+            return False
+        return cursor.execute(
+            "SELECT 1 FROM pilot_slot_bindings "
+            "WHERE campaign_namespace=? LIMIT 1",
+            (LEGACY_CAMPAIGN_NAMESPACE,),
+        ).fetchone() is not None
+
+    @staticmethod
+    def _create_namespaced_binding_table(
+        cursor: sqlite3.Cursor, table_name: str
+    ) -> None:
+        quoted = DatabaseManager._quote_identifier(table_name)
+        cursor.execute(
+            f"""
+            CREATE TABLE {quoted} (
+                campaign_namespace TEXT NOT NULL
+                    CHECK(length(campaign_namespace) > 0),
+                slot INTEGER NOT NULL CHECK(slot > 0),
+                pilotId TEXT NOT NULL,
+                dossier_digest TEXT,
+                last_updated TEXT NOT NULL,
+                PRIMARY KEY(campaign_namespace, slot),
+                FOREIGN KEY(pilotId) REFERENCES pilots(id)
+            )
+            """
+        )
+
+    def _legacy_campaign_namespace(self, *, has_bindings: bool) -> str:
+        if has_bindings and len(self._configured_campaign_namespaces) > 1:
+            raise SchemaCompatibilityError(
+                "Legacy pilot-slot bindings cannot be assigned across multiple "
+                "campaign namespaces"
+            )
+        if len(self._configured_campaign_namespaces) == 1:
+            return self._configured_campaign_namespaces[0]
+        return LEGACY_CAMPAIGN_NAMESPACE
+
+    def _migrate_campaign_namespace_schema(
+        self, cursor: sqlite3.Cursor
+    ) -> None:
+        """Replace the global slot key with ``(campaign_namespace, slot)``."""
+
+        if not self._has_campaign_namespace_schema_migration(cursor):
+            return
+        info = cursor.execute(
+            "PRAGMA table_info(pilot_slot_bindings)"
+        ).fetchall()
+        columns = {str(row[1]) for row in info}
+        required = {"slot", "pilotId", "dossier_digest", "last_updated"}
+        if not required.issubset(columns):
+            raise SchemaCompatibilityError(
+                "Cannot migrate an incomplete pilot-slot binding table"
+            )
+        count = int(
+            cursor.execute(
+                "SELECT COUNT(*) FROM pilot_slot_bindings"
+            ).fetchone()[0]
+        )
+        has_namespace = "campaign_namespace" in columns
+        if has_namespace:
+            namespaces = {
+                str(row[0])
+                for row in cursor.execute(
+                    "SELECT DISTINCT campaign_namespace "
+                    "FROM pilot_slot_bindings"
+                ).fetchall()
+            }
+            if any(
+                not is_campaign_namespace(namespace, allow_legacy=True)
+                for namespace in namespaces
+            ):
+                raise SchemaCompatibilityError(
+                    "Pilot-slot bindings contain an unsupported campaign namespace"
+                )
+        target_namespace = self._legacy_campaign_namespace(
+            has_bindings=bool(count) and not has_namespace
+        )
+        dependent_sql = self._dependent_sql_for_table(
+            cursor, "pilot_slot_bindings"
+        )
+        new_table = self._unique_temp_table_name(
+            cursor, "pilot_slot_bindings"
+        )
+        self._create_namespaced_binding_table(cursor, new_table)
+        if has_namespace:
+            cursor.execute(
+                f"""
+                INSERT INTO {self._quote_identifier(new_table)} (
+                    campaign_namespace, slot, pilotId,
+                    dossier_digest, last_updated
+                )
+                SELECT campaign_namespace, slot, pilotId,
+                       dossier_digest, last_updated
+                FROM pilot_slot_bindings
+                """
+            )
+        else:
+            cursor.execute(
+                f"""
+                INSERT INTO {self._quote_identifier(new_table)} (
+                    campaign_namespace, slot, pilotId,
+                    dossier_digest, last_updated
+                )
+                SELECT ?, slot, pilotId, dossier_digest, last_updated
+                FROM pilot_slot_bindings
+                """,
+                (target_namespace,),
+            )
+        cursor.execute("DROP TABLE pilot_slot_bindings")
+        cursor.execute(
+            f"ALTER TABLE {self._quote_identifier(new_table)} "
+            "RENAME TO pilot_slot_bindings"
+        )
+        for sql in dependent_sql:
+            cursor.execute(sql)
+        log.info(
+            "  [Migração] Bindings de slot separados por namespace de campanha."
+        )
+
+    def _reconcile_legacy_campaign_namespace(
+        self, cursor: sqlite3.Cursor
+    ) -> None:
+        """Assign a reserved legacy binding only when one root is configured."""
+
+        if not self._has_legacy_namespace_reconciliation(cursor):
+            return
+        if len(self._configured_campaign_namespaces) != 1:
+            raise SchemaCompatibilityError(
+                "Legacy pilot-slot bindings are ambiguous across configured roots"
+            )
+        target = self._configured_campaign_namespaces[0]
+        conflict = cursor.execute(
+            """
+            SELECT 1
+            FROM pilot_slot_bindings AS legacy
+            JOIN pilot_slot_bindings AS current
+              ON current.slot = legacy.slot
+             AND current.campaign_namespace = ?
+            WHERE legacy.campaign_namespace = ?
+            LIMIT 1
+            """,
+            (target, LEGACY_CAMPAIGN_NAMESPACE),
+        ).fetchone()
+        if conflict is not None:
+            raise SchemaCompatibilityError(
+                "Legacy pilot-slot bindings conflict with the configured namespace"
+            )
+        cursor.execute(
+            "UPDATE pilot_slot_bindings SET campaign_namespace=? "
+            "WHERE campaign_namespace=?",
+            (target, LEGACY_CAMPAIGN_NAMESPACE),
+        )
+        log.info(
+            "  [Migração] Namespace legado associado à única raiz configurada."
+        )
+
     def _migrate_pilot_identity_schema(self, cursor: sqlite3.Cursor) -> None:
         """Remove display-name uniqueness without changing IDs or relationships."""
 
@@ -1130,7 +1388,7 @@ class DatabaseManager:
         )
 
     def _seed_unambiguous_slot_bindings(self, cursor: sqlite3.Cursor) -> None:
-        """Seed only legacy slots that identify exactly one existing career."""
+        """Seed pre-binding databases only when one namespace is knowable."""
 
         groups: Dict[int, set[str]] = {}
         pilot_columns = {
@@ -1147,17 +1405,24 @@ class DatabaseManager:
             slot = pilot_slot(str(source_file))
             if slot is not None:
                 groups.setdefault(slot, set()).add(str(pilot_id))
+        unambiguous = {
+            slot: next(iter(pilot_ids))
+            for slot, pilot_ids in groups.items()
+            if len(pilot_ids) == 1
+        }
+        campaign_namespace = self._legacy_campaign_namespace(
+            has_bindings=bool(groups)
+        )
         last_updated = datetime.now().isoformat()
-        for slot, pilot_ids in groups.items():
-            if len(pilot_ids) != 1:
-                continue
+        for slot, pilot_id in unambiguous.items():
             cursor.execute(
                 """
                 INSERT OR IGNORE INTO pilot_slot_bindings (
-                    slot, pilotId, dossier_digest, last_updated
-                ) VALUES (?, ?, NULL, ?)
+                    campaign_namespace, slot, pilotId,
+                    dossier_digest, last_updated
+                ) VALUES (?, ?, ?, NULL, ?)
                 """,
-                (slot, next(iter(pilot_ids)), last_updated),
+                (campaign_namespace, slot, pilot_id, last_updated),
             )
 
 
@@ -1532,10 +1797,16 @@ class DatabaseManager:
     ) -> Tuple[Optional[str], Optional[str]]:
         return self._pilots.get_pilot_state_by_id(pilot_id)
 
-    def resolve_bound_dossier_id(self, name: str, slot: int) -> Optional[str]:
-        return self._pilots.resolve_bound_dossier_id(name, slot)
+    def resolve_bound_dossier_id(
+        self, name: str, campaign_namespace: str, slot: int
+    ) -> Optional[str]:
+        return self._pilots.resolve_bound_dossier_id(
+            name, campaign_namespace, slot
+        )
 
-    def load_dossier_state(self, name: str, slot: int) -> Optional[DossierState]:
+    def load_dossier_state(
+        self, name: str, campaign_namespace: str, slot: int
+    ) -> Optional[DossierState]:
         """Load pilot, binding, and roster state inside a caller-owned transaction."""
         with self._lock:
             connection = self._get_conn()
@@ -1549,9 +1820,10 @@ class DatabaseManager:
                        binding.dossier_digest
                 FROM pilot_slot_bindings AS binding
                 JOIN pilots AS p ON p.id = binding.pilotId
-                WHERE binding.slot = ? AND p.name = ?
+                WHERE binding.campaign_namespace = ?
+                  AND binding.slot = ? AND p.name = ?
                 """,
-                (slot, name),
+                (campaign_namespace, slot, name),
             ).fetchone()
             if pilot is None:
                 return None
@@ -1632,9 +1904,14 @@ class DatabaseManager:
             )
 
     def resolve_pilot_id(
-        self, name: str, source_file: Optional[str] = None
+        self,
+        name: str,
+        source_file: Optional[str] = None,
+        campaign_namespace: Optional[str] = None,
     ) -> Optional[str]:
-        return self._pilots.resolve_pilot_id(name, source_file)
+        return self._pilots.resolve_pilot_id(
+            name, source_file, campaign_namespace
+        )
 
     def merge_and_write(
         self,
