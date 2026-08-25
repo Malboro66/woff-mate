@@ -75,10 +75,10 @@ The aggregate eval passes only when:
 
 Green CI alone does not pass this aggregate eval.
 
-The remaining operational sequence is corrective #94 work followed by #27. The
-graph encodes only technical dependencies: completed #95 is satisfied, while
-reopened #94 again blocks #27. The sequence does not make independent items
-artificial prerequisites of one another.
+The remaining operational sequence is #27. The graph encodes only technical
+dependencies: corrective #94 and completed #95 have satisfied its blockers.
+The sequence does not make independent items artificial prerequisites of one
+another.
 
 ## Newly registered data-integrity evals
 
@@ -283,17 +283,18 @@ without sanitized longitudinal Dossier samples, an equal slot-and-name Dossier
 is treated as a replay. The `needs-real-fixture` follow-up does not weaken or
 block the verified Issue #70 cases.
 
-### Campaign-root namespace evals
+### Implemented campaign-root namespace evals
 
-- `EVAL-ROOT-BINDING-001` is reopened and planned. Its existing coverage in
+- `EVAL-ROOT-BINDING-001` is enforced by
   `woff/tests/test_campaign_namespace.py`,
   `woff/tests/test_pilot_identity.py`, and
-  `woff/tests/test_handler_integration.py` proves that equivalent Windows
+  `woff/tests/test_handler_integration.py`. Equivalent Windows
   spellings map to one privacy-preserving root namespace, distinct roots retain
   independent `(campaign_namespace, slot)` bindings, and Log, Claims, and Squads
-  input is routed only to the career in its own root. Corrective coverage must
-  additionally prove that Root B cannot reuse an unbound same-name career retired
-  by Root A.
+  input is routed only to the career in its own root. The corrective regression
+  also proves that Root B retains its incoming stable career ID when Root A has
+  retired an unbound same-name career in the same slot; subsequent dependent
+  input updates only Root B.
   `PilotIdentityEvidence.binding_key` exposes the composite identity for #27's
   future deferred-work key; this issue does not implement the deferred queue itself.
 - `EVAL-ROOT-BINDING-002` is enforced by
@@ -301,6 +302,9 @@ block the verified Issue #70 cases.
   under verified backup and transaction protection, preserve every covered
   relationship, pass integrity and foreign-key checks, reopen successfully,
   restore after injected failure, and reject ambiguous multi-root ownership.
+  Schema 3.1 recovery reuses a legacy career only through the unambiguous binding
+  seeded during migration; runtime Dossier processing never claims an unbound
+  retired career by global name and slot.
 
 ### Implemented pilot status provenance evals
 

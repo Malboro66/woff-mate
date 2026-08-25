@@ -97,6 +97,13 @@ that slot. Ambiguous slots remain unbound. Every migrated binding starts with a
 NULL digest and therefore rejects `Log`, `Claims`, and `Squads` writes until a
 stable `Pilot{N}Dossier.txt` snapshot refreshes it.
 
+Legacy career recovery is confined to those migration-seeded bindings. During
+normal Dossier processing, an unbound `(campaign_namespace, slot)` always keeps
+the incoming career ID; it never searches globally by display name and slot.
+This prevents an unbound career retired in one campaign namespace from being
+claimed by another namespace while preserving IDs and relationships whenever
+migration established unambiguous ownership.
+
 A Dossier whose display name changes in an already bound slot creates a new
 career and rotates only the current binding. The prior pilot row, relationships,
 RPG state, and diary remain attached to the prior ID. A matching-name Dossier in

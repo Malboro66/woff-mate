@@ -7,6 +7,8 @@ from ..campaign_namespace import (
     campaign_namespace_for_root,
 )
 from ..database import DatabaseManager, SchemaCompatibilityError
+from ..identity import PilotIdentityEvidence, PilotIdentityKind
+from ..models import WoFFPilot
 from ..version import SCHEMA_VERSION
 
 
@@ -189,6 +191,22 @@ def test_schema_31_migration_preserves_ids_relationships_and_reopens(tmp_path):
     manager = DatabaseManager(
         str(path), campaign_namespaces=[campaign_namespace]
     )
+    assert manager.merge_and_write(
+        WoFFPilot(
+            id="parser-generated-id",
+            name="Alice",
+            source_file="Pilot1Dossier.txt",
+        ),
+        [],
+        [],
+        [],
+        identity=PilotIdentityEvidence(
+            PilotIdentityKind.DOSSIER,
+            1,
+            "a" * 64,
+            campaign_namespace,
+        ),
+    ) == "career-a"
     manager.close()
     reopened = DatabaseManager(
         str(path), campaign_namespaces=[campaign_namespace]
@@ -214,7 +232,7 @@ def test_schema_31_migration_preserves_ids_relationships_and_reopens(tmp_path):
         assert conn.execute(
             "SELECT campaign_namespace, slot, pilotId, dossier_digest "
             "FROM pilot_slot_bindings"
-        ).fetchall() == [(campaign_namespace, 1, "career-a", None)]
+        ).fetchall() == [(campaign_namespace, 1, "career-a", "a" * 64)]
 
 
 def test_schema_32_single_root_migration_preserves_relationships_and_reopens(

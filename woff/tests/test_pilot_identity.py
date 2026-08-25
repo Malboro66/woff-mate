@@ -193,6 +193,89 @@ def test_same_slot_in_distinct_roots_keeps_independent_bindings(db):
     )
 
 
+def test_retired_career_is_never_reused_across_campaign_namespaces(db):
+    root_a = campaign_namespace_for_root(r"C:\Campaigns\RootA")
+    root_b = campaign_namespace_for_root(r"D:\Campaigns\RootB")
+
+    assert db.merge_and_write(
+        WoFFPilot(
+            id="root-a-alice",
+            name="Alice",
+            squadron="Root A History",
+            source_file="Pilot1Dossier.txt",
+        ),
+        [
+            WoFFMission(
+                id="root-a-history",
+                pilotId="root-a-alice",
+                date="1917-04-01",
+                time="08:00",
+            )
+        ],
+        [],
+        [],
+        identity=dossier_evidence(1, "root-a-alice", root_a),
+    ) == "root-a-alice"
+    assert db.merge_and_write(
+        WoFFPilot(
+            id="root-a-bob",
+            name="Bob",
+            squadron="Root A Current",
+            source_file="Pilot1Dossier.txt",
+        ),
+        [],
+        [],
+        [],
+        identity=dossier_evidence(1, "root-a-bob", root_a),
+    ) == "root-a-bob"
+    assert db.merge_and_write(
+        WoFFPilot(
+            id="root-b-alice",
+            name="Alice",
+            squadron="Root B Current",
+            source_file="Pilot1Dossier.txt",
+        ),
+        [],
+        [],
+        [],
+        identity=dossier_evidence(1, "root-b-alice", root_b),
+    ) == "root-b-alice"
+
+    assert db.merge_and_write(
+        WoFFPilot(
+            name="Pilot 1",
+            squadron="Root B Updated",
+            source_file="Pilot1Log.txt",
+        ),
+        [],
+        [],
+        [],
+        identity=dependent_evidence(1, "root-b-alice", root_b),
+    ) == "root-b-alice"
+    assert _rows(
+        db,
+        "SELECT id, name, squadron FROM pilots ORDER BY id",
+    ) == [
+        ("root-a-alice", "Alice", "Root A History"),
+        ("root-a-bob", "Bob", "Root A Current"),
+        ("root-b-alice", "Alice", "Root B Updated"),
+    ]
+    assert _rows(db, "SELECT id, pilotId FROM missions") == [
+        ("root-a-history", "root-a-alice")
+    ]
+    assert _rows(
+        db,
+        "SELECT campaign_namespace, slot, pilotId "
+        "FROM pilot_slot_bindings ORDER BY pilotId",
+    ) == sorted(
+        [
+            (root_a, 1, "root-a-bob"),
+            (root_b, 1, "root-b-alice"),
+        ],
+        key=lambda row: row[2],
+    )
+
+
 def test_dossier_name_change_rotates_binding_without_mutating_old_career(db):
     old = WoFFPilot(
         id="career-a",

@@ -100,32 +100,10 @@ class PilotRepository(BaseRepository):
             pilot_id = pilot.id
             self._insert_pilot(pilot, identity.kind)
         else:
-            candidates = [
-                str(row[0])
-                for row in cursor.execute(
-                    """
-                    SELECT p.id, p.source_file
-                    FROM pilots AS p
-                    WHERE p.name=?
-                      AND NOT EXISTS (
-                          SELECT 1 FROM pilot_slot_bindings AS binding
-                          WHERE binding.pilotId=p.id
-                      )
-                    """,
-                    (pilot.name,),
-                ).fetchall()
-                if pilot_slot(str(row[1] or "")) == slot
-            ]
-            if len(candidates) > 1:
-                raise PilotIdentityAmbiguous("ambiguous-legacy-slot", slot)
-            if candidates:
-                pilot_id = candidates[0]
-                self._update_pilot(
-                    pilot_id, pilot, identity.kind, preserve_name=False
-                )
-            else:
-                pilot_id = pilot.id
-                self._insert_pilot(pilot, identity.kind)
+            # Legacy ownership is established only by migration-seeded bindings.
+            # An unbound runtime namespace/slot always starts a new career.
+            pilot_id = pilot.id
+            self._insert_pilot(pilot, identity.kind)
 
         cursor.execute(
             """
