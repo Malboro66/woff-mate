@@ -627,9 +627,10 @@ class MissionRepository(BaseRepository):
         victories: List[WoFFVictory],
         mission_id_remap: Dict[str, str],
         rejected_mission_ids: set[str],
+        changed_mission_ids: set[str],
     ) -> RecordMergeCounts:
         inserted = updated = unchanged = unresolved = 0
-        associated_missions: set[str] = set()
+        associated_missions = set(changed_mission_ids)
         for victory in victories:
             victory.pilotId = pilot_id
             if victory.missionId and victory.missionId in rejected_mission_ids:
@@ -884,6 +885,7 @@ class MissionRepository(BaseRepository):
         identity_index: Optional[Dict[MissionIdentityKey, str]] = None
         mission_id_remap: Dict[str, str] = {}
         rejected_mission_ids: set[str] = set()
+        changed_mission_ids: set[str] = set()
         inserted_m = 0
         updated_m = 0
         unchanged_m = 0
@@ -918,6 +920,7 @@ class MissionRepository(BaseRepository):
                     mission_id_remap[m.id] = stored_mission_id
                 if _merge_existing_mission(cursor, stored_mission_id, m):
                     updated_m += 1
+                    changed_mission_ids.add(stored_mission_id)
                 else:
                     unchanged_m += 1
                 continue
@@ -945,6 +948,7 @@ class MissionRepository(BaseRepository):
             ))
             inserted_m += 1
             identity_index[identity] = m.id
+            changed_mission_ids.add(str(m.id))
 
         victory_counts = self._merge_victory_records(
             cursor,
@@ -952,6 +956,7 @@ class MissionRepository(BaseRepository):
             victories,
             mission_id_remap,
             rejected_mission_ids,
+            changed_mission_ids,
         )
         decoration_counts = self._merge_decoration_records(
             cursor, pilot_id, decorations

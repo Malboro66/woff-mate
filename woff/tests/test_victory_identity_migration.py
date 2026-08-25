@@ -168,6 +168,26 @@ def test_schema_34_migrates_victory_identity_without_row_or_relationship_loss(
         "SELECT 1 FROM sqlite_master WHERE type='index' "
         "AND name='idx_victory_source_records_victory'"
     ).fetchone() == (1,)
+    victory_indexes = {
+        str(row[1]): row
+        for row in connection.execute("PRAGMA index_list(victories)").fetchall()
+    }
+    pilot_index = victory_indexes["idx_victories_pilot"]
+    assert not pilot_index[2] and not pilot_index[4]
+    assert tuple(
+        str(row[2])
+        for row in connection.execute(
+            "PRAGMA index_info(idx_victories_pilot)"
+        ).fetchall()
+    ) == ("pilotId",)
+    assert any(
+        "USING INDEX idx_victories_pilot" in str(row[3])
+        for row in connection.execute(
+            "EXPLAIN QUERY PLAN SELECT id, date, time "
+            "FROM victories WHERE pilotId=?",
+            ("pilot-a",),
+        ).fetchall()
+    )
     assert connection.execute("PRAGMA foreign_key_check").fetchall() == []
     assert connection.execute("PRAGMA integrity_check").fetchone() == ("ok",)
 
@@ -201,6 +221,31 @@ def test_schema_34_migrates_victory_identity_without_row_or_relationship_loss(
             "SELECT value FROM meta WHERE key='schema_version'"
         ).fetchone() == ("3.3",)
         assert _has_legacy_unique(backup_connection)
+
+
+def test_schema_34_repairs_missing_victory_pilot_index_with_backup(tmp_path):
+    path = tmp_path / "missing-pilot-index.sqlite"
+    database = DatabaseManager(str(path))
+    database.close()
+
+    with closing(sqlite3.connect(path)) as connection:
+        connection.execute("DROP INDEX idx_victories_pilot")
+        connection.commit()
+
+    repaired = DatabaseManager(str(path))
+    backup = repaired._migration_backup_path
+    assert backup is not None and backup.exists()
+    assert repaired._get_conn().execute(
+        "SELECT 1 FROM sqlite_master WHERE type='index' "
+        "AND name='idx_victories_pilot'"
+    ).fetchone() == (1,)
+    repaired.close()
+
+    with closing(sqlite3.connect(backup)) as backup_connection:
+        assert backup_connection.execute(
+            "SELECT 1 FROM sqlite_master WHERE type='index' "
+            "AND name='idx_victories_pilot'"
+        ).fetchone() is None
 
 
 def test_victory_identity_migration_failure_restores_verified_backup(

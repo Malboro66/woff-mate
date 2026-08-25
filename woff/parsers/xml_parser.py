@@ -295,18 +295,30 @@ class WoFFXMLParser:
         """Procura e extrai todas as vitórias/claims."""
         if not self.pilot:
             return
+        accepted_tags = {
+            "Victory",
+            "Kill",
+            "Claim",
+            "VictoryClaim",
+            "AerialVictory",
+            "Abschuss",
+        }
         source_position = 0
-        for tag in ("Victory","Kill","Claim","VictoryClaim","AerialVictory","Abschuss"):
-            for elem in root.findall(f".//{tag}"):
-                source_position += 1
-                v = self._parse_victory_elem(elem)
-                if v:
-                    v.pilotId = self.pilot.id
-                    v.source_file = os.path.basename(source_name)
-                    v.source_record_key = stable_source_record_key(
-                        "victory", source_name, source_position
-                    )
-                    self.victories.append(v)
+        for elem in root.iter():
+            if not isinstance(elem.tag, str):
+                continue
+            local_tag = elem.tag.rsplit("}", 1)[-1].split(":")[-1]
+            if local_tag not in accepted_tags:
+                continue
+            source_position += 1
+            v = self._parse_victory_elem(elem)
+            if v:
+                v.pilotId = self.pilot.id
+                v.source_file = os.path.basename(source_name)
+                v.source_record_key = stable_source_record_key(
+                    "victory", source_name, source_position
+                )
+                self.victories.append(v)
 
     def _parse_victory_elem(self, elem: ET.Element) -> Optional[WoFFVictory]:
         """Extrai os dados de uma vitória individual."""

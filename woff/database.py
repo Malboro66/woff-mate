@@ -436,6 +436,10 @@ class DatabaseManager:
                     FOREIGN KEY(pilotId) REFERENCES pilots(id)
                 )
             """)
+            cursor.execute("""
+                CREATE INDEX IF NOT EXISTS idx_victories_pilot
+                ON victories(pilotId)
+            """)
 
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS victory_source_records (
@@ -918,6 +922,33 @@ class DatabaseManager:
             if name_index_columns != ("name",):
                 errors.append("wrong key semantics for index idx_pilots_name")
 
+        victory_indexes = cursor.execute(
+            "PRAGMA index_list(victories)"
+        ).fetchall()
+        victory_pilot_index = next(
+            (row for row in victory_indexes if row[1] == "idx_victories_pilot"),
+            None,
+        )
+        if (
+            victory_pilot_index is None
+            or victory_pilot_index[2]
+            or victory_pilot_index[4]
+        ):
+            errors.append(
+                "missing canonical non-unique index idx_victories_pilot"
+            )
+        else:
+            victory_pilot_columns = tuple(
+                str(row[2])
+                for row in cursor.execute(
+                    "PRAGMA index_info(idx_victories_pilot)"
+                ).fetchall()
+            )
+            if victory_pilot_columns != ("pilotId",):
+                errors.append(
+                    "wrong key semantics for index idx_victories_pilot"
+                )
+
         binding_info = {
             str(row[1]): row
             for row in cursor.execute(
@@ -1246,7 +1277,13 @@ class DatabaseManager:
             "WHERE type='index' "
             "AND name='idx_victory_source_records_victory'"
         ).fetchone()
-        return alias_index is None
+        if alias_index is None:
+            return True
+        pilot_index = cursor.execute(
+            "SELECT 1 FROM sqlite_master "
+            "WHERE type='index' AND name='idx_victories_pilot'"
+        ).fetchone()
+        return pilot_index is None
 
     @staticmethod
     def _create_victory_source_records_table(
@@ -1361,6 +1398,10 @@ class DatabaseManager:
             log.info(
                 "  [Migração] Identidades de origem para vitórias habilitadas."
             )
+        cursor.execute(
+            "CREATE INDEX IF NOT EXISTS idx_victories_pilot "
+            "ON victories(pilotId)"
+        )
 
     def _rewrite_victory_identity_table_sql(
         self, sql: str, new_table: str

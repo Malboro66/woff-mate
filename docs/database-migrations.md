@@ -30,6 +30,12 @@ source may become aliases of that row only when the match is unambiguous;
 ambiguous records are left unchanged and reported as unresolved instead of
 being guessed or silently discarded.
 
+The canonical non-unique `idx_victories_pilot` index keeps first-import and
+cross-source candidate lookups bounded to one pilot after the legacy composite
+index is removed. New databases create it directly; migration detects and
+repairs its absence after taking a backup, and schema certification verifies
+its non-unique `pilotId` key semantics.
+
 Existing victory IDs, pilot ownership, mission associations, and every victory
 column are copied unchanged during the table rebuild. Existing rows begin with
 no fabricated source alias. Their first deterministic replay may attach a

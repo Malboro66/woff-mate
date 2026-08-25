@@ -146,6 +146,61 @@ def test_xml_source_positions_are_distinct_stable_and_privacy_safe():
     }
 
 
+def test_xml_mixed_victory_tags_preserve_document_order_and_existing_alias(
+    tmp_path,
+):
+    initial_xml = b"""<Campaign>
+      <Pilot><PilotName>Synthetic Pilot</PilotName></Pilot>
+      <Victories>
+        <Claim><Date>1917-04-06</Date><EnemyType>Albatros A</EnemyType></Claim>
+      </Victories>
+    </Campaign>"""
+    expanded_xml = b"""<Campaign>
+      <Pilot><PilotName>Synthetic Pilot</PilotName></Pilot>
+      <Victories>
+        <Claim><Date>1917-04-06</Date><EnemyType>Albatros A</EnemyType></Claim>
+        <Victory><Date>1917-04-07</Date><EnemyType>Albatros B</EnemyType></Victory>
+      </Victories>
+    </Campaign>"""
+    initial = WoFFXMLParser()
+    expanded = WoFFXMLParser()
+
+    assert initial.parse_bytes(initial_xml, "SyntheticCareer.xml")
+    assert expanded.parse_bytes(expanded_xml, "SyntheticCareer.xml")
+    assert [victory.enemyType for victory in expanded.victories] == [
+        "Albatros A",
+        "Albatros B",
+    ]
+    assert (
+        expanded.victories[0].source_record_key
+        == initial.victories[0].source_record_key
+    )
+
+    database = DatabaseManager(str(tmp_path / "xml-document-order.sqlite"))
+    try:
+        pilot = _persist_pilot(database)
+        stable_id = initial.victories[0].id
+        for victory in initial.victories:
+            victory.pilotId = pilot.id
+        assert database.merge_and_write(
+            None, [], initial.victories, []
+        ) == pilot.id
+
+        for victory in expanded.victories:
+            victory.pilotId = pilot.id
+        assert database.merge_and_write(
+            None, [], expanded.victories, []
+        ) == pilot.id
+        rows = database._get_conn().execute(
+            "SELECT id, enemyType FROM victories ORDER BY date"
+        ).fetchall()
+        assert len(rows) == 2
+        assert rows[0] == (stable_id, "Albatros A")
+        assert rows[1][1] == "Albatros B"
+    finally:
+        database.close()
+
+
 def test_richer_victory_preserves_id_and_stable_mission_relationship(
     tmp_path,
     caplog,
@@ -278,6 +333,67 @@ def test_claim_count_policy_associates_only_unambiguous_positive_claim_mission(
             """,
             (mission.id,),
         ).fetchall() == [("mission-stable", 2, 2)]
+    finally:
+        database.close()
+
+
+def test_mission_only_claim_count_update_logs_mismatch(tmp_path, caplog):
+    database = DatabaseManager(str(tmp_path / "mission-only-claims.sqlite"))
+    try:
+        pilot = _persist_pilot(database)
+        mission = WoFFMission(
+            id="mission-stable",
+            pilotId=pilot.id,
+            date="1917-04-06",
+            time="10:00",
+            missionType="Patrol",
+            aircraft="SE.5a",
+            claimsCount=1,
+            source_file="mission.log",
+        )
+        victory = WoFFVictory(
+            id="victory-stable",
+            pilotId=pilot.id,
+            date="1917-04-06",
+            time="10:35",
+            missionId=mission.id,
+            enemyType="Albatros D.III",
+            source_file="Pilot1Claims.txt",
+            source_record_key=stable_source_record_key(
+                "victory", "Pilot1Claims.txt", 2
+            ),
+        )
+        assert database.merge_and_write(
+            None, [mission], [victory], []
+        ) == pilot.id
+
+        refreshed = WoFFMission(
+            id=mission.id,
+            pilotId=pilot.id,
+            date=mission.date,
+            time=mission.time,
+            missionType=mission.missionType,
+            aircraft=mission.aircraft,
+            claimsCount=2,
+            source_file="mission.log",
+        )
+        caplog.set_level("WARNING", logger="WoFFWatch")
+        caplog.clear()
+        assert database.merge_and_write(None, [refreshed], [], []) == pilot.id
+        assert database._get_conn().execute(
+            """
+            SELECT missions.claimsCount, COUNT(victories.id)
+            FROM missions
+            LEFT JOIN victories ON victories.missionId=missions.id
+            WHERE missions.id=?
+            GROUP BY missions.id, missions.claimsCount
+            """,
+            (mission.id,),
+        ).fetchone() == (2, 1)
+        assert (
+            "Victory claim consistency: category=count-mismatch "
+            "claims=2 associated=1"
+        ) in caplog.messages
     finally:
         database.close()
 
