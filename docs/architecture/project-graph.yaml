@@ -854,7 +854,7 @@ work_items:
     module: persistence
     state: done
     evals: [EVAL-ROOT-BINDING-001, EVAL-ROOT-BINDING-002]
-    gates: [Q0, Q1, Q2, Q3, Q6-CYCLE-3.3.0]
+    gates: [Q0, Q1, Q2, Q3, Q4, Q6-CYCLE-3.3.0]
     depends_on: []
   issue-95:
     title: Retry transient SQLite write failures without dropping file generations
