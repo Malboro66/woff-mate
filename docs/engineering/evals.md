@@ -75,9 +75,9 @@ The aggregate eval passes only when:
 
 Green CI alone does not pass this aggregate eval.
 
-The remaining operational sequence is #94, #95, #73, and #27. The graph
-encodes only technical dependencies: #94 and #95 block #27. The sequence does
-not make independent items artificial prerequisites of one another.
+The remaining operational sequence is #95, #73, and #27. The graph encodes only
+technical dependencies: completed #94 and pending #95 block #27. The sequence
+does not make independent items artificial prerequisites of one another.
 
 ## Newly registered data-integrity evals
 
@@ -242,6 +242,23 @@ Same-name replacement in the same pilot slot remains an explicit evidence gap:
 without sanitized longitudinal Dossier samples, an equal slot-and-name Dossier
 is treated as a replay. The `needs-real-fixture` follow-up does not weaken or
 block the verified Issue #70 cases.
+
+### Implemented campaign-root namespace evals
+
+- `EVAL-ROOT-BINDING-001` is enforced by
+  `woff/tests/test_campaign_namespace.py`,
+  `woff/tests/test_pilot_identity.py`, and
+  `woff/tests/test_handler_integration.py`. Equivalent Windows spellings map to
+  one privacy-preserving root namespace, distinct roots retain independent
+  `(campaign_namespace, slot)` bindings, and Log, Claims, and Squads input is
+  routed only to the career in its own root. `PilotIdentityEvidence.binding_key`
+  exposes that same composite identity for #27's future deferred-work key; this
+  issue does not implement the deferred queue itself.
+- `EVAL-ROOT-BINDING-002` is enforced by
+  `woff/tests/test_pilot_identity_migration.py`. Schema 3.2 bindings migrate
+  under verified backup and transaction protection, preserve every covered
+  relationship, pass integrity and foreign-key checks, reopen successfully,
+  restore after injected failure, and reject ambiguous multi-root ownership.
 
 ### Implemented pilot status provenance evals
 

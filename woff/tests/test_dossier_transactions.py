@@ -5,6 +5,7 @@ from unittest.mock import patch
 
 import pytest
 
+from ..campaign_namespace import campaign_namespace_for_root
 from ..campaign_engine import CampaignEngine
 from ..database import DatabaseManager
 from ..handler import FileProcessor
@@ -301,7 +302,10 @@ def test_diary_exception_propagates_without_leaving_partial_state(
     assert parser.parse_bytes(changed, "Pilot1Dossier.txt")
     assert parser.pilot is not None
     identity = PilotIdentityEvidence(
-        PilotIdentityKind.DOSSIER, 1, sha256(changed).hexdigest()
+        PilotIdentityKind.DOSSIER,
+        1,
+        sha256(changed).hexdigest(),
+        campaign_namespace_for_root(str(dossier_path.parent)),
     )
     save_diary_entry = database.save_diary_entry
     calls = 0

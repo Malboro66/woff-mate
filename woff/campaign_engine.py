@@ -176,7 +176,11 @@ class CampaignEngine:
         identity: PilotIdentityEvidence,
     ) -> Optional[str]:
         """Persist one Dossier generation and all derived diary effects atomically."""
-        if identity.kind is not PilotIdentityKind.DOSSIER or identity.slot is None:
+        if (
+            identity.kind is not PilotIdentityKind.DOSSIER
+            or identity.slot is None
+            or identity.campaign_namespace is None
+        ):
             raise ValueError("Dossier import requires verified Dossier identity")
 
         effects: List[Tuple[str, str]] = []
@@ -186,7 +190,9 @@ class CampaignEngine:
         try:
             with self.db_manager.transaction():
                 stored = self.db_manager.load_dossier_state(
-                    pilot.name, identity.slot
+                    pilot.name,
+                    identity.campaign_namespace,
+                    identity.slot,
                 )
                 if (
                     stored is not None

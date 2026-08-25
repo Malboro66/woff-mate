@@ -2,6 +2,7 @@ import hashlib
 
 import pytest
 
+from ..campaign_namespace import campaign_namespace_for_root
 from ..database import DatabaseManager
 from ..identity import (
     PilotIdentityAmbiguous,
@@ -22,19 +23,32 @@ def db(tmp_path):
     manager.close()
 
 
-def dossier_evidence(slot: int, marker: str) -> PilotIdentityEvidence:
+DEFAULT_NAMESPACE = campaign_namespace_for_root(r"C:\Synthetic\Default")
+
+
+def dossier_evidence(
+    slot: int,
+    marker: str,
+    campaign_namespace: str = DEFAULT_NAMESPACE,
+) -> PilotIdentityEvidence:
     return PilotIdentityEvidence(
         PilotIdentityKind.DOSSIER,
         slot,
         hashlib.sha256(marker.encode("ascii")).hexdigest(),
+        campaign_namespace,
     )
 
 
-def dependent_evidence(slot: int, marker: str) -> PilotIdentityEvidence:
+def dependent_evidence(
+    slot: int,
+    marker: str,
+    campaign_namespace: str = DEFAULT_NAMESPACE,
+) -> PilotIdentityEvidence:
     return PilotIdentityEvidence(
         PilotIdentityKind.SLOT_DEPENDENT,
         slot,
         hashlib.sha256(marker.encode("ascii")).hexdigest(),
+        campaign_namespace,
     )
 
 
@@ -65,10 +79,20 @@ def test_identity_evidence_requires_complete_dossier_proof():
         PilotIdentityEvidence(PilotIdentityKind.DOSSIER, 0, "a" * 64)
     with pytest.raises(ValueError, match="SHA-256"):
         PilotIdentityEvidence(PilotIdentityKind.SLOT_DEPENDENT, 1, "short")
+    with pytest.raises(ValueError, match="campaign namespace"):
+        PilotIdentityEvidence(PilotIdentityKind.DOSSIER, 1, "a" * 64)
 
 
 def test_dossier_source_name_is_canonical():
     assert dossier_source_name(7) == "Pilot7Dossier.txt"
+
+
+def test_binding_key_includes_campaign_namespace_and_slot():
+    evidence = dossier_evidence(7, "binding-key")
+
+    assert evidence.binding_key == (DEFAULT_NAMESPACE, 7)
+    with pytest.raises(ValueError, match="no binding key"):
+        PilotIdentityEvidence(PilotIdentityKind.UNRESOLVED).binding_key
 
 
 def test_same_name_careers_in_different_slots_keep_distinct_ids(db):
@@ -90,6 +114,83 @@ def test_same_name_careers_in_different_slots_keep_distinct_ids(db):
         ("career-b", "Same Name"),
     ]
     assert db.resolve_pilot_id("Same Name") is None
+
+
+def test_same_slot_in_distinct_roots_keeps_independent_bindings(db):
+    root_a = campaign_namespace_for_root(r"C:\Campaigns\RootA")
+    root_b = campaign_namespace_for_root(r"D:\Campaigns\RootB")
+    first = WoFFPilot(
+        id="career-root-a", name="Same Name", source_file="Pilot1Dossier.txt"
+    )
+    second = WoFFPilot(
+        id="career-root-b", name="Same Name", source_file="Pilot1Dossier.txt"
+    )
+
+    assert db.merge_and_write(
+        first,
+        [],
+        [],
+        [],
+        identity=dossier_evidence(1, "same-digest", root_a),
+    ) == "career-root-a"
+    assert db.merge_and_write(
+        second,
+        [],
+        [],
+        [],
+        identity=dossier_evidence(1, "same-digest", root_b),
+    ) == "career-root-b"
+
+    assert _rows(
+        db,
+        "SELECT campaign_namespace, slot, pilotId "
+        "FROM pilot_slot_bindings ORDER BY pilotId",
+    ) == [
+        (root_a, 1, "career-root-a"),
+        (root_b, 1, "career-root-b"),
+    ]
+
+    assert db.merge_and_write(
+        WoFFPilot(name="Pilot 1", squadron="A Sqn", source_file="Pilot1Log.txt"),
+        [],
+        [],
+        [],
+        identity=dependent_evidence(1, "same-digest", root_a),
+    ) == "career-root-a"
+    assert db.merge_and_write(
+        WoFFPilot(name="Pilot 1", squadron="B Sqn", source_file="Pilot1Log.txt"),
+        [],
+        [],
+        [],
+        identity=dependent_evidence(1, "same-digest", root_b),
+    ) == "career-root-b"
+    assert _rows(db, "SELECT id, squadron FROM pilots ORDER BY id") == [
+        ("career-root-a", "A Sqn"),
+        ("career-root-b", "B Sqn"),
+    ]
+
+    assert db.merge_and_write(
+        WoFFPilot(
+            id="career-root-a-next",
+            name="Alice Next",
+            source_file="Pilot1Dossier.txt",
+        ),
+        [],
+        [],
+        [],
+        identity=dossier_evidence(1, "root-a-next", root_a),
+    ) == "career-root-a-next"
+    assert _rows(
+        db,
+        "SELECT campaign_namespace, pilotId "
+        "FROM pilot_slot_bindings ORDER BY pilotId",
+    ) == sorted(
+        [
+            (root_a, "career-root-a-next"),
+            (root_b, "career-root-b"),
+        ],
+        key=lambda row: row[1],
+    )
 
 
 def test_dossier_name_change_rotates_binding_without_mutating_old_career(db):

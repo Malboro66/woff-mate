@@ -20,9 +20,10 @@ source_files:
 
 modules:
   foundation:
-    responsibility: Package identity and canonical versions.
+    responsibility: Package identity, canonical versions, and stable campaign namespace primitives.
     paths:
       - woff/__init__.py
+      - woff/campaign_namespace.py
       - woff/version.py
     may_depend_on: []
     forbidden_dependencies:
@@ -345,12 +346,17 @@ evals:
     enforced_by: [woff/tests/test_career_selection.py]
   EVAL-ROOT-BINDING-001:
     work_items: [issue-94]
-    status: planned
+    status: implemented
     evidence: Equal pilot slots in distinct watched campaign roots retain independent bindings and route dependent files to the correct career.
+    enforced_by:
+      - woff/tests/test_campaign_namespace.py
+      - woff/tests/test_pilot_identity.py
+      - woff/tests/test_handler_integration.py
   EVAL-ROOT-BINDING-002:
     work_items: [issue-94]
-    status: planned
+    status: implemented
     evidence: Any binding migration preserves existing careers through backup, integrity checks, rollback, and reopen validation.
+    enforced_by: [woff/tests/test_pilot_identity_migration.py]
   EVAL-PERSIST-RETRY-001:
     work_items: [issue-95]
     status: planned
@@ -591,7 +597,7 @@ work_items:
       - {id: issue-57, status: satisfied}
       - {id: issue-70, status: satisfied}
       - {id: issue-71, status: satisfied}
-      - {id: issue-94, status: unsatisfied}
+      - {id: issue-94, status: satisfied}
       - {id: issue-95, status: unsatisfied}
   issue-28:
     title: Validate pilots in every woff_query output format
@@ -846,9 +852,9 @@ work_items:
   issue-94:
     title: Namespace pilot-slot bindings across watched campaign roots
     module: persistence
-    state: backlog
+    state: done
     evals: [EVAL-ROOT-BINDING-001, EVAL-ROOT-BINDING-002]
-    gates: [Q0, Q1, Q2, Q3, Q6-CYCLE-3.3.0]
+    gates: [Q0, Q1, Q2, Q3, Q4, Q6-CYCLE-3.3.0]
     depends_on: []
   issue-95:
     title: Retry transient SQLite write failures without dropping file generations

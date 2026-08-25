@@ -6,6 +6,7 @@ import shutil
 from unittest.mock import patch, MagicMock
 
 
+from ..campaign_namespace import campaign_namespace_for_root
 from ..config import WatchdogConfig
 from ..database import DatabaseManager
 from ..campaign_engine import CampaignEngine
@@ -27,6 +28,95 @@ MOCK_XML_VALID = """<?xml version="1.0" encoding="UTF-8"?>
   </Pilot>
 </Campaign>
 """
+
+
+def test_two_watched_roots_route_every_slot_dependent_to_its_own_career(
+    tmp_path,
+):
+    root_a = tmp_path / "root-a"
+    root_b = tmp_path / "root-b"
+    root_a.mkdir()
+    root_b.mkdir()
+    config = WatchdogConfig(
+        watch_paths=[str(root_a), str(root_b)],
+        export_path=str(tmp_path / "namespaced.sqlite"),
+        stability_timeout_sec=0.1,
+        stability_check_interval_sec=0.001,
+    )
+    database = DatabaseManager(
+        config.export_path,
+        campaign_namespaces=config.campaign_namespaces,
+    )
+    handler = WoFFEventHandler(config, database, CampaignEngine(database))
+    try:
+        dossier_a = root_a / "Pilot1Dossier.txt"
+        dossier_b = root_b / "Pilot1Dossier.txt"
+        dossier_a.write_bytes(
+            _encoded_dossier("Alice", "Able", "Captain", "A Squadron")
+        )
+        dossier_b.write_bytes(
+            _encoded_dossier("Bob", "Baker", "Lieutenant", "B Squadron")
+        )
+        assert handler.processor.process(str(dossier_a), "initial") is not None
+        assert handler.processor.process(str(dossier_b), "initial") is not None
+
+        sources = (
+            (
+                "Pilot1Log.txt",
+                "1\n6;4;1917;10;30;Arras;A Field;OP;SE.5a;;45;100;"
+                "SE.5a;A Squadron;troops;Target;N50;E2;;A mission.\n",
+                "1\n7;4;1917;10;30;Arras;B Field;OP;Camel;;45;100;"
+                "Camel;B Squadron;troops;Target;N50;E2;;B mission.\n",
+            ),
+            (
+                "Pilot1Claims.txt",
+                "1\n8;4;1917;10;35;Arras;A Field;OP;SE.5a;1;"
+                "Albatros D.III;Destroyed Confirmed;Albatros\n",
+                "1\n9;4;1917;10;35;Arras;B Field;OP;Camel;1;"
+                "DFW C.V;Destroyed Confirmed;DFW\n",
+            ),
+            (
+                "Pilot1Squads.txt",
+                "10;4;1917;10;30;Flanders;A Field;A Updated;SE.5a;"
+                "SE.5a;Transferred, rank: Major.;A Updated\n",
+                "11;4;1917;10;30;Flanders;B Field;B Updated;Camel;"
+                "Camel;Transferred, rank: Captain.;B Updated\n",
+            ),
+        )
+        for filename, data_a, data_b in sources:
+            path_a = root_a / filename
+            path_b = root_b / filename
+            path_a.write_text(data_a, encoding="cp1252")
+            path_b.write_text(data_b, encoding="cp1252")
+            assert handler.processor.process(str(path_a), "modified") is not None
+            assert handler.processor.process(str(path_b), "modified") is not None
+
+        connection = database._get_conn()
+        pilot_ids = dict(connection.execute("SELECT name, id FROM pilots"))
+        alice = pilot_ids["Alice Able"]
+        bob = pilot_ids["Bob Baker"]
+        assert connection.execute(
+            "SELECT campaign_namespace, slot, pilotId "
+            "FROM pilot_slot_bindings ORDER BY pilotId"
+        ).fetchall() == sorted(
+            [
+                (campaign_namespace_for_root(str(root_a)), 1, alice),
+                (campaign_namespace_for_root(str(root_b)), 1, bob),
+            ],
+            key=lambda row: row[2],
+        )
+        assert connection.execute(
+            "SELECT pilotId, COUNT(*) FROM missions GROUP BY pilotId ORDER BY pilotId"
+        ).fetchall() == sorted([(alice, 1), (bob, 1)])
+        assert connection.execute(
+            "SELECT pilotId, COUNT(*) FROM victories GROUP BY pilotId ORDER BY pilotId"
+        ).fetchall() == sorted([(alice, 1), (bob, 1)])
+        assert connection.execute(
+            "SELECT id, squadron FROM pilots ORDER BY id"
+        ).fetchall() == sorted([(alice, "A Updated"), (bob, "B Updated")])
+    finally:
+        handler.shutdown()
+        database.close()
 
 
 def _encoded_dossier(first_name: str, last_name: str, rank: str, squadron: str):

@@ -16,7 +16,11 @@ from ..parsers.dossier_parser import WoFFDossierParser
 from ..parsers.pilot_data_parser import WoFFPilotDataParser
 from ..parsers.xml_parser import WoFFXMLParser
 from .test_dossier_parser import _encode_dossier
-from .identity_support import dependent_evidence, dossier_evidence
+from .identity_support import (
+    TEST_CAMPAIGN_NAMESPACE,
+    dependent_evidence,
+    dossier_evidence,
+)
 
 
 STAT_FIELDS = (
@@ -124,7 +128,9 @@ class TestPilotStatisticMerge(unittest.TestCase):
                 identity=dependent_evidence(1, "stats"),
             ),
             self.db.resolve_pilot_id(
-                parser.pilot.name, source_file=parser.pilot.source_file
+                parser.pilot.name,
+                source_file=parser.pilot.source_file,
+                campaign_namespace=TEST_CAMPAIGN_NAMESPACE,
             ),
         )
         return parser

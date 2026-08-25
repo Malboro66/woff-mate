@@ -75,6 +75,9 @@ class PilotRepository(BaseRepository):
         self, pilot: WoFFPilot, identity: PilotIdentityEvidence
     ) -> str:
         slot = self._validated_source_slot(pilot, identity, dossier=True)
+        campaign_namespace = identity.campaign_namespace
+        if campaign_namespace is None:
+            raise PilotIdentityRejected("missing-campaign-namespace", slot)
         if not pilot.name.strip():
             raise PilotIdentityRejected("identityless-dossier", slot)
 
@@ -84,9 +87,9 @@ class PilotRepository(BaseRepository):
             SELECT p.id, p.name
             FROM pilot_slot_bindings AS binding
             JOIN pilots AS p ON p.id = binding.pilotId
-            WHERE binding.slot=?
+            WHERE binding.campaign_namespace=? AND binding.slot=?
             """,
-            (slot,),
+            (campaign_namespace, slot),
         ).fetchone()
         if bound is not None and str(bound[1]) == pilot.name:
             pilot_id = str(bound[0])
@@ -100,7 +103,15 @@ class PilotRepository(BaseRepository):
             candidates = [
                 str(row[0])
                 for row in cursor.execute(
-                    "SELECT id, source_file FROM pilots WHERE name=?",
+                    """
+                    SELECT p.id, p.source_file
+                    FROM pilots AS p
+                    WHERE p.name=?
+                      AND NOT EXISTS (
+                          SELECT 1 FROM pilot_slot_bindings AS binding
+                          WHERE binding.pilotId=p.id
+                      )
+                    """,
                     (pilot.name,),
                 ).fetchall()
                 if pilot_slot(str(row[1] or "")) == slot
@@ -119,14 +130,16 @@ class PilotRepository(BaseRepository):
         cursor.execute(
             """
             INSERT INTO pilot_slot_bindings (
-                slot, pilotId, dossier_digest, last_updated
-            ) VALUES (?, ?, ?, ?)
-            ON CONFLICT(slot) DO UPDATE SET
+                campaign_namespace, slot, pilotId,
+                dossier_digest, last_updated
+            ) VALUES (?, ?, ?, ?, ?)
+            ON CONFLICT(campaign_namespace, slot) DO UPDATE SET
                 pilotId=excluded.pilotId,
                 dossier_digest=excluded.dossier_digest,
                 last_updated=excluded.last_updated
             """,
             (
+                campaign_namespace,
                 slot,
                 pilot_id,
                 identity.dossier_digest,
@@ -140,14 +153,17 @@ class PilotRepository(BaseRepository):
         self, pilot: WoFFPilot, identity: PilotIdentityEvidence
     ) -> str:
         slot = self._validated_source_slot(pilot, identity, dossier=False)
+        campaign_namespace = identity.campaign_namespace
+        if campaign_namespace is None:
+            raise PilotIdentityRejected("missing-campaign-namespace", slot)
         row = self._conn.execute(
             """
             SELECT p.id, binding.dossier_digest
             FROM pilot_slot_bindings AS binding
             JOIN pilots AS p ON p.id = binding.pilotId
-            WHERE binding.slot=?
+            WHERE binding.campaign_namespace=? AND binding.slot=?
             """,
-            (slot,),
+            (campaign_namespace, slot),
         ).fetchone()
         if row is None or row[1] is None:
             raise PilotIdentityUnavailable("missing-dossier-binding", slot)
@@ -323,7 +339,9 @@ class PilotRepository(BaseRepository):
                 log.exception("Erro ao buscar estado do piloto por ID")
                 return None, None
 
-    def resolve_bound_dossier_id(self, name: str, slot: int) -> Optional[str]:
+    def resolve_bound_dossier_id(
+        self, name: str, campaign_namespace: str, slot: int
+    ) -> Optional[str]:
         """Resolve a Dossier only when the current slot binding has that name."""
         with self._lock:
             row = self._fetch_one(
@@ -331,25 +349,30 @@ class PilotRepository(BaseRepository):
                 SELECT p.id
                 FROM pilot_slot_bindings AS binding
                 JOIN pilots AS p ON p.id = binding.pilotId
-                WHERE binding.slot=? AND p.name=?
+                WHERE binding.campaign_namespace=?
+                  AND binding.slot=? AND p.name=?
                 """,
-                (slot, name),
+                (campaign_namespace, slot, name),
             )
             return str(row[0]) if row else None
 
     def resolve_pilot_id(
-        self, name: str, source_file: Optional[str] = None
+        self,
+        name: str,
+        source_file: Optional[str] = None,
+        campaign_namespace: Optional[str] = None,
     ) -> Optional[str]:
         """Resolve a unique name or a placeholder through the current binding."""
         with self._lock:
             try:
                 if source_file and _PLACEHOLDER_NAME.fullmatch(name):
                     slot = pilot_slot(source_file)
-                    if slot is None:
+                    if slot is None or campaign_namespace is None:
                         return None
                     row = self._fetch_one(
-                        "SELECT pilotId FROM pilot_slot_bindings WHERE slot=?",
-                        (slot,),
+                        "SELECT pilotId FROM pilot_slot_bindings "
+                        "WHERE campaign_namespace=? AND slot=?",
+                        (campaign_namespace, slot),
                     )
                     return str(row[0]) if row else None
 

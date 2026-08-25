@@ -12,10 +12,11 @@ from __future__ import annotations
 import logging
 import ntpath
 import os
-from typing import Optional, List
+from typing import Optional, List, Sequence
 
 from watchdog.events import FileSystemEventHandler
 
+from .campaign_namespace import CampaignNamespaceError, CampaignNamespaceResolver
 from .database import DatabaseManager
 from .campaign_engine import CampaignEngine
 from .config import SUPPORTED_WATCHED_EXTENSIONS
@@ -104,11 +105,13 @@ class FileProcessor:
         discovery=None,
         stability_timeout: float = 3.0,
         stability_interval: float = 0.15,
+        watch_roots: Optional[Sequence[str]] = None,
     ):
         self.db_manager = db_manager
         self.campaign_engine = campaign_engine
         self.discovery = discovery
         self.guard = FileStabilityGuard(timeout=stability_timeout, interval=stability_interval)
+        self._campaign_namespaces = CampaignNamespaceResolver(watch_roots)
 
     def process(
         self,
@@ -166,8 +169,8 @@ class FileProcessor:
         with open(path, "rb") as source:
             return source.read(), os.path.basename(path)
 
-    @staticmethod
     def _dossier_identity(
+        self,
         snapshot: Optional[StableFileSnapshot],
     ) -> PilotIdentityEvidence:
         if snapshot is None:
@@ -175,10 +178,17 @@ class FileProcessor:
         slot = pilot_slot(snapshot.name)
         if slot is None:
             raise PilotIdentityRejected("invalid-slot-source")
+        try:
+            campaign_namespace = self._campaign_namespaces.namespace_for(
+                snapshot.path
+            )
+        except CampaignNamespaceError as error:
+            raise PilotIdentityRejected(str(error), slot) from error
         return PilotIdentityEvidence(
             PilotIdentityKind.DOSSIER,
             slot,
             snapshot.generation.digest,
+            campaign_namespace,
         )
 
     def _dependent_identity(
@@ -187,6 +197,10 @@ class FileProcessor:
         slot = pilot_slot(source_name)
         if slot is None:
             raise PilotIdentityRejected("invalid-slot-source")
+        try:
+            campaign_namespace = self._campaign_namespaces.namespace_for(path)
+        except CampaignNamespaceError as error:
+            raise PilotIdentityRejected(str(error), slot) from error
         dossier_path = os.path.join(
             os.path.dirname(path), dossier_source_name(slot)
         )
@@ -195,6 +209,7 @@ class FileProcessor:
             PilotIdentityKind.SLOT_DEPENDENT,
             slot,
             dossier.generation.digest,
+            campaign_namespace,
         )
 
     def _process_xml(self, path: str, snapshot: Optional[StableFileSnapshot] = None) -> bool:
@@ -305,7 +320,14 @@ class WoFFEventHandler(FileSystemEventHandler):
         self.config = config
         self.watched_extensions = set(config.watched_extensions)
         self.discovery = discovery
-        self.processor = FileProcessor(db_manager, campaign_engine, discovery, config.stability_timeout_sec, config.stability_check_interval_sec)
+        self.processor = FileProcessor(
+            db_manager,
+            campaign_engine,
+            discovery,
+            config.stability_timeout_sec,
+            config.stability_check_interval_sec,
+            watch_roots=config.watch_paths,
+        )
         self.scheduler = EventScheduler(
             self._execute_pipeline,
             max_workers=config.max_workers,
