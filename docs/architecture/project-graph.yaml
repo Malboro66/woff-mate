@@ -347,7 +347,7 @@ evals:
   EVAL-ROOT-BINDING-001:
     work_items: [issue-94]
     status: implemented
-    evidence: Equal pilot slots in distinct watched campaign roots retain independent bindings and route dependent files to the correct career.
+    evidence: Equal pilot slots in distinct watched campaign roots retain independent bindings and persistent career IDs, including after another root retires a same-name career, and route dependent files to the correct career.
     enforced_by:
       - woff/tests/test_campaign_namespace.py
       - woff/tests/test_pilot_identity.py

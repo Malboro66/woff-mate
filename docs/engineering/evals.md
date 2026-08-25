@@ -56,7 +56,7 @@ issues and pull requests.
 | #71 | `EVAL-PILOT-STATUS-001`, `EVAL-PILOT-STATUS-002` | Preservation of authoritative status and idempotent explicit transitions |
 | #72 | `EVAL-DOSSIER-TXN-001`, `EVAL-DOSSIER-TXN-002` | Atomic rollback and exactly-once consistent Dossier state |
 | #93 | `EVAL-CAREER-SELECT-001`, `EVAL-CAREER-SELECT-002` | Stable career selection and pre-mutation rejection of ambiguous names |
-| #94 | `EVAL-ROOT-BINDING-001`, `EVAL-ROOT-BINDING-002` | Root-namespaced slot identity and migration recovery evidence |
+| #94 | `EVAL-ROOT-BINDING-001`, `EVAL-ROOT-BINDING-002` | Root-namespaced slot and persistent-career identity, including retired-career isolation, plus migration recovery evidence |
 | #95 | `EVAL-PERSIST-RETRY-001`, `EVAL-PERSIST-RETRY-002` | Exactly-once persistence after transient contention and bounded terminal handling |
 | #73 | `EVAL-VICTORY-MERGE-001`, `EVAL-DECORATION-MERGE-001` | Lossless same-minute victories and non-destructive enrichment of stable rows |
 | #27 | `EVAL-DEFER-001`, `EVAL-DEFER-002` | Deferred reprocessing without loss or unbounded retention |
@@ -75,10 +75,10 @@ The aggregate eval passes only when:
 
 Green CI alone does not pass this aggregate eval.
 
-The remaining operational sequence is #73 and #27. The graph encodes only
-technical dependencies: completed #94 and #95 have satisfied the blockers of
-#27. The sequence does not make independent items artificial prerequisites of
-one another.
+The remaining operational sequence is #27. The graph encodes only technical
+dependencies: corrective #94 and completed #95 have satisfied its blockers.
+The sequence does not make independent items artificial prerequisites of one
+another.
 
 ## Newly registered data-integrity evals
 
@@ -86,7 +86,7 @@ one another.
 |---|---|---|
 | `EVAL-CAREER-SELECT-001` | #93 | Same-name careers stay separate in every query and editor flow selected by stable pilot ID |
 | `EVAL-CAREER-SELECT-002` | #93 | Ambiguous names fail before export or mutation with a deterministic candidate contract |
-| `EVAL-ROOT-BINDING-001` | #94 | Equal slots in distinct watched roots keep independent bindings and correct dependent-file routing |
+| `EVAL-ROOT-BINDING-001` | #94 | Equal slots in distinct watched roots keep independent bindings and persistent career IDs, even after another root retires a same-name career, with correct dependent-file routing |
 | `EVAL-ROOT-BINDING-002` | #94 | Any binding migration proves backup, integrity, rollback, and reopen behavior |
 | `EVAL-PERSIST-RETRY-001` | #95 | Real transient SQLite contention retains the admitted generation and persists it exactly once after retry |
 | `EVAL-PERSIST-RETRY-002` | #95 | Exhaustion and shutdown are bounded and leave a durable sanitized diagnostic without acknowledgement |
@@ -288,17 +288,23 @@ block the verified Issue #70 cases.
 - `EVAL-ROOT-BINDING-001` is enforced by
   `woff/tests/test_campaign_namespace.py`,
   `woff/tests/test_pilot_identity.py`, and
-  `woff/tests/test_handler_integration.py`. Equivalent Windows spellings map to
-  one privacy-preserving root namespace, distinct roots retain independent
-  `(campaign_namespace, slot)` bindings, and Log, Claims, and Squads input is
-  routed only to the career in its own root. `PilotIdentityEvidence.binding_key`
-  exposes that same composite identity for #27's future deferred-work key; this
-  issue does not implement the deferred queue itself.
+  `woff/tests/test_handler_integration.py`. Equivalent Windows
+  spellings map to one privacy-preserving root namespace, distinct roots retain
+  independent `(campaign_namespace, slot)` bindings, and Log, Claims, and Squads
+  input is routed only to the career in its own root. The corrective regression
+  also proves that Root B retains its incoming stable career ID when Root A has
+  retired an unbound same-name career in the same slot; subsequent dependent
+  input updates only Root B.
+  `PilotIdentityEvidence.binding_key` exposes the composite identity for #27's
+  future deferred-work key; this issue does not implement the deferred queue itself.
 - `EVAL-ROOT-BINDING-002` is enforced by
   `woff/tests/test_pilot_identity_migration.py`. Schema 3.2 bindings migrate
   under verified backup and transaction protection, preserve every covered
   relationship, pass integrity and foreign-key checks, reopen successfully,
   restore after injected failure, and reject ambiguous multi-root ownership.
+  Schema 3.1 recovery reuses a legacy career only through the unambiguous binding
+  seeded during migration; runtime Dossier processing never claims an unbound
+  retired career by global name and slot.
 
 ### Implemented pilot status provenance evals
 
