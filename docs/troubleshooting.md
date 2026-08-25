@@ -81,7 +81,38 @@ A **future schema** error means the database was created by a newer, incompatibl
 
 ### `database is locked`
 
-Close WoFF Mate, SQLite viewers, backup programs, and every process that could have the database open, then retry. Do not delete SQLite sidecars or copy a live database. If it continues, preserve the files and report a sanitized excerpt.
+The live ingestion path classifies verified SQLite busy, locked, locking-
+protocol, and blocked-I/O results as transient persistence failures. It retains
+at most one exact verified generation per already bounded scheduler path,
+including the Dossier-backed identity used to route dependent pilot files. It
+does not reopen mutable source bytes for a persistence replay.
+
+Persistence retry is fixed and bounded: four total processing attempts with
+0.1, 0.2, and 0.4 seconds of scheduler backoff. Each attempt uses the fixed
+five-second SQLite busy timeout, so every individual lock wait is bounded and
+the scheduler adds at most 0.7 seconds. Total processing time also depends on
+the finite persistence work in the verified file. A newer event for the same
+canonical path supersedes the older retained generation. Replays remain subject
+to the existing natural-key and transactional idempotence boundaries.
+
+The scheduler exposes separate `transient_failures`, `transient_retries`,
+`successful_replays`, `permanent_rejections`, `saturated`, `retry_exhausted`,
+`retry_shutdown`, and `superseded_retries` metrics. Parser, identity, snapshot,
+and other permanent rejections do not enter the SQLite retry policy.
+
+`Persistence retry exhausted` means all four attempts failed. The final
+diagnostic contains only the source filename, sanitized SQLite category, and
+attempt count; the generation is not acknowledged and its retained memory is
+released. During orderly shutdown, an active attempt finishes and any already
+accepted newer event drains, but a retained persistence retry does not start a
+new attempt. `Persistence retry cancelled at shutdown` records that policy.
+The source file remains recoverable on disk and can be reconsidered by a later
+filesystem event or startup reconciliation.
+
+If either final diagnostic recurs, close SQLite viewers, backup programs, and
+every other writer before generating a new file event or restarting WoFF Mate.
+Do not delete SQLite sidecars or copy a live database. Preserve the files and
+report only a sanitized diagnostic excerpt.
 
 ### Migration and restoration
 

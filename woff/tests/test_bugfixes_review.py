@@ -19,6 +19,7 @@ from ..campaign_engine import CampaignEngine
 from ..narrative_generator import narrative_generator
 from ..models import WoFFPilot, WoFFMission
 from ..identity import PilotIdentityEvidence, PilotIdentityKind
+from ..ingestion.outcome import ProcessingStatus
 from .identity_support import dossier_evidence
 import tempfile
 from unittest.mock import MagicMock
@@ -125,7 +126,10 @@ class TestLatestMissionIntegration(unittest.TestCase):
             f.write(xml)
             path = f.name
         try:
-            self.assertIsNone(self.processor.process(path, "created"))
+            self.assertIs(
+                self.processor.process(path, "created").status,
+                ProcessingStatus.PERMANENT_REJECTION,
+            )
         finally:
             os.unlink(path)
 

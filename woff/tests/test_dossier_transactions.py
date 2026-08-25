@@ -81,7 +81,7 @@ def dossier_runtime(tmp_path):
 
 def _process(processor: FileProcessor, path, data: bytes, event_type: str):
     path.write_bytes(data)
-    return processor.process(str(path), event_type)
+    return processor.process(str(path), event_type).acknowledged_generation
 
 
 def _stored_state(database: DatabaseManager):

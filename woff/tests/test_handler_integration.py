@@ -11,9 +11,33 @@ from ..config import WatchdogConfig
 from ..database import DatabaseManager
 from ..campaign_engine import CampaignEngine
 from ..handler import WoFFEventHandler
+from ..ingestion.outcome import ProcessingStatus
 from ..ingestion.scheduler import EventScheduler
 from .. import woff_watchdog
 from .test_dossier_parser import _encode_dossier
+
+
+def _scheduler_metrics(**overrides):
+    values = {
+        "queued": 0,
+        "active": 0,
+        "coalesced": 0,
+        "rejected": 0,
+        "retried": 0,
+        "saturated": 0,
+        "shutdown_rejected": 0,
+        "submission_failures": 0,
+        "permanent_rejections": 0,
+        "transient_failures": 0,
+        "transient_retries": 0,
+        "successful_replays": 0,
+        "retry_pending": 0,
+        "retry_exhausted": 0,
+        "retry_shutdown": 0,
+        "superseded_retries": 0,
+    }
+    values.update(overrides)
+    return values
 
 # Mock de um ficheiro de campanha XML válido
 MOCK_XML_VALID = """<?xml version="1.0" encoding="UTF-8"?>
@@ -57,8 +81,14 @@ def test_two_watched_roots_route_every_slot_dependent_to_its_own_career(
         dossier_b.write_bytes(
             _encoded_dossier("Bob", "Baker", "Lieutenant", "B Squadron")
         )
-        assert handler.processor.process(str(dossier_a), "initial") is not None
-        assert handler.processor.process(str(dossier_b), "initial") is not None
+        assert (
+            handler.processor.process(str(dossier_a), "initial").status
+            is ProcessingStatus.SUCCESS
+        )
+        assert (
+            handler.processor.process(str(dossier_b), "initial").status
+            is ProcessingStatus.SUCCESS
+        )
 
         sources = (
             (
@@ -88,8 +118,14 @@ def test_two_watched_roots_route_every_slot_dependent_to_its_own_career(
             path_b = root_b / filename
             path_a.write_text(data_a, encoding="cp1252")
             path_b.write_text(data_b, encoding="cp1252")
-            assert handler.processor.process(str(path_a), "modified") is not None
-            assert handler.processor.process(str(path_b), "modified") is not None
+            assert (
+                handler.processor.process(str(path_a), "modified").status
+                is ProcessingStatus.SUCCESS
+            )
+            assert (
+                handler.processor.process(str(path_b), "modified").status
+                is ProcessingStatus.SUCCESS
+            )
 
         connection = database._get_conn()
         pilot_ids = dict(connection.execute("SELECT name, id FROM pilots"))
@@ -210,7 +246,10 @@ class TestHandlerIntegration(unittest.TestCase):
                 "Mission completed.\n"
             )
 
-        self.assertIsNone(self.handler.processor.process(log_path, "created"))
+        self.assertIs(
+            self.handler.processor.process(log_path, "created").status,
+            ProcessingStatus.PERMANENT_REJECTION,
+        )
         self.assertEqual(
             self.db._get_conn().execute("SELECT COUNT(*) FROM pilots").fetchone(),
             (0,),
@@ -231,8 +270,9 @@ class TestHandlerIntegration(unittest.TestCase):
                 "</AirFormation></Mission>\nMissionEnded"
             )
 
-        self.assertIsNone(
-            self.handler.processor.process(mission_log_path, "created")
+        self.assertIs(
+            self.handler.processor.process(mission_log_path, "created").status,
+            ProcessingStatus.PERMANENT_REJECTION,
         )
         self.assertEqual(
             self.db._get_conn().execute("SELECT COUNT(*) FROM pilots").fetchone(),
@@ -257,7 +297,10 @@ class TestHandlerIntegration(unittest.TestCase):
             )
 
         processor = self.handler.processor
-        self.assertIsNotNone(processor.process(dossier_path, "initial"))
+        self.assertIs(
+            processor.process(dossier_path, "initial").status,
+            ProcessingStatus.SUCCESS,
+        )
         old_id = self.db._get_conn().execute(
             "SELECT id FROM pilots"
         ).fetchone()[0]
@@ -270,7 +313,10 @@ class TestHandlerIntegration(unittest.TestCase):
             source.write(
                 _encoded_dossier("Bob", "Baker", "Lieutenant", "New Sqn")
             )
-        self.assertIsNone(processor.process(log_path, "modified"))
+        self.assertIs(
+            processor.process(log_path, "modified").status,
+            ProcessingStatus.PERMANENT_REJECTION,
+        )
         self.assertEqual(
             self.db._get_conn().execute("SELECT COUNT(*) FROM missions").fetchone(),
             (0,),
@@ -283,7 +329,10 @@ class TestHandlerIntegration(unittest.TestCase):
             old_snapshot,
         )
 
-        self.assertIsNotNone(processor.process(dossier_path, "modified"))
+        self.assertIs(
+            processor.process(dossier_path, "modified").status,
+            ProcessingStatus.SUCCESS,
+        )
         new_id = self.db._get_conn().execute(
             "SELECT pilotId FROM pilot_slot_bindings WHERE slot=1"
         ).fetchone()[0]
@@ -295,7 +344,10 @@ class TestHandlerIntegration(unittest.TestCase):
             ).fetchone(),
             (0,),
         )
-        self.assertIsNotNone(processor.process(log_path, "retry"))
+        self.assertIs(
+            processor.process(log_path, "retry").status,
+            ProcessingStatus.SUCCESS,
+        )
         self.assertEqual(
             self.db._get_conn().execute(
                 "SELECT pilotId FROM missions"
@@ -454,10 +506,10 @@ class TestWatchdogStartup(unittest.TestCase):
         self.assertIsNotNone(handler)
         assert handler is not None
         self.assertEqual(handler.scheduler.admitted_paths, 0)
-        self.assertEqual(handler.scheduler.metrics(), {
-            "queued": 0, "active": 0, "coalesced": 1,
-            "rejected": 0, "retried": 1,
-        })
+        self.assertEqual(
+            handler.scheduler.metrics(),
+            _scheduler_metrics(coalesced=1, retried=1),
+        )
 
     def test_partially_started_observer_is_owned_and_original_error_survives_cleanup(self):
         tmp_dir = tempfile.mkdtemp()
@@ -726,10 +778,10 @@ class TestWatchdogStartup(unittest.TestCase):
         })
         assert handler is not None
         self.assertEqual(handler.scheduler.admitted_paths, 0)
-        self.assertEqual(handler.scheduler.metrics(), {
-            "queued": 0, "active": 0, "coalesced": 3,
-            "rejected": 0, "retried": 1,
-        })
+        self.assertEqual(
+            handler.scheduler.metrics(),
+            _scheduler_metrics(coalesced=3, retried=1),
+        )
 
 if __name__ == "__main__":
     unittest.main()

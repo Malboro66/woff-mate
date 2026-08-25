@@ -3,6 +3,7 @@ import pytest
 from ..campaign_engine import CampaignEngine
 from ..database import DatabaseManager
 from ..handler import FileProcessor
+from ..ingestion.outcome import ProcessingStatus
 from ..identity import PilotIdentityEvidence, PilotIdentityKind, PilotIdentityRejected
 from ..models import WoFFPilot
 from ..normalization import normalize_status
@@ -262,7 +263,7 @@ def test_explicit_active_transition_writes_one_life_event(tmp_path):
     try:
         dossier_path.write_bytes(_dossier_bytes(None))
         first_generation = processor.process(str(dossier_path), "initial")
-        assert first_generation is not None
+        assert first_generation.status is ProcessingStatus.SUCCESS
         assert _stored_state(database)[:7] == (None, *STATUS_STATS)
         assert database._get_conn().execute(
             "SELECT COUNT(*) FROM diary_entries"
@@ -272,8 +273,8 @@ def test_explicit_active_transition_writes_one_life_event(tmp_path):
         established_generation = processor.process(
             str(dossier_path), "modified", first_generation
         )
-        assert established_generation is not None
-        assert established_generation != first_generation
+        assert established_generation.status is ProcessingStatus.SUCCESS
+        assert established_generation.generation != first_generation.generation
         assert _stored_state(database)[:7] == ("Wounded", *STATUS_STATS)
         assert database._get_conn().execute(
             "SELECT COUNT(*) FROM diary_entries"
@@ -283,8 +284,8 @@ def test_explicit_active_transition_writes_one_life_event(tmp_path):
         missing_generation = processor.process(
             str(dossier_path), "modified", established_generation
         )
-        assert missing_generation is not None
-        assert missing_generation != established_generation
+        assert missing_generation.status is ProcessingStatus.SUCCESS
+        assert missing_generation.generation != established_generation.generation
         assert _stored_state(database)[:7] == ("Wounded", *STATUS_STATS)
         assert database._get_conn().execute(
             "SELECT COUNT(*) FROM diary_entries"
@@ -294,8 +295,8 @@ def test_explicit_active_transition_writes_one_life_event(tmp_path):
         second_generation = processor.process(
             str(dossier_path), "modified", missing_generation
         )
-        assert second_generation is not None
-        assert second_generation != missing_generation
+        assert second_generation.status is ProcessingStatus.SUCCESS
+        assert second_generation.generation != missing_generation.generation
         assert _stored_state(database)[:7] == ("Active", *STATUS_STATS)
 
         rows = database._get_conn().execute(
@@ -304,7 +305,9 @@ def test_explicit_active_transition_writes_one_life_event(tmp_path):
         assert len(rows) == 1
         assert "alta médica" in rows[0][0]
 
-        assert processor.process(str(dossier_path), "modified") == second_generation
+        replayed = processor.process(str(dossier_path), "modified")
+        assert replayed.status is ProcessingStatus.SUCCESS
+        assert replayed.generation == second_generation.generation
         assert database._get_conn().execute(
             "SELECT COUNT(*) FROM diary_entries"
         ).fetchone() == (1,)
@@ -326,8 +329,14 @@ def test_file_processor_log_preserves_kia_without_status_life_event(tmp_path):
     try:
         dossier_path.write_bytes(_dossier_bytes("KIA"))
         log_path.write_text(LOG_DATA, encoding="cp1252")
-        assert processor.process(str(dossier_path), "initial") is not None
-        assert processor.process(str(log_path), "modified") is not None
+        assert (
+            processor.process(str(dossier_path), "initial").status
+            is ProcessingStatus.SUCCESS
+        )
+        assert (
+            processor.process(str(log_path), "modified").status
+            is ProcessingStatus.SUCCESS
+        )
         assert _stored_state(database)[:7] == ("KIA", *STATUS_STATS)
 
         assert database._get_conn().execute(

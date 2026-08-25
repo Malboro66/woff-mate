@@ -10,6 +10,7 @@ from ..campaign_namespace import campaign_namespace_for_root
 from ..handler import FileProcessor, FileStabilityGuard
 from ..campaign_engine import CampaignEngine
 from ..database import DatabaseManager
+from ..ingestion.outcome import ProcessingReason, ProcessingStatus
 from ..ingestion.scheduler import EventScheduler
 from ..ingestion.snapshot import (
     FileGeneration,
@@ -26,6 +27,29 @@ from ..identity import (
 from ..models import WoFFMission, WoFFPilot, WoFFWingman
 from ..narrative_generator import narrative_generator
 from .identity_support import dossier_evidence
+
+
+def _scheduler_metrics(**overrides):
+    values = {
+        "queued": 0,
+        "active": 0,
+        "coalesced": 0,
+        "rejected": 0,
+        "retried": 0,
+        "saturated": 0,
+        "shutdown_rejected": 0,
+        "submission_failures": 0,
+        "permanent_rejections": 0,
+        "transient_failures": 0,
+        "transient_retries": 0,
+        "successful_replays": 0,
+        "retry_pending": 0,
+        "retry_exhausted": 0,
+        "retry_shutdown": 0,
+        "superseded_retries": 0,
+    }
+    values.update(overrides)
+    return values
 
 
 @dataclass
@@ -197,7 +221,11 @@ def test_unsupported_text_filename_never_reaches_snapshot_reader():
     processor = FileProcessor(cast(Any, object()), cast(Any, object()))
     processor.guard = cast(Any, MagicMock())
 
-    assert processor.process(r"C:\Users\Alice\activation_key.txt", "created") is None
+    outcome = processor.process(
+        r"C:\Users\Alice\activation_key.txt", "created"
+    )
+    assert outcome.status is ProcessingStatus.PERMANENT_REJECTION
+    assert outcome.reason is ProcessingReason.UNSUPPORTED_SOURCE
     processor.guard.acquire.assert_not_called()
 
 
@@ -234,7 +262,9 @@ def test_dossier_side_effects_never_use_filesystem_timestamp(
     processor.guard = MagicMock()
     processor.guard.acquire.return_value = snapshot
 
-    assert processor.process("Pilot1Dossier.txt", event_type) == snapshot.generation
+    outcome = processor.process("Pilot1Dossier.txt", event_type)
+    assert outcome.status is ProcessingStatus.SUCCESS
+    assert outcome.generation == snapshot.generation
 
     engine.process_dossier_import.assert_called_once()
     call = engine.process_dossier_import.call_args
@@ -300,9 +330,7 @@ def test_scheduler_releases_exhausted_snapshot_without_diagnostic_leak(caplog):
 
     metrics = scheduler.metrics()
     assert scheduler.admitted_paths == 0
-    assert metrics == {
-        "queued": 0, "active": 0, "coalesced": 0, "rejected": 0, "retried": 0,
-    }
+    assert metrics == _scheduler_metrics(permanent_rejections=1)
     diagnostics = [r.getMessage() for r in caplog.records if "Snapshot rejected" in r.getMessage()]
     assert diagnostics == [
         "Snapshot rejected: source=Pilot1Log.txt state=inaccessible attempts=3"
@@ -373,9 +401,7 @@ def test_active_acquisition_and_pending_event_persist_new_generation_once():
     assert database.merge_and_write.call_count == 1
     assert database.merge_and_write.call_args.kwargs["pilot"].name == "Generation B"
     assert scheduler.admitted_paths == 0
-    assert scheduler.metrics() == {
-        "queued": 0, "active": 0, "coalesced": 1, "rejected": 0, "retried": 1,
-    }
+    assert scheduler.metrics() == _scheduler_metrics(coalesced=1, retried=1)
 
 
 def test_unresolved_identity_does_not_acknowledge_coalesced_generation(monkeypatch):
@@ -486,7 +512,8 @@ def test_merge_rejection_never_acknowledges_any_ingestion_route(
     processor.guard = cast(Any, MagicMock())
     processor.guard.acquire.return_value = snapshot
 
-    assert processor.process(path, "initial") is None
+    outcome = processor.process(path, "initial")
+    assert outcome.status is ProcessingStatus.PERMANENT_REJECTION
     if path == "Pilot1Dossier.txt":
         engine.process_dossier_import.assert_called_once()
         database.merge_and_write.assert_not_called()
@@ -548,10 +575,9 @@ def test_merge_rejection_retries_same_generation_then_acknowledges_once(monkeypa
     assert database.merge_and_write.call_count == 2
     engine.process_mission_end.assert_called_once_with("pilot-id", "m1")
     assert scheduler.admitted_paths == 0
-    assert scheduler.metrics() == {
-        "queued": 0, "active": 0, "coalesced": 1,
-        "rejected": 0, "retried": 1,
-    }
+    assert scheduler.metrics() == _scheduler_metrics(
+        coalesced=1, retried=1, permanent_rejections=1
+    )
 
 
 def test_explicit_derived_failure_does_not_acknowledge_generation(monkeypatch):
@@ -582,7 +608,10 @@ def test_explicit_derived_failure_does_not_acknowledge_generation(monkeypatch):
         FileGeneration(1, 1, 8, 1, 1, "d" * 64), 2,
     )
 
-    assert processor.process(path, "initial") is None
+    assert (
+        processor.process(path, "initial").status
+        is ProcessingStatus.PERMANENT_REJECTION
+    )
     engine.process_mission_end.assert_called_once_with("pilot-id", "m1")
 
 
@@ -677,7 +706,10 @@ def test_dossier_rejection_rolls_back_derived_effects_and_retry_commits_once(
         ).fetchall()
 
     try:
-        assert processor.process(path, "initial") is None
+        assert (
+            processor.process(path, "initial").status
+            is ProcessingStatus.PERMANENT_REJECTION
+        )
         assert database.get_pilot_state(pilot_name) == ("Active", "Lieutenant")
         assert database.get_wingmen_by_pilot(pilot_id) == [
             {"fName": "William", "sName": "Test", "status": "Active"}
@@ -685,7 +717,8 @@ def test_dossier_rejection_rolls_back_derived_effects_and_retry_commits_once(
         assert diary_rows() == [("existing diary entry",)]
 
         acknowledged = processor.process(path, "initial")
-        assert acknowledged == generation
+        assert acknowledged.status is ProcessingStatus.SUCCESS
+        assert acknowledged.generation == generation
         assert database.get_pilot_state(pilot_name) == ("Wounded", "Captain")
         assert database.get_wingmen_by_pilot(pilot_id) == [
             {"fName": "William", "sName": "Test", "status": "KIA"}
@@ -696,9 +729,11 @@ def test_dossier_rejection_rolls_back_derived_effects_and_retry_commits_once(
             ("existing diary entry",),
         ]
 
-        assert processor.process(
+        unchanged = processor.process(
             path, "modified", previous_generation=acknowledged
-        ) == generation
+        )
+        assert unchanged.status is ProcessingStatus.UNCHANGED
+        assert unchanged.generation == generation
         assert merge_calls == 2
         assert len(parser_calls) == 2
         assert database.get_pilot_state(pilot_name) == ("Wounded", "Captain")
@@ -778,7 +813,9 @@ def test_incoming_dossier_date_preserves_pre_merge_wingman_event(
     processor.guard.acquire.return_value = snapshot
 
     try:
-        assert processor.process(path, "initial") == generation
+        outcome = processor.process(path, "initial")
+        assert outcome.status is ProcessingStatus.SUCCESS
+        assert outcome.generation == generation
         assert database.get_wingmen_by_pilot(pilot_id) == [
             {"fName": "William", "sName": "First Date", "status": "KIA"}
         ]
@@ -854,8 +891,11 @@ def test_mission_retry_uses_persisted_natural_identity_and_acknowledges_once(
         b"verified", path, os.path.basename(path), generation, 2,
     )
     try:
-        assert processor.process(path, "created") is None
-        assert processor.process(path, "modified") == generation
+        first = processor.process(path, "created")
+        assert first.status is ProcessingStatus.PERMANENT_REJECTION
+        recovered = processor.process(path, "modified")
+        assert recovered.status is ProcessingStatus.SUCCESS
+        assert recovered.generation == generation
         persisted = database._get_conn().execute(
             "SELECT id FROM missions"
         ).fetchall()
@@ -871,9 +911,11 @@ def test_mission_retry_uses_persisted_natural_identity_and_acknowledges_once(
             "SELECT COUNT(*), MIN(missionId) FROM diary_entries"
         ).fetchone() == (1, "provisional-1")
 
-        assert processor.process(
+        unchanged = processor.process(
             path, "modified", previous_generation=generation
-        ) == generation
+        )
+        assert unchanged.status is ProcessingStatus.UNCHANGED
+        assert unchanged.generation == generation
         assert parsed_ids == ["provisional-1", "provisional-2"]
         assert database._get_conn().execute(
             "SELECT COUNT(*) FROM missions"
@@ -946,7 +988,10 @@ def test_dossier_life_event_receives_original_optional_prior_state(
         FileGeneration(1, 1, 8, 1, 1, "d" * 64), 2,
     )
     try:
-        assert processor.process(path, "initial") is not None
+        assert (
+            processor.process(path, "initial").status
+            is ProcessingStatus.SUCCESS
+        )
         assert captured == expected_old
         assert database._get_conn().execute(
             "SELECT narrative FROM diary_entries"

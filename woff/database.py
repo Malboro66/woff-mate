@@ -37,6 +37,7 @@ from .version import SCHEMA_VERSION, __version__
 
 log = logging.getLogger("WoFFWatch")
 _DOSSIER_ROSTER_META_PREFIX = "dossier_roster:"
+SQLITE_BUSY_TIMEOUT_SECONDS = 5.0
 
 
 class UnsupportedSchemaVersion(RuntimeError):
@@ -240,7 +241,11 @@ class DatabaseManager:
     # ── Thread-Local Connection Pooling ──
     def _open_conn(self) -> sqlite3.Connection:
         """Cria uma conexão SQLite com todas as opções exigidas pelo gestor."""
-        conn = sqlite3.connect(self.db_path, check_same_thread=False)
+        conn = sqlite3.connect(
+            self.db_path,
+            timeout=SQLITE_BUSY_TIMEOUT_SECONDS,
+            check_same_thread=False,
+        )
         conn.execute("PRAGMA journal_mode=WAL;")
         conn.execute("PRAGMA foreign_keys=ON;")
         return conn
@@ -1964,6 +1969,9 @@ class DatabaseManager:
         except PilotIdentityError:
             # The application boundary emits one sanitized identity diagnostic.
             # Do not duplicate it here with a traceback.
+            raise
+        except sqlite3.Error:
+            # The application boundary classifies and reports SQLite failures.
             raise
         except Exception:
             log.exception("Erro ao escrever na base de dados")

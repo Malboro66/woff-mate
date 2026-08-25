@@ -6,6 +6,29 @@ import pytest
 from ..ingestion.scheduler import EventScheduler, canonical_windows_path
 
 
+def _metrics(**overrides):
+    values = {
+        "queued": 0,
+        "active": 0,
+        "coalesced": 0,
+        "rejected": 0,
+        "retried": 0,
+        "saturated": 0,
+        "shutdown_rejected": 0,
+        "submission_failures": 0,
+        "permanent_rejections": 0,
+        "transient_failures": 0,
+        "transient_retries": 0,
+        "successful_replays": 0,
+        "retry_pending": 0,
+        "retry_exhausted": 0,
+        "retry_shutdown": 0,
+        "superseded_retries": 0,
+    }
+    values.update(overrides)
+    return values
+
+
 def test_windows_aliases_share_one_latest_pending_generation():
     started = threading.Event()
     release = threading.Event()
@@ -29,9 +52,7 @@ def test_windows_aliases_share_one_latest_pending_generation():
         (r"C:\Campaign\Pilot.LOG", "created"),
         (r"\\?\C:\CAMPAIGN\pilot.log", "created"),
     ]
-    assert scheduler.metrics() == {
-        "queued": 0, "active": 0, "coalesced": 2, "rejected": 0, "retried": 1,
-    }
+    assert scheduler.metrics() == _metrics(coalesced=2, retried=1)
 
 
 def test_unc_and_extended_unc_aliases_have_the_same_identity():
@@ -53,9 +74,9 @@ def test_unique_path_burst_is_bounded_and_saturation_is_visible(caplog):
     assert started.wait(2)
     assert scheduler.submit("second.xml", "created")
     assert not scheduler.submit("third.xml", "created")
-    assert scheduler.metrics() == {
-        "queued": 1, "active": 1, "coalesced": 0, "rejected": 1, "retried": 0,
-    }
+    assert scheduler.metrics() == _metrics(
+        queued=1, active=1, rejected=1, saturated=1
+    )
     assert "saturated" in caplog.text.lower()
     release.set()
     scheduler.shutdown()
@@ -75,6 +96,7 @@ def test_submit_failure_releases_admission_state():
     with pytest.raises(RuntimeError, match="submit failed"):
         scheduler.submit("pilot.xml", "created")
     assert scheduler.metrics()["queued"] == 0
+    assert scheduler.metrics()["submission_failures"] == 1
     assert scheduler.admitted_paths == 0
 
 
@@ -86,6 +108,7 @@ def test_shutdown_rejects_new_work_and_drains_accepted_work():
     assert called.is_set()
     assert not scheduler.submit("other.xml", "created")
     assert scheduler.metrics()["rejected"] == 1
+    assert scheduler.metrics()["shutdown_rejected"] == 1
 
 
 def test_bounded_startup_admission_waits_for_capacity_without_second_queue():

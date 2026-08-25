@@ -12,6 +12,7 @@ from woff.database import DatabaseManager
 from woff.discovery import DiscoveryLogger
 from woff.handler import FileProcessor, WoFFEventHandler
 from woff.identity import PilotIdentityUnavailable
+from woff.ingestion.outcome import ProcessingStatus
 from woff.ingestion.snapshot import (
     FileGeneration,
     StableFileSnapshot,
@@ -274,7 +275,10 @@ def test_identity_rejection_diagnostic_omits_personal_data_and_digest(
     processor.guard = MagicMock()
     processor.guard.acquire.return_value = snapshot
 
-    assert processor.process(path, "modified") is None
+    assert (
+        processor.process(path, "modified").status
+        is ProcessingStatus.PERMANENT_REJECTION
+    )
 
     diagnostics = [
         record.getMessage()
