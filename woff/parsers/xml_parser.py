@@ -21,7 +21,13 @@ from datetime import datetime
 from typing import Optional, List, Dict
 
 # Importar modelos de dados e funções de normalização (assumindo que estão na raiz do projeto)
-from ..models import WoFFPilot, WoFFMission, WoFFVictory, WoFFDecoration
+from ..models import (
+    WoFFDecoration,
+    WoFFMission,
+    WoFFPilot,
+    WoFFVictory,
+    stable_source_record_key,
+)
 from ..normalization import (
     normalize_nation,
     normalize_mission_type,
@@ -130,8 +136,8 @@ class WoFFXMLParser:
 
         self._parse_pilot(root, source_name)
         self._parse_missions(root)
-        self._parse_victories(root)
-        self._parse_decorations(root)
+        self._parse_victories(root, source_name)
+        self._parse_decorations(root, source_name)
 
         if self.pilot:
             log.info(
@@ -285,16 +291,34 @@ class WoFFXMLParser:
         if "uneventful" in rl:                                   return "Uneventful"
         return raw.strip()
 
-    def _parse_victories(self, root: ET.Element):
+    def _parse_victories(self, root: ET.Element, source_name: str):
         """Procura e extrai todas as vitórias/claims."""
         if not self.pilot:
             return
-        for tag in ("Victory","Kill","Claim","VictoryClaim","AerialVictory","Abschuss"):
-            for elem in root.findall(f".//{tag}"):
-                v = self._parse_victory_elem(elem)
-                if v:
-                    v.pilotId = self.pilot.id
-                    self.victories.append(v)
+        accepted_tags = {
+            "Victory",
+            "Kill",
+            "Claim",
+            "VictoryClaim",
+            "AerialVictory",
+            "Abschuss",
+        }
+        source_position = 0
+        for elem in root.iter():
+            if not isinstance(elem.tag, str):
+                continue
+            local_tag = elem.tag.rsplit("}", 1)[-1].split(":")[-1]
+            if local_tag not in accepted_tags:
+                continue
+            source_position += 1
+            v = self._parse_victory_elem(elem)
+            if v:
+                v.pilotId = self.pilot.id
+                v.source_file = os.path.basename(source_name)
+                v.source_record_key = stable_source_record_key(
+                    "victory", source_name, source_position
+                )
+                self.victories.append(v)
 
     def _parse_victory_elem(self, elem: ET.Element) -> Optional[WoFFVictory]:
         """Extrai os dados de uma vitória individual."""
@@ -315,7 +339,7 @@ class WoFFXMLParser:
             return None
         return v
 
-    def _parse_decorations(self, root: ET.Element):
+    def _parse_decorations(self, root: ET.Element, source_name: str):
         """Procura e extrai condecorações e medalhas."""
         if not self.pilot:
             return
@@ -323,6 +347,7 @@ class WoFFXMLParser:
             for elem in root.findall(f".//{tag}"):
                 d = WoFFDecoration()
                 d.pilotId  = self.pilot.id
+                d.source_file = os.path.basename(source_name)
                 d.name     = (self._find(elem, "Name","Award","Medal","Title") or elem.text or "").strip()
                 d.date     = normalize_date(self._find(elem, "Date","date","Datum","Awarded") or "")
                 d.citation = self._find(elem, "Citation","Reason","Notes","Begruendung") or ""

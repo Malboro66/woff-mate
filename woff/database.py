@@ -106,7 +106,7 @@ ALLOWED_MIGRATIONS: Dict[str, Dict[str, str]] = {
     }
 }
 
-# Canonical schema 3.3 contract. SQLite integrity checks cannot detect missing
+# Canonical schema 3.4 contract. SQLite integrity checks cannot detect missing
 # application columns or constraints, so certification verifies these explicitly.
 SCHEMA_TABLES: Dict[str, Dict[str, str]] = {
     "meta": {"key": "TEXT", "value": "TEXT"},
@@ -114,6 +114,7 @@ SCHEMA_TABLES: Dict[str, Dict[str, str]] = {
     "pilot_slot_bindings": {"campaign_namespace": "TEXT", "slot": "INTEGER", "pilotId": "TEXT", "dossier_digest": "TEXT", "last_updated": "TEXT"},
     "missions": {"id": "TEXT", "pilotId": "TEXT", "date": "TEXT", "time": "TEXT", "missionType": "TEXT", "aircraft": "TEXT", "duration": "TEXT", "altitude": "TEXT", "sector": "TEXT", "squadron": "TEXT", "weather": "TEXT", "enemyContacts": "INTEGER", "claimsCount": "INTEGER", "result": "TEXT", "damageReceived": "INTEGER", "woundsReceived": "INTEGER", "notes": "TEXT", "source_file": "TEXT"},
     "victories": {"id": "TEXT", "pilotId": "TEXT", "date": "TEXT", "time": "TEXT", "missionId": "TEXT", "enemyType": "TEXT", "victoryType": "TEXT", "location": "TEXT", "confirmed": "INTEGER", "witnesses": "TEXT", "notes": "TEXT", "sector": "TEXT", "aircraft": "TEXT", "source_file": "TEXT"},
+    "victory_source_records": {"pilotId": "TEXT", "source_record_key": "TEXT", "victoryId": "TEXT"},
     "decorations": {"id": "TEXT", "pilotId": "TEXT", "name": "TEXT", "date": "TEXT", "citation": "TEXT", "source_file": "TEXT"},
     "squad_members": {"id": "TEXT", "pilotId": "TEXT", "rank": "TEXT", "fName": "TEXT", "sName": "TEXT", "skill": "INTEGER", "morale": "INTEGER", "status": "TEXT", "missions": "INTEGER", "flminutes": "INTEGER", "bio": "TEXT"},
     "medals_catalog": {"id": "TEXT", "country": "TEXT", "name": "TEXT", "filename": "TEXT"},
@@ -134,13 +135,14 @@ SCHEMA_PRIMARY_KEYS: Dict[str, Tuple[str, ...]] = {
         if table == "meta"
         else ("campaign_namespace", "slot")
         if table == "pilot_slot_bindings"
+        else ("pilotId", "source_record_key")
+        if table == "victory_source_records"
         else ("id",)
     )
     for table in SCHEMA_TABLES
 }
 SCHEMA_UNIQUES = {
     "missions": [("pilotId", "date", "time", "missionType", "aircraft")],
-    "victories": [("pilotId", "date", "time", "enemyType")],
     "decorations": [("pilotId", "name")],
     "squad_members": [("pilotId", "fName", "sName")],
     "medals_catalog": [("country", "name")],
@@ -149,6 +151,10 @@ SCHEMA_FOREIGN_KEYS = {
     "pilot_slot_bindings": {("pilotId", "pilots", "id")},
     "missions": {("pilotId", "pilots", "id")},
     "victories": {("pilotId", "pilots", "id")},
+    "victory_source_records": {
+        ("pilotId", "pilots", "id"),
+        ("victoryId", "victories", "id"),
+    },
     "decorations": {("pilotId", "pilots", "id")},
     "squad_members": {("pilotId", "pilots", "id")},
     "pilot_rpg_stats": {("pilotId", "pilots", "id")},
@@ -427,9 +433,27 @@ class DatabaseManager:
                     sector TEXT,
                     aircraft TEXT,
                     source_file TEXT,
-                    UNIQUE(pilotId, date, time, enemyType),
                     FOREIGN KEY(pilotId) REFERENCES pilots(id)
                 )
+            """)
+            cursor.execute("""
+                CREATE INDEX IF NOT EXISTS idx_victories_pilot
+                ON victories(pilotId)
+            """)
+
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS victory_source_records (
+                    pilotId TEXT NOT NULL,
+                    source_record_key TEXT NOT NULL,
+                    victoryId TEXT NOT NULL,
+                    PRIMARY KEY(pilotId, source_record_key),
+                    FOREIGN KEY(pilotId) REFERENCES pilots(id),
+                    FOREIGN KEY(victoryId) REFERENCES victories(id)
+                )
+            """)
+            cursor.execute("""
+                CREATE INDEX IF NOT EXISTS idx_victory_source_records_victory
+                ON victory_source_records(victoryId)
             """)
 
             cursor.execute("""
@@ -733,6 +757,10 @@ class DatabaseManager:
                     or self._has_campaign_namespace_schema_migration(cursor)
                     or self._has_legacy_namespace_reconciliation(cursor)
                 )
+                pending_migration = (
+                    pending_migration
+                    or self._has_victory_identity_schema_migration(cursor)
+                )
                 if pending_migration and self._migration_backup_path is None:
                     self._migration_backup_path = self._backup_existing_database()
 
@@ -751,6 +779,7 @@ class DatabaseManager:
                 self._migrate_numeric_column_types(cursor)
                 self._migrate_pilot_identity_schema(cursor)
                 self._migrate_campaign_namespace_schema(cursor)
+                self._migrate_victory_identity_schema(cursor)
 
                 # Initialization is part of this same transaction: a failure in
                 # any CREATE rolls back migrations and leaves old metadata intact.
@@ -857,6 +886,15 @@ class DatabaseManager:
                 and ("slot",) in all_unique_columns
             ):
                 errors.append("forbidden global UNIQUE pilot_slot_bindings('slot',)")
+            if (
+                table == "victories"
+                and ("pilotId", "date", "time", "enemyType")
+                in all_unique_columns
+            ):
+                errors.append(
+                    "forbidden occurrence-collapsing UNIQUE victories"
+                    "('pilotId', 'date', 'time', 'enemyType')"
+                )
 
             foreign_keys = {
                 (str(row[3]), str(row[2]), str(row[4]))
@@ -884,6 +922,33 @@ class DatabaseManager:
             if name_index_columns != ("name",):
                 errors.append("wrong key semantics for index idx_pilots_name")
 
+        victory_indexes = cursor.execute(
+            "PRAGMA index_list(victories)"
+        ).fetchall()
+        victory_pilot_index = next(
+            (row for row in victory_indexes if row[1] == "idx_victories_pilot"),
+            None,
+        )
+        if (
+            victory_pilot_index is None
+            or victory_pilot_index[2]
+            or victory_pilot_index[4]
+        ):
+            errors.append(
+                "missing canonical non-unique index idx_victories_pilot"
+            )
+        else:
+            victory_pilot_columns = tuple(
+                str(row[2])
+                for row in cursor.execute(
+                    "PRAGMA index_info(idx_victories_pilot)"
+                ).fetchall()
+            )
+            if victory_pilot_columns != ("pilotId",):
+                errors.append(
+                    "wrong key semantics for index idx_victories_pilot"
+                )
+
         binding_info = {
             str(row[1]): row
             for row in cursor.execute(
@@ -899,6 +964,25 @@ class DatabaseManager:
             if required_not_null in binding_info and not binding_info[required_not_null][3]:
                 errors.append(
                     f"missing NOT NULL pilot_slot_bindings.{required_not_null}"
+                )
+        victory_source_info = {
+            str(row[1]): row
+            for row in cursor.execute(
+                "PRAGMA table_info(victory_source_records)"
+            ).fetchall()
+        }
+        for required_not_null in (
+            "pilotId",
+            "source_record_key",
+            "victoryId",
+        ):
+            if (
+                required_not_null in victory_source_info
+                and not victory_source_info[required_not_null][3]
+            ):
+                errors.append(
+                    "missing NOT NULL victory_source_records."
+                    f"{required_not_null}"
                 )
         binding_sql_row = cursor.execute(
             "SELECT sql FROM sqlite_master WHERE type='table' "
@@ -962,6 +1046,35 @@ class DatabaseManager:
             index_sql = str(index_sql_row[0]) if index_sql_row and index_sql_row[0] else ""
             if not self._has_canonical_diary_index_predicate(index_sql):
                 errors.append("wrong predicate for index idx_diary_unique_mission")
+
+        alias_indexes = cursor.execute(
+            "PRAGMA index_list(victory_source_records)"
+        ).fetchall()
+        alias_index = next(
+            (
+                row
+                for row in alias_indexes
+                if row[1] == "idx_victory_source_records_victory"
+            ),
+            None,
+        )
+        if alias_index is None or alias_index[2] or alias_index[4]:
+            errors.append(
+                "missing canonical non-unique index "
+                "idx_victory_source_records_victory"
+            )
+        else:
+            alias_index_columns = tuple(
+                str(row[2])
+                for row in cursor.execute(
+                    "PRAGMA index_info(idx_victory_source_records_victory)"
+                ).fetchall()
+            )
+            if alias_index_columns != ("victoryId",):
+                errors.append(
+                    "wrong key semantics for index "
+                    "idx_victory_source_records_victory"
+                )
 
         if errors:
             raise SchemaCompatibilityError(
@@ -1111,6 +1224,224 @@ class DatabaseManager:
         return (
             "campaign_namespace" not in columns
             or primary_key != ("campaign_namespace", "slot")
+        )
+
+    def _victory_occurrence_unique_indexes(
+        self, cursor: sqlite3.Cursor, table: str = "victories"
+    ) -> List[Tuple[str, Optional[str]]]:
+        """Return indexes that collapse distinct same-minute victories."""
+
+        indexes: List[Tuple[str, Optional[str]]] = []
+        for row in cursor.execute(
+            f"PRAGMA index_list({self._quote_identifier(table)})"
+        ).fetchall():
+            if not row[2]:
+                continue
+            index_name = str(row[1])
+            columns = tuple(
+                str(item[2])
+                for item in cursor.execute(
+                    f"PRAGMA index_info({self._quote_identifier(index_name)})"
+                ).fetchall()
+            )
+            if columns != ("pilotId", "date", "time", "enemyType"):
+                continue
+            sql_row = cursor.execute(
+                "SELECT sql FROM sqlite_master WHERE type='index' AND name=?",
+                (index_name,),
+            ).fetchone()
+            indexes.append(
+                (index_name, str(sql_row[0]) if sql_row and sql_row[0] else None)
+            )
+        return indexes
+
+    def _has_victory_identity_schema_migration(
+        self, cursor: sqlite3.Cursor
+    ) -> bool:
+        victories = cursor.execute(
+            "SELECT 1 FROM sqlite_master "
+            "WHERE type='table' AND name='victories'"
+        ).fetchone()
+        if victories is None:
+            return False
+        if self._victory_occurrence_unique_indexes(cursor):
+            return True
+        aliases = cursor.execute(
+            "SELECT 1 FROM sqlite_master "
+            "WHERE type='table' AND name='victory_source_records'"
+        ).fetchone()
+        if aliases is None:
+            return True
+        alias_index = cursor.execute(
+            "SELECT 1 FROM sqlite_master "
+            "WHERE type='index' "
+            "AND name='idx_victory_source_records_victory'"
+        ).fetchone()
+        if alias_index is None:
+            return True
+        pilot_index = cursor.execute(
+            "SELECT 1 FROM sqlite_master "
+            "WHERE type='index' AND name='idx_victories_pilot'"
+        ).fetchone()
+        return pilot_index is None
+
+    @staticmethod
+    def _create_victory_source_records_table(
+        cursor: sqlite3.Cursor,
+    ) -> None:
+        cursor.execute(
+            """
+            CREATE TABLE victory_source_records (
+                pilotId TEXT NOT NULL,
+                source_record_key TEXT NOT NULL,
+                victoryId TEXT NOT NULL,
+                PRIMARY KEY(pilotId, source_record_key),
+                FOREIGN KEY(pilotId) REFERENCES pilots(id),
+                FOREIGN KEY(victoryId) REFERENCES victories(id)
+            )
+            """
+        )
+
+    def _migrate_victory_identity_schema(
+        self, cursor: sqlite3.Cursor
+    ) -> None:
+        """Replace the lossy victory key with source-record aliases."""
+
+        victories = cursor.execute(
+            "SELECT 1 FROM sqlite_master "
+            "WHERE type='table' AND name='victories'"
+        ).fetchone()
+        if victories is None:
+            return
+
+        forbidden_indexes = self._victory_occurrence_unique_indexes(cursor)
+        aliases_exist = cursor.execute(
+            "SELECT 1 FROM sqlite_master "
+            "WHERE type='table' AND name='victory_source_records'"
+        ).fetchone() is not None
+        if forbidden_indexes:
+            if aliases_exist:
+                alias_count = int(
+                    cursor.execute(
+                        "SELECT COUNT(*) FROM victory_source_records"
+                    ).fetchone()[0]
+                )
+                if alias_count:
+                    raise SchemaCompatibilityError(
+                        "Cannot replace the legacy victory key after source "
+                        "aliases have been populated"
+                    )
+                cursor.execute("DROP TABLE victory_source_records")
+                aliases_exist = False
+
+            original_row = cursor.execute(
+                "SELECT sql FROM sqlite_master "
+                "WHERE type='table' AND name='victories' AND sql IS NOT NULL"
+            ).fetchone()
+            if original_row is None:
+                raise SchemaCompatibilityError(
+                    "Cannot migrate victory identity without victories DDL"
+                )
+            dependent_sql = self._dependent_sql_for_table(cursor, "victories")
+            forbidden_sql = {
+                sql for _name, sql in forbidden_indexes if sql is not None
+            }
+            compatible_sql = [
+                sql for sql in dependent_sql if sql not in forbidden_sql
+            ]
+            new_table = self._unique_temp_table_name(cursor, "victories")
+            rewritten = self._rewrite_victory_identity_table_sql(
+                str(original_row[0]), new_table
+            )
+            cursor.execute(rewritten)
+            if self._victory_occurrence_unique_indexes(cursor, new_table):
+                raise SchemaCompatibilityError(
+                    "Victory identity migration retained the lossy UNIQUE key"
+                )
+
+            old_columns = [
+                str(row[1])
+                for row in cursor.execute(
+                    "PRAGMA table_info(victories)"
+                ).fetchall()
+            ]
+            new_columns = [
+                str(row[1])
+                for row in cursor.execute(
+                    f"PRAGMA table_info({self._quote_identifier(new_table)})"
+                ).fetchall()
+            ]
+            if new_columns != old_columns:
+                raise SchemaCompatibilityError(
+                    "Victory identity migration changed the victories column contract"
+                )
+            columns = ", ".join(
+                self._quote_identifier(column) for column in old_columns
+            )
+            cursor.execute(
+                f"INSERT INTO {self._quote_identifier(new_table)} ({columns}) "
+                f"SELECT {columns} FROM victories"
+            )
+            cursor.execute("DROP TABLE victories")
+            cursor.execute(
+                f"ALTER TABLE {self._quote_identifier(new_table)} "
+                "RENAME TO victories"
+            )
+            for sql in compatible_sql:
+                cursor.execute(sql)
+            log.info(
+                "  [Migração] Chave de vitórias por minuto removida; IDs preservados."
+            )
+
+        if not aliases_exist:
+            self._create_victory_source_records_table(cursor)
+            log.info(
+                "  [Migração] Identidades de origem para vitórias habilitadas."
+            )
+        cursor.execute(
+            "CREATE INDEX IF NOT EXISTS idx_victories_pilot "
+            "ON victories(pilotId)"
+        )
+
+    def _rewrite_victory_identity_table_sql(
+        self, sql: str, new_table: str
+    ) -> str:
+        """Remove only the legacy composite victory UNIQUE constraint."""
+
+        self._reject_unsupported_sql_comments(sql)
+        prefix_end = self._create_table_name_end(sql)
+        open_paren = sql.find("(", prefix_end)
+        if open_paren == -1:
+            raise ValueError(
+                "Unsupported CREATE TABLE format for victories: missing column list"
+            )
+        close_paren = self._matching_paren(sql, open_paren)
+        definitions = self._split_top_level_csv(
+            sql[open_paren + 1 : close_paren]
+        )
+        rewritten: List[str] = []
+        removed = False
+        for definition in definitions:
+            normalized = re.sub(
+                r'[\s"`\[\]]+', "", definition
+            ).upper()
+            if re.fullmatch(
+                r"(?:CONSTRAINT[A-Z_][A-Z0-9_]*)?"
+                r"UNIQUE\(PILOTID,DATE,TIME,ENEMYTYPE\)"
+                r"(?:ONCONFLICT(?:ROLLBACK|ABORT|FAIL|IGNORE|REPLACE))?",
+                normalized,
+            ):
+                removed = True
+                continue
+            rewritten.append(definition)
+        if not removed:
+            rewritten = definitions
+        suffix = sql[close_paren + 1 :]
+        return (
+            f"CREATE TABLE {self._quote_identifier(new_table)} ("
+            + ",".join(rewritten)
+            + ")"
+            + suffix
         )
 
     def _has_legacy_namespace_reconciliation(
@@ -1942,8 +2273,10 @@ class DatabaseManager:
                 )
                 if not pilot_id:
                     return None
-                mission_counts, added_v, added_d = self._missions.upsert_mission(
-                    pilot_id, missions, victories, decorations
+                mission_counts, victory_counts, decoration_counts = (
+                    self._missions.upsert_mission(
+                        pilot_id, missions, victories, decorations
+                    )
                 )
                 added_w = self._wingmen.upsert_wingmen_batch(pilot_id, wingmen)
                 if missions:
@@ -1953,9 +2286,32 @@ class DatabaseManager:
                         mission_counts.updated,
                         mission_counts.unchanged,
                     )
-                if added_v or added_d or added_w:
+                if victories:
                     log.info(
-                        f"  + {added_v} vitórias, {added_d} condecorações, "
+                        "Victory merge outcomes: inserted=%d updated=%d "
+                        "unchanged=%d unresolved=%d",
+                        victory_counts.inserted,
+                        victory_counts.updated,
+                        victory_counts.unchanged,
+                        victory_counts.unresolved,
+                    )
+                if decorations:
+                    log.info(
+                        "Decoration merge outcomes: inserted=%d updated=%d "
+                        "unchanged=%d unresolved=%d",
+                        decoration_counts.inserted,
+                        decoration_counts.updated,
+                        decoration_counts.unchanged,
+                        decoration_counts.unresolved,
+                    )
+                if (
+                    victory_counts.inserted
+                    or decoration_counts.inserted
+                    or added_w
+                ):
+                    log.info(
+                        f"  + {victory_counts.inserted} vitórias, "
+                        f"{decoration_counts.inserted} condecorações, "
                         f"{added_w} wingmen inseridos."
                     )
                 self._get_conn().execute(

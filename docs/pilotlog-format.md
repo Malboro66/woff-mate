@@ -98,6 +98,27 @@ Signature-bearing records with fewer than 26 fields are logged as truncated and
 skipped, so they can never fall through to mission parsing. Victory parsing and
 the separate claims parser are outside this format change.
 
+## Victory merge identity and claim-count consistency
+
+Each accepted Claims row receives a `source-v1` identity derived from the
+sanitized source basename and its physical record position. Only the SHA-256
+digest is persisted; no campaign path or claim text is included. XML victory
+records use the same contract with their deterministic document order. A new
+position in the same source is a distinct occurrence even when date, minute,
+and enemy aircraft are identical. Exact replay resolves the existing stable
+row, and richer compatible data fills or corrects that row without changing its
+ID or an existing mission association. Poorer or blank fields never erase
+richer stored values. An ambiguous cross-source match is reported as
+`ambiguous-occurrence` and is not guessed.
+
+Mission `claimsCount` remains source evidence; victory ingestion does not
+rewrite it. An unlinked victory is associated automatically only when exactly
+one mission for the pilot and canonical date has a positive claim count and a
+compatible start time. Existing explicit associations are preserved. When the
+stored claim count and associated victory-row count differ, WoFF Mate retains
+both records and emits the sanitized `count-mismatch` diagnostic. Merge logs
+separately report `inserted`, `updated`, `unchanged`, and `unresolved` outcomes.
+
 Records with too few fields are incomplete. A candidate mission with an invalid
 fixed prefix or invalid date/time components is malformed. These records are
 skipped without interrupting later valid missions.

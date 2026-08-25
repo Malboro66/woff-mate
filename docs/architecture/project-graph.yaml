@@ -1,5 +1,5 @@
 version: 1
-updated: 2026-08-24
+updated: 2026-08-25
 
 project:
   repository: Malboro66/woff-mate
@@ -409,12 +409,14 @@ evals:
     evidence: Replaying richer and poorer pilot sources converges without regressing provenance fields to empty or lower-authority values.
   EVAL-VICTORY-MERGE-001:
     work_items: [issue-73]
-    status: planned
+    status: implemented
     evidence: Distinct same-minute victories survive ingestion while exact replay remains idempotent.
+    enforced_by: [woff/tests/test_victory_decoration_merge.py, woff/tests/test_victory_identity_migration.py]
   EVAL-DECORATION-MERGE-001:
     work_items: [issue-73]
-    status: planned
+    status: implemented
     evidence: Richer victory and decoration sources update stable rows while poorer sources preserve richer metadata.
+    enforced_by: [woff/tests/test_victory_decoration_merge.py, woff/tests/test_victory_identity_migration.py]
   EVAL-NUM-001:
     work_items: [issue-41]
     status: planned
@@ -697,14 +699,14 @@ work_items:
   issue-43:
     title: Supply associated victory details to mission narratives
     module: application
-    state: blocked
+    state: backlog
     evals: [EVAL-NARR-001]
     gates: [Q0, Q1, Q6-CYCLE-3.4.0]
     depends_on:
       - {id: issue-34, status: satisfied}
       - {id: issue-39, status: satisfied}
       - {id: issue-40, status: satisfied}
-      - {id: issue-73, status: unsatisfied}
+      - {id: issue-73, status: satisfied}
   issue-44:
     title: Extract Mission XML with an XML-aware boundary
     module: ingestion
@@ -812,9 +814,9 @@ work_items:
   issue-73:
     title: Define lossless merge identities for victories and decorations
     module: persistence
-    state: backlog
+    state: done
     evals: [EVAL-VICTORY-MERGE-001, EVAL-DECORATION-MERGE-001]
-    gates: [Q0, Q1, Q2, Q6-CYCLE-3.3.0]
+    gates: [Q0, Q1, Q2, Q4, Q6-CYCLE-3.3.0]
     depends_on: []
   issue-74:
     title: Parse claim confirmation and mission duration without fabricated values
