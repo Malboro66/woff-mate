@@ -678,15 +678,17 @@ class MissionRepository(BaseRepository):
                 unresolved += 1
                 continue
 
-            resolved_mission, invalid_mission = self._resolve_victory_mission(
-                cursor, pilot_id, victory
-            )
-            if invalid_mission:
-                unresolved += 1
-                continue
-            victory.missionId = resolved_mission
-            if resolved_mission:
-                associated_missions.add(resolved_mission)
+            # Validate an explicit parent before identity matching, but defer
+            # inference until the stored occurrence (if any) is known.  A
+            # replay that omits missionId must retain an existing relationship.
+            if victory.missionId:
+                resolved_mission, invalid_mission = self._resolve_victory_mission(
+                    cursor, pilot_id, victory
+                )
+                if invalid_mission:
+                    unresolved += 1
+                    continue
+                victory.missionId = resolved_mission
 
             target_id: Optional[str] = None
             if source_record_key:
@@ -722,11 +724,32 @@ class MissionRepository(BaseRepository):
                     unresolved += 1
                     continue
 
+            stored: Optional[Dict[str, Any]] = None
             if target_id is not None:
                 stored = _victory_row(cursor, target_id)
                 if stored is None or str(stored.get("pilotId") or "") != pilot_id:
                     raise sqlite3.IntegrityError(
                         "victory source identity points outside its pilot"
+                    )
+                stored_mission = str(stored.get("missionId") or "").strip()
+                if not victory.missionId and stored_mission:
+                    victory.missionId = stored_mission
+
+            if not victory.missionId:
+                resolved_mission, invalid_mission = self._resolve_victory_mission(
+                    cursor, pilot_id, victory
+                )
+                if invalid_mission:
+                    unresolved += 1
+                    continue
+                victory.missionId = resolved_mission
+            if victory.missionId:
+                associated_missions.add(victory.missionId)
+
+            if stored is not None:
+                if target_id is None:
+                    raise sqlite3.IntegrityError(
+                        "resolved victory identity disappeared"
                     )
                 updates, conflict = _victory_merge_updates(stored, victory)
                 if conflict:

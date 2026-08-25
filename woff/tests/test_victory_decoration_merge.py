@@ -29,6 +29,36 @@ def _persist_pilot(database: DatabaseManager) -> WoFFPilot:
     return pilot
 
 
+def _persist_competing_claim_missions(
+    database: DatabaseManager,
+    pilot: WoFFPilot,
+) -> tuple[WoFFMission, WoFFMission]:
+    stored_parent = WoFFMission(
+        id="mission-stored-parent",
+        pilotId=pilot.id,
+        date="1917-04-06",
+        time="09:00",
+        missionType="Patrol",
+        aircraft="SE.5a",
+        claimsCount=0,
+        source_file="mission.log",
+    )
+    inference_candidate = WoFFMission(
+        id="mission-inference-candidate",
+        pilotId=pilot.id,
+        date="1917-04-06",
+        time="09:30",
+        missionType="Escort",
+        aircraft="SE.5a",
+        claimsCount=1,
+        source_file="mission.log",
+    )
+    assert database.merge_and_write(
+        None, [stored_parent, inference_candidate], [], []
+    ) == pilot.id
+    return stored_parent, inference_candidate
+
+
 def test_distinct_same_minute_victories_survive_and_replay_is_idempotent(
     tmp_path,
 ):
@@ -288,6 +318,99 @@ def test_richer_victory_preserves_id_and_stable_mission_relationship(
             )
         ]
         assert "Victory merge outcomes: inserted=0 updated=0 unchanged=1 unresolved=0" in caplog.messages
+    finally:
+        database.close()
+
+
+def test_aliased_replay_without_mission_preserves_stored_relationship(
+    tmp_path,
+    caplog,
+):
+    database = DatabaseManager(str(tmp_path / "aliased-parent.sqlite"))
+    try:
+        pilot = _persist_pilot(database)
+        stored_parent, _inference_candidate = _persist_competing_claim_missions(
+            database, pilot
+        )
+        source_key = stable_source_record_key(
+            "victory", "Pilot1Claims.txt", 2
+        )
+        stored = WoFFVictory(
+            id="victory-stable",
+            pilotId=pilot.id,
+            date="1917-04-06",
+            time="10:35",
+            missionId=stored_parent.id,
+            enemyType="Albatros D.III",
+            source_file="Pilot1Claims.txt",
+            source_record_key=source_key,
+        )
+        assert database.merge_and_write(None, [], [stored], []) == pilot.id
+
+        replay = WoFFVictory(
+            id="replay-import-id",
+            pilotId=pilot.id,
+            date=stored.date,
+            time=stored.time,
+            enemyType=stored.enemyType,
+            source_file=stored.source_file,
+            source_record_key=source_key,
+        )
+        caplog.set_level("INFO", logger="WoFFWatch")
+        caplog.clear()
+        assert database.merge_and_write(None, [], [replay], []) == pilot.id
+        assert database._get_conn().execute(
+            "SELECT id, missionId FROM victories"
+        ).fetchall() == [(stored.id, stored_parent.id)]
+        assert (
+            "Victory merge outcomes: inserted=0 updated=0 "
+            "unchanged=1 unresolved=0"
+        ) in caplog.messages
+    finally:
+        database.close()
+
+
+def test_migrated_replay_without_alias_preserves_stored_relationship(
+    tmp_path,
+):
+    database = DatabaseManager(str(tmp_path / "migrated-parent.sqlite"))
+    try:
+        pilot = _persist_pilot(database)
+        stored_parent, _inference_candidate = _persist_competing_claim_missions(
+            database, pilot
+        )
+        stored = WoFFVictory(
+            id="victory-migrated",
+            pilotId=pilot.id,
+            date="1917-04-06",
+            time="10:35",
+            missionId=stored_parent.id,
+            enemyType="Albatros D.III",
+            source_file="Pilot1Claims.txt",
+        )
+        assert database.merge_and_write(None, [], [stored], []) == pilot.id
+
+        source_key = stable_source_record_key(
+            "victory", "Pilot1Claims.txt", 2
+        )
+        replay = WoFFVictory(
+            id="replay-import-id",
+            pilotId=pilot.id,
+            date=stored.date,
+            time=stored.time,
+            enemyType=stored.enemyType,
+            source_file=stored.source_file,
+            source_record_key=source_key,
+        )
+        assert database.merge_and_write(None, [], [replay], []) == pilot.id
+        assert database._get_conn().execute(
+            "SELECT id, missionId FROM victories"
+        ).fetchall() == [(stored.id, stored_parent.id)]
+        assert database._get_conn().execute(
+            "SELECT victoryId FROM victory_source_records "
+            "WHERE pilotId=? AND source_record_key=?",
+            (pilot.id, source_key),
+        ).fetchone() == (stored.id,)
     finally:
         database.close()
 
