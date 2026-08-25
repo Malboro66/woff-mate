@@ -12,7 +12,8 @@ from __future__ import annotations
 import logging
 import ntpath
 import os
-from typing import Optional, List, Sequence
+import sqlite3
+from typing import Any, Optional, List, Sequence
 
 from watchdog.events import FileSystemEventHandler
 
@@ -22,6 +23,13 @@ from .campaign_engine import CampaignEngine
 from .config import SUPPORTED_WATCHED_EXTENSIONS
 from .discovery import is_preview_allowed
 from .ingestion.scheduler import EventScheduler
+from .ingestion.outcome import (
+    ProcessingOutcome,
+    ProcessingReason,
+    ProcessingStatus,
+    VerifiedProcessingInput,
+    classify_transient_sqlite_error,
+)
 from .ingestion.snapshot import (
     FileGeneration,
     SnapshotFailure,
@@ -117,50 +125,140 @@ class FileProcessor:
         self,
         path: str,
         event_type: str,
-        previous_generation: Optional[FileGeneration] = None,
-    ) -> Optional[FileGeneration]:
-        """Executa a cadeia de processamento."""
+        previous_generation: Optional[FileGeneration] | ProcessingOutcome = None,
+    ) -> ProcessingOutcome:
+        """Process one path and return an explicit acknowledgement contract."""
         try:
+            if isinstance(previous_generation, ProcessingOutcome):
+                previous_generation = previous_generation.acknowledged_generation
             ext = os.path.splitext(path)[1].lower()
             if ext in {".txt", ".log"} and not is_preview_allowed(path):
                 log.debug("Unsupported WoFF filename ignored: %s", _safe_filename(path))
-                return None
+                return ProcessingOutcome.permanent(
+                    ProcessingReason.UNSUPPORTED_SOURCE
+                )
             snapshot = self.guard.acquire(path)
             if snapshot.generation == previous_generation:
                 log.debug("Snapshot generation already processed: %s", _safe_filename(path))
-                return snapshot.generation
+                return ProcessingOutcome.unchanged(snapshot.generation)
 
-            # 2. Discovery (Log)
-            if self.discovery and os.path.exists(path):
-                self.discovery.log_file(path, event_type)
-
-            # 3. Roteamento e Parse
-            fname = os.path.basename(path).lower()
-
-            persisted = False
-            if ext == ".xml":
-                persisted = self._process_xml(path, snapshot)
-            elif ext in SUPPORTED_WATCHED_EXTENSIONS:
-                persisted = self._process_text(path, fname, snapshot)
-            return snapshot.generation if persisted else None
+            retry_input = self._verified_processing_input(path, snapshot)
+            return self._process_verified(
+                retry_input, event_type, record_discovery=True
+            )
 
         except SnapshotFailure as failure:
             log.warning(
                 "Snapshot rejected: source=%s state=%s attempts=%d",
                 _safe_filename(path), failure.kind.value, failure.attempts,
             )
-            return None
-        except PilotIdentityError as error:
-            log.warning(
-                "Pilot identity rejected: source=%s category=%s slot=%s",
-                _safe_filename(path),
-                error.reason,
-                error.slot or "none",
+            return ProcessingOutcome.permanent(
+                ProcessingReason.SNAPSHOT_REJECTED
             )
-            return None
+        except PilotIdentityError as error:
+            return self._identity_rejection(path, error)
         except Exception:
             log.exception("Erro no pipeline de processamento para %s", _safe_filename(path))
-            return None
+            return ProcessingOutcome.permanent(
+                ProcessingReason.UNEXPECTED_ERROR
+            )
+
+    def replay(
+        self, outcome: ProcessingOutcome, event_type: str
+    ) -> ProcessingOutcome:
+        """Replay the exact retained bytes and identity after SQLite recovery."""
+        if (
+            outcome.status is not ProcessingStatus.TRANSIENT_FAILURE
+            or outcome.retry_input is None
+        ):
+            raise ValueError("only a transient processing outcome can be replayed")
+        return self._process_verified(
+            outcome.retry_input, event_type, record_discovery=False
+        )
+
+    def _verified_processing_input(
+        self, path: str, snapshot: StableFileSnapshot
+    ) -> VerifiedProcessingInput:
+        source_name = snapshot.name
+        filename = _safe_filename(source_name).lower()
+        dependent_identity = None
+        if (
+            pilot_slot(source_name) is not None
+            and "dossier" not in filename
+            and filename != "mission.log"
+        ):
+            dependent_identity = self._dependent_identity(path, source_name)
+        return VerifiedProcessingInput(snapshot, dependent_identity)
+
+    def _process_verified(
+        self,
+        retry_input: VerifiedProcessingInput,
+        event_type: str,
+        *,
+        record_discovery: bool,
+    ) -> ProcessingOutcome:
+        snapshot = retry_input.snapshot
+        path = snapshot.path
+        try:
+            if record_discovery and self.discovery and os.path.exists(path):
+                self.discovery.log_file(path, event_type)
+
+            ext = os.path.splitext(path)[1].lower()
+            filename = _safe_filename(path).lower()
+            if ext == ".xml":
+                rejection = self._process_xml(path, snapshot)
+            elif ext in SUPPORTED_WATCHED_EXTENSIONS:
+                rejection = self._process_text(
+                    path,
+                    filename,
+                    snapshot,
+                    dependent_identity=retry_input.dependent_identity,
+                )
+            else:
+                return ProcessingOutcome.permanent(
+                    ProcessingReason.UNSUPPORTED_SOURCE
+                )
+            if rejection is None:
+                return ProcessingOutcome.success(snapshot.generation)
+            return ProcessingOutcome.permanent(rejection)
+        except PilotIdentityError as error:
+            return self._identity_rejection(path, error)
+        except sqlite3.Error as error:
+            reason = classify_transient_sqlite_error(error)
+            if reason is not None:
+                log.warning(
+                    "Transient persistence failure retained: source=%s category=%s",
+                    _safe_filename(path),
+                    reason.value,
+                )
+                return ProcessingOutcome.transient(retry_input, reason)
+            log.error(
+                "Persistence rejected: source=%s category=%s",
+                _safe_filename(path),
+                ProcessingReason.SQLITE_PERMANENT.value,
+            )
+            return ProcessingOutcome.permanent(
+                ProcessingReason.SQLITE_PERMANENT
+            )
+        except Exception:
+            log.exception(
+                "Erro no pipeline de processamento para %s", _safe_filename(path)
+            )
+            return ProcessingOutcome.permanent(
+                ProcessingReason.UNEXPECTED_ERROR
+            )
+
+    @staticmethod
+    def _identity_rejection(
+        path: str, error: PilotIdentityError
+    ) -> ProcessingOutcome:
+        log.warning(
+            "Pilot identity rejected: source=%s category=%s slot=%s",
+            _safe_filename(path),
+            error.reason,
+            error.slot or "none",
+        )
+        return ProcessingOutcome.permanent(ProcessingReason.IDENTITY_REJECTED)
 
     @staticmethod
     def _parser_input(path: str, snapshot: Optional[StableFileSnapshot]) -> tuple[bytes, str]:
@@ -212,7 +310,9 @@ class FileProcessor:
             campaign_namespace,
         )
 
-    def _process_xml(self, path: str, snapshot: Optional[StableFileSnapshot] = None) -> bool:
+    def _process_xml(
+        self, path: str, snapshot: Optional[StableFileSnapshot] = None
+    ) -> Optional[ProcessingReason]:
         parser = WoFFXMLParser()
         data, name = self._parser_input(path, snapshot)
         if parser.parse_bytes(data, name):
@@ -225,7 +325,7 @@ class FileProcessor:
                 identity=PilotIdentityEvidence(PilotIdentityKind.UNRESOLVED),
             )
             if not real_pilot_id:
-                return False
+                return ProcessingReason.PERSISTENCE_REJECTED
             # FIX: Se houver missões e um pilot_id real, processa o fim de missão.
             latest_mission = get_latest_mission(parser)
             if real_pilot_id and latest_mission is not None:
@@ -233,18 +333,23 @@ class FileProcessor:
                     real_pilot_id, latest_mission
                 )
                 if not persisted_mission_id:
-                    return False
+                    return ProcessingReason.PERSISTENCE_REJECTED
                 derived_result = self.campaign_engine.process_mission_end(
                     real_pilot_id, persisted_mission_id
                 )
                 if derived_result is not True:
-                    return False
-            return True
-        return False
+                    return ProcessingReason.PERSISTENCE_REJECTED
+            return None
+        return ProcessingReason.PARSER_REJECTED
 
     def _process_text(
-        self, path: str, fname: str, snapshot: Optional[StableFileSnapshot] = None
-    ) -> bool:
+        self,
+        path: str,
+        fname: str,
+        snapshot: Optional[StableFileSnapshot] = None,
+        *,
+        dependent_identity: Optional[PilotIdentityEvidence] = None,
+    ) -> Optional[ProcessingReason]:
         data, name = self._parser_input(path, snapshot)
         if "dossier" in fname:
             parser = WoFFDossierParser()
@@ -256,8 +361,12 @@ class FileProcessor:
                     wingmen=parser.wingmen,
                     identity=identity,
                 )
-                return bool(real_pilot_id)
-            return False
+                return (
+                    None
+                    if real_pilot_id
+                    else ProcessingReason.PERSISTENCE_REJECTED
+                )
+            return ProcessingReason.PARSER_REJECTED
 
         if fname == "mission.log":
             parser = WoFFMissionLogParser()
@@ -269,8 +378,12 @@ class FileProcessor:
                     decorations=[],
                     identity=PilotIdentityEvidence(PilotIdentityKind.UNRESOLVED),
                 )
-                return bool(real_pilot_id)
-            return False
+                return (
+                    None
+                    if real_pilot_id
+                    else ProcessingReason.PERSISTENCE_REJECTED
+                )
+            return ProcessingReason.PARSER_REJECTED
 
         # Ficheiros de piloto (Log, Claims, Squads)
         parser = WoFFPilotDataParser()
@@ -280,10 +393,14 @@ class FileProcessor:
                 missions=parser.missions,
                 victories=parser.victories,
                 decorations=[],
-                identity=self._dependent_identity(path, name),
+                identity=(
+                    dependent_identity
+                    if dependent_identity is not None
+                    else self._dependent_identity(path, name)
+                ),
             )
             if not persisted_pilot_id:
-                return False
+                return ProcessingReason.PERSISTENCE_REJECTED
             # FIX: Só invoca o RPG se tivermos um ID real e missões.
             latest_mission = get_latest_mission(parser)
             if latest_mission is not None:
@@ -291,14 +408,14 @@ class FileProcessor:
                     persisted_pilot_id, latest_mission
                 )
                 if not persisted_mission_id:
-                    return False
+                    return ProcessingReason.PERSISTENCE_REJECTED
                 derived_result = self.campaign_engine.process_mission_end(
                     persisted_pilot_id, persisted_mission_id
                 )
                 if derived_result is not True:
-                    return False
-            return True
-        return False
+                    return ProcessingReason.PERSISTENCE_REJECTED
+            return None
+        return ProcessingReason.PARSER_REJECTED
 
 
 class WoFFEventHandler(FileSystemEventHandler):
@@ -333,6 +450,7 @@ class WoFFEventHandler(FileSystemEventHandler):
             max_workers=config.max_workers,
             max_pending_events=config.max_pending_events,
             retry_process=self._execute_retry_pipeline,
+            persistence_retry_process=self._execute_persistence_retry_pipeline,
         )
         self._startup_admission_timeout = config.stability_timeout_sec
 
@@ -373,15 +491,29 @@ class WoFFEventHandler(FileSystemEventHandler):
 
     def _execute_pipeline(self, path: str, event_type: str):
         """Método executado na thread pool."""
-        log.info(f"Detectado [{event_type}]: {os.path.basename(path)}")
+        log.info("Detectado [%s]: %s", event_type, _safe_filename(path))
         return self.processor.process(path, event_type)
 
     def _execute_retry_pipeline(
-        self, path: str, event_type: str, previous_generation: Optional[FileGeneration]
-    ) -> Optional[FileGeneration]:
+        self, path: str, event_type: str, previous_outcome: Any
+    ) -> ProcessingOutcome:
         """Process a coalesced event while suppressing an identical generation."""
-        log.info(f"Detectado [{event_type}]: {os.path.basename(path)}")
+        log.info("Detectado [%s]: %s", event_type, _safe_filename(path))
+        previous_generation = (
+            previous_outcome.acknowledged_generation
+            if isinstance(previous_outcome, ProcessingOutcome)
+            else previous_outcome
+            if isinstance(previous_outcome, FileGeneration)
+            else None
+        )
         return self.processor.process(path, event_type, previous_generation)
+
+    def _execute_persistence_retry_pipeline(
+        self, path: str, event_type: str, previous_outcome: ProcessingOutcome
+    ) -> ProcessingOutcome:
+        """Replay retained verified input without reopening mutable source bytes."""
+        log.info("A repetir persistência [%s]: %s", event_type, _safe_filename(path))
+        return self.processor.replay(previous_outcome, event_type)
 
     def metrics(self):
         return self.scheduler.metrics()

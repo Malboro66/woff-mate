@@ -75,9 +75,10 @@ The aggregate eval passes only when:
 
 Green CI alone does not pass this aggregate eval.
 
-The remaining operational sequence is #95, #73, and #27. The graph encodes only
-technical dependencies: completed #94 and pending #95 block #27. The sequence
-does not make independent items artificial prerequisites of one another.
+The remaining operational sequence is #73 and #27. The graph encodes only
+technical dependencies: completed #94 and #95 have satisfied the blockers of
+#27. The sequence does not make independent items artificial prerequisites of
+one another.
 
 ## Newly registered data-integrity evals
 
@@ -143,6 +144,21 @@ claim Q5 or approval of Product Gate A or Gate B.
   approved file only after observer startup, exclude it from baseline globbing,
   coalesce a canonical duplicate, process its live generation once, and verify
   drained scheduler shutdown.
+
+### Implemented persistence retry evals
+
+- `EVAL-PERSIST-RETRY-001` is enforced by real SQLite `BEGIN IMMEDIATE`
+  contention through the production `FileProcessor` and `EventScheduler` path
+  in `woff/tests/test_persistence_retry.py`. The tests retain the exact verified
+  source bytes and Dossier-backed identity, release the writer lock, and prove
+  one automatic idempotent persistence replay. A newer filesystem event
+  deterministically supersedes the retained generation.
+- `EVAL-PERSIST-RETRY-002` is enforced by the same module. Four total attempts
+  use fixed scheduler backoff of 0.1, 0.2, and 0.4 seconds. Exhaustion and
+  shutdown cancellation leave the generation unacknowledged, release bounded
+  scheduler state, and emit one final filename-only diagnostic. Typed outcomes
+  and metrics keep permanent rejection, saturation, transient retries, and
+  successful replay observably separate.
 
 ### Implemented canonical temporal evals
 
