@@ -42,6 +42,12 @@ def campaign_namespace_for_root(root: str) -> str:
     """Derive a stable namespace without persisting the configured path."""
 
     canonical = canonical_windows_path(root)
+    return _campaign_namespace_for_canonical_root(canonical)
+
+
+def _campaign_namespace_for_canonical_root(canonical: str) -> str:
+    """Hash an already canonical root without applying platform rules twice."""
+
     digest = hashlib.sha256(canonical.encode("utf-8")).hexdigest()
     return f"{CAMPAIGN_NAMESPACE_PREFIX}{digest}"
 
@@ -89,7 +95,9 @@ def campaign_namespaces_for_roots(roots: Sequence[str]) -> tuple[str, ...]:
     """Return one deterministic namespace for every configured root."""
 
     canonical = canonical_watch_roots(roots)
-    return tuple(campaign_namespace_for_root(root) for root in canonical)
+    return tuple(
+        _campaign_namespace_for_canonical_root(root) for root in canonical
+    )
 
 
 class CampaignNamespaceResolver:
@@ -103,10 +111,10 @@ class CampaignNamespaceResolver:
         canonical = canonical_windows_path(path)
         matches = [root for root in self._roots if _contains(root, canonical)]
         if len(matches) == 1:
-            return campaign_namespace_for_root(matches[0])
+            return _campaign_namespace_for_canonical_root(matches[0])
         if len(matches) > 1:
             raise CampaignNamespaceConflict("source matches multiple campaign roots")
         if self._strict:
             raise CampaignNamespaceError("source is outside configured campaign roots")
         parent = ntpath.dirname(canonical)
-        return campaign_namespace_for_root(parent)
+        return _campaign_namespace_for_canonical_root(parent)

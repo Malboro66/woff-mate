@@ -4,7 +4,7 @@ from unittest.mock import patch
 
 import pytest
 
-from .. import woff_watchdog
+from .. import campaign_namespace, woff_watchdog
 from ..campaign_namespace import (
     CampaignNamespaceError,
     CampaignNamespaceResolver,
@@ -65,6 +65,19 @@ def test_resolver_rejects_sources_outside_configured_roots(tmp_path) -> None:
     )
     with pytest.raises(CampaignNamespaceError, match="outside configured"):
         resolver.namespace_for(str(other / "Pilot1Dossier.txt"))
+
+
+def test_resolver_never_recanonicalizes_an_already_canonical_root(
+    tmp_path,
+) -> None:
+    root = tmp_path / "root"
+    source = root / "Pilot1Dossier.txt"
+
+    with patch.object(campaign_namespace.ntpath, "isabs", return_value=False):
+        resolver = CampaignNamespaceResolver([str(root)])
+        expected = campaign_namespace_for_root(str(root))
+
+        assert resolver.namespace_for(str(source)) == expected
 
 
 def test_conflicting_roots_fail_before_database_or_workers_are_created() -> None:
