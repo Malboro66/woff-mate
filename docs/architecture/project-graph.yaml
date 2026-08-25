@@ -346,8 +346,8 @@ evals:
     enforced_by: [woff/tests/test_career_selection.py]
   EVAL-ROOT-BINDING-001:
     work_items: [issue-94]
-    status: implemented
-    evidence: Equal pilot slots in distinct watched campaign roots retain independent bindings and route dependent files to the correct career.
+    status: planned
+    evidence: Equal pilot slots in distinct watched campaign roots retain independent bindings and persistent career IDs, including after another root retires a same-name career, and route dependent files to the correct career.
     enforced_by:
       - woff/tests/test_campaign_namespace.py
       - woff/tests/test_pilot_identity.py
@@ -591,7 +591,7 @@ work_items:
   issue-27:
     title: Reprocess pilot files when the Dossier is not available yet
     module: ingestion
-    state: backlog
+    state: blocked
     evals: [EVAL-DEFER-001, EVAL-DEFER-002]
     gates: [Q0, Q1, Q3, Q6-CYCLE-3.3.0]
     depends_on:
@@ -601,7 +601,7 @@ work_items:
       - {id: issue-57, status: satisfied}
       - {id: issue-70, status: satisfied}
       - {id: issue-71, status: satisfied}
-      - {id: issue-94, status: satisfied}
+      - {id: issue-94, status: unsatisfied}
       - {id: issue-95, status: satisfied}
   issue-28:
     title: Validate pilots in every woff_query output format
@@ -856,7 +856,7 @@ work_items:
   issue-94:
     title: Namespace pilot-slot bindings across watched campaign roots
     module: persistence
-    state: done
+    state: in_progress
     evals: [EVAL-ROOT-BINDING-001, EVAL-ROOT-BINDING-002]
     gates: [Q0, Q1, Q2, Q3, Q4, Q6-CYCLE-3.3.0]
     depends_on: []
