@@ -608,6 +608,67 @@ class DatabaseManager:
     def _run_sqlite_backup(self, source: sqlite3.Connection, dest: sqlite3.Connection) -> None:
         source.backup(dest)
 
+    def create_export_backup(self) -> Path:
+        """Atomically replace the optional pre-processing export snapshot.
+
+        The new sidecar is published only after SQLite certifies it.  A failed
+        attempt therefore leaves any previously verified snapshot untouched.
+        """
+
+        backup_path = self.db_path.with_name(f"{self.db_path.name}.backup.sqlite")
+        with self._lock:
+            while True:
+                temporary_path = self._unique_sidecar_path(
+                    backup_path, "export-backup"
+                )
+                try:
+                    fd = os.open(
+                        temporary_path, os.O_CREAT | os.O_EXCL | os.O_WRONLY
+                    )
+                except FileExistsError:
+                    continue
+                os.close(fd)
+                break
+
+            source: Optional[sqlite3.Connection] = None
+            destination: Optional[sqlite3.Connection] = None
+            try:
+                source_uri = f"{self.db_path.resolve().as_uri()}?mode=ro"
+                source = sqlite3.connect(source_uri, uri=True)
+                destination = sqlite3.connect(temporary_path)
+                self._run_sqlite_backup(source, destination)
+                if destination.execute("PRAGMA integrity_check").fetchone() != (
+                    "ok",
+                ):
+                    raise sqlite3.DatabaseError(
+                        "integrity_check failed for export backup"
+                    )
+                destination.close()
+                destination = None
+                source.close()
+                source = None
+
+                file_descriptor = os.open(temporary_path, os.O_RDONLY)
+                try:
+                    os.fsync(file_descriptor)
+                finally:
+                    os.close(file_descriptor)
+                os.replace(temporary_path, backup_path)
+                self._fsync_directory(backup_path.parent)
+            except Exception:
+                if destination is not None:
+                    destination.close()
+                if source is not None:
+                    source.close()
+                try:
+                    temporary_path.unlink()
+                except FileNotFoundError:
+                    pass
+                raise
+
+        log.info("Backup de exportação criado: %s", backup_path)
+        return backup_path
+
     def _restore_migration_backup(self) -> None:
         """Restaura backup via API SQLite sem mover arquivos de conexões abertas."""
         backup_path = getattr(self, "_migration_backup_path", None)

@@ -376,6 +376,22 @@ for the broader roster-generation and truncated-input policy.
   behavior across formats, while #75 owns the broader exit-code and stream
   contract for every command failure.
 
+### Implemented command-entry-point evals
+
+- `EVAL-CLI-CONTRACT-001` is enforced by
+  `woff/tests/test_command_contracts.py`. Installed `woff-query`,
+  `woff-watchdog`, and `woff-report` entry points use status `0` only for
+  success, status `1` for runtime failures, and status `2` for invalid input,
+  configuration, or missing resources. Query diagnostics stay on stderr;
+  watchdog validates watch roots before database creation; parse-file and
+  report failures retain their status across subprocess boundaries.
+- `EVAL-CLI-CONTRACT-002` is enforced by the same module. Populated and empty
+  JSON, CSV, and Markdown query results remain valid selected-format documents,
+  report generation preserves zero instead of labelling it missing, and report
+  publication plus the optional pre-processing SQLite snapshot are atomic.
+  Backup failure preserves the previous verified snapshot. Issue #75 changes no
+  schema and does not implement Issue #28's unknown-pilot matrix.
+
 ## Planned cycle 3.4.0
 
 | Work item | Eval IDs |
@@ -394,7 +410,8 @@ for the broader roster-generation and truncated-input policy.
 | #97 | `EVAL-DIARY-EMPTY-001` |
 | #101 | `EVAL-WINGMAN-TRANSFER-001`, `EVAL-WINGMAN-TRANSFER-002`, `EVAL-WINGMAN-TRANSFER-003` |
 
-Cycle 3.4.0 remains `planned`, so it intentionally has no aggregate eval yet.
+Cycle 3.4.0 remains `planned`, even though member #75 is complete, so it
+intentionally has no aggregate eval yet.
 Its thirteen members reference `Q6-CYCLE-3.4.0`, which defines the eventual
 cycle-exit contract. An aggregate eval may be introduced when the cycle becomes
 active without weakening the individual member evals registered above.

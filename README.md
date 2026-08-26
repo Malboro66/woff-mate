@@ -78,8 +78,16 @@ woff-watchdog --help
 woff-watchdog --version
 woff-watchdog --discover
 woff-watchdog --parse-file "C:\path\to\Pilot1Dossier.txt"
-woff-report
+woff-query --format json
+woff-report --config config.json
 ```
+
+All three installed commands use the same process contract: `0` means success,
+`1` means a runtime failure, and `2` means invalid input, configuration, or a
+missing required resource. JSON, CSV, and Markdown query output is written only
+to stdout; diagnostics are written to stderr. See the
+[command-line contracts](docs/command-line-contracts.md) for selectors, empty
+results, report generation, and export-backup behavior.
 
 ## How It Works
 
@@ -156,6 +164,7 @@ Current work and planned features are tracked in the [WoFF Mate Development Proj
 - [Read-only UI foundation](docs/ui/read-only-foundation.md)
 - [Compatibility and safe reporting](docs/compatibility.md)
 - [Database migrations and recovery](docs/database-migrations.md)
+- [Command-line contracts](docs/command-line-contracts.md)
 - [Troubleshooting](docs/troubleshooting.md)
 - [Engineering evals](docs/engineering/evals.md)
 - [Quality gates](docs/engineering/quality-gates.md)
