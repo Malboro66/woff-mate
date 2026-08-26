@@ -60,7 +60,12 @@ Startup component failures return `1`.
 `Pilot*Squads.txt` names. A missing or unsupported input returns `2`; a supported
 file that its parser rejects, even after extracting some valid records, returns
 `1`. A log or claims file that explicitly declares zero records is a successful
-parse and returns `0`.
+parse and returns `0`. For log and claims files with a numeric record counter,
+the counter must match the number of physical data records; valid PilotLog claim
+confirmations count toward that total even though they do not create missions.
+Claims date/time fields and every selected Squads row must satisfy the supported
+structure. A malformed row or count mismatch makes the source incomplete and
+returns `1`, even when another row was extracted successfully.
 
 If `backup_export` is enabled and the export database already exists, startup
 creates `<database-name>.backup.sqlite` with the SQLite online-backup API before
@@ -88,6 +93,8 @@ not publish a partial replacement. The report renders numeric zero and Boolean
 false literally; only `None` and an empty string are labelled `Vazio`.
 Recognized pilot log and claims files that declare zero records are valid and
 render zero counts; any rejected record still fails the complete report, even
-when other records in the same file are valid. Source discovery accepts only
-regular files whose names match the supported pilot patterns case-insensitively;
+when other records in the same file are valid. Declared record-count mismatches,
+invalid claims date/time fields, and malformed Squads rows also fail generation
+without publishing a partial report. Source discovery accepts only regular
+files whose names match the supported pilot patterns case-insensitively;
 similarly named files, suffix backups, and directories are ignored.

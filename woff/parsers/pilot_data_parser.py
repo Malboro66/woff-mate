@@ -27,12 +27,30 @@ class WoFFPilotDataParser:
         self.victories: List[WoFFVictory] = []
         self.valid_empty = False
         self.rejected_records = 0
+        self.declared_records: Optional[int] = None
+        self.observed_records = 0
 
     @property
     def has_rejected_records(self) -> bool:
         """Report whether any candidate record was rejected in the last parse."""
 
         return self.rejected_records > 0
+
+    @property
+    def is_complete(self) -> bool:
+        """Report whether every physical record satisfies the source contract."""
+
+        count_matches = (
+            self.declared_records is None
+            or self.declared_records == self.observed_records
+        )
+        return not self.has_rejected_records and count_matches
+
+    def _reset_parse_status(self) -> None:
+        self.valid_empty = False
+        self.rejected_records = 0
+        self.declared_records = None
+        self.observed_records = 0
 
     @staticmethod
     def _normalized_fields(line: str) -> List[str]:
@@ -58,12 +76,12 @@ class WoFFPilotDataParser:
         )
 
     @staticmethod
-    def _declares_zero_records(lines: List[str]) -> bool:
+    def _declared_record_count(lines: List[str]) -> Optional[int]:
         for raw_line in lines:
             marker = raw_line.strip()
             if marker:
-                return marker.isdigit() and int(marker) == 0
-        return False
+                return int(marker) if marker.isdigit() else None
+        return None
 
     @staticmethod
     def _validated_date_time(parts: List[str]) -> tuple[str, str]:
@@ -89,9 +107,39 @@ class WoFFPilotDataParser:
             os.path.basename(path), line_number, category, field_count, reason,
         )
 
+    @staticmethod
+    def _log_source_rejected(
+        path: str,
+        line_number: int,
+        source_kind: str,
+        field_count: int,
+        reason: str,
+    ) -> None:
+        log.warning(
+            "[TXT] %s record rejected: source=%s line=%d fields=%d reason=%s",
+            source_kind,
+            os.path.basename(path),
+            line_number,
+            field_count,
+            reason,
+        )
+
+    def _log_count_mismatch(self, path: str, source_kind: str) -> None:
+        if (
+            self.declared_records is not None
+            and self.declared_records != self.observed_records
+        ):
+            log.warning(
+                "[TXT] %s record count mismatch: source=%s declared=%d "
+                "observed=%d",
+                source_kind,
+                os.path.basename(path),
+                self.declared_records,
+                self.observed_records,
+            )
+
     def parse(self, path: str) -> bool:
-        self.valid_empty = False
-        self.rejected_records = 0
+        self._reset_parse_status()
         try:
             with open(path, "rb") as source:
                 data = source.read()
@@ -102,8 +150,7 @@ class WoFFPilotDataParser:
 
     def parse_bytes(self, data: bytes | str, source_name: str) -> bool:
         """Parse verified bytes without reopening their source path."""
-        self.valid_empty = False
-        self.rejected_records = 0
+        self._reset_parse_status()
         fname = os.path.basename(source_name).lower()
         if "dossier" in fname: return False
 
@@ -122,25 +169,59 @@ class WoFFPilotDataParser:
     def _parse_squads(self, lines: List[str], path: str, pilot_name: str) -> bool:
         log.info(f"[TXT] Analisando Esquadrões: {os.path.basename(path)}")
         try:
-            if not lines: return False
-            p = WoFFPilot()
-            p.name = pilot_name
-            p.source_file = os.path.basename(path)
-            parts = [part.strip() for part in lines[-1].strip().split(";")]
-            if len(parts) >= 12:
-                p.squadron = parts[7]; p.aircraft = parts[8]; p.aerodrome = parts[6]; p.sector = parts[5]
-                rank_match = re.search(r"rank:\s*([^\.]+)", parts[10], re.I)
-                if rank_match: p.rank = rank_match.group(1).strip()
-                p.startDate = normalize_date(f"{parts[0].replace('/','')}/{parts[1].replace('/','')}/{parts[2]}")
-            self.pilot = p
-            return True
+            latest_pilot: Optional[WoFFPilot] = None
+            for line_number, raw_line in enumerate(lines, start=1):
+                line = raw_line.rstrip("\r\n")
+                if not line.strip() or line.strip().isdigit():
+                    continue
+
+                self.observed_records += 1
+                parts = self._normalized_fields(line)
+                if len(parts) < 12:
+                    self.rejected_records += 1
+                    self._log_source_rejected(
+                        path,
+                        line_number,
+                        "PilotSquads",
+                        len(parts),
+                        "incomplete record",
+                    )
+                    continue
+
+                try:
+                    start_date, _ = self._validated_date_time(parts)
+                    p = WoFFPilot()
+                    p.name = pilot_name
+                    p.source_file = os.path.basename(path)
+                    p.squadron = parts[7]
+                    p.aircraft = parts[8]
+                    p.aerodrome = parts[6]
+                    p.sector = parts[5]
+                    rank_match = re.search(r"rank:\s*([^\.]+)", parts[10], re.I)
+                    if rank_match:
+                        p.rank = rank_match.group(1).strip()
+                    p.startDate = start_date
+                    latest_pilot = p
+                except (ValueError, IndexError) as exc:
+                    self.rejected_records += 1
+                    self._log_source_rejected(
+                        path,
+                        line_number,
+                        "PilotSquads",
+                        len(parts),
+                        str(exc),
+                    )
+
+            if latest_pilot is not None:
+                self.pilot = latest_pilot
+            return latest_pilot is not None
         except Exception as e:
             log.error(f"  Falha ao ler {path}: {e}"); return False
 
     def _parse_log(self, lines: List[str], path: str, pilot_name: str) -> bool:
         log.info(f"[TXT] Analisando Log de Missões: {os.path.basename(path)}")
         try:
-            declared_zero = self._declares_zero_records(lines)
+            self.declared_records = self._declared_record_count(lines)
             saw_zero_header = False
             for line_number, raw_line in enumerate(lines, start=1):
                 line = raw_line.rstrip("\r\n")
@@ -150,6 +231,7 @@ class WoFFPilotDataParser:
                 if self._is_zero_mission_header(parts):
                     saw_zero_header = True
                     continue
+                self.observed_records += 1
                 if self._has_claim_confirmation_signature(parts):
                     if len(parts) < 26:
                         self.rejected_records += 1
@@ -191,6 +273,8 @@ class WoFFPilotDataParser:
                     self._log_rejected(
                         path, line_number, "malformed", len(parts), str(exc),
                     )
+
+            self._log_count_mismatch(path, "PilotLog")
             
             # FIX: Criar placeholder pilot se não existir para que o handler e DB o possam usar
             if not self.pilot:
@@ -199,7 +283,8 @@ class WoFFPilotDataParser:
             self.valid_empty = (
                 not self.missions
                 and not self.has_rejected_records
-                and (declared_zero or saw_zero_header)
+                and self.is_complete
+                and (self.declared_records == 0 or saw_zero_header)
             )
             return bool(self.missions)
         except Exception as e:
@@ -208,20 +293,35 @@ class WoFFPilotDataParser:
     def _parse_claims(self, lines: List[str], path: str, pilot_name: str) -> bool:
         log.info(f"[TXT] Analisando Vitórias (Claims): {os.path.basename(path)}")
         try:
-            declared_zero = self._declares_zero_records(lines)
-            for line_number, line in enumerate(lines[1:], start=2):
-                line = line.strip()
-                if not line: continue
-                parts = [part.strip() for part in line.split(";")]
-                if len(parts) >= 12:
+            self.declared_records = self._declared_record_count(lines)
+            for line_number, raw_line in enumerate(lines, start=1):
+                line = raw_line.rstrip("\r\n")
+                if not line.strip() or line.strip().isdigit():
+                    continue
+
+                self.observed_records += 1
+                parts = self._normalized_fields(line)
+                if len(parts) < 12:
+                    self.rejected_records += 1
+                    self._log_source_rejected(
+                        path,
+                        line_number,
+                        "PilotClaims",
+                        len(parts),
+                        "incomplete record",
+                    )
+                    continue
+
+                try:
+                    victory_date, victory_time = self._validated_date_time(parts)
                     v = WoFFVictory()
                     v.source_file = os.path.basename(path)
                     v.source_record_key = stable_source_record_key(
                         "victory", path, line_number
                     )
                     v.pilotId = pilot_name
-                    v.date = normalize_date(f"{parts[0]}/{parts[1]}/{parts[2]}")
-                    v.time = f"{parts[3].replace('h','').zfill(2)}:{parts[4].zfill(2)}"
+                    v.date = victory_date
+                    v.time = victory_time
                     v.sector = parts[5]
                     v.aircraft = parts[8]
                     v.enemyType = parts[10]
@@ -229,13 +329,17 @@ class WoFFPilotDataParser:
                     v.confirmed = "confirmed" in parts[11].lower()
                     if len(parts) > 20: v.witnesses = f"{parts[18]} - {parts[19]} {parts[20]}".strip()
                     self.victories.append(v)
-                else:
+                except (ValueError, IndexError) as exc:
                     self.rejected_records += 1
-                    log.warning(
-                        "[TXT] PilotClaims record rejected: source=%s "
-                        "line=%d fields=%d reason=incomplete record",
-                        os.path.basename(path), line_number, len(parts),
+                    self._log_source_rejected(
+                        path,
+                        line_number,
+                        "PilotClaims",
+                        len(parts),
+                        str(exc),
                     )
+
+            self._log_count_mismatch(path, "PilotClaims")
 
             # FIX: Criar placeholder pilot se não existir
             if not self.pilot:
@@ -243,8 +347,9 @@ class WoFFPilotDataParser:
 
             self.valid_empty = (
                 not self.victories
-                and declared_zero
+                and self.declared_records == 0
                 and not self.has_rejected_records
+                and self.is_complete
             )
             return bool(self.victories)
         except Exception as e:

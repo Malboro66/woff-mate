@@ -116,7 +116,7 @@ def _write_report(report: TextIO, valid_paths: list[str]) -> None:
             report.write("-" * 60 + "\n")
             parser = WoFFPilotDataParser()
             parsed = parser.parse(pilot_file)
-            if parser.has_rejected_records or (
+            if not parser.is_complete or (
                 not parsed and not parser.valid_empty
             ):
                 raise ReportGenerationError(

@@ -7,8 +7,11 @@ inspected as part of this work.
 ## Record classification and normalization
 
 PilotLog is semicolon-delimited and begins with a numeric record counter. A
-counter is metadata, not a mission, and is ignored wherever it appears. A pilot
-with no missions can contain the counter `0` followed by this ten-field header:
+counter is metadata, not a mission, and is ignored wherever it appears. Its
+positive value must nevertheless equal the number of physical data records.
+Valid claim-confirmation records contribute to that count even though they do
+not produce mission objects. A pilot with no missions can contain the counter
+`0` followed by this ten-field header:
 
 `Day;Month;Year;Hour;Minute;MissionRegion;MissionBase;Missiontype;AircraftName;Claims`
 

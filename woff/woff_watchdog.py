@@ -387,7 +387,7 @@ def run_parse_file(file_path: str) -> int:
     if ext == ".txt" and any(fnmatch(fname, pattern) for pattern in pilot_patterns):
         parser = WoFFPilotDataParser()
         parsed = parser.parse(file_path)
-        if parser.has_rejected_records or (
+        if not parser.is_complete or (
             not parsed and not parser.valid_empty
         ):
             log.error("Parser não encontrou dados válidos.")

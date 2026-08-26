@@ -23,6 +23,24 @@ from .test_dossier_parser import _encode_dossier
 
 REPOSITORY_ROOT = Path(__file__).parents[2]
 
+VALID_PILOT_LOG_RECORD = (
+    "6;4;1917;10;30;Arras;Filescamp;OP;SE.5a;;45;100;"
+    "SE.5a;No. 56 Sqn;troops;Target;N50;E2;;Mission completed.\n"
+)
+VALID_PILOT_CLAIM_RECORD = (
+    "6;4;1917;10;35;Arras;Filescamp;OP;SE.5a;1;"
+    "Albatros D.III;Destroyed Confirmed;Albatros\n"
+)
+INCOMPLETE_PILOT_SOURCES = (
+    (
+        "Pilot1Claims.txt",
+        "1\nX;X;X;X;X;sector;a;b;plane;z;enemy;confirmed\n",
+    ),
+    ("Pilot1Log.txt", "2\n" + VALID_PILOT_LOG_RECORD),
+    ("Pilot1Claims.txt", "2\n" + VALID_PILOT_CLAIM_RECORD),
+    ("Pilot1Squads.txt", "malformed\n"),
+)
+
 
 def _run(
     command: list[str | Path],
@@ -326,6 +344,45 @@ def test_parse_file_accepts_valid_zero_record_pilot_files(
     assert "Vitórias extraídas: 0" in result.stderr
 
 
+@pytest.mark.parametrize(
+    ("filename", "contents"),
+    INCOMPLETE_PILOT_SOURCES,
+    ids=(
+        "full-width-malformed-claim",
+        "truncated-log-count",
+        "truncated-claims-count",
+        "malformed-squads",
+    ),
+)
+def test_parse_file_rejects_structurally_incomplete_pilot_sources(
+    tmp_path: Path,
+    filename: str,
+    contents: str,
+) -> None:
+    target = tmp_path / filename
+    target.write_text(contents, encoding="cp1252")
+    config = tmp_path / "parse-config.json"
+    _write_config(
+        config,
+        watch_paths=[],
+        export_path=tmp_path / "unused.sqlite",
+    )
+
+    result = _run(
+        [
+            _console_script("woff-watchdog"),
+            "--config",
+            str(config),
+            "--parse-file",
+            str(target),
+        ],
+        cwd=tmp_path,
+    )
+
+    assert result.returncode == 1
+    assert "ERROR" in result.stderr
+
+
 def test_invalid_watch_paths_fail_before_database_creation(
     tmp_path: Path,
 ) -> None:
@@ -457,6 +514,39 @@ def test_report_rejects_malformed_zero_record_pilot_files(
     ],
 )
 def test_report_rejects_partially_parsed_pilot_files(
+    tmp_path: Path,
+    filename: str,
+    contents: str,
+) -> None:
+    (tmp_path / filename).write_text(contents, encoding="cp1252")
+    config = tmp_path / "selected.json"
+    _write_config(
+        config,
+        watch_paths=[tmp_path],
+        export_path=tmp_path / "unused.sqlite",
+    )
+
+    result = _run(
+        [_console_script("woff-report"), "--config", str(config)],
+        cwd=tmp_path,
+    )
+
+    assert result.returncode == 1
+    assert "Falha ao processar" in result.stderr
+    assert not (tmp_path / "woff_data_report.txt").exists()
+
+
+@pytest.mark.parametrize(
+    ("filename", "contents"),
+    INCOMPLETE_PILOT_SOURCES,
+    ids=(
+        "full-width-malformed-claim",
+        "truncated-log-count",
+        "truncated-claims-count",
+        "malformed-squads",
+    ),
+)
+def test_report_rejects_structurally_incomplete_pilot_sources(
     tmp_path: Path,
     filename: str,
     contents: str,
