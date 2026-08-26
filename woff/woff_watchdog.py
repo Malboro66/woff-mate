@@ -32,7 +32,7 @@ import logging
 import threading
 from fnmatch import fnmatch
 from pathlib import Path
-from typing import Optional, List, Any
+from typing import Optional, List, Any, TextIO
 
 # ──────────────────────────────────────────────────────────────
 # VERIFICAÇÃO DE DEPENDÊNCIAS E MÓDULOS
@@ -424,6 +424,17 @@ BANNER = r"""
 """.format(version=__version__)
 
 
+def _print_banner(stream: Optional[TextIO] = None) -> None:
+    """Write the banner without failing on legacy Windows console encodings."""
+    destination = stream if stream is not None else sys.stdout
+    encoding = getattr(destination, "encoding", None) or "utf-8"
+    try:
+        printable_banner = BANNER.encode(encoding, errors="replace").decode(encoding)
+    except LookupError:
+        printable_banner = BANNER.encode("ascii", errors="replace").decode("ascii")
+    print(printable_banner, file=destination)
+
+
 def main(argv: Optional[List[str]] = None) -> int:
     """Ponto de entrada da aplicação."""
     ap = argparse.ArgumentParser(
@@ -460,7 +471,7 @@ Exemplos:
     )
     args = ap.parse_args(argv)
 
-    print(BANNER)
+    _print_banner()
 
     if args.verbose:
         logging.getLogger().setLevel(logging.DEBUG)

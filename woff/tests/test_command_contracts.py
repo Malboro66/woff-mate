@@ -245,6 +245,18 @@ def test_all_three_public_commands_have_installed_console_scripts(
     assert json.loads(result.stdout) == []
 
 
+def test_watchdog_banner_supports_legacy_windows_console_encoding() -> None:
+    buffer = io.BytesIO()
+    stream = io.TextIOWrapper(buffer, encoding="cp1252", errors="strict")
+
+    woff_watchdog._print_banner(stream)
+    stream.flush()
+
+    rendered = buffer.getvalue().decode("cp1252")
+    assert "WoFF BHaH II" in rendered
+    assert "Watchdog" in rendered
+
+
 @pytest.mark.parametrize(
     ("filename", "contents", "expected_status"),
     [
