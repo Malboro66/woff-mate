@@ -413,6 +413,24 @@ active without weakening the individual member evals registered above.
 | #98 | `EVAL-CATALOG-STABILITY-001`, `EVAL-CATALOG-STABILITY-002` |
 | #99 | `EVAL-PILOT-PROVENANCE-001`, `EVAL-PILOT-PROVENANCE-002` |
 
+### Implemented decoder evals
+
+- `EVAL-DECODE-001` is enforced by `woff/tests/test_decode_common.py`. The
+  exhaustive valid stream covers every output byte from `0x00` through `0xFF`.
+  Dedicated contracts preserve CR/LF handling, empty and repeated delimiters,
+  non-hex delimiter behavior, out-of-range rejection, and the shared Dossier,
+  squadron decoder, and cataloger call paths.
+- `EVAL-DECODE-002` is enforced by the same file. Its synthetic input contains
+  `41|` repeated 250,000 times and is allocated before `tracemalloc` starts.
+  The assertion compares peak traced bytes with the 750,000-byte encoded input
+  and uses no wall-clock threshold. The Q0 baseline on `da133e8` decoded
+  250,000 bytes with an 11,327,623-byte peak, or 45.31 bytes per output byte.
+  The one-pass decoder measured 522,111 bytes, or 2.09 bytes per output byte,
+  a 95.39 percent reduction under the same CPython 3.12 procedure.
+
+Cycle 3.5.0 remains planned. Completing Issue #47 independently does not
+activate or approve the aggregate cycle.
+
 ## Cross-cutting privacy and security
 
 Issue #65 is a cross-cutting preventive control and is intentionally not added
