@@ -1,12 +1,16 @@
 """Contracts and allocation regression tests for the shared WoFF decoder."""
 
-import tracemalloc
+import os
+import subprocess
+import sys
+import textwrap
 from collections.abc import Callable
+from pathlib import Path
 
 import pytest
 
-from woff import decode_dossier, decode_squad, squadron_cataloger
-from woff.decode.common import unscramble
+from .. import decode_dossier, decode_squad, squadron_cataloger
+from ..decode.common import unscramble
 
 
 def test_unscramble_decodes_every_byte_value_from_valid_hex_tokens() -> None:
@@ -52,15 +56,39 @@ def test_existing_decoder_callers_retain_shared_output(
 
 
 def test_large_token_stream_has_bounded_peak_memory() -> None:
-    """Measure allocations after creating input, without a wall-clock assertion."""
-    encoded = b"41|" * 250_000
+    """Measure allocations in a child process that owns the tracing state."""
+    probe = textwrap.dedent(
+        """
+        import tracemalloc
 
-    tracemalloc.start()
-    try:
-        decoded = unscramble(encoded)
-        _, peak_bytes = tracemalloc.get_traced_memory()
-    finally:
-        tracemalloc.stop()
+        from woff.decode.common import unscramble
 
-    assert decoded == b"A" * 250_000
-    assert peak_bytes < len(encoded)
+        encoded = b"41|" * 250_000
+        if tracemalloc.is_tracing():
+            tracemalloc.stop()
+        tracemalloc.start()
+        try:
+            decoded = unscramble(encoded)
+            _, peak_bytes = tracemalloc.get_traced_memory()
+        finally:
+            tracemalloc.stop()
+
+        if decoded != b"A" * 250_000:
+            raise SystemExit("decoder output mismatch")
+        print(peak_bytes)
+        """
+    )
+    child_environment = os.environ.copy()
+    child_environment.pop("PYTHONTRACEMALLOC", None)
+
+    completed = subprocess.run(
+        [sys.executable, "-c", probe],
+        cwd=Path(__file__).resolve().parents[2],
+        env=child_environment,
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    peak_bytes = int(completed.stdout.strip())
+
+    assert peak_bytes < len(b"41|") * 250_000
