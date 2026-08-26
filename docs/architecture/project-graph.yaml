@@ -1,5 +1,5 @@
 version: 1
-updated: 2026-08-25
+updated: 2026-08-26
 
 project:
   repository: Malboro66/woff-mate
@@ -499,12 +499,14 @@ evals:
     evidence: Discovery logging respects total size and retention across sessions.
   EVAL-DECODE-001:
     work_items: [issue-47]
-    status: planned
+    status: implemented
     evidence: The optimized decoder produces identical bytes for all fixtures.
+    enforced_by: [woff/tests/test_decode_common.py]
   EVAL-DECODE-002:
     work_items: [issue-47]
-    status: planned
+    status: implemented
     evidence: Peak memory improves without using wall-clock time as a correctness assertion.
+    enforced_by: [woff/tests/test_decode_common.py]
   EVAL-CATALOG-001:
     work_items: [issue-29]
     status: planned
@@ -733,7 +735,7 @@ work_items:
   issue-47:
     title: Decode obfuscated files without per-token allocations
     module: ingestion
-    state: backlog
+    state: done
     evals: [EVAL-DECODE-001, EVAL-DECODE-002]
     gates: [Q0, Q1]
     depends_on: []
