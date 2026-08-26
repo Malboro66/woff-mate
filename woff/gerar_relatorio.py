@@ -4,10 +4,10 @@
 from __future__ import annotations
 
 import argparse
-import glob
 import logging
 import os
 import tempfile
+from fnmatch import fnmatchcase
 from pathlib import Path
 from typing import Optional, TextIO, cast
 
@@ -21,6 +21,13 @@ logging.basicConfig(level=logging.INFO, format="[%(levelname)s] %(message)s")
 log = logging.getLogger("ReportGen")
 
 OUTPUT_FILE = "woff_data_report.txt"
+PILOT_DOSSIER_PATTERN = "pilot*dossier.txt"
+PILOT_TEXT_PATTERNS = (
+    "pilot*log.txt",
+    "pilot*claims.txt",
+    "pilot*squads.txt",
+)
+SUPPORTED_PILOT_PATTERNS = (PILOT_DOSSIER_PATTERN, *PILOT_TEXT_PATTERNS)
 
 
 class ReportGenerationError(RuntimeError):
@@ -38,7 +45,15 @@ def _write_report(report: TextIO, valid_paths: list[str]) -> None:
     mission_log_path: Optional[str] = None
 
     for path in valid_paths:
-        pilot_files.extend(glob.glob(os.path.join(path, "Pilot*")))
+        pilot_files.extend(
+            str(entry)
+            for entry in Path(path).iterdir()
+            if entry.is_file()
+            and any(
+                fnmatchcase(entry.name.lower(), pattern)
+                for pattern in SUPPORTED_PILOT_PATTERNS
+            )
+        )
         potential_log = os.path.join(path, "mission.log")
         if os.path.isfile(potential_log):
             mission_log_path = potential_log
@@ -50,7 +65,7 @@ def _write_report(report: TextIO, valid_paths: list[str]) -> None:
     for pilot_file in sorted(pilot_files):
         filename = os.path.basename(pilot_file).lower()
 
-        if "dossier" in filename:
+        if fnmatchcase(filename, PILOT_DOSSIER_PATTERN):
             report.write(
                 f"📦 FONTE: {filename} (Ficheiro Binário Encriptado)\n"
             )
@@ -96,11 +111,14 @@ def _write_report(report: TextIO, valid_paths: list[str]) -> None:
             report.write("\n")
             continue
 
-        if any(marker in filename for marker in ("squads", "log", "claims")):
+        if any(fnmatchcase(filename, pattern) for pattern in PILOT_TEXT_PATTERNS):
             report.write(f"📦 FONTE: {filename} (Ficheiro Texto Delimitado)\n")
             report.write("-" * 60 + "\n")
             parser = WoFFPilotDataParser()
-            if not parser.parse(pilot_file) and not parser.valid_empty:
+            parsed = parser.parse(pilot_file)
+            if parser.has_rejected_records or (
+                not parsed and not parser.valid_empty
+            ):
                 raise ReportGenerationError(
                     f"Falha ao processar o ficheiro de piloto {filename}."
                 )

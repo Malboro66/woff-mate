@@ -58,15 +58,19 @@ Startup component failures return `1`.
 `--parse-file` accepts campaign XML, `mission.log`, and the supported
 `Pilot*Dossier.txt`, `Pilot*Log.txt`, `Pilot*Claims.txt`, and
 `Pilot*Squads.txt` names. A missing or unsupported input returns `2`; a supported
-file that its parser rejects returns `1`.
+file that its parser rejects, even after extracting some valid records, returns
+`1`. A log or claims file that explicitly declares zero records is a successful
+parse and returns `0`.
 
 If `backup_export` is enabled and the export database already exists, startup
 creates `<database-name>.backup.sqlite` with the SQLite online-backup API before
 normal campaign processing. The replacement is published atomically only after
-an integrity check. A backup failure preserves the previous verified sidecar
-and aborts startup with status `1`. A first-time database and a configuration
-with `backup_export: false` create no optional sidecar. Schema-migration backups
-remain separate and mandatory.
+an integrity check. When a prior verified sidecar exists, its canonical path
+remains readable until the atomic replacement; a durable rollback copy protects
+the publication boundary. A backup failure preserves the previous verified
+sidecar and aborts startup with status `1`. A first-time database and a
+configuration with `backup_export: false` create no optional sidecar.
+Schema-migration backups remain separate and mandatory.
 
 ## `woff-report`
 
@@ -83,4 +87,7 @@ produce no artifact; source parse and output-write failures return `1` and do
 not publish a partial replacement. The report renders numeric zero and Boolean
 false literally; only `None` and an empty string are labelled `Vazio`.
 Recognized pilot log and claims files that declare zero records are valid and
-render zero counts; malformed records still fail the complete report.
+render zero counts; any rejected record still fails the complete report, even
+when other records in the same file are valid. Source discovery accepts only
+regular files whose names match the supported pilot patterns case-insensitively;
+similarly named files, suffix backups, and directories are ignored.

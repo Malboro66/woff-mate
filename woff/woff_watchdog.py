@@ -386,7 +386,10 @@ def run_parse_file(file_path: str) -> int:
     pilot_patterns = ("pilot*log.txt", "pilot*claims.txt", "pilot*squads.txt")
     if ext == ".txt" and any(fnmatch(fname, pattern) for pattern in pilot_patterns):
         parser = WoFFPilotDataParser()
-        if not parser.parse(file_path):
+        parsed = parser.parse(file_path)
+        if parser.has_rejected_records or (
+            not parsed and not parser.valid_empty
+        ):
             log.error("Parser não encontrou dados válidos.")
             return int(ExitCode.RUNTIME_ERROR)
         if parser.pilot:

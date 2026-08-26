@@ -296,6 +296,36 @@ def test_parse_file_failures_return_stable_nonzero_statuses(
     assert "ERROR" in result.stderr
 
 
+@pytest.mark.parametrize("filename", ["Pilot1Log.txt", "Pilot1Claims.txt"])
+def test_parse_file_accepts_valid_zero_record_pilot_files(
+    tmp_path: Path,
+    filename: str,
+) -> None:
+    target = tmp_path / filename
+    target.write_text("0\n", encoding="cp1252")
+    config = tmp_path / "parse-config.json"
+    _write_config(
+        config,
+        watch_paths=[],
+        export_path=tmp_path / "unused.sqlite",
+    )
+
+    result = _run(
+        [
+            _console_script("woff-watchdog"),
+            "--config",
+            str(config),
+            "--parse-file",
+            str(target),
+        ],
+        cwd=tmp_path,
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert "Missões extraídas do log: 0" in result.stderr
+    assert "Vitórias extraídas: 0" in result.stderr
+
+
 def test_invalid_watch_paths_fail_before_database_creation(
     tmp_path: Path,
 ) -> None:
@@ -405,6 +435,75 @@ def test_report_rejects_malformed_zero_record_pilot_files(
     assert result.returncode == 1
     assert "Falha ao processar" in result.stderr
     assert not (tmp_path / "woff_data_report.txt").exists()
+
+
+@pytest.mark.parametrize(
+    ("filename", "contents"),
+    [
+        (
+            "Pilot1Log.txt",
+            "2\n"
+            "6;4;1917;10;30;Arras;Filescamp;OP;SE.5a;;45;100;"
+            "SE.5a;No. 56 Sqn;troops;Target;N50;E2;;Mission completed.\n"
+            "malformed record\n",
+        ),
+        (
+            "Pilot1Claims.txt",
+            "2\n"
+            "6;4;1917;10;35;Arras;Filescamp;OP;SE.5a;1;"
+            "Albatros D.III;Destroyed Confirmed;Albatros\n"
+            "malformed record\n",
+        ),
+    ],
+)
+def test_report_rejects_partially_parsed_pilot_files(
+    tmp_path: Path,
+    filename: str,
+    contents: str,
+) -> None:
+    (tmp_path / filename).write_text(contents, encoding="cp1252")
+    config = tmp_path / "selected.json"
+    _write_config(
+        config,
+        watch_paths=[tmp_path],
+        export_path=tmp_path / "unused.sqlite",
+    )
+
+    result = _run(
+        [_console_script("woff-report"), "--config", str(config)],
+        cwd=tmp_path,
+    )
+
+    assert result.returncode == 1
+    assert "Falha ao processar" in result.stderr
+    assert not (tmp_path / "woff_data_report.txt").exists()
+
+
+def test_report_ignores_unsupported_pilot_entries(tmp_path: Path) -> None:
+    (tmp_path / "Pilot1Prologue.txt").write_text(
+        "unsupported pilot entry", encoding="cp1252"
+    )
+    (tmp_path / "Pilot1Log.txt.bak").write_text(
+        "unsupported backup", encoding="cp1252"
+    )
+    (tmp_path / "Pilot1Claims.txt").mkdir()
+    config = tmp_path / "selected.json"
+    _write_config(
+        config,
+        watch_paths=[tmp_path],
+        export_path=tmp_path / "unused.sqlite",
+    )
+
+    result = _run(
+        [_console_script("woff-report"), "--config", str(config)],
+        cwd=tmp_path,
+    )
+
+    assert result.returncode == 0, result.stderr
+    report = (tmp_path / "woff_data_report.txt").read_text(encoding="utf-8")
+    assert "pilot1prologue.txt" not in report.lower()
+    assert "pilot1log.txt.bak" not in report.lower()
+    assert "pilot1claims.txt" not in report.lower()
 
 
 def test_report_without_valid_paths_fails_without_an_artifact(
@@ -593,6 +692,42 @@ def test_export_backup_fsync_uses_a_write_capable_descriptor(
     try:
         database.create_export_backup()
         assert os.O_RDWR in temporary_access_modes
+    finally:
+        database.close()
+
+
+def test_export_backup_keeps_the_previous_canonical_snapshot_until_publish(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    database_path = tmp_path / "campaign.sqlite"
+    database = DatabaseManager(str(database_path))
+    backup_path = database_path.with_name(f"{database_path.name}.backup.sqlite")
+    previous_snapshot = b"previous verified backup"
+    backup_path.write_bytes(previous_snapshot)
+    real_replace = os.replace
+    canonical_was_present: list[bool] = []
+
+    def tracking_replace(
+        source: os.PathLike[str] | str,
+        destination: os.PathLike[str] | str,
+    ) -> None:
+        source_path = Path(source)
+        destination_path = Path(destination)
+        if (
+            destination_path == backup_path
+            and "export-backup" in source_path.name
+        ):
+            canonical_was_present.append(
+                backup_path.is_file()
+                and backup_path.read_bytes() == previous_snapshot
+            )
+        real_replace(source, destination)
+
+    monkeypatch.setattr(os, "replace", tracking_replace)
+    try:
+        database.create_export_backup()
+        assert canonical_was_present == [True]
     finally:
         database.close()
 
