@@ -78,6 +78,50 @@ class TestWoFFPilotDataParser(unittest.TestCase):
         self.assertEqual(v2.enemyType, "DFW C.V")
         self.assertEqual(v2.victoryType, "Forced to Land") # Normalizado
         self.assertTrue(v2.confirmed) # Contém "Confirmed"
+
+    def test_full_width_claim_with_invalid_date_time_is_rejected(self):
+        mock_content = (
+            "1\n"
+            "X;X;X;X;X;sector;a;b;plane;z;enemy;confirmed\n"
+        )
+
+        parser = WoFFPilotDataParser()
+        with patch("builtins.open", mock_open(read_data=mock_content)):
+            with self.assertLogs("WoFFWatch", level="WARNING"):
+                ok = parser.parse("Pilot1Claims.txt")
+
+        self.assertFalse(ok)
+        self.assertEqual(parser.victories, [])
+        self.assertEqual(parser.rejected_records, 1)
+        self.assertFalse(parser.is_complete)
+
+    def test_declared_count_mismatch_marks_log_and_claims_incomplete(self):
+        sources = (
+            (
+                "Pilot1Log.txt",
+                "2\n"
+                "6;4;1917;10;30;Arras;Filescamp;OP;SE.5a;;45;100;"
+                "SE.5a;No. 56 Sqn;troops;Target;N50;E2;;Mission completed.\n",
+            ),
+            (
+                "Pilot1Claims.txt",
+                "2\n"
+                "6;4;1917;10;35;Arras;Filescamp;OP;SE.5a;1;"
+                "Albatros D.III;Destroyed Confirmed;Albatros\n",
+            ),
+        )
+
+        for filename, mock_content in sources:
+            with self.subTest(filename=filename):
+                parser = WoFFPilotDataParser()
+                with patch("builtins.open", mock_open(read_data=mock_content)):
+                    with self.assertLogs("WoFFWatch", level="WARNING"):
+                        ok = parser.parse(filename)
+
+                self.assertTrue(ok)
+                self.assertEqual(parser.declared_records, 2)
+                self.assertEqual(parser.observed_records, 1)
+                self.assertFalse(parser.is_complete)
     
     def test_parse_squads_file(self):
         """Testa parsing de histórico de esquadrões."""
@@ -101,6 +145,17 @@ class TestWoFFPilotDataParser(unittest.TestCase):
         self.assertEqual(p.sector, "Flanders")
         # Testa a extração da patente via Regex na coluna 10
         self.assertEqual(p.rank, "Captain")
+
+    def test_malformed_squads_record_is_rejected(self):
+        parser = WoFFPilotDataParser()
+        with patch("builtins.open", mock_open(read_data="malformed\n")):
+            with self.assertLogs("WoFFWatch", level="WARNING"):
+                ok = parser.parse("Pilot1Squads.txt")
+
+        self.assertFalse(ok)
+        self.assertIsNone(parser.pilot)
+        self.assertEqual(parser.rejected_records, 1)
+        self.assertFalse(parser.is_complete)
     
     def test_pilot_id_placeholder(self):
         """Testa que pilot.name é um placeholder ('Pilot 1') antes do Dossier ser lido."""
@@ -367,10 +422,17 @@ class TestPilotLogRecordClassification(unittest.TestCase):
         )
 
     def test_inline_sanitized_samples_end_to_end(self):
-        for filename, sample, count in (("Pilot1Log.txt", PILOT1_SAMPLE, 2), ("Pilot2Log.txt", PILOT2_SAMPLE, 2), ("Pilot3Log.txt", PILOT3_SAMPLE, 0)):
+        for filename, sample, count, physical_count in (
+            ("Pilot1Log.txt", PILOT1_SAMPLE, 2, 2),
+            ("Pilot2Log.txt", PILOT2_SAMPLE, 2, 3),
+            ("Pilot3Log.txt", PILOT3_SAMPLE, 0, 0),
+        ):
             with self.subTest(filename=filename):
                 parser, _ = self.parse_content(sample, filename)
                 self.assertEqual(len(parser.missions), count)
+                self.assertEqual(parser.declared_records, physical_count)
+                self.assertEqual(parser.observed_records, physical_count)
+                self.assertTrue(parser.is_complete)
 
 
 if __name__ == "__main__":

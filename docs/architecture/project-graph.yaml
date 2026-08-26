@@ -24,6 +24,7 @@ modules:
     paths:
       - woff/__init__.py
       - woff/campaign_namespace.py
+      - woff/command_contract.py
       - woff/version.py
     may_depend_on: []
     forbidden_dependencies:
@@ -479,12 +480,14 @@ evals:
     evidence: An unknown pilot returns the same failure contract in table, JSON, CSV, and Markdown.
   EVAL-CLI-CONTRACT-001:
     work_items: [issue-75]
-    status: planned
+    status: implemented
     evidence: Fatal command paths return nonzero and write diagnostics outside machine-readable stdout.
+    enforced_by: [woff/tests/test_command_contracts.py]
   EVAL-CLI-CONTRACT-002:
     work_items: [issue-75]
-    status: planned
+    status: implemented
     evidence: JSON, CSV, and Markdown successes remain parseable for populated and empty results while zero remains distinct from missing.
+    enforced_by: [woff/tests/test_command_contracts.py]
   EVAL-RPG-DOMAIN-001:
     work_items: [issue-76]
     status: planned
@@ -830,7 +833,7 @@ work_items:
   issue-75:
     title: Enforce machine-readable contracts across command entry points
     module: presentation
-    state: backlog
+    state: done
     evals: [EVAL-CLI-CONTRACT-001, EVAL-CLI-CONTRACT-002]
     gates: [Q0, Q1, Q4, Q6-CYCLE-3.4.0]
     depends_on: []

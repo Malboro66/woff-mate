@@ -62,9 +62,8 @@ jobs:
         shell: bash
         run: |
           woff-watchdog --help
-          smoke_dir="$(mktemp -d)"
-          cp config.example.json "$smoke_dir/config.json"
-          (cd "$smoke_dir" && woff-report)
+          woff-query --help
+          woff-report --help
       - run: python -m pytest -q
 
   pyright:
@@ -106,11 +105,64 @@ jobs:
       - name: Exercise installed entry points safely
         shell: pwsh
         run: |
-          woff-watchdog --help
-          New-Item -ItemType Directory -Path "$env:RUNNER_TEMP\woff-report-smoke"
-          Copy-Item config.example.json "$env:RUNNER_TEMP\woff-report-smoke\config.json"
-          Push-Location "$env:RUNNER_TEMP\woff-report-smoke"
-          try { woff-report } finally { Pop-Location }
+          @'
+          import json
+          import os
+          import subprocess
+          from pathlib import Path
+
+          from woff.config import WatchdogConfig
+          from woff.database import DatabaseManager
+          from woff.woff_watchdog import WoFFWatchdog
+
+          root = Path(os.environ["RUNNER_TEMP"]) / "woff-command-smoke"
+          root.mkdir(exist_ok=True)
+          database_path = root / "empty.sqlite"
+          DatabaseManager(str(database_path)).close()
+          config_path = root / "config.json"
+          config = WatchdogConfig(
+              watch_paths=[str(root)],
+              export_path=str(database_path),
+              backup_export=True,
+          )
+          config_path.write_text(json.dumps(config.to_dict()), encoding="utf-8")
+
+          watchdog = WoFFWatchdog(config)
+          watchdog.stop()
+          assert database_path.with_name(
+              f"{database_path.name}.backup.sqlite"
+          ).is_file()
+
+          query = subprocess.run(
+              ["woff-query", "--db", str(database_path), "--format", "json"],
+              capture_output=True,
+              text=True,
+          )
+          assert query.returncode == 0, query.stderr
+          assert json.loads(query.stdout) == []
+
+          report = subprocess.run(
+              ["woff-report", "--config", str(config_path)],
+              cwd=root,
+              capture_output=True,
+              text=True,
+          )
+          assert report.returncode == 0, report.stderr
+          assert (root / "woff_data_report.txt").is_file()
+
+          parse = subprocess.run(
+              [
+                  "woff-watchdog",
+                  "--config",
+                  str(config_path),
+                  "--parse-file",
+                  str(root / "missing.xml"),
+              ],
+              capture_output=True,
+              text=True,
+          )
+          assert parse.returncode == 2, (parse.stdout, parse.stderr)
+          '@ | python -
       - name: Validate PyInstaller launcher
         run: python .\woff_watchdog_entry.py --help
       - name: Build Windows executable

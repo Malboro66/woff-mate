@@ -14,6 +14,28 @@ Get-ComputerInfo -Property WindowsProductName, WindowsVersion, OsArchitecture
 
 Include the exact failed command and smallest relevant error excerpt. Replace user names, installation directories, and local paths with neutral placeholders such as `<installation>`. Do not upload an entire log.
 
+## Command exit status and output streams
+
+`woff-watchdog`, `woff-query`, and `woff-report` expose stable process statuses:
+
+- `0`: the requested operation completed successfully;
+- `1`: parsing, SQLite, startup, report generation, or backup failed at runtime;
+- `2`: the command input or configuration is invalid, or a required path or
+  database is missing.
+
+For `woff-query --format json|csv|md`, stdout contains only the selected data
+format. Redirect stderr separately when automating the command. An empty result
+is still a valid document: JSON emits `[]`, CSV emits its header, and Markdown
+emits its header and separator. A selected pilot in a machine-readable format
+must request exactly one of `--missions`, `--diary`, or `--wingmen`; use the
+unselected form to list pilots and their stable IDs.
+
+`woff-report` accepts `--config <path>`. If no configured watch root is a valid
+directory, it exits with status `2` and does not create a report. A parse or
+write failure exits with status `1`; the final report is replaced only after the
+complete temporary artifact has been written successfully. Numeric zero and
+Boolean false are preserved and are not labelled `Vazio`.
+
 ## Invalid configuration
 
 WoFF Mate validates `config.json` before opening the database or starting file
@@ -160,6 +182,20 @@ Migração falhou e o backup de migração registrado está indisponível em: <s
 ```
 
 Keep every backup and follow the offline procedure in [Database migrations and recovery](database-migrations.md).
+
+### Optional export snapshot
+
+When `backup_export` is `true` and the configured export database already
+exists, watchdog startup creates a verified SQLite snapshot immediately before
+normal campaign processing. The snapshot is stored beside the database as
+`<database-name>.backup.sqlite`. A replacement becomes visible only after
+`PRAGMA integrity_check` succeeds; a failed attempt preserves the previous
+verified snapshot, removes its temporary file, reports the failure on stderr,
+and exits with status `1`.
+
+No optional snapshot is created when `backup_export` is `false` or when the
+watchdog is creating its first database. These export snapshots do not replace
+the mandatory, uniquely named backups used by schema migrations.
 
 ## Report an unknown WoFF format safely
 

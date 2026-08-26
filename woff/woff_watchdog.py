@@ -30,7 +30,9 @@ import glob
 import argparse
 import logging
 import threading
-from typing import Optional, List, Any
+from fnmatch import fnmatch
+from pathlib import Path
+from typing import Optional, List, Any, TextIO
 
 # ──────────────────────────────────────────────────────────────
 # VERIFICAÇÃO DE DEPENDÊNCIAS E MÓDULOS
@@ -41,13 +43,15 @@ except ImportError:
     print(
         "\n[ERRO] Falha ao carregar a biblioteca 'watchdog'.\n"
         "Para corrigir, executa no terminal:\n"
-        "  pip install watchdog\n"
+        "  pip install watchdog\n",
+        file=sys.stderr,
     )
     sys.exit(1)
 except Exception as e:
     print(
         f"\n[ERRO] Ocorreu um erro inesperado: {type(e).__name__} - {e}\n"
-        "Verifica a tua instalação do Python e do pacote 'watchdog'."
+        "Verifica a tua instalação do Python e do pacote 'watchdog'.",
+        file=sys.stderr,
     )
     sys.exit(1)
 
@@ -56,7 +60,8 @@ try:
         campaign_namespace_for_root,
         campaign_namespace_label,
     )
-    from .config import WatchdogConfig, load_config
+    from .command_contract import ExitCode
+    from .config import InvalidConfigurationError, WatchdogConfig, load_config
     from .handler import WoFFEventHandler
     from .database import DatabaseManager
     from .discovery import DiscoveryLogger
@@ -75,12 +80,14 @@ except ImportError as e:
         f"\n[ERRO] Falha ao carregar módulos internos: {type(e).__name__} - {e}\n"
         "Certifica-te que todos os ficheiros do projeto estão na pasta correta.\n"
         "Se o problema persistir, reinstala as dependências:\n"
-        "  pip install watchdog pywin32\n"
+        "  pip install watchdog pywin32\n",
+        file=sys.stderr,
     )
     sys.exit(1)
 except Exception as e:
     print(
-        f"\n[ERRO] Ocorreu um erro ao carregar os módulos: {type(e).__name__} - {e}"
+        f"\n[ERRO] Ocorreu um erro ao carregar os módulos: {type(e).__name__} - {e}",
+        file=sys.stderr,
     )
     sys.exit(1)
 
@@ -106,10 +113,16 @@ class WoFFWatchdog:
     ):
         config.validate()
         self.config = config
+        export_existed = Path(config.export_path).is_file()
         self.db_manager = DatabaseManager(
-            config.export_path,
-            campaign_namespaces=config.campaign_namespaces,
+            config.export_path, campaign_namespaces=config.campaign_namespaces
         )
+        try:
+            if config.backup_export and export_existed:
+                self.db_manager.create_export_backup()
+        except Exception:
+            self.db_manager.close()
+            raise
         self.discovery = (
             DiscoveryLogger(config.discovery_log_path) if discovery else None
         )
@@ -121,8 +134,8 @@ class WoFFWatchdog:
     def start(self) -> bool:
         """Inicia a monitorização das pastas configuradas e cataloga dados estáticos do jogo."""
         paths = self.config.watch_paths
-        valid = [p for p in paths if os.path.exists(p)]
-        missing = [p for p in paths if not os.path.exists(p)]
+        valid = [p for p in paths if os.path.isdir(p)]
+        missing = [p for p in paths if not os.path.isdir(p)]
 
         for p in valid:
             log.info(
@@ -266,159 +279,140 @@ class WoFFWatchdog:
 # MODO DEBUG --parse-file
 # ──────────────────────────────────────────────────────────────
 
-def run_parse_file(file_path: str):
-    """Lê um único ficheiro e imprime os dados extraídos no terminal."""
+def run_parse_file(file_path: str) -> int:
+    """Parse one supported file and return a stable process-level status."""
     sep = "═" * 60
     log.info(f"\n{sep}")
     log.info(f"🎯 MODO DEBUG --parse-file: {file_path}")
     log.info(sep)
 
-    if not os.path.exists(file_path):
+    if not os.path.isfile(file_path):
         log.error(f"Ficheiro não encontrado: {file_path}")
-        return
+        return int(ExitCode.USAGE_ERROR)
 
     ext = os.path.splitext(file_path)[1].lower()
     fname = os.path.basename(file_path).lower()
 
     if ext == ".xml":
         parser = WoFFXMLParser()
-        if parser.parse(file_path):
+        if not parser.parse(file_path):
+            log.error("Parser não encontrou dados válidos.")
+            return int(ExitCode.RUNTIME_ERROR)
+        log.info(f"Piloto: {parser.pilot.name if parser.pilot else 'N/A'}")
+        log.info(
+            f"Missões: {len(parser.missions)} | "
+            f"Vitórias: {len(parser.victories)}"
+        )
+        return int(ExitCode.SUCCESS)
+
+    if ext == ".txt" and fnmatch(fname, "pilot*dossier.txt"):
+        log.info("\n--- 🗄️ A DESOFUSCAR DOSSIER BINÁRIO ---")
+        parser = WoFFDossierParser()
+        if not parser.parse(file_path):
+            log.error("Parser não encontrou dados válidos.")
+            return int(ExitCode.RUNTIME_ERROR)
+        if parser.pilot:
+            log.info("\n--- 🧑‍✈️ DADOS DO PILOTO ---")
+            log.info(f"Nome: {parser.pilot.name}")
             log.info(
-                f"Piloto: {parser.pilot.name if parser.pilot else 'N/A'}"
+                f"Patente: {parser.pilot.rank} | Nação: {parser.pilot.nation}"
             )
             log.info(
-                f"Missões: {len(parser.missions)} | "
-                f"Vitórias: {len(parser.victories)}"
+                f"Esquadrão: {parser.pilot.squadron} | "
+                f"Base: {parser.pilot.aerodrome}"
             )
-        else:
-            log.warning("Parser não encontrou dados válidos.")
-
-    elif ext in (".txt", ".log"):
-        # 1. Se for o ficheiro Dossier (Binário Ofuscado)
-        if "dossier" in fname:
-            log.info("\n--- 🗄️ A DESOFUSCAR DOSSIER BINÁRIO ---")
-            parser = WoFFDossierParser()
-            if parser.parse(file_path):
-                if parser.pilot:
-                    log.info("\n--- 🧑‍✈️ DADOS DO PILOTO ---")
-                    log.info(f"Nome: {parser.pilot.name}")
-                    log.info(
-                        f"Patente: {parser.pilot.rank} | "
-                        f"Nação: {parser.pilot.nation}"
-                    )
-                    log.info(
-                        f"Esquadrão: {parser.pilot.squadron} | "
-                        f"Base: {parser.pilot.aerodrome}"
-                    )
-                    log.info(
-                        f"Status: {parser.pilot.status} | "
-                        f"Skill: {parser.pilot.skill}"
-                    )
-                    log.info(
-                        f"Missões: {parser.pilot.missions} | "
-                        f"Minutos Voo: {parser.pilot.flminutes}"
-                    )
-                    log.info(
-                        f"Vitórias: {parser.pilot.killsCount} | "
-                        f"Reputação: {parser.pilot.reputation}"
-                    )
-                    log.info(
-                        f"Data Nasc.: {parser.pilot.birthDate} "
-                        f"({parser.pilot.birthPlace})"
-                    )
-                    log.info(f"Foto ID: {parser.pilot.photo}")
-                    log.info(f"Biografia: {parser.pilot.notes[:150]}...")
-
-                if parser.decorations:
-                    log.info("\n--- 🎖️ MEDALHAS RECEBIDAS ---")
-                    for d in parser.decorations:
-                        log.info(f"  -> {d.name} ({d.date})")
-
-                if parser.wingmen:
-                    log.info("\n--- 👥 MEMBROS DO ESQUADRÃO (AI) ---")
-                    for w in parser.wingmen:
-                        log.info(
-                            f"  -> {w.rank} {w.fName} {w.sName} "
-                            f"(Skill: {w.skill}, Status: {w.status})"
-                        )
-                        if w.bio:
-                            log.info(f"     Bio: {w.bio[:80]}...")
-            else:
-                log.warning("Parser não encontrou dados válidos.")
-            return
-
-        # 2. Se for EXATAMENTE o mission.log do motor do jogo
-        elif fname == "mission.log":
-            parser = WoFFMissionLogParser()
-            if parser.parse(file_path):
-                log.info("\n--- 📜 BRIEFING DA MISSÃO ---")
-                if len(parser.briefing) > 300:
-                    log.info(parser.briefing[:300] + "...")
-                else:
-                    log.info(parser.briefing)
-
-                log.info("\n--- 🛩️ DADOS DA MISSÃO ---")
-                m = parser.mission
-                if m:
-                    log.info(f"Data: {m.date} | Tempo: {m.weather}")
-                    log.info(f"Aeronave do Jogador: {m.aircraft}")
-                    if parser.pilot:
-                        log.info(
-                            f"Esquadrão: {parser.pilot.squadron} "
-                            f"({parser.pilot.nation})"
-
-                        )
-
-                log.info("\n--- 👥 MEMBROS DO ESQUADRÃO (Flight) ---")
-                for member in parser.squad_members:
-                    log.info(member)
-
-                log.info("\n--- 🗺️ PLANO DE VOO ---")
-                for wp in parser.flight_plan:
-                    log.info(
-                        f"  -> {wp['type']} | Alt: {wp['altitude']}m | "
-                        f"Lat: {wp['lat']} | Lon: {wp['lon']}"
-                    )
-
-                log.info("\n--- 📝 DEBRIEFING ---")
+            log.info(
+                f"Status: {parser.pilot.status} | Skill: {parser.pilot.skill}"
+            )
+            log.info(
+                f"Missões: {parser.pilot.missions} | "
+                f"Minutos Voo: {parser.pilot.flminutes}"
+            )
+            log.info(
+                f"Vitórias: {parser.pilot.killsCount} | "
+                f"Reputação: {parser.pilot.reputation}"
+            )
+            log.info(
+                f"Data Nasc.: {parser.pilot.birthDate} "
+                f"({parser.pilot.birthPlace})"
+            )
+            log.info(f"Foto ID: {parser.pilot.photo}")
+            log.info(f"Biografia: {parser.pilot.notes[:150]}...")
+        if parser.decorations:
+            log.info("\n--- 🎖️ MEDALHAS RECEBIDAS ---")
+            for decoration in parser.decorations:
+                log.info(f"  -> {decoration.name} ({decoration.date})")
+        if parser.wingmen:
+            log.info("\n--- 👥 MEMBROS DO ESQUADRÃO (AI) ---")
+            for wingman in parser.wingmen:
                 log.info(
-                    parser.debriefing
-                    if parser.debriefing
-                    else "Sem debriefing textual encontrado."
+                    f"  -> {wingman.rank} {wingman.fName} {wingman.sName} "
+                    f"(Skill: {wingman.skill}, Status: {wingman.status})"
                 )
-            else:
-                log.warning("Parser não encontrou dados válidos.")
-            return
+                if wingman.bio:
+                    log.info(f"     Bio: {wingman.bio[:80]}...")
+        return int(ExitCode.SUCCESS)
 
-        # 3. Restantes ficheiros de piloto (Log.txt, Claims.txt, Squads.txt)
-        else:
-            parser = WoFFPilotDataParser()
-            if parser.parse(file_path):
-                if parser.pilot:
-                    log.info("\n--- 🧑‍✈️ DADOS DO PILOTO ---")
-                    log.info(f"Nome (ID): {parser.pilot.name}")
-                    log.info(f"Esquadrão: {parser.pilot.squadron}")
-                    log.info(f"Aeronave Atual: {parser.pilot.aircraft}")
-                    log.info(f"Base: {parser.pilot.aerodrome}")
-                    log.info(f"Patente: {parser.pilot.rank}")
-
-                log.info(f"\nMissões extraídas do log: {len(parser.missions)}")
-                for m in parser.missions[:3]:
-                    log.info(
-                        f"  -> [{m.date}] {m.missionType} ({m.aircraft})"
-                    )
-
-                log.info(f"\nVitórias extraídas: {len(parser.victories)}")
-                for v in parser.victories[:3]:
-                    log.info(
-                        f"  -> [{v.date}] {v.enemyType} ({v.victoryType})"
-                    )
-            else:
-                log.warning(
-                    "Parser não encontrou dados válidos ou ficheiro não suportado."
+    if ext == ".log" and fname == "mission.log":
+        parser = WoFFMissionLogParser()
+        if not parser.parse(file_path):
+            log.error("Parser não encontrou dados válidos.")
+            return int(ExitCode.RUNTIME_ERROR)
+        log.info("\n--- 📜 BRIEFING DA MISSÃO ---")
+        log.info(parser.briefing[:300] + "..." if len(parser.briefing) > 300 else parser.briefing)
+        log.info("\n--- 🛩️ DADOS DA MISSÃO ---")
+        mission = parser.mission
+        if mission:
+            log.info(f"Data: {mission.date} | Tempo: {mission.weather}")
+            log.info(f"Aeronave do Jogador: {mission.aircraft}")
+            if parser.pilot:
+                log.info(
+                    f"Esquadrão: {parser.pilot.squadron} "
+                    f"({parser.pilot.nation})"
                 )
-    else:
-        log.error(f"Extensão não suportada para parse: {ext}")
+        log.info("\n--- 👥 MEMBROS DO ESQUADRÃO (Flight) ---")
+        for member in parser.squad_members:
+            log.info(member)
+        log.info("\n--- 🗺️ PLANO DE VOO ---")
+        for waypoint in parser.flight_plan:
+            log.info(
+                f"  -> {waypoint['type']} | Alt: {waypoint['altitude']}m | "
+                f"Lat: {waypoint['lat']} | Lon: {waypoint['lon']}"
+            )
+        log.info("\n--- 📝 DEBRIEFING ---")
+        log.info(parser.debriefing or "Sem debriefing textual encontrado.")
+        return int(ExitCode.SUCCESS)
+
+    pilot_patterns = ("pilot*log.txt", "pilot*claims.txt", "pilot*squads.txt")
+    if ext == ".txt" and any(fnmatch(fname, pattern) for pattern in pilot_patterns):
+        parser = WoFFPilotDataParser()
+        parsed = parser.parse(file_path)
+        if not parser.is_complete or (
+            not parsed and not parser.valid_empty
+        ):
+            log.error("Parser não encontrou dados válidos.")
+            return int(ExitCode.RUNTIME_ERROR)
+        if parser.pilot:
+            log.info("\n--- 🧑‍✈️ DADOS DO PILOTO ---")
+            log.info(f"Nome (ID): {parser.pilot.name}")
+            log.info(f"Esquadrão: {parser.pilot.squadron}")
+            log.info(f"Aeronave Atual: {parser.pilot.aircraft}")
+            log.info(f"Base: {parser.pilot.aerodrome}")
+            log.info(f"Patente: {parser.pilot.rank}")
+        log.info(f"\nMissões extraídas do log: {len(parser.missions)}")
+        for mission in parser.missions[:3]:
+            log.info(
+                f"  -> [{mission.date}] {mission.missionType} ({mission.aircraft})"
+            )
+        log.info(f"\nVitórias extraídas: {len(parser.victories)}")
+        for victory in parser.victories[:3]:
+            log.info(
+                f"  -> [{victory.date}] {victory.enemyType} ({victory.victoryType})"
+            )
+        return int(ExitCode.SUCCESS)
+
+    log.error(f"Ficheiro não suportado para parse: {os.path.basename(file_path)}")
+    return int(ExitCode.USAGE_ERROR)
 
 
 # ──────────────────────────────────────────────────────────────
@@ -433,7 +427,18 @@ BANNER = r"""
 """.format(version=__version__)
 
 
-def main():
+def _print_banner(stream: Optional[TextIO] = None) -> None:
+    """Write the banner without failing on legacy Windows console encodings."""
+    destination = stream if stream is not None else sys.stdout
+    encoding = getattr(destination, "encoding", None) or "utf-8"
+    try:
+        printable_banner = BANNER.encode(encoding, errors="replace").decode(encoding)
+    except LookupError:
+        printable_banner = BANNER.encode("ascii", errors="replace").decode("ascii")
+    print(printable_banner, file=destination)
+
+
+def main(argv: Optional[List[str]] = None) -> int:
     """Ponto de entrada da aplicação."""
     ap = argparse.ArgumentParser(
         description="WoFF BHaH II Watchdog — sincroniza campanha com WoFFBase",
@@ -467,26 +472,48 @@ Exemplos:
         action="store_true",
         help="Log detalhado (DEBUG)",
     )
-    args = ap.parse_args()
+    args = ap.parse_args(argv)
 
-    print(BANNER)
+    _print_banner()
 
     if args.verbose:
         logging.getLogger().setLevel(logging.DEBUG)
 
-    cfg = load_config(args.config)
-    logging.getLogger().setLevel(logging.DEBUG if args.verbose else getattr(logging, cfg.log_level))
+    try:
+        cfg = load_config(args.config)
+    except InvalidConfigurationError as error:
+        log.error("Configuração inválida: %s", error)
+        return int(ExitCode.USAGE_ERROR)
+    logging.getLogger().setLevel(
+        logging.DEBUG if args.verbose else getattr(logging, cfg.log_level)
+    )
 
     # Modo Debug de ficheiro único
     if args.parse_file:
-        run_parse_file(args.parse_file)
-        return
+        try:
+            return run_parse_file(args.parse_file)
+        except Exception as error:
+            log.error("Falha ao processar ficheiro: %s", error)
+            return int(ExitCode.RUNTIME_ERROR)
+
+    if not any(os.path.isdir(path) for path in cfg.watch_paths):
+        log.error(
+            "\nNenhum caminho válido encontrado!\n"
+            "Edita o config.json com os caminhos correctos.\n"
+        )
+        return int(ExitCode.USAGE_ERROR)
 
     # Inicializa o orquestrador
-    dog = WoFFWatchdog(cfg, discovery=args.discover, pilot_id="")
-    if dog.start():
+    try:
+        dog = WoFFWatchdog(cfg, discovery=args.discover, pilot_id="")
+        if not dog.start():
+            return int(ExitCode.RUNTIME_ERROR)
         dog.run_forever()
+    except Exception as error:
+        log.error("Falha ao iniciar ou executar o watchdog: %s", error)
+        return int(ExitCode.RUNTIME_ERROR)
+    return int(ExitCode.SUCCESS)
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())

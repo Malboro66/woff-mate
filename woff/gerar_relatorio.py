@@ -1,127 +1,208 @@
 #!/usr/bin/env python3
-"""
-Gerador de Relatório de Extração (gerar_relatorio.py)
-══════════════════════════════════════════════════════════════════
-Lê os ficheiros reais do WoFF (baseado no config.json), extrai todas 
-as informações possíveis e gera um ficheiro woff_data_report.txt 
-mapeando a origem de cada dado.
-══════════════════════════════════════════════════════════════════
-"""
-import os
-import sys
-import glob
+"""Generate an extraction report from one explicitly selected configuration."""
+
+from __future__ import annotations
+
+import argparse
 import logging
+import os
+import tempfile
+from fnmatch import fnmatchcase
+from pathlib import Path
+from typing import Optional, TextIO, cast
 
-
-from .config import load_config
+from .command_contract import ExitCode
+from .config import InvalidConfigurationError, load_config
 from .parsers.dossier_parser import WoFFDossierParser
-from .parsers.pilot_data_parser import WoFFPilotDataParser
 from .parsers.mission_log_parser import WoFFMissionLogParser
+from .parsers.pilot_data_parser import WoFFPilotDataParser
 
 logging.basicConfig(level=logging.INFO, format="[%(levelname)s] %(message)s")
 log = logging.getLogger("ReportGen")
 
 OUTPUT_FILE = "woff_data_report.txt"
+PILOT_DOSSIER_PATTERN = "pilot*dossier.txt"
+PILOT_TEXT_PATTERNS = (
+    "pilot*log.txt",
+    "pilot*claims.txt",
+    "pilot*squads.txt",
+)
+SUPPORTED_PILOT_PATTERNS = (PILOT_DOSSIER_PATTERN, *PILOT_TEXT_PATTERNS)
 
-def main():
-    log.info("A iniciar geração de relatório...")
-    
-    # 1. Carregar caminhos dinamicamente do config.json
-    cfg = load_config("config.json")
-    valid_paths = [p for p in cfg.watch_paths if os.path.exists(p)]
-    
-    if not valid_paths:
-        log.error("Nenhum caminho válido encontrado no config.json.")
-        return
 
-    # Procurar ficheiros de pilotos e logs em todos os caminhos válidos
-    pilot_files = []
-    mission_log_path = None
-    
+class ReportGenerationError(RuntimeError):
+    """Raised when a selected source exists but cannot be parsed."""
+
+
+def _display_value(value: object) -> object:
+    """Preserve valid falsey values while labelling actually missing fields."""
+
+    return "Vazio" if value is None or value == "" else value
+
+
+def _write_report(report: TextIO, valid_paths: list[str]) -> None:
+    pilot_files: list[str] = []
+    mission_log_path: Optional[str] = None
+
     for path in valid_paths:
-        pilot_files.extend(glob.glob(os.path.join(path, "Pilot*")))
+        pilot_files.extend(
+            str(entry)
+            for entry in Path(path).iterdir()
+            if entry.is_file()
+            and any(
+                fnmatchcase(entry.name.lower(), pattern)
+                for pattern in SUPPORTED_PILOT_PATTERNS
+            )
+        )
         potential_log = os.path.join(path, "mission.log")
-        if os.path.exists(potential_log):
+        if os.path.isfile(potential_log):
             mission_log_path = potential_log
 
-    with open(OUTPUT_FILE, "w", encoding="utf-8") as rep:
-        rep.write("═" * 60 + "\n")
-        rep.write("RELATÓRIO DE EXTRAÇÃO DE DADOS - WoFF BHaH II Watchdog\n")
-        rep.write("═" * 60 + "\n\n")
-        
-        # ─── 1. DOSSIERS E DADOS DE PILOTO ───
-        for p_file in pilot_files:
-            fname = os.path.basename(p_file).lower()
-            
-            if "dossier" in fname:
-                rep.write(f"📦 FONTE: {fname} (Ficheiro Binário Encriptado)\n")
-                rep.write("-" * 60 + "\n")
-                parser = WoFFDossierParser()
-                if parser.parse(p_file):
-                    p = parser.pilot
-                    if p:
-                        dados = [
-                            ("Nome Completo", p.name, "Índices 4, 5"),
-                            ("Nação", p.nation, "Mapeamento Dinâmico"),
-                            ("Patente", p.rank, "Índice 3"),
-                            ("Status RPG", p.status, "Mapeamento Dinâmico"),
-                            ("Data de Nascimento", p.birthDate, "Mapeamento Dinâmico"),
-                            ("Local de Nascimento", p.birthPlace, "Índice 92"),
-                            ("Foto ID", p.photo, "Índice 100"),
-                            ("Esquadrão Atual", p.squadron, "Índice 83"),
-                            ("Aeronave Atual", p.aircraft, "Índice 84"),
-                            ("Minutos de Voo", p.flminutes, "Índice 11"),
-                            ("Nº Total de Missões", p.missions, "Índice 46"),
-                            ("Vitórias Confirmadas", p.killsCount, "Índice 17"),
-                            ("Skill", p.skill, "Índice 41"),
-                        ]
-                        for nome, valor, origem in dados:
-                            rep.write(f"  -> {nome}: {valor if valor else 'Vazio'} (Origem: {origem})\n")
-                        
-                        if parser.decorations:
-                            rep.write("  -> Medalhas:\n")
-                            for d in parser.decorations:
-                                rep.write(f"     - {d.name}\n")
-                                
-                        if parser.wingmen:
-                            rep.write("  -> Wingmen:\n")
-                            for w in parser.wingmen:
-                                rep.write(f"     - {w.rank} {w.fName} {w.sName}\n")
-                rep.write("\n")
-                
-            elif "squads" in fname or "log" in fname or "claims" in fname:
-                rep.write(f"📦 FONTE: {fname} (Ficheiro Texto Delimitado)\n")
-                rep.write("-" * 60 + "\n")
-                parser = WoFFPilotDataParser()
-                if parser.parse(p_file):
-                    if parser.pilot:
-                        rep.write(f"  -> Esquadrão: {parser.pilot.squadron}\n")
-                        rep.write(f"  -> Base: {parser.pilot.aerodrome}\n")
-                    rep.write(f"  -> Missões extraídas: {len(parser.missions)}\n")
-                    rep.write(f"  -> Vitórias extraídas: {len(parser.victories)}\n")
-                rep.write("\n")
+    report.write("═" * 60 + "\n")
+    report.write("RELATÓRIO DE EXTRAÇÃO DE DADOS - WoFF BHaH II Watchdog\n")
+    report.write("═" * 60 + "\n\n")
 
-        # ─── 2. MISSION.LOG ───
-        if mission_log_path:
-            rep.write(f"🛫 FONTE: mission.log (Plano de Voo)\n")
-            rep.write("=" * 60 + "\n")
-            parser = WoFFMissionLogParser()
-            if parser.parse(mission_log_path):
-                m = parser.mission
-                if m:
-                    rep.write(f"  -> Data: {m.date}\n")
-                    rep.write(f"  -> Aeronave: {m.aircraft}\n")
-                    if parser.pilot:
-                        rep.write(f"  -> Esquadrão: {parser.pilot.squadron}\n")
-                    rep.write(f"  -> Waypoints Extraídos: {len(parser.flight_plan)}\n")
-                    for wp in parser.flight_plan[:3]: # Mostra primeiros 3
-                        rep.write(f"     -> {wp['type']} (Lat: {wp['lat']}, Lon: {wp['lon']})\n")
-            rep.write("\n")
+    for pilot_file in sorted(pilot_files):
+        filename = os.path.basename(pilot_file).lower()
 
-        rep.write("═" * 60 + "\n")
-        rep.write("FIM DO RELATÓRIO\n")
+        if fnmatchcase(filename, PILOT_DOSSIER_PATTERN):
+            report.write(
+                f"📦 FONTE: {filename} (Ficheiro Binário Encriptado)\n"
+            )
+            report.write("-" * 60 + "\n")
+            parser = WoFFDossierParser()
+            if not parser.parse(pilot_file):
+                raise ReportGenerationError(
+                    f"Falha ao processar o dossier {filename}."
+                )
+            pilot = parser.pilot
+            if pilot:
+                data = [
+                    ("Nome Completo", pilot.name, "Índices 4, 5"),
+                    ("Nação", pilot.nation, "Mapeamento Dinâmico"),
+                    ("Patente", pilot.rank, "Índice 3"),
+                    ("Status RPG", pilot.status, "Mapeamento Dinâmico"),
+                    ("Data de Nascimento", pilot.birthDate, "Mapeamento Dinâmico"),
+                    ("Local de Nascimento", pilot.birthPlace, "Índice 92"),
+                    ("Foto ID", pilot.photo, "Índice 100"),
+                    ("Esquadrão Atual", pilot.squadron, "Índice 83"),
+                    ("Aeronave Atual", pilot.aircraft, "Índice 84"),
+                    ("Minutos de Voo", pilot.flminutes, "Índice 11"),
+                    ("Nº Total de Missões", pilot.missions, "Índice 46"),
+                    ("Vitórias Confirmadas", pilot.killsCount, "Índice 17"),
+                    ("Skill", pilot.skill, "Índice 41"),
+                ]
+                for name, value, origin in data:
+                    report.write(
+                        f"  -> {name}: {_display_value(value)} "
+                        f"(Origem: {origin})\n"
+                    )
+                if parser.decorations:
+                    report.write("  -> Medalhas:\n")
+                    for decoration in parser.decorations:
+                        report.write(f"     - {decoration.name}\n")
+                if parser.wingmen:
+                    report.write("  -> Wingmen:\n")
+                    for wingman in parser.wingmen:
+                        report.write(
+                            f"     - {wingman.rank} {wingman.fName} "
+                            f"{wingman.sName}\n"
+                        )
+            report.write("\n")
+            continue
 
-    log.info(f"✅ Relatório gerado com sucesso: {os.path.abspath(OUTPUT_FILE)}")
+        if any(fnmatchcase(filename, pattern) for pattern in PILOT_TEXT_PATTERNS):
+            report.write(f"📦 FONTE: {filename} (Ficheiro Texto Delimitado)\n")
+            report.write("-" * 60 + "\n")
+            parser = WoFFPilotDataParser()
+            parsed = parser.parse(pilot_file)
+            if not parser.is_complete or (
+                not parsed and not parser.valid_empty
+            ):
+                raise ReportGenerationError(
+                    f"Falha ao processar o ficheiro de piloto {filename}."
+                )
+            if parser.pilot:
+                report.write(f"  -> Esquadrão: {parser.pilot.squadron}\n")
+                report.write(f"  -> Base: {parser.pilot.aerodrome}\n")
+            report.write(f"  -> Missões extraídas: {len(parser.missions)}\n")
+            report.write(f"  -> Vitórias extraídas: {len(parser.victories)}\n\n")
+
+    if mission_log_path:
+        report.write("🛫 FONTE: mission.log (Plano de Voo)\n")
+        report.write("=" * 60 + "\n")
+        parser = WoFFMissionLogParser()
+        if not parser.parse(mission_log_path):
+            raise ReportGenerationError("Falha ao processar mission.log.")
+        mission = parser.mission
+        if mission:
+            report.write(f"  -> Data: {mission.date}\n")
+            report.write(f"  -> Aeronave: {mission.aircraft}\n")
+            if parser.pilot:
+                report.write(f"  -> Esquadrão: {parser.pilot.squadron}\n")
+            report.write(f"  -> Waypoints Extraídos: {len(parser.flight_plan)}\n")
+            for waypoint in parser.flight_plan[:3]:
+                report.write(
+                    f"     -> {waypoint['type']} "
+                    f"(Lat: {waypoint['lat']}, Lon: {waypoint['lon']})\n"
+                )
+        report.write("\n")
+
+    report.write("═" * 60 + "\n")
+    report.write("FIM DO RELATÓRIO\n")
+
+
+def main(argv: Optional[list[str]] = None) -> int:
+    parser = argparse.ArgumentParser(
+        description="Gera um relatório auditável dos ficheiros WoFF configurados."
+    )
+    parser.add_argument(
+        "--config",
+        default="config.json",
+        help="Caminho para config.json (padrão: config.json)",
+    )
+    args = parser.parse_args(argv)
+
+    log.info("A iniciar geração de relatório...")
+    try:
+        config = load_config(args.config)
+    except InvalidConfigurationError as error:
+        log.error("Configuração inválida: %s", error)
+        return int(ExitCode.USAGE_ERROR)
+
+    valid_paths = [path for path in config.watch_paths if os.path.isdir(path)]
+    if not valid_paths:
+        log.error("Nenhum caminho válido encontrado na configuração selecionada.")
+        return int(ExitCode.USAGE_ERROR)
+
+    output_path = Path.cwd() / OUTPUT_FILE
+    temporary_path: Optional[Path] = None
+    try:
+        with tempfile.NamedTemporaryFile(
+            mode="w",
+            encoding="utf-8",
+            dir=output_path.parent,
+            prefix=f".{OUTPUT_FILE}.",
+            suffix=".tmp",
+            delete=False,
+        ) as report:
+            temporary_path = Path(report.name)
+            _write_report(cast(TextIO, report), valid_paths)
+            report.flush()
+            os.fsync(report.fileno())
+        os.replace(temporary_path, output_path)
+    except Exception as error:
+        if temporary_path is not None:
+            try:
+                temporary_path.unlink()
+            except FileNotFoundError:
+                pass
+        log.error("Falha ao gerar relatório: %s", error)
+        return int(ExitCode.RUNTIME_ERROR)
+
+    log.info("Relatório gerado com sucesso: %s", output_path.resolve())
+    return int(ExitCode.SUCCESS)
+
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())

@@ -13,6 +13,7 @@ import csv
 import sqlite3
 import argparse
 import textwrap
+from pathlib import Path
 from typing import Optional
 
 from woff.career_selection import (
@@ -21,6 +22,12 @@ from woff.career_selection import (
     list_careers,
     resolve_career,
 )
+from woff.command_contract import ExitCode, emit_diagnostic
+from woff.config import InvalidConfigurationError, WatchdogConfig
+
+
+class QueryConfigurationError(ValueError):
+    """Raised when query configuration cannot identify a safe database."""
 
 class Colors:
     """Gestão de cores ANSI. Desativadas automaticamente se não for um TTY."""
@@ -54,36 +61,50 @@ def get_color(c: Colors, value: int, warn: int, danger: int, reverse: bool = Fal
         if value >= warn: return c.YELLOW
         return c.GREEN
 
-def get_db_path(config_path: str, db_path: str) -> str:
-    if db_path: return db_path
-    if os.path.exists(config_path):
+def get_db_path(config_path: str, db_path: Optional[str]) -> str:
+    if db_path is not None:
+        if not db_path.strip():
+            raise QueryConfigurationError("O caminho --db não pode estar vazio.")
+        return db_path
+
+    config = Path(config_path)
+    if config.exists():
         try:
-            with open(config_path, "r", encoding="utf-8") as f:
-                cfg = json.load(f)
-                return cfg.get("export_path", "woff_data.db")
-        except Exception: pass
+            with config.open("r", encoding="utf-8") as file:
+                cfg = json.load(file)
+        except (OSError, UnicodeError, json.JSONDecodeError) as error:
+            raise QueryConfigurationError(
+                f"Não foi possível ler a config {config_path}: {error}"
+            ) from error
+        try:
+            return WatchdogConfig.from_dict(cfg).export_path
+        except InvalidConfigurationError as error:
+            raise QueryConfigurationError(
+                f"A config {config_path} é inválida: {error}"
+            ) from error
     return "woff_data.db"
 
 def connect_db(db_path: str) -> sqlite3.Connection:
-    """Cria e retorna a ligação. Lança exceções em caso de erro."""
+    """Open an existing SQLite export without creating or changing it."""
     if not os.path.exists(db_path):
         raise FileNotFoundError(f"Base de dados não encontrada: {db_path}")
-        
-    # Lança sqlite3.Error naturalmente se não conseguir ligar
-    conn = sqlite3.connect(db_path, timeout=10.0)
+
+    uri = f"{Path(db_path).resolve().as_uri()}?mode=ro"
+    conn = sqlite3.connect(uri, timeout=10.0, uri=True)
     conn.row_factory = sqlite3.Row
     return conn
 
 def export_data(data: list, format_type: str, headers: list):
     """Exporta dados para JSON, CSV ou Markdown."""
-    if not data:
-        print("Sem dados para exportar.")
-        return
-
     if format_type == "json":
         print(json.dumps(data, indent=2, ensure_ascii=False))
     elif format_type == "csv":
-        writer = csv.DictWriter(sys.stdout, fieldnames=headers, extrasaction='ignore')
+        writer = csv.DictWriter(
+            sys.stdout,
+            fieldnames=headers,
+            extrasaction="ignore",
+            lineterminator="\n",
+        )
         writer.writeheader()
         writer.writerows(data)
     elif format_type == "md":
@@ -161,7 +182,7 @@ def show_pilot_details(
     p = cursor.fetchone()
     
     if not p:
-        print(f"{c.RED}A carreira selecionada não foi encontrada.{c.RESET}")
+        emit_diagnostic("[ERRO] A carreira selecionada não foi encontrada.")
         return False
         
     print(f"\n{c.HEADER}{c.BOLD}🧑‍✈️ Perfil do Piloto{c.RESET}")
@@ -344,6 +365,20 @@ def main(argv: Optional[list[str]] = None) -> int:
     
     args = ap.parse_args(argv)
 
+    detail_count = sum((args.missions, args.diary, args.wingmen))
+    has_selector = bool(args.pilot or args.pilot_id)
+    if detail_count and not has_selector:
+        emit_diagnostic(
+            "[ERRO] --missions, --diary e --wingmen exigem --pilot ou --pilot-id."
+        )
+        return int(ExitCode.USAGE_ERROR)
+    if args.format != "table" and has_selector and detail_count != 1:
+        emit_diagnostic(
+            "[ERRO] Machine-readable pilot queries require exactly one of "
+            "--missions, --diary, or --wingmen."
+        )
+        return int(ExitCode.USAGE_ERROR)
+
     use_color = sys.stdout.isatty() and not args.no_color
     c = Colors(enabled=use_color)
     conn = None
@@ -354,7 +389,11 @@ def main(argv: Optional[list[str]] = None) -> int:
 
         if not args.pilot and not args.pilot_id:
             list_pilots(conn, c, args)
-            print(f"\nPara ver detalhes de um piloto, use: python woff_query.py --pilot \"Nome do Piloto\"")
+            if args.format == "table":
+                print(
+                    "\nPara ver detalhes de um piloto, use: "
+                    'woff-query --pilot "Nome do Piloto"'
+                )
         else:
             try:
                 career = resolve_career(
@@ -364,12 +403,14 @@ def main(argv: Optional[list[str]] = None) -> int:
                 )
             except CareerResolutionError as error:
                 print(f"[ERRO] {error}", file=sys.stderr)
-                return 2
+                return int(ExitCode.USAGE_ERROR)
 
             if args.format == "table":
                 found = show_pilot_details(conn, career, c)
                 if found:
                     show_rpg_stats(conn, career.pilot_id, c)
+                else:
+                    return int(ExitCode.RUNTIME_ERROR)
             else:
                 found = True
 
@@ -384,16 +425,19 @@ def main(argv: Optional[list[str]] = None) -> int:
             if args.format == "table" and not (args.missions or args.wingmen or args.diary):
                 print(f"\n{c.YELLOW}Dica: Adiciona --missions, --wingmen ou --diary para ver mais detalhes.{c.RESET}")
                 
-    except FileNotFoundError as e:
-        print(f"\n{c.RED}[ERRO] {e}{c.RESET}")
-        print("Certifica-te que o WoFF Watchdog já correu e gerou a base de dados.")
-    except sqlite3.Error as e:
-        print(f"\n{c.RED}[ERRO SQL] Ocorreu um erro ao consultar a base de dados: {e}{c.RESET}")
-        print("Isto pode acontecer se o WoFF Watchdog estiver a escrever na base de dados neste momento. Tenta novamente dentro de alguns segundos.")
+    except (QueryConfigurationError, FileNotFoundError) as error:
+        emit_diagnostic(f"[ERRO] {error}")
+        return int(ExitCode.USAGE_ERROR)
+    except sqlite3.Error as error:
+        emit_diagnostic(
+            "[ERRO SQL] Ocorreu um erro ao consultar a base de dados: "
+            f"{error}"
+        )
+        return int(ExitCode.RUNTIME_ERROR)
     finally:
         if conn:
             conn.close()
-    return 0
+    return int(ExitCode.SUCCESS)
 
 if __name__ == "__main__":
     raise SystemExit(main())

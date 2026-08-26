@@ -21,8 +21,12 @@ dev = [
 windows = ["pywin32>=306; platform_system == 'Windows'"]
 
 [project.scripts]
+woff-query = "woff_query:main"
 woff-watchdog = "woff.woff_watchdog:main"
 woff-report = "woff.gerar_relatorio:main"
+
+[tool.setuptools]
+py-modules = ["woff_query"]
 
 [tool.setuptools.packages.find]
 include = ["woff*"]

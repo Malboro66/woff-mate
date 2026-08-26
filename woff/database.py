@@ -17,6 +17,7 @@ import json
 import logging
 import os
 import re
+import shutil
 import sqlite3
 import time
 import threading
@@ -607,6 +608,150 @@ class DatabaseManager:
 
     def _run_sqlite_backup(self, source: sqlite3.Connection, dest: sqlite3.Connection) -> None:
         source.backup(dest)
+
+    def create_export_backup(self) -> Path:
+        """Atomically replace the optional pre-processing export snapshot.
+
+        The new sidecar is published only after SQLite certifies it.  A failed
+        attempt therefore leaves any previously verified snapshot untouched.
+        """
+
+        backup_path = self.db_path.with_name(f"{self.db_path.name}.backup.sqlite")
+        backup_dir = backup_path.parent
+        with self._lock:
+            while True:
+                temporary_path = self._unique_sidecar_path(
+                    backup_path, "export-backup"
+                )
+                try:
+                    fd = os.open(
+                        temporary_path, os.O_CREAT | os.O_EXCL | os.O_WRONLY
+                    )
+                except FileExistsError:
+                    continue
+                os.close(fd)
+                break
+
+            source: Optional[sqlite3.Connection] = None
+            destination: Optional[sqlite3.Connection] = None
+            rollback_path: Optional[Path] = None
+            published = False
+            try:
+                source_uri = f"{self.db_path.resolve().as_uri()}?mode=ro"
+                source = sqlite3.connect(source_uri, uri=True)
+                destination = sqlite3.connect(temporary_path)
+                self._run_sqlite_backup(source, destination)
+                if destination.execute("PRAGMA integrity_check").fetchone() != (
+                    "ok",
+                ):
+                    raise sqlite3.DatabaseError(
+                        "integrity_check failed for export backup"
+                    )
+                destination.close()
+                destination = None
+                source.close()
+                source = None
+
+                file_descriptor = os.open(temporary_path, os.O_RDWR)
+                try:
+                    os.fsync(file_descriptor)
+                finally:
+                    os.close(file_descriptor)
+
+                if backup_path.exists():
+                    rollback_path = self._copy_export_backup_for_rollback(
+                        backup_path
+                    )
+                    self._fsync_directory(backup_dir)
+
+                os.replace(temporary_path, backup_path)
+                published = True
+                self._fsync_directory(backup_dir)
+            except Exception:
+                if destination is not None:
+                    destination.close()
+                if source is not None:
+                    source.close()
+                recovery_error: Optional[Exception] = None
+                try:
+                    if (
+                        published
+                        and rollback_path is not None
+                        and rollback_path.exists()
+                    ):
+                        os.replace(rollback_path, backup_path)
+                        self._fsync_directory(backup_dir)
+                    elif published and backup_path.exists():
+                        backup_path.unlink()
+                        self._fsync_directory(backup_dir)
+                except Exception as error:
+                    recovery_error = error
+                if (
+                    not published
+                    and rollback_path is not None
+                    and rollback_path.exists()
+                ):
+                    try:
+                        rollback_path.unlink()
+                        self._fsync_directory(backup_dir)
+                    except OSError as error:
+                        log.warning(
+                            "Falha ao remover a cópia de rollback não utilizada "
+                            "%s: %s",
+                            rollback_path,
+                            error,
+                        )
+                try:
+                    temporary_path.unlink()
+                except FileNotFoundError:
+                    pass
+                if recovery_error is not None:
+                    log.error(
+                        "Falha ao restaurar o backup anterior; snapshot preservado "
+                        "em %s: %s",
+                        rollback_path,
+                        recovery_error,
+                    )
+                raise
+            else:
+                if rollback_path is not None and rollback_path.exists():
+                    try:
+                        rollback_path.unlink()
+                        self._fsync_directory(backup_dir)
+                    except OSError as error:
+                        log.warning(
+                            "Backup publicado, mas a cópia anterior não pôde ser "
+                            "removida com durabilidade confirmada (%s): %s",
+                            rollback_path,
+                            error,
+                        )
+
+        log.info("Backup de exportação criado: %s", backup_path)
+        return backup_path
+
+    def _copy_export_backup_for_rollback(self, backup_path: Path) -> Path:
+        """Create and sync a rollback copy without removing the canonical file."""
+
+        while True:
+            rollback_path = self._unique_sidecar_path(
+                backup_path, "previous-export-backup"
+            )
+            try:
+                with backup_path.open("rb") as source, rollback_path.open(
+                    "xb"
+                ) as destination:
+                    shutil.copyfileobj(source, destination)
+                    destination.flush()
+                    os.fsync(destination.fileno())
+            except FileExistsError:
+                continue
+            except Exception:
+                try:
+                    rollback_path.unlink()
+                except FileNotFoundError:
+                    pass
+                raise
+            return rollback_path
 
     def _restore_migration_backup(self) -> None:
         """Restaura backup via API SQLite sem mover arquivos de conexões abertas."""
