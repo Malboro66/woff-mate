@@ -31,6 +31,7 @@ class ProcessingReason(str, Enum):
     IDENTITY_REJECTED = "identity-rejected"
     PARSER_REJECTED = "parser-rejected"
     PERSISTENCE_REJECTED = "persistence-rejected"
+    RETRY_TERMINATED = "retry-terminated"
     SQLITE_BUSY = "sqlite-busy"
     SQLITE_LOCKED = "sqlite-locked"
     SQLITE_PROTOCOL = "sqlite-protocol"

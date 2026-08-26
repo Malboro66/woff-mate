@@ -221,12 +221,10 @@ class EventScheduler:
                     ):
                         self._metrics["successful_replays"] += 1
 
-                if state.pending is not None:
-                    if (
-                        outcome is not None
-                        and outcome.status is ProcessingStatus.TRANSIENT_FAILURE
-                    ):
-                        self._metrics["superseded_retries"] += 1
+                if state.pending is not None and (
+                    outcome is None
+                    or outcome.status is not ProcessingStatus.TRANSIENT_FAILURE
+                ):
                     event = state.pending
                     state.pending = None
                     self._metrics["retried"] += 1
@@ -255,6 +253,14 @@ class EventScheduler:
                         outcome,
                         persistence_attempts,
                     )
+                    if state.pending is not None:
+                        event = state.pending
+                        state.pending = None
+                        self._metrics["retried"] += 1
+                        persistence_attempts = 0
+                        coalesced_retry = True
+                        persistence_retry = False
+                        continue
                     del self._states[key]
                     self._changed.notify_all()
                     return
@@ -267,6 +273,14 @@ class EventScheduler:
                         outcome,
                         persistence_attempts,
                     )
+                    if state.pending is not None:
+                        event = state.pending
+                        state.pending = None
+                        self._metrics["retried"] += 1
+                        persistence_attempts = 0
+                        coalesced_retry = True
+                        persistence_retry = False
+                        continue
                     del self._states[key]
                     self._changed.notify_all()
                     return
@@ -277,16 +291,6 @@ class EventScheduler:
                 deadline = time.monotonic() + delay
                 self._metrics["retry_pending"] += 1
                 while True:
-                    if state.pending is not None:
-                        self._metrics["retry_pending"] -= 1
-                        self._metrics["superseded_retries"] += 1
-                        event = state.pending
-                        state.pending = None
-                        self._metrics["retried"] += 1
-                        persistence_attempts = 0
-                        coalesced_retry = True
-                        persistence_retry = False
-                        break
                     if not self._accepting:
                         self._metrics["retry_pending"] -= 1
                         self._metrics["retry_shutdown"] += 1
@@ -296,6 +300,14 @@ class EventScheduler:
                             outcome,
                             persistence_attempts,
                         )
+                        if state.pending is not None:
+                            event = state.pending
+                            state.pending = None
+                            self._metrics["retried"] += 1
+                            persistence_attempts = 0
+                            coalesced_retry = True
+                            persistence_retry = False
+                            break
                         del self._states[key]
                         self._changed.notify_all()
                         return

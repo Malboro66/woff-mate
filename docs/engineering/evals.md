@@ -57,7 +57,7 @@ issues and pull requests.
 | #72 | `EVAL-DOSSIER-TXN-001`, `EVAL-DOSSIER-TXN-002` | Atomic rollback and exactly-once consistent Dossier state |
 | #93 | `EVAL-CAREER-SELECT-001`, `EVAL-CAREER-SELECT-002` | Stable career selection and pre-mutation rejection of ambiguous names |
 | #94 | `EVAL-ROOT-BINDING-001`, `EVAL-ROOT-BINDING-002` | Root-namespaced slot and persistent-career identity, including retired-career isolation, plus migration recovery evidence |
-| #95 | `EVAL-PERSIST-RETRY-001`, `EVAL-PERSIST-RETRY-002` | Exactly-once persistence after transient contention and bounded terminal handling |
+| #95 | `EVAL-PERSIST-RETRY-001` through `EVAL-PERSIST-RETRY-004` | Exactly-once persistence, partial-generation completion, a stable per-generation retry bound, and startup recovery coverage |
 | #73 | `EVAL-VICTORY-MERGE-001`, `EVAL-DECORATION-MERGE-001` | Lossless same-minute victories and non-destructive enrichment of stable rows |
 | #27 | `EVAL-DEFER-001`, `EVAL-DEFER-002` | Deferred reprocessing without loss or unbounded retention |
 
@@ -75,10 +75,10 @@ The aggregate eval passes only when:
 
 Green CI alone does not pass this aggregate eval.
 
-The remaining operational sequence is #27. The graph encodes only technical
-dependencies: corrective #94 and completed #95 have satisfied its blockers.
-The sequence does not make independent items artificial prerequisites of one
-another.
+Corrective work for reopened #95 is active. Its dependency edge into #27 is
+unsatisfied until the corrected implementation reaches `main`. The graph
+encodes only technical dependencies and does not make independent items
+artificial prerequisites of one another.
 
 ## Newly registered data-integrity evals
 
@@ -89,7 +89,9 @@ another.
 | `EVAL-ROOT-BINDING-001` | #94 | Equal slots in distinct watched roots keep independent bindings and persistent career IDs, even after another root retires a same-name career, with correct dependent-file routing |
 | `EVAL-ROOT-BINDING-002` | #94 | Any binding migration proves backup, integrity, rollback, and reopen behavior |
 | `EVAL-PERSIST-RETRY-001` | #95 | Real transient SQLite contention retains the admitted generation and persists it exactly once after retry |
-| `EVAL-PERSIST-RETRY-002` | #95 | Exhaustion and shutdown are bounded and leave a durable sanitized diagnostic without acknowledgement |
+| `EVAL-PERSIST-RETRY-002` | #95 | Duplicate notifications cannot reset the four-attempt budget; exhaustion and shutdown remain bounded and diagnosed |
+| `EVAL-PERSIST-RETRY-003` | #95 | A partially committed generation completes derived RPG and diary effects before a pending newer generation; transient derived reads remain retryable |
+| `EVAL-PERSIST-RETRY-004` | #95 | Startup waits cover snapshot stability, four SQLite busy windows, and every bounded backoff delay |
 | `EVAL-WINGMAN-IDENTITY-001` | #96 | Distinct same-name wingmen retain separate histories and personality ownership |
 | `EVAL-WINGMAN-MERGE-001` | #96 | Poorer roster data cannot erase richer fields or reassign personality |
 | `EVAL-DIARY-EMPTY-001` | #97 | Empty narrative in a retained block does not delete the row, while removed blocks follow explicit deletion semantics |
@@ -151,14 +153,23 @@ claim Q5 or approval of Product Gate A or Gate B.
   contention through the production `FileProcessor` and `EventScheduler` path
   in `woff/tests/test_persistence_retry.py`. The tests retain the exact verified
   source bytes and Dossier-backed identity, release the writer lock, and prove
-  one automatic idempotent persistence replay. A newer filesystem event
-  deterministically supersedes the retained generation.
+  one automatic idempotent persistence replay. A pending newer event remains
+  coalesced until the retained generation succeeds or reaches a terminal bound.
 - `EVAL-PERSIST-RETRY-002` is enforced by the same module. Four total attempts
-  use fixed scheduler backoff of 0.1, 0.2, and 0.4 seconds. Exhaustion and
-  shutdown cancellation leave the generation unacknowledged, release bounded
-  scheduler state, and emit one final filename-only diagnostic. Typed outcomes
-  and metrics keep permanent rejection, saturation, transient retries, and
-  successful replay observably separate.
+  use fixed scheduler backoff of 0.1, 0.2, and 0.4 seconds. Duplicate events for
+  unchanged bytes do not reset that budget. Exhaustion and shutdown leave the
+  generation unacknowledged, release bounded state, and emit filename-only
+  diagnostics.
+- `EVAL-PERSIST-RETRY-003` is enforced by the same module. A deterministic
+  post-merge read failure leaves the core mission committed, propagates as a
+  transient outcome, and replays its RPG and diary effects before processing
+  the latest pending generation.
+- `EVAL-PERSIST-RETRY-004` is enforced by
+  `woff/tests/test_persistence_retry.py` and
+  `woff/tests/test_handler_integration.py`. The startup phase budget includes
+  snapshot stability, four five-second SQLite busy windows, all 0.7 seconds of
+  scheduler backoff, and a bounded phase margin. The watchdog consumes that
+  calculated budget instead of using only file-stability time.
 
 ### Implemented canonical temporal evals
 

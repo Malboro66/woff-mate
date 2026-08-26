@@ -18,7 +18,7 @@ from typing import Any, Optional, List, Sequence
 from watchdog.events import FileSystemEventHandler
 
 from .campaign_namespace import CampaignNamespaceError, CampaignNamespaceResolver
-from .database import DatabaseManager
+from .database import DatabaseManager, SQLITE_BUSY_TIMEOUT_SECONDS
 from .campaign_engine import CampaignEngine
 from .config import SUPPORTED_WATCHED_EXTENSIONS
 from .discovery import is_preview_allowed
@@ -129,8 +129,18 @@ class FileProcessor:
     ) -> ProcessingOutcome:
         """Process one path and return an explicit acknowledgement contract."""
         try:
+            previous_outcome = (
+                previous_generation
+                if isinstance(previous_generation, ProcessingOutcome)
+                else None
+            )
             if isinstance(previous_generation, ProcessingOutcome):
-                previous_generation = previous_generation.acknowledged_generation
+                previous_generation = (
+                    previous_generation.generation
+                    if previous_generation.status
+                    is ProcessingStatus.TRANSIENT_FAILURE
+                    else previous_generation.acknowledged_generation
+                )
             ext = os.path.splitext(path)[1].lower()
             if ext in {".txt", ".log"} and not is_preview_allowed(path):
                 log.debug("Unsupported WoFF filename ignored: %s", _safe_filename(path))
@@ -139,6 +149,18 @@ class FileProcessor:
                 )
             snapshot = self.guard.acquire(path)
             if snapshot.generation == previous_generation:
+                if (
+                    previous_outcome is not None
+                    and previous_outcome.status
+                    is ProcessingStatus.TRANSIENT_FAILURE
+                ):
+                    log.debug(
+                        "Terminal retry generation already considered: %s",
+                        _safe_filename(path),
+                    )
+                    return ProcessingOutcome.permanent(
+                        ProcessingReason.RETRY_TERMINATED
+                    )
                 log.debug("Snapshot generation already processed: %s", _safe_filename(path))
                 return ProcessingOutcome.unchanged(snapshot.generation)
 
@@ -489,6 +511,20 @@ class WoFFEventHandler(FileSystemEventHandler):
         """Wait for a startup dependency phase without creating another queue."""
         return self.scheduler.wait_for_paths(paths, timeout)
 
+    def startup_phase_timeout(self, path_count: int) -> float:
+        """Bound startup waits across snapshots and every persistence attempt."""
+        policy = self.scheduler.persistence_retry_policy
+        retry_backoff = sum(
+            policy.delay_after_failure(failure)
+            for failure in range(1, policy.max_attempts)
+        )
+        per_path = (
+            self.config.stability_timeout_sec
+            + (policy.max_attempts * SQLITE_BUSY_TIMEOUT_SECONDS)
+            + retry_backoff
+        )
+        return self.config.stability_timeout_sec + (path_count * per_path)
+
     def _execute_pipeline(self, path: str, event_type: str):
         """Método executado na thread pool."""
         log.info("Detectado [%s]: %s", event_type, _safe_filename(path))
@@ -499,14 +535,7 @@ class WoFFEventHandler(FileSystemEventHandler):
     ) -> ProcessingOutcome:
         """Process a coalesced event while suppressing an identical generation."""
         log.info("Detectado [%s]: %s", event_type, _safe_filename(path))
-        previous_generation = (
-            previous_outcome.acknowledged_generation
-            if isinstance(previous_outcome, ProcessingOutcome)
-            else previous_outcome
-            if isinstance(previous_outcome, FileGeneration)
-            else None
-        )
-        return self.processor.process(path, event_type, previous_generation)
+        return self.processor.process(path, event_type, previous_outcome)
 
     def _execute_persistence_retry_pipeline(
         self, path: str, event_type: str, previous_outcome: ProcessingOutcome
