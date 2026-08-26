@@ -616,6 +616,7 @@ class DatabaseManager:
         """
 
         backup_path = self.db_path.with_name(f"{self.db_path.name}.backup.sqlite")
+        backup_dir = backup_path.parent
         with self._lock:
             while True:
                 temporary_path = self._unique_sidecar_path(
@@ -632,6 +633,9 @@ class DatabaseManager:
 
             source: Optional[sqlite3.Connection] = None
             destination: Optional[sqlite3.Connection] = None
+            rollback_path: Optional[Path] = None
+            previous_moved = False
+            published = False
             try:
                 source_uri = f"{self.db_path.resolve().as_uri()}?mode=ro"
                 source = sqlite3.connect(source_uri, uri=True)
@@ -648,23 +652,67 @@ class DatabaseManager:
                 source.close()
                 source = None
 
-                file_descriptor = os.open(temporary_path, os.O_RDONLY)
+                file_descriptor = os.open(temporary_path, os.O_RDWR)
                 try:
                     os.fsync(file_descriptor)
                 finally:
                     os.close(file_descriptor)
+
+                if backup_path.exists():
+                    rollback_path = self._unique_sidecar_path(
+                        backup_path, "previous-export-backup"
+                    )
+                    os.replace(backup_path, rollback_path)
+                    previous_moved = True
+                    self._fsync_directory(backup_dir)
+
                 os.replace(temporary_path, backup_path)
-                self._fsync_directory(backup_path.parent)
+                published = True
+                self._fsync_directory(backup_dir)
             except Exception:
                 if destination is not None:
                     destination.close()
                 if source is not None:
                     source.close()
+                recovery_error: Optional[Exception] = None
+                try:
+                    if (
+                        previous_moved
+                        and rollback_path is not None
+                        and rollback_path.exists()
+                    ):
+                        os.replace(rollback_path, backup_path)
+                        previous_moved = False
+                        self._fsync_directory(backup_dir)
+                    elif published and backup_path.exists():
+                        backup_path.unlink()
+                        self._fsync_directory(backup_dir)
+                except Exception as error:
+                    recovery_error = error
                 try:
                     temporary_path.unlink()
                 except FileNotFoundError:
                     pass
+                if recovery_error is not None:
+                    log.error(
+                        "Falha ao restaurar o backup anterior; snapshot preservado "
+                        "em %s: %s",
+                        rollback_path,
+                        recovery_error,
+                    )
                 raise
+            else:
+                if rollback_path is not None and rollback_path.exists():
+                    try:
+                        rollback_path.unlink()
+                        self._fsync_directory(backup_dir)
+                    except OSError as error:
+                        log.warning(
+                            "Backup publicado, mas a cópia anterior não pôde ser "
+                            "removida com durabilidade confirmada (%s): %s",
+                            rollback_path,
+                            error,
+                        )
 
         log.info("Backup de exportação criado: %s", backup_path)
         return backup_path

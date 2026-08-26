@@ -82,3 +82,5 @@ publishes it only after complete generation. Missing watch roots return `2` and
 produce no artifact; source parse and output-write failures return `1` and do
 not publish a partial replacement. The report renders numeric zero and Boolean
 false literally; only `None` and an empty string are labelled `Vazio`.
+Recognized pilot log and claims files that declare zero records are valid and
+render zero counts; malformed records still fail the complete report.

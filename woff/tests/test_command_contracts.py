@@ -359,6 +359,54 @@ def test_report_uses_selected_config_and_renders_zero_as_zero(
     assert "Nº Total de Missões: Vazio" not in report
 
 
+@pytest.mark.parametrize("filename", ["Pilot1Log.txt", "Pilot1Claims.txt"])
+def test_report_accepts_valid_zero_record_pilot_files(
+    tmp_path: Path,
+    filename: str,
+) -> None:
+    (tmp_path / filename).write_text("0\n", encoding="cp1252")
+    config = tmp_path / "selected.json"
+    _write_config(
+        config,
+        watch_paths=[tmp_path],
+        export_path=tmp_path / "unused.sqlite",
+    )
+
+    result = _run(
+        [_console_script("woff-report"), "--config", str(config)],
+        cwd=tmp_path,
+    )
+
+    assert result.returncode == 0, result.stderr
+    report = (tmp_path / "woff_data_report.txt").read_text(encoding="utf-8")
+    assert f"FONTE: {filename.lower()}" in report
+    assert "Missões extraídas: 0" in report
+    assert "Vitórias extraídas: 0" in report
+
+
+@pytest.mark.parametrize("filename", ["Pilot1Log.txt", "Pilot1Claims.txt"])
+def test_report_rejects_malformed_zero_record_pilot_files(
+    tmp_path: Path,
+    filename: str,
+) -> None:
+    (tmp_path / filename).write_text("0\nmalformed record\n", encoding="cp1252")
+    config = tmp_path / "selected.json"
+    _write_config(
+        config,
+        watch_paths=[tmp_path],
+        export_path=tmp_path / "unused.sqlite",
+    )
+
+    result = _run(
+        [_console_script("woff-report"), "--config", str(config)],
+        cwd=tmp_path,
+    )
+
+    assert result.returncode == 1
+    assert "Falha ao processar" in result.stderr
+    assert not (tmp_path / "woff_data_report.txt").exists()
+
+
 def test_report_without_valid_paths_fails_without_an_artifact(
     tmp_path: Path,
 ) -> None:
@@ -522,6 +570,79 @@ def test_failed_export_backup_preserves_the_previous_verified_snapshot(
         with pytest.raises(sqlite3.OperationalError, match="synthetic backup failure"):
             database.create_export_backup()
         assert backup_path.read_bytes() == b"previous verified backup"
+        assert list(tmp_path.glob(".*export-backup*")) == []
+    finally:
+        database.close()
+
+
+def test_export_backup_fsync_uses_a_write_capable_descriptor(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    database_path = tmp_path / "campaign.sqlite"
+    database = DatabaseManager(str(database_path))
+    real_open = os.open
+    temporary_access_modes: list[int] = []
+
+    def tracking_open(path: os.PathLike[str] | str, flags: int, *args: int) -> int:
+        if "export-backup" in Path(path).name:
+            temporary_access_modes.append(flags & os.O_ACCMODE)
+        return real_open(path, flags, *args)
+
+    monkeypatch.setattr(os, "open", tracking_open)
+    try:
+        database.create_export_backup()
+        assert os.O_RDWR in temporary_access_modes
+    finally:
+        database.close()
+
+
+def test_directory_sync_failure_restores_the_previous_export_backup(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    database_path = tmp_path / "campaign.sqlite"
+    database = DatabaseManager(str(database_path))
+    backup_path = database_path.with_name(f"{database_path.name}.backup.sqlite")
+    previous_snapshot = b"previous verified backup"
+    backup_path.write_bytes(previous_snapshot)
+    real_fsync_directory = database._fsync_directory
+    failure_injected = False
+
+    def fail_after_publication(path: Path) -> None:
+        nonlocal failure_injected
+        if (
+            not failure_injected
+            and backup_path.is_file()
+            and backup_path.read_bytes() != previous_snapshot
+        ):
+            failure_injected = True
+            raise OSError("synthetic directory fsync failure")
+        real_fsync_directory(path)
+
+    monkeypatch.setattr(database, "_fsync_directory", fail_after_publication)
+    try:
+        with pytest.raises(OSError, match="synthetic directory fsync failure"):
+            database.create_export_backup()
+        assert failure_injected
+        assert backup_path.read_bytes() == previous_snapshot
+        assert list(tmp_path.glob(".*export-backup*")) == []
+    finally:
+        database.close()
+
+
+def test_successful_export_backup_removes_the_rollback_sidecar(
+    tmp_path: Path,
+) -> None:
+    database_path = tmp_path / "campaign.sqlite"
+    database = DatabaseManager(str(database_path))
+    backup_path = database_path.with_name(f"{database_path.name}.backup.sqlite")
+    backup_path.write_bytes(b"previous verified backup")
+
+    try:
+        database.create_export_backup()
+        with sqlite3.connect(backup_path) as backup:
+            assert backup.execute("PRAGMA integrity_check").fetchone() == ("ok",)
         assert list(tmp_path.glob(".*export-backup*")) == []
     finally:
         database.close()

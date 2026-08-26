@@ -100,7 +100,7 @@ def _write_report(report: TextIO, valid_paths: list[str]) -> None:
             report.write(f"📦 FONTE: {filename} (Ficheiro Texto Delimitado)\n")
             report.write("-" * 60 + "\n")
             parser = WoFFPilotDataParser()
-            if not parser.parse(pilot_file):
+            if not parser.parse(pilot_file) and not parser.valid_empty:
                 raise ReportGenerationError(
                     f"Falha ao processar o ficheiro de piloto {filename}."
                 )

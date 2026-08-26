@@ -25,6 +25,7 @@ class WoFFPilotDataParser:
         self.pilot: Optional[WoFFPilot] = None
         self.missions: List[WoFFMission] = []
         self.victories: List[WoFFVictory] = []
+        self.valid_empty = False
 
     @staticmethod
     def _normalized_fields(line: str) -> List[str]:
@@ -48,6 +49,14 @@ class WoFFPilotDataParser:
         return len(parts) > 5 and parts[5].lower().startswith(
             "confirmation received of claim submitted on:"
         )
+
+    @staticmethod
+    def _declares_zero_records(lines: List[str]) -> bool:
+        for raw_line in lines:
+            marker = raw_line.strip()
+            if marker:
+                return marker.isdigit() and int(marker) == 0
+        return False
 
     @staticmethod
     def _validated_date_time(parts: List[str]) -> tuple[str, str]:
@@ -74,6 +83,7 @@ class WoFFPilotDataParser:
         )
 
     def parse(self, path: str) -> bool:
+        self.valid_empty = False
         try:
             with open(path, "rb") as source:
                 data = source.read()
@@ -84,6 +94,7 @@ class WoFFPilotDataParser:
 
     def parse_bytes(self, data: bytes | str, source_name: str) -> bool:
         """Parse verified bytes without reopening their source path."""
+        self.valid_empty = False
         fname = os.path.basename(source_name).lower()
         if "dossier" in fname: return False
 
@@ -120,15 +131,20 @@ class WoFFPilotDataParser:
     def _parse_log(self, lines: List[str], path: str, pilot_name: str) -> bool:
         log.info(f"[TXT] Analisando Log de Missões: {os.path.basename(path)}")
         try:
+            declared_zero = self._declares_zero_records(lines)
+            saw_zero_header = False
+            rejected_record = False
             for line_number, raw_line in enumerate(lines, start=1):
                 line = raw_line.rstrip("\r\n")
                 if not line.strip() or line.strip().isdigit():
                     continue
                 parts = self._normalized_fields(line)
                 if self._is_zero_mission_header(parts):
+                    saw_zero_header = True
                     continue
                 if self._has_claim_confirmation_signature(parts):
                     if len(parts) < 26:
+                        rejected_record = True
                         self._log_rejected(
                             path, line_number, "truncated-claim-confirmation",
                             len(parts),
@@ -137,6 +153,7 @@ class WoFFPilotDataParser:
                     continue
 
                 if len(parts) < 20:
+                    rejected_record = True
                     self._log_rejected(
                         path, line_number, "incomplete", len(parts),
                         "unsupported logical field count",
@@ -162,6 +179,7 @@ class WoFFPilotDataParser:
                     m.result = "Shot Down — KIA" if "killed" in notes_lower else "Crash Landing — Survived" if "crash" in notes_lower else "Completed"
                     self.missions.append(m)
                 except (ValueError, IndexError) as exc:
+                    rejected_record = True
                     self._log_rejected(
                         path, line_number, "malformed", len(parts), str(exc),
                     )
@@ -169,7 +187,12 @@ class WoFFPilotDataParser:
             # FIX: Criar placeholder pilot se não existir para que o handler e DB o possam usar
             if not self.pilot:
                 self.pilot = WoFFPilot(name=pilot_name, source_file=os.path.basename(path))
-                
+
+            self.valid_empty = (
+                not self.missions
+                and not rejected_record
+                and (declared_zero or saw_zero_header)
+            )
             return bool(self.missions)
         except Exception as e:
             log.error(f"  Falha ao ler {path}: {e}"); return False
@@ -177,6 +200,8 @@ class WoFFPilotDataParser:
     def _parse_claims(self, lines: List[str], path: str, pilot_name: str) -> bool:
         log.info(f"[TXT] Analisando Vitórias (Claims): {os.path.basename(path)}")
         try:
+            declared_zero = self._declares_zero_records(lines)
+            rejected_record = False
             for line_number, line in enumerate(lines[1:], start=2):
                 line = line.strip()
                 if not line: continue
@@ -197,11 +222,16 @@ class WoFFPilotDataParser:
                     v.confirmed = "confirmed" in parts[11].lower()
                     if len(parts) > 20: v.witnesses = f"{parts[18]} - {parts[19]} {parts[20]}".strip()
                     self.victories.append(v)
-                    
+                else:
+                    rejected_record = True
+
             # FIX: Criar placeholder pilot se não existir
             if not self.pilot:
                 self.pilot = WoFFPilot(name=pilot_name, source_file=os.path.basename(path))
-                
+
+            self.valid_empty = (
+                not self.victories and declared_zero and not rejected_record
+            )
             return bool(self.victories)
         except Exception as e:
             log.error(f"  Falha ao ler {path}: {e}"); return False

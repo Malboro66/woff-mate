@@ -113,6 +113,7 @@ jobs:
 
           from woff.config import WatchdogConfig
           from woff.database import DatabaseManager
+          from woff.woff_watchdog import WoFFWatchdog
 
           root = Path(os.environ["RUNNER_TEMP"]) / "woff-command-smoke"
           root.mkdir(exist_ok=True)
@@ -122,9 +123,15 @@ jobs:
           config = WatchdogConfig(
               watch_paths=[str(root)],
               export_path=str(database_path),
-              backup_export=False,
+              backup_export=True,
           )
           config_path.write_text(json.dumps(config.to_dict()), encoding="utf-8")
+
+          watchdog = WoFFWatchdog(config)
+          watchdog.stop()
+          assert database_path.with_name(
+              f"{database_path.name}.backup.sqlite"
+          ).is_file()
 
           query = subprocess.run(
               ["woff-query", "--db", str(database_path), "--format", "json"],
