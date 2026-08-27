@@ -131,10 +131,11 @@ It runs only after the retained generation succeeds, exhausts its budget, or is
 cancelled during shutdown. Replays remain subject to the existing natural-key
 and transactional idempotence boundaries.
 
-Startup reconciliation budgets each phase for snapshot stability, all four
-SQLite busy windows, the full 0.7 seconds of backoff, and a bounded margin for
-each admitted path. A default five-second busy wait therefore cannot outlast a
-three-second file-stability budget and silently cancel retained startup work.
+Startup reconciliation budgets each phase for every source snapshot, the
+additional Dossier snapshot used by each dependent pilot file, all four SQLite
+busy windows, the full 0.7 seconds of backoff, and a bounded phase margin. A
+default five-second busy wait therefore cannot outlast a three-second
+file-stability budget and silently cancel retained startup work.
 
 The scheduler exposes separate `transient_failures`, `transient_retries`,
 `successful_replays`, `permanent_rejections`, `saturated`, `retry_exhausted`,
@@ -146,9 +147,11 @@ rejections do not enter the SQLite retry policy.
 `Persistence retry exhausted` means all four attempts failed. Duplicate
 notifications for the same unchanged generation do not start a fresh budget.
 The final diagnostic contains only the source filename, sanitized SQLite
-category, and attempt count; the generation is not acknowledged and its
-retained memory is released. A genuinely newer pending generation then receives
-its own bounded processing budget.
+category, and attempt count. The active path is released, while its terminal
+generation remains in a cache bounded by scheduler capacity. A late unchanged
+notification is rejected without new persistence attempts. Changed bytes
+receive their own bounded processing budget and replace the terminal marker if
+they also exhaust retries.
 
 During orderly shutdown, an active attempt finishes, each retained retry is
 cancelled with a diagnostic, and an already accepted latest event receives one

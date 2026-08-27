@@ -448,8 +448,8 @@ class TestWatchdogStartup(unittest.TestCase):
             def submit_initial(self, _path):
                 return True
 
-            def startup_phase_timeout(self, path_count):
-                test_case.assertEqual(path_count, 1)
+            def startup_phase_timeout(self, paths):
+                test_case.assertEqual(paths, [pilot_path])
                 return 21.0
 
             def wait_initial(self, _paths, timeout):
@@ -518,10 +518,10 @@ class TestWatchdogStartup(unittest.TestCase):
                 initial_submissions.append(submitted_path)
                 return self.scheduler.submit(submitted_path, "initial")
 
-            def startup_phase_timeout(self, path_count):
+            def startup_phase_timeout(self, paths):
                 return max(
                     config.stability_timeout_sec,
-                    path_count * config.stability_timeout_sec,
+                    len(paths) * config.stability_timeout_sec,
                 )
 
             def wait_initial(self, paths, timeout):
@@ -639,10 +639,10 @@ class TestWatchdogStartup(unittest.TestCase):
             def submit_initial(self, path):
                 return self.scheduler.submit(path, "initial")
 
-            def startup_phase_timeout(self, path_count):
+            def startup_phase_timeout(self, paths):
                 return max(
                     config.stability_timeout_sec,
-                    path_count * config.stability_timeout_sec,
+                    len(paths) * config.stability_timeout_sec,
                 )
 
             def wait_initial(self, paths, timeout):
@@ -798,10 +798,10 @@ class TestWatchdogStartup(unittest.TestCase):
                 resume.set()
                 return accepted
 
-            def startup_phase_timeout(self, path_count):
+            def startup_phase_timeout(self, paths):
                 return max(
                     config.stability_timeout_sec,
-                    path_count * config.stability_timeout_sec,
+                    len(paths) * config.stability_timeout_sec,
                 )
 
             def wait_initial(self, paths, timeout):

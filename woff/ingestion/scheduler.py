@@ -6,6 +6,7 @@ import logging
 import ntpath
 import threading
 import time
+from collections import OrderedDict
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from typing import Any, Callable, Dict, Optional, Protocol, Tuple
@@ -14,6 +15,7 @@ from ..campaign_namespace import canonical_windows_path
 from .outcome import (
     PersistenceRetryPolicy,
     ProcessingOutcome,
+    ProcessingReason,
     ProcessingStatus,
 )
 
@@ -36,6 +38,7 @@ class _Executor(Protocol):
 @dataclass
 class _PathState:
     pending: Optional[Event] = None
+    terminal_outcome: Optional[ProcessingOutcome] = None
 
 
 class EventScheduler:
@@ -74,6 +77,9 @@ class EventScheduler:
         )
         self._max_pending_events = max_pending_events
         self._states: Dict[str, _PathState] = {}
+        self._terminal_outcomes: OrderedDict[str, ProcessingOutcome] = (
+            OrderedDict()
+        )
         self._lock = threading.Lock()
         self._changed = threading.Condition(self._lock)
         self._accepting = True
@@ -147,7 +153,10 @@ class EventScheduler:
                 if not self._accepting:
                     self._reject_locked("shutdown")
                     return False
-            self._states[key] = _PathState()
+            terminal_outcome = self._terminal_outcomes.pop(key, None)
+            self._states[key] = _PathState(
+                terminal_outcome=terminal_outcome
+            )
             self._metrics["queued"] += 1
             try:
                 self._executor.submit(self._run, key, event)
@@ -171,8 +180,9 @@ class EventScheduler:
         log.warning("Filesystem event rejected: scheduler %s", reason)
 
     def _run(self, key: str, event: Event) -> None:
-        previous_result: Any = None
-        coalesced_retry = False
+        state = self._states[key]
+        previous_result: Any = state.terminal_outcome
+        coalesced_retry = state.terminal_outcome is not None
         persistence_retry = False
         persistence_attempts = 0
         while True:
@@ -192,7 +202,10 @@ class EventScheduler:
                         *event, previous_result
                     )
                 elif coalesced_retry and self._retry_process is not None:
-                    previous_result = self._retry_process(*event, previous_result)
+                    retry_reference = state.terminal_outcome or previous_result
+                    previous_result = self._retry_process(
+                        *event, retry_reference
+                    )
                 else:
                     previous_result = self._process(*event)
             except Exception:
@@ -212,6 +225,12 @@ class EventScheduler:
                     if outcome.status is ProcessingStatus.TRANSIENT_FAILURE:
                         self._metrics["transient_failures"] += 1
                         persistence_attempts += 1
+                        if (
+                            state.terminal_outcome is not None
+                            and outcome.generation
+                            != state.terminal_outcome.generation
+                        ):
+                            state.terminal_outcome = None
                     elif outcome.status is ProcessingStatus.PERMANENT_REJECTION:
                         self._metrics["permanent_rejections"] += 1
                     if (
@@ -220,6 +239,13 @@ class EventScheduler:
                         in {ProcessingStatus.SUCCESS, ProcessingStatus.UNCHANGED}
                     ):
                         self._metrics["successful_replays"] += 1
+
+                if (
+                    outcome is not None
+                    and outcome.status is not ProcessingStatus.TRANSIENT_FAILURE
+                    and outcome.reason is not ProcessingReason.RETRY_TERMINATED
+                ):
+                    state.terminal_outcome = None
 
                 if state.pending is not None and (
                     outcome is None
@@ -237,6 +263,10 @@ class EventScheduler:
                     outcome is None
                     or outcome.status is not ProcessingStatus.TRANSIENT_FAILURE
                 ):
+                    if state.terminal_outcome is not None:
+                        self._remember_terminal_locked(
+                            key, state.terminal_outcome
+                        )
                     del self._states[key]
                     self._changed.notify_all()
                     return
@@ -253,6 +283,7 @@ class EventScheduler:
                         outcome,
                         persistence_attempts,
                     )
+                    state.terminal_outcome = outcome
                     if state.pending is not None:
                         event = state.pending
                         state.pending = None
@@ -261,6 +292,7 @@ class EventScheduler:
                         coalesced_retry = True
                         persistence_retry = False
                         continue
+                    self._remember_terminal_locked(key, outcome)
                     del self._states[key]
                     self._changed.notify_all()
                     return
@@ -321,6 +353,15 @@ class EventScheduler:
                         persistence_retry = True
                         break
                     self._changed.wait(remaining)
+
+    def _remember_terminal_locked(
+        self, key: str, outcome: ProcessingOutcome
+    ) -> None:
+        """Retain one exhausted generation per recently active path."""
+        self._terminal_outcomes[key] = outcome
+        self._terminal_outcomes.move_to_end(key)
+        while len(self._terminal_outcomes) > self._max_pending_events:
+            self._terminal_outcomes.popitem(last=False)
 
     @staticmethod
     def _log_retry_terminal(

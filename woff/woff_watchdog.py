@@ -219,7 +219,7 @@ class WoFFWatchdog:
                         )
                 if phase_files:
                     phase_timeout = self._handler.startup_phase_timeout(
-                        len(phase_files)
+                        phase_files
                     )
                     if not self._handler.wait_initial(
                         phase_files, phase_timeout

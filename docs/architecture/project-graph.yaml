@@ -366,17 +366,17 @@ evals:
   EVAL-PERSIST-RETRY-002:
     work_items: [issue-95]
     status: implemented
-    evidence: Duplicate notifications preserve the four-attempt generation budget, while exhaustion and shutdown remain bounded and produce sanitized diagnostics without acknowledgement.
+    evidence: Duplicate notifications preserve the four-attempt generation budget even after active work drains; a bounded terminal-generation cache suppresses unchanged late notifications while changed bytes remain eligible.
     enforced_by: [woff/tests/test_persistence_retry.py]
   EVAL-PERSIST-RETRY-003:
     work_items: [issue-95]
     status: implemented
-    evidence: A partially committed generation completes its derived RPG and diary effects before a pending newer generation, and transient post-merge SQLite reads remain retryable.
+    evidence: A partially committed generation completes before a pending correction of the same mission identity, and the correction atomically aligns the core mission, diary narrative, and RPG state.
     enforced_by: [woff/tests/test_persistence_retry.py]
   EVAL-PERSIST-RETRY-004:
     work_items: [issue-95]
     status: implemented
-    evidence: Startup reconciliation uses a bounded phase budget covering snapshot stability, every SQLite busy wait, and all persistence backoff delays.
+    evidence: Startup reconciliation uses a bounded phase budget covering source and dependent Dossier snapshots, every SQLite busy wait, and all persistence backoff delays.
     enforced_by:
       - woff/tests/test_persistence_retry.py
       - woff/tests/test_handler_integration.py

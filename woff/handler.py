@@ -18,7 +18,11 @@ from typing import Any, Optional, List, Sequence
 from watchdog.events import FileSystemEventHandler
 
 from .campaign_namespace import CampaignNamespaceError, CampaignNamespaceResolver
-from .database import DatabaseManager, SQLITE_BUSY_TIMEOUT_SECONDS
+from .database import (
+    DatabaseManager,
+    MergeWriteOutcome,
+    SQLITE_BUSY_TIMEOUT_SECONDS,
+)
 from .campaign_engine import CampaignEngine
 from .config import SUPPORTED_WATCHED_EXTENSIONS
 from .discovery import is_preview_allowed
@@ -54,9 +58,22 @@ from .parsers.dossier_parser import WoFFDossierParser
 log = logging.getLogger("WoFFWatch")
 
 
+class _MissionDerivedWriteRejected(Exception):
+    pass
+
+
 def _safe_filename(path: str) -> str:
     """Return only the final component for native or Windows-style paths."""
     return ntpath.basename(path.replace("/", "\\"))
+
+
+def _requires_dependent_identity(source_name: str) -> bool:
+    filename = _safe_filename(source_name).lower()
+    return (
+        pilot_slot(source_name) is not None
+        and "dossier" not in filename
+        and filename != "mission.log"
+    )
 
 
 def _mission_order_key(mission):
@@ -202,13 +219,8 @@ class FileProcessor:
         self, path: str, snapshot: StableFileSnapshot
     ) -> VerifiedProcessingInput:
         source_name = snapshot.name
-        filename = _safe_filename(source_name).lower()
         dependent_identity = None
-        if (
-            pilot_slot(source_name) is not None
-            and "dossier" not in filename
-            and filename != "mission.log"
-        ):
+        if _requires_dependent_identity(source_name):
             dependent_identity = self._dependent_identity(path, source_name)
         return VerifiedProcessingInput(snapshot, dependent_identity)
 
@@ -311,6 +323,58 @@ class FileProcessor:
             campaign_namespace,
         )
 
+    def _merge_and_process_latest_mission(
+        self,
+        parser: Any,
+        identity: PilotIdentityEvidence,
+    ) -> Optional[str]:
+        latest_mission = get_latest_mission(parser)
+        mission_id = None
+        try:
+            with self.db_manager.transaction():
+                merge_result = self.db_manager.merge_and_write(
+                    pilot=parser.pilot,
+                    missions=parser.missions,
+                    victories=parser.victories,
+                    decorations=getattr(parser, "decorations", []),
+                    identity=identity,
+                    return_outcome=True,
+                )
+                if not merge_result:
+                    raise _MissionDerivedWriteRejected
+                if isinstance(merge_result, MergeWriteOutcome):
+                    pilot_id = merge_result.pilot_id
+                    updated_mission_ids = merge_result.updated_mission_ids
+                else:
+                    pilot_id = merge_result
+                    updated_mission_ids = frozenset()
+
+                if latest_mission is not None:
+                    mission_id = self.db_manager.get_mission_id_by_natural_key(
+                        pilot_id, latest_mission
+                    )
+                    if not mission_id:
+                        raise _MissionDerivedWriteRejected
+                    if mission_id in updated_mission_ids:
+                        derived_result = self.campaign_engine.process_mission_end(
+                            pilot_id,
+                            mission_id,
+                            replace_existing_diary=True,
+                        )
+                        if derived_result is not True:
+                            raise _MissionDerivedWriteRejected
+                        return pilot_id
+        except _MissionDerivedWriteRejected:
+            return None
+
+        if mission_id is not None:
+            derived_result = self.campaign_engine.process_mission_end(
+                pilot_id, mission_id
+            )
+            if derived_result is not True:
+                return None
+        return pilot_id
+
     def _dependent_identity(
         self, path: str, source_name: str
     ) -> PilotIdentityEvidence:
@@ -338,30 +402,15 @@ class FileProcessor:
         parser = WoFFXMLParser()
         data, name = self._parser_input(path, snapshot)
         if parser.parse_bytes(data, name):
-            # FIX: Captura o pilot_id real devolvido pelo merge.
-            real_pilot_id = self.db_manager.merge_and_write(
-                pilot=parser.pilot,
-                missions=parser.missions,
-                victories=parser.victories,
-                decorations=parser.decorations,
-                identity=PilotIdentityEvidence(PilotIdentityKind.UNRESOLVED),
+            real_pilot_id = self._merge_and_process_latest_mission(
+                parser,
+                PilotIdentityEvidence(PilotIdentityKind.UNRESOLVED),
             )
-            if not real_pilot_id:
-                return ProcessingReason.PERSISTENCE_REJECTED
-            # FIX: Se houver missões e um pilot_id real, processa o fim de missão.
-            latest_mission = get_latest_mission(parser)
-            if real_pilot_id and latest_mission is not None:
-                persisted_mission_id = self.db_manager.get_mission_id_by_natural_key(
-                    real_pilot_id, latest_mission
-                )
-                if not persisted_mission_id:
-                    return ProcessingReason.PERSISTENCE_REJECTED
-                derived_result = self.campaign_engine.process_mission_end(
-                    real_pilot_id, persisted_mission_id
-                )
-                if derived_result is not True:
-                    return ProcessingReason.PERSISTENCE_REJECTED
-            return None
+            return (
+                None
+                if real_pilot_id
+                else ProcessingReason.PERSISTENCE_REJECTED
+            )
         return ProcessingReason.PARSER_REJECTED
 
     def _process_text(
@@ -410,33 +459,19 @@ class FileProcessor:
         # Ficheiros de piloto (Log, Claims, Squads)
         parser = WoFFPilotDataParser()
         if parser.parse_bytes(data, name) and parser.pilot:
-            persisted_pilot_id = self.db_manager.merge_and_write(
-                pilot=parser.pilot,
-                missions=parser.missions,
-                victories=parser.victories,
-                decorations=[],
-                identity=(
+            persisted_pilot_id = self._merge_and_process_latest_mission(
+                parser,
+                (
                     dependent_identity
                     if dependent_identity is not None
                     else self._dependent_identity(path, name)
                 ),
             )
-            if not persisted_pilot_id:
-                return ProcessingReason.PERSISTENCE_REJECTED
-            # FIX: Só invoca o RPG se tivermos um ID real e missões.
-            latest_mission = get_latest_mission(parser)
-            if latest_mission is not None:
-                persisted_mission_id = self.db_manager.get_mission_id_by_natural_key(
-                    persisted_pilot_id, latest_mission
-                )
-                if not persisted_mission_id:
-                    return ProcessingReason.PERSISTENCE_REJECTED
-                derived_result = self.campaign_engine.process_mission_end(
-                    persisted_pilot_id, persisted_mission_id
-                )
-                if derived_result is not True:
-                    return ProcessingReason.PERSISTENCE_REJECTED
-            return None
+            return (
+                None
+                if persisted_pilot_id
+                else ProcessingReason.PERSISTENCE_REJECTED
+            )
         return ProcessingReason.PARSER_REJECTED
 
 
@@ -511,19 +546,33 @@ class WoFFEventHandler(FileSystemEventHandler):
         """Wait for a startup dependency phase without creating another queue."""
         return self.scheduler.wait_for_paths(paths, timeout)
 
-    def startup_phase_timeout(self, path_count: int) -> float:
+    def startup_phase_timeout(self, paths: int | Sequence[str]) -> float:
         """Bound startup waits across snapshots and every persistence attempt."""
+        if isinstance(paths, int):
+            path_count = paths
+            snapshot_count = paths
+        else:
+            phase_paths = list(paths)
+            path_count = len(phase_paths)
+            snapshot_count = path_count + sum(
+                1
+                for path in phase_paths
+                if _requires_dependent_identity(path)
+            )
         policy = self.scheduler.persistence_retry_policy
         retry_backoff = sum(
             policy.delay_after_failure(failure)
             for failure in range(1, policy.max_attempts)
         )
-        per_path = (
-            self.config.stability_timeout_sec
-            + (policy.max_attempts * SQLITE_BUSY_TIMEOUT_SECONDS)
+        persistence_per_path = (
+            (policy.max_attempts * SQLITE_BUSY_TIMEOUT_SECONDS)
             + retry_backoff
         )
-        return self.config.stability_timeout_sec + (path_count * per_path)
+        return (
+            self.config.stability_timeout_sec
+            + (snapshot_count * self.config.stability_timeout_sec)
+            + (path_count * persistence_per_path)
+        )
 
     def _execute_pipeline(self, path: str, event_type: str):
         """Método executado na thread pool."""
