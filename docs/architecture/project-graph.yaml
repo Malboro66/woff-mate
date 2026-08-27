@@ -965,7 +965,7 @@ work_items:
   issue-97:
     title: Do not delete retained diary blocks with an empty narrative
     module: presentation
-    state: in_progress
+    state: done
     evals: [EVAL-DIARY-EMPTY-001]
     gates: [Q0, Q1, Q2, Q6-CYCLE-3.4.0]
     depends_on: []
