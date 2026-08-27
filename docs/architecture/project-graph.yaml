@@ -406,8 +406,9 @@ evals:
     evidence: Same-squadron disappearance, partial or failed roster input, replay, and same-name members cannot produce a false or misattributed transfer.
   EVAL-DIARY-EMPTY-001:
     work_items: [issue-97]
-    status: planned
-    evidence: Clearing a retained diary block narrative does not delete the row, while removing the block follows the explicit deletion contract.
+    status: implemented
+    evidence: Empty or whitespace-only narratives in retained blocks are rejected before the import transaction, while removing a block deletes only the selected pilot's entry.
+    enforced_by: [woff/tests/test_woff_editor.py]
   EVAL-CATALOG-STABILITY-001:
     work_items: [issue-98]
     status: planned

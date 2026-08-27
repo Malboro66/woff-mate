@@ -48,7 +48,13 @@ def export_diary_to_file(conn, pilot_id: str, filepath: str):
     with open(filepath, "w", encoding="utf-8") as f:
         f.write(f"DIÁRIO DE BORDO DE {pilot_name.upper()}\n")
         f.write(f"CARREIRA ID: {pilot_id}\n")
-        f.write("INSTRUÇÕES: Edite o texto livremente. Para APAGAR uma entrada, apague o bloco inteiro (incluindo as linhas === ID === e DATA). Guarde e feche o ficheiro para aplicar as alterações.\n")
+        f.write(
+            "INSTRUÇÕES: Edite o texto livremente. Uma narrativa vazia ou "
+            "contendo apenas espaços invalida a importação e não altera a Base "
+            "de Dados. Para APAGAR uma entrada, apague o bloco inteiro "
+            "(incluindo as linhas === ID === e DATA). Guarde e feche o ficheiro "
+            "para aplicar as alterações.\n"
+        )
         f.write("=" * 60 + "\n")
         for entry in entries:
             f.write(f"=== ID: {entry['id']} ===\n")
@@ -171,9 +177,14 @@ def import_diary_from_file(conn, filepath: str, pilot_id: str):
             raise ValueError(f"Duplicate diary entry ID: {entry_id}")
         parsed_ids.add(entry_id)
         narrative = "\n".join(lines[2:]).strip()
+        if not narrative:
+            raise ValueError(
+                f"Diary entry {entry_id} has an empty narrative. "
+                "Remove the entire block to delete the entry."
+            )
         imported_entries.append((entry_id, entry_date, narrative))
 
-    imported_ids = {entry[0] for entry in imported_entries if entry[2]}
+    imported_ids = set(parsed_ids)
     cursor = conn.cursor()
     owners = []
     transaction_started = False
@@ -201,10 +212,8 @@ def import_diary_from_file(conn, filepath: str, pilot_id: str):
                     f"Diary entry ID {foreign_ids[0]} does not belong to the selected pilot"
                 )
 
-        existing_ids = {row[0] for row in owners} if imported_ids else set()
+        existing_ids = {row[0] for row in owners}
         for entry_id, entry_date, narrative in imported_entries:
-            if not narrative:
-                continue
             if entry_id in existing_ids:
                 cursor.execute(
                     """
@@ -312,7 +321,11 @@ def main(argv: Optional[list[str]] = None) -> int:
         open_editor(tmp_path)
         
         print("A importar alterações do ficheiro...")
-        backup_path = import_diary_from_file(conn, tmp_path, career.pilot_id)
+        try:
+            backup_path = import_diary_from_file(conn, tmp_path, career.pilot_id)
+        except ValueError as error:
+            print(f"[ERRO] {error}", file=sys.stderr)
+            return 2
         print(f"✓ Backup pré-importação guardado em: {backup_path}")
         print("✓ Diário atualizado com sucesso na Base de Dados!")
         return 0

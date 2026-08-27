@@ -74,6 +74,18 @@ def test_open_editor_rejects_missing_windows_startfile():
         woff_editor.open_editor("journal.txt")
 
 
+def test_exported_instructions_define_blank_narratives_as_invalid(
+    diary_db, tmp_path
+):
+    path = tmp_path / "exported-diary.txt"
+
+    woff_editor.export_diary_to_file(diary_db, "bob", str(path))
+
+    instructions = path.read_text(encoding="utf-8").lower()
+    assert "narrativa vazia" in instructions
+    assert "bloco inteiro" in instructions
+
+
 def test_import_changes_only_selected_pilots_diary(diary_db, tmp_path):
     before = _entries(diary_db)
     path = _write_diary(tmp_path, [("bob-1", "1917-02-02", "Bob edited")])
@@ -317,24 +329,31 @@ def test_duplicate_ids_are_rejected_without_changes(diary_db, tmp_path, entry_id
     assert _entries(diary_db) == before
 
 
-def test_empty_narrative_deletes_only_selected_entry(diary_db, tmp_path):
-    path = _write_diary(tmp_path, [("bob-1", "1917-01-02", "")])
+@pytest.mark.parametrize("narrative", ["", "   ", "\n\t"])
+def test_retained_block_with_blank_narrative_is_rejected_without_changes(
+    diary_db, tmp_path, narrative
+):
+    before = _entries(diary_db)
+    path = _write_diary(tmp_path, [("bob-1", "1917-01-02", narrative)])
 
-    woff_editor.import_diary_from_file(diary_db, path, "bob")
+    with pytest.raises(ValueError, match="bob-1.*empty narrative"):
+        woff_editor.import_diary_from_file(diary_db, path, "bob")
 
-    assert _entries(diary_db) == [
-        ("alice-1", "alice", "alice-mission", "1917-01-01", "Alice original")
-    ]
+    assert _entries(diary_db) == before
+    assert diary_db.in_transaction is False
+    assert _backup_paths(tmp_path) == []
 
 
 def test_empty_narrative_foreign_id_is_rejected(diary_db, tmp_path):
     before = _entries(diary_db)
     path = _write_diary(tmp_path, [("alice-1", "1917-01-01", "")])
 
-    with pytest.raises(ValueError, match="alice-1.*selected pilot"):
+    with pytest.raises(ValueError, match="alice-1.*empty narrative"):
         woff_editor.import_diary_from_file(diary_db, path, "bob")
 
     assert _entries(diary_db) == before
+    assert diary_db.in_transaction is False
+    assert _backup_paths(tmp_path) == []
 
 
 def test_structural_markers_in_multiline_narrative_remain_text(diary_db, tmp_path):
@@ -383,3 +402,36 @@ def test_stale_selected_pilot_is_rejected_without_orphan_rows(tmp_path):
     ).fetchone()[0] == 0
     assert _backup_paths(tmp_path) == []
     importer.close()
+
+
+def test_main_reports_blank_narrative_as_invalid_without_success(
+    diary_db, tmp_path, monkeypatch, capsys
+):
+    before = _entries(diary_db)
+    separator = "=" * 60
+
+    def clear_narrative(filepath):
+        Path(filepath).write_text(
+            "DIÁRIO DE BORDO DE BOB\n"
+            "CARREIRA ID: bob\n"
+            f"{separator}\n"
+            "=== ID: bob-1 ===\n"
+            "DATA: 1917-01-02\n"
+            "   \n"
+            f"{separator}\n",
+            encoding="utf-8",
+        )
+
+    monkeypatch.setattr(woff_editor, "open_editor", clear_narrative)
+
+    status = woff_editor.main(
+        ["--db", str(tmp_path / "diary.sqlite"), "--pilot-id", "bob"]
+    )
+    streams = capsys.readouterr()
+
+    assert status == 2
+    assert "sucesso" not in streams.out
+    assert "bob-1" in streams.err
+    assert "empty narrative" in streams.err
+    assert _entries(diary_db) == before
+    assert _backup_paths(tmp_path) == []
