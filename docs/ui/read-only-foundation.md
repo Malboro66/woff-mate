@@ -95,15 +95,22 @@ synthetic. They cover every shared state, field-level unavailability, stale
 timestamps, multiple warnings, and source-authority conflicts without accessing
 WoFF files or SQLite.
 
-## Small follow-up implementation issue
+## Planned work and dependency order
 
-Create one fixture-backed **PySide6/Qt Widgets shell** containing the six-item
-navigation and one Dashboard placeholder that demonstrates `loading`, `empty`,
-and `error`. It must contain no query, repository, SQLite, WoFF-file, watchdog,
-launcher, or live-session integration.
+The approved follow-up work is now tracked explicitly:
 
-Prerequisites are explicit and cumulative: ADR acceptance; applicable Gate A
-and Gate B decisions; an approved optional-dependency policy; Windows 10/11 and
-Python 3.10–3.14 smoke coverage; a PyInstaller packaging/licensing spike; and
-reviewed sanitized fixtures. None of those decisions or gates is claimed by
-Issue #56.
+- #79 completes the six-screen Figma flow, tokens, components, focus order, and
+  Windows scaling notes without production UI code.
+- #80 defines the shared state matrix and deterministic sanitized fixtures used
+  by designs, contract tests, and the toolkit spike.
+- #81 defines immutable read-only view models and application query-service
+  protocols after #80 establishes the shared vocabulary.
+- #82 measures one isolated PySide6 and Qt Widgets line after #80, including
+  supported Python and Windows versions, PyInstaller packaging, startup,
+  memory, scaling, keyboard use, accessibility, plugins, and licensing.
+
+Issues #79 and #80 may proceed without a GUI runtime dependency. Issues #81
+and #82 remain blocked by #80. A retained production shell still requires ADR
+acceptance, applicable Product Gate A and Product Gate B decisions, an approved
+optional-dependency policy, clean Windows packaging evidence, and explicit
+maintainer approval. None of these planning items claims those decisions.
