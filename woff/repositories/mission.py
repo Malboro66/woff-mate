@@ -39,6 +39,7 @@ class MissionMergeCounts:
     inserted: int = 0
     updated: int = 0
     unchanged: int = 0
+    updated_mission_ids: frozenset[str] = frozenset()
 
 
 @dataclass(frozen=True)
@@ -909,6 +910,7 @@ class MissionRepository(BaseRepository):
         mission_id_remap: Dict[str, str] = {}
         rejected_mission_ids: set[str] = set()
         changed_mission_ids: set[str] = set()
+        updated_mission_ids: set[str] = set()
         inserted_m = 0
         updated_m = 0
         unchanged_m = 0
@@ -944,6 +946,7 @@ class MissionRepository(BaseRepository):
                 if _merge_existing_mission(cursor, stored_mission_id, m):
                     updated_m += 1
                     changed_mission_ids.add(stored_mission_id)
+                    updated_mission_ids.add(stored_mission_id)
                 else:
                     unchanged_m += 1
                 continue
@@ -986,7 +989,12 @@ class MissionRepository(BaseRepository):
         )
 
         return (
-            MissionMergeCounts(inserted_m, updated_m, unchanged_m),
+            MissionMergeCounts(
+                inserted_m,
+                updated_m,
+                unchanged_m,
+                frozenset(updated_mission_ids),
+            ),
             victory_counts,
             decoration_counts,
         )

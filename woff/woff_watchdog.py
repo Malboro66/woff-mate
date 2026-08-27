@@ -217,16 +217,17 @@ class WoFFWatchdog:
                             "bounded startup admission failed for "
                             f"{os.path.basename(file_path)}"
                         )
-                phase_timeout = max(
-                    self.config.stability_timeout_sec,
-                    len(phase_files) * self.config.stability_timeout_sec,
-                )
-                if phase_files and not self._handler.wait_initial(
-                    phase_files, phase_timeout
-                ):
-                    raise RuntimeError(
-                        f"bounded startup reconciliation failed for {file_pattern}"
+                if phase_files:
+                    phase_timeout = self._handler.startup_phase_timeout(
+                        phase_files
                     )
+                    if not self._handler.wait_initial(
+                        phase_files, phase_timeout
+                    ):
+                        raise RuntimeError(
+                            "bounded startup reconciliation failed for "
+                            f"{file_pattern}"
+                        )
         except Exception:
             self._cleanup(suppress_errors=True)
             raise

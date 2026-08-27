@@ -426,6 +426,62 @@ class TestHandlerIntegration(unittest.TestCase):
 
 
 class TestWatchdogStartup(unittest.TestCase):
+    def test_startup_reconciliation_uses_handler_persistence_budget(self):
+        tmp_dir = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, tmp_dir)
+        pilot_path = os.path.join(tmp_dir, "Pilot1Log.txt")
+        with open(pilot_path, "w", encoding="utf-8") as source:
+            source.write("synthetic")
+        config = WatchdogConfig(
+            watch_paths=[tmp_dir],
+            export_path=os.path.join(tmp_dir, "retry-budget.db"),
+            watched_extensions=[".txt"],
+            stability_timeout_sec=0.05,
+            stability_check_interval_sec=0.001,
+        )
+        observed_timeouts = []
+
+        class Handler:
+            def __init__(self, *_args, **_kwargs):
+                pass
+
+            def submit_initial(self, _path):
+                return True
+
+            def startup_phase_timeout(self, paths):
+                test_case.assertEqual(paths, [pilot_path])
+                return 21.0
+
+            def wait_initial(self, _paths, timeout):
+                observed_timeouts.append(timeout)
+                return timeout >= 21.0
+
+            def shutdown(self):
+                pass
+
+        test_case = self
+        observer = MagicMock()
+        with patch.object(woff_watchdog, "catalog_medals"), patch.object(
+            woff_watchdog, "catalog_squadrons"
+        ), patch.object(woff_watchdog, "CampaignEngine"), patch.object(
+            woff_watchdog, "WoFFEventHandler", Handler
+        ), patch.object(
+            woff_watchdog, "Observer", return_value=observer
+        ), patch.object(
+            woff_watchdog.glob,
+            "glob",
+            side_effect=lambda pattern: (
+                [pilot_path]
+                if os.path.basename(pattern) == "Pilot*Log.txt"
+                else []
+            ),
+        ):
+            watchdog = woff_watchdog.WoFFWatchdog(config)
+            self.assertTrue(watchdog.start())
+            watchdog.stop()
+
+        self.assertEqual(observed_timeouts, [21.0])
+
     def test_live_file_created_after_observer_start_is_not_baseline_submitted(self):
         tmp_dir = tempfile.mkdtemp()
         self.addCleanup(shutil.rmtree, tmp_dir)
@@ -461,6 +517,12 @@ class TestWatchdogStartup(unittest.TestCase):
             def submit_initial(self, submitted_path):
                 initial_submissions.append(submitted_path)
                 return self.scheduler.submit(submitted_path, "initial")
+
+            def startup_phase_timeout(self, paths):
+                return max(
+                    config.stability_timeout_sec,
+                    len(paths) * config.stability_timeout_sec,
+                )
 
             def wait_initial(self, paths, timeout):
                 return self.scheduler.wait_for_paths(paths, timeout)
@@ -576,6 +638,12 @@ class TestWatchdogStartup(unittest.TestCase):
 
             def submit_initial(self, path):
                 return self.scheduler.submit(path, "initial")
+
+            def startup_phase_timeout(self, paths):
+                return max(
+                    config.stability_timeout_sec,
+                    len(paths) * config.stability_timeout_sec,
+                )
 
             def wait_initial(self, paths, timeout):
                 return self.scheduler.wait_for_paths(paths, timeout)
@@ -729,6 +797,12 @@ class TestWatchdogStartup(unittest.TestCase):
                 accepted = self.scheduler.submit(path, "initial")
                 resume.set()
                 return accepted
+
+            def startup_phase_timeout(self, paths):
+                return max(
+                    config.stability_timeout_sec,
+                    len(paths) * config.stability_timeout_sec,
+                )
 
             def wait_initial(self, paths, timeout):
                 return self.scheduler.wait_for_paths(paths, timeout)

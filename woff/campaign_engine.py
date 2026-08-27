@@ -31,7 +31,13 @@ class CampaignEngine:
     def __init__(self, db_manager: DatabaseManager):
         self.db_manager = db_manager
 
-    def process_mission_end(self, pilot_id: str, mission_id: str):
+    def process_mission_end(
+        self,
+        pilot_id: str,
+        mission_id: str,
+        *,
+        replace_existing_diary: bool = False,
+    ):
         log.info(f"[RPG] A processar fim de missão para o piloto {pilot_id}...")
 
         db_result = self.db_manager.get_mission_and_history(pilot_id, mission_id)
@@ -86,7 +92,8 @@ class CampaignEngine:
                     pilot_id=real_pilot_id,
                     mission_id=mission_id,
                     entry_date=entry_date,
-                    narrative=narrative
+                    narrative=narrative,
+                    replace_existing=replace_existing_diary,
                 ):
                     raise _DiaryWriteRejected
         except _DiaryWriteRejected:

@@ -48,10 +48,27 @@ class RpgRepository(BaseRepository):
             raise
 
     def save_diary_entry(
-        self, pilot_id: str, mission_id: Optional[str], entry_date: str, narrative: str
+        self,
+        pilot_id: str,
+        mission_id: Optional[str],
+        entry_date: str,
+        narrative: str,
+        *,
+        replace_existing: bool = False,
     ) -> bool:
-        """Guarda uma entrada de diário. Retorna True se inserida, False se duplicada."""
+        """Insert a diary entry or replace one for an updated mission."""
         with self._db.transaction():
+            if replace_existing and mission_id is not None:
+                updated = self._query(
+                    """
+                    UPDATE diary_entries
+                    SET entry_date = ?, narrative = ?
+                    WHERE pilotId = ? AND missionId = ?
+                    """,
+                    (entry_date, narrative, pilot_id, mission_id),
+                )
+                if updated.rowcount:
+                    return True
             try:
                 entry_id = _uid()
                 self._query(

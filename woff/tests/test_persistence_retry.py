@@ -158,6 +158,27 @@ def test_python_310_exact_sqlite_messages_have_a_bounded_fallback(
     )
 
 
+def test_mission_history_read_propagates_transient_sqlite_failure(
+    tmp_path, monkeypatch
+):
+    database = DatabaseManager(str(tmp_path / "read-failure.sqlite"))
+
+    class LockedReadConnection:
+        row_factory = None
+
+        def execute(self, _sql, _parameters=()):
+            raise sqlite3.OperationalError("database is locked")
+
+    connection = LockedReadConnection()
+    monkeypatch.setattr(database, "_get_conn", lambda: connection)
+    try:
+        with pytest.raises(sqlite3.OperationalError, match="database is locked"):
+            database.get_mission_and_history("pilot-id", "mission-id")
+        assert connection.row_factory is None
+    finally:
+        database.close()
+
+
 def test_default_persistence_retry_policy_has_documented_total_bound(tmp_path):
     policy = PersistenceRetryPolicy()
     delays = [
@@ -175,6 +196,47 @@ def test_default_persistence_retry_policy_has_documented_total_bound(tmp_path):
         ).fetchone() == (5000,)
     finally:
         database.close()
+
+
+def test_startup_wait_budget_covers_every_bounded_persistence_attempt(
+    retry_ingestion
+):
+    handler, _database, _database_path, _log_path, _dossier_path = retry_ingestion
+    policy = handler.scheduler.persistence_retry_policy
+    backoff = sum(
+        policy.delay_after_failure(failure)
+        for failure in range(1, policy.max_attempts)
+    )
+    minimum_per_path = (
+        handler.config.stability_timeout_sec
+        + (policy.max_attempts * 5.0)
+        + backoff
+    )
+
+    assert handler.startup_phase_timeout(1) >= minimum_per_path
+    assert handler.startup_phase_timeout(2) >= 2 * minimum_per_path
+
+
+def test_startup_budget_counts_both_snapshots_for_dependent_paths(
+    retry_ingestion, tmp_path
+):
+    handler, _database, _database_path, log_path, _dossier_path = retry_ingestion
+    dependent_paths = [str(log_path), str(tmp_path / "Pilot2Claims.txt")]
+    policy = handler.scheduler.persistence_retry_policy
+    retry_backoff = sum(
+        policy.delay_after_failure(failure)
+        for failure in range(1, policy.max_attempts)
+    )
+    persistence_per_path = (
+        policy.max_attempts * 5.0
+    ) + retry_backoff
+    required = (
+        handler.config.stability_timeout_sec
+        + (4 * handler.config.stability_timeout_sec)
+        + (2 * persistence_per_path)
+    )
+
+    assert handler.startup_phase_timeout(dependent_paths) >= required
 
 
 def test_real_sqlite_contention_replays_verified_generation_once(
@@ -222,7 +284,66 @@ def test_real_sqlite_contention_replays_verified_generation_once(
     assert handler.metrics()["saturated"] == 0
 
 
-def test_newer_event_supersedes_stale_persistence_retry(
+def test_partial_generation_replay_recomputes_corrected_pending_mission(
+    retry_ingestion, monkeypatch
+):
+    handler, database, _database_path, log_path, _dossier_path = retry_ingestion
+    first_derived_read = threading.Event()
+    release_first_read = threading.Event()
+    original_read = database.get_mission_and_history
+    read_calls = 0
+
+    def fail_first_derived_read(pilot_id, mission_id):
+        nonlocal read_calls
+        read_calls += 1
+        if read_calls == 1:
+            first_derived_read.set()
+            assert release_first_read.wait(2)
+            raise sqlite3.OperationalError("database is locked")
+        return original_read(pilot_id, mission_id)
+
+    monkeypatch.setattr(
+        database, "get_mission_and_history", fail_first_derived_read
+    )
+    monkeypatch.setattr(
+        "woff.campaign_engine.narrative_generator.generate",
+        lambda _pilot_name, mission: f"narrative:{mission['notes']}",
+    )
+    monkeypatch.setattr(
+        "woff.campaign_engine.rpg_system.calculate_stress",
+        lambda missions: 80 if missions[0]["notes"] == "Generation B." else 10,
+    )
+
+    assert handler.scheduler.submit(str(log_path), "modified")
+    assert first_derived_read.wait(2)
+    connection = database._get_conn()
+    assert connection.execute("SELECT date FROM missions").fetchall() == [
+        ("1917-04-06",)
+    ]
+    assert connection.execute(
+        "SELECT COUNT(*) FROM diary_entries"
+    ).fetchone() == (0,)
+
+    log_path.write_text(_pilot_log(6, "Generation B."), encoding="cp1252")
+    assert handler.scheduler.submit(str(log_path), "modified")
+    release_first_read.set()
+    assert handler.scheduler.wait_for_paths([str(log_path)], timeout=2)
+    handler.shutdown()
+
+    assert connection.execute(
+        "SELECT date, notes FROM missions"
+    ).fetchall() == [("1917-04-06", "Generation B.")]
+    assert connection.execute(
+        "SELECT narrative FROM diary_entries"
+    ).fetchall() == [("narrative:Generation B.",)]
+    assert connection.execute(
+        "SELECT stress FROM pilot_rpg_stats"
+    ).fetchall() == [(80,)]
+    assert handler.metrics()["successful_replays"] == 1
+    assert handler.metrics()["permanent_rejections"] == 0
+
+
+def test_newer_event_waits_for_retained_retry_then_processes_latest_generation(
     retry_ingestion, monkeypatch
 ):
     handler, database, database_path, log_path, _dossier_path = retry_ingestion
@@ -236,18 +357,19 @@ def test_newer_event_supersedes_stale_persistence_retry(
         _release_write_lock(lock)
         lock = None
         allow_result.set()
+        assert handler.scheduler.wait_for_paths([str(log_path)], timeout=2)
         handler.shutdown()
     finally:
         if lock is not None:
             _release_write_lock(lock)
 
     connection = database._get_conn()
-    assert connection.execute("SELECT date FROM missions").fetchall() == [
-        ("1917-04-07",)
-    ]
-    assert handler.metrics()["superseded_retries"] == 1
-    assert handler.metrics()["transient_retries"] == 0
-    assert handler.metrics()["successful_replays"] == 0
+    assert connection.execute(
+        "SELECT date FROM missions ORDER BY date"
+    ).fetchall() == [("1917-04-06",), ("1917-04-07",)]
+    assert handler.metrics()["superseded_retries"] == 0
+    assert handler.metrics()["transient_retries"] == 1
+    assert handler.metrics()["successful_replays"] == 1
 
 
 def test_repeated_sqlite_contention_stops_at_documented_bound(
@@ -282,6 +404,101 @@ def test_repeated_sqlite_contention_stops_at_documented_bound(
     assert str(database_path.parent) not in diagnostic[0]
 
 
+def test_duplicate_notifications_do_not_restart_retry_budget(
+    retry_ingestion, monkeypatch
+):
+    handler, database, database_path, log_path, _dossier_path = retry_ingestion
+    lock = _hold_external_write_lock(database_path)
+    transient_seen, allow_result = _pause_first_transient(monkeypatch, handler)
+    try:
+        assert handler.scheduler.submit(str(log_path), "modified")
+        assert transient_seen.wait(2)
+        for _ in range(5):
+            assert handler.scheduler.submit(str(log_path), "modified")
+        allow_result.set()
+        assert handler.scheduler.wait_for_paths([str(log_path)], timeout=2)
+    finally:
+        _release_write_lock(lock)
+        handler.shutdown()
+
+    metrics = handler.metrics()
+    assert metrics["transient_failures"] == 4
+    assert metrics["transient_retries"] == 3
+    assert metrics["retry_exhausted"] == 1
+    assert database._get_conn().execute(
+        "SELECT COUNT(*) FROM missions"
+    ).fetchone() == (0,)
+
+
+def test_late_duplicate_after_retry_exhaustion_keeps_terminal_budget(
+    retry_ingestion,
+):
+    handler, database, database_path, log_path, _dossier_path = retry_ingestion
+    lock = _hold_external_write_lock(database_path)
+    try:
+        assert handler.scheduler.submit(str(log_path), "modified")
+        assert handler.scheduler.wait_for_paths([str(log_path)], timeout=2)
+        assert handler.metrics()["transient_failures"] == 4
+        assert handler.metrics()["retry_exhausted"] == 1
+
+        assert handler.scheduler.submit(str(log_path), "modified")
+        assert handler.scheduler.wait_for_paths([str(log_path)], timeout=2)
+    finally:
+        _release_write_lock(lock)
+        handler.shutdown()
+
+    metrics = handler.metrics()
+    assert metrics["transient_failures"] == 4
+    assert metrics["transient_retries"] == 3
+    assert metrics["retry_exhausted"] == 1
+    assert metrics["permanent_rejections"] == 1
+    assert database._get_conn().execute(
+        "SELECT COUNT(*) FROM missions"
+    ).fetchone() == (0,)
+
+
+def test_newer_generation_runs_after_older_retry_exhaustion(
+    retry_ingestion, monkeypatch
+):
+    handler, database, database_path, log_path, _dossier_path = retry_ingestion
+    lock = _hold_external_write_lock(database_path)
+    fourth_failure = threading.Event()
+    allow_terminal_result = threading.Event()
+    original_replay = handler.processor.replay
+    replay_failures = 0
+
+    def observed_replay(outcome, event_type):
+        nonlocal replay_failures
+        result = original_replay(outcome, event_type)
+        if result.status is ProcessingStatus.TRANSIENT_FAILURE:
+            replay_failures += 1
+            if replay_failures == 3:
+                fourth_failure.set()
+                assert allow_terminal_result.wait(2)
+        return result
+
+    monkeypatch.setattr(handler.processor, "replay", observed_replay)
+    try:
+        assert handler.scheduler.submit(str(log_path), "modified")
+        assert fourth_failure.wait(2)
+        log_path.write_text(_pilot_log(7, "Generation B."), encoding="cp1252")
+        assert handler.scheduler.submit(str(log_path), "modified")
+        _release_write_lock(lock)
+        lock = None
+        allow_terminal_result.set()
+        assert handler.scheduler.wait_for_paths([str(log_path)], timeout=2)
+    finally:
+        if lock is not None:
+            _release_write_lock(lock)
+        handler.shutdown()
+
+    assert database._get_conn().execute(
+        "SELECT date FROM missions"
+    ).fetchall() == [("1917-04-07",)]
+    assert handler.metrics()["transient_failures"] == 4
+    assert handler.metrics()["retry_exhausted"] == 1
+
+
 def test_shutdown_cancels_retained_retry_with_final_diagnostic(
     retry_ingestion, monkeypatch, caplog
 ):
@@ -306,8 +523,8 @@ def test_shutdown_cancels_retained_retry_with_final_diagnostic(
     assert not shutdown.is_alive()
     assert handler.metrics()["transient_failures"] == 2
     assert handler.metrics()["transient_retries"] == 0
-    assert handler.metrics()["retry_shutdown"] == 1
-    assert handler.metrics()["superseded_retries"] == 1
+    assert handler.metrics()["retry_shutdown"] == 2
+    assert handler.metrics()["superseded_retries"] == 0
     assert database._get_conn().execute(
         "SELECT COUNT(*) FROM missions"
     ).fetchone() == (0,)
@@ -317,6 +534,8 @@ def test_shutdown_cancels_retained_retry_with_final_diagnostic(
         if "Persistence retry cancelled at shutdown" in record.getMessage()
     ]
     assert diagnostic == [
+        "Persistence retry cancelled at shutdown: source=Pilot1Log.txt "
+        "category=sqlite-busy attempts=1",
         "Persistence retry cancelled at shutdown: source=Pilot1Log.txt "
         "category=sqlite-busy attempts=1"
     ]

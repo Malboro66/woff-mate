@@ -25,7 +25,17 @@ from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Optional, List, Any, Dict, NoReturn, Sequence, Tuple
+from typing import (
+    Any,
+    Dict,
+    List,
+    Literal,
+    NoReturn,
+    Optional,
+    Sequence,
+    Tuple,
+    overload,
+)
 
 from .campaign_namespace import (
     LEGACY_CAMPAIGN_NAMESPACE,
@@ -76,6 +86,14 @@ class DossierState:
     squadron: str
     dossier_digest: Optional[str]
     wingmen: Tuple[DossierWingmanState, ...]
+
+
+@dataclass(frozen=True)
+class MergeWriteOutcome:
+    """Pilot identity plus missions changed by one committed merge."""
+
+    pilot_id: str
+    updated_mission_ids: frozenset[str]
 
 
 def _version_tuple(version: str) -> Tuple[int, ...]:
@@ -2394,6 +2412,7 @@ class DatabaseManager:
             name, source_file, campaign_namespace
         )
 
+    @overload
     def merge_and_write(
         self,
         pilot: Optional[WoFFPilot],
@@ -2403,8 +2422,34 @@ class DatabaseManager:
         wingmen: Optional[List[WoFFWingman]] = None,
         *,
         identity: Optional[PilotIdentityEvidence] = None,
-    ) -> Optional[str]:
-        """Faz o merge dos novos dados na base de dados SQLite. Retorna o pilot_id ou None."""
+        return_outcome: Literal[False] = False,
+    ) -> Optional[str]: ...
+
+    @overload
+    def merge_and_write(
+        self,
+        pilot: Optional[WoFFPilot],
+        missions: List[WoFFMission],
+        victories: List[WoFFVictory],
+        decorations: List[WoFFDecoration],
+        wingmen: Optional[List[WoFFWingman]] = None,
+        *,
+        identity: Optional[PilotIdentityEvidence] = None,
+        return_outcome: Literal[True],
+    ) -> Optional[MergeWriteOutcome]: ...
+
+    def merge_and_write(
+        self,
+        pilot: Optional[WoFFPilot],
+        missions: List[WoFFMission],
+        victories: List[WoFFVictory],
+        decorations: List[WoFFDecoration],
+        wingmen: Optional[List[WoFFWingman]] = None,
+        *,
+        identity: Optional[PilotIdentityEvidence] = None,
+        return_outcome: bool = False,
+    ) -> Optional[str | MergeWriteOutcome]:
+        """Merge source records and optionally expose changed mission IDs."""
         try:
             with self.transaction():
                 related = [*missions, *victories, *decorations, *(wingmen or [])]
@@ -2463,6 +2508,11 @@ class DatabaseManager:
                     "INSERT OR REPLACE INTO meta (key, value) VALUES ('last_updated', ?)",
                     (datetime.now().isoformat(),)
                 )
+                if return_outcome:
+                    return MergeWriteOutcome(
+                        pilot_id,
+                        mission_counts.updated_mission_ids,
+                    )
                 return pilot_id
         except sqlite3.IntegrityError as e:
             log.error(f"Erro de integridade na base de dados: {e}")
@@ -2504,9 +2554,21 @@ class DatabaseManager:
         return self._rpg.update_pilot_rpg_stats(pilot_id, fatigue, morale, stress)
 
     def save_diary_entry(
-        self, pilot_id: str, mission_id: Optional[str], entry_date: str, narrative: str
+        self,
+        pilot_id: str,
+        mission_id: Optional[str],
+        entry_date: str,
+        narrative: str,
+        *,
+        replace_existing: bool = False,
     ) -> bool:
-        return self._rpg.save_diary_entry(pilot_id, mission_id, entry_date, narrative)
+        return self._rpg.save_diary_entry(
+            pilot_id,
+            mission_id,
+            entry_date,
+            narrative,
+            replace_existing=replace_existing,
+        )
 
     def get_wingman_personality(self, wingman_id: str) -> Optional[dict]:
         return self._wingmen.get_wingman_personality(wingman_id)

@@ -447,8 +447,5 @@ class PilotRepository(BaseRepository):
                     current,
                     [mission for _, mission in ordered_history[:10]],
                 )
-            except sqlite3.Error:
-                log.exception("Erro ao buscar missão/histórico")
-                return None, None, []
             finally:
                 conn.row_factory = None

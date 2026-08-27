@@ -125,23 +125,39 @@ Persistence retry is fixed and bounded: four total processing attempts with
 0.1, 0.2, and 0.4 seconds of scheduler backoff. Each attempt uses the fixed
 five-second SQLite busy timeout, so every individual lock wait is bounded and
 the scheduler adds at most 0.7 seconds. Total processing time also depends on
-the finite persistence work in the verified file. A newer event for the same
-canonical path supersedes the older retained generation. Replays remain subject
-to the existing natural-key and transactional idempotence boundaries.
+the finite persistence work in the verified file. The latest newer event for
+the same canonical path remains coalesced while the retained generation retries.
+It runs only after the retained generation succeeds, exhausts its budget, or is
+cancelled during shutdown. Replays remain subject to the existing natural-key
+and transactional idempotence boundaries.
+
+Startup reconciliation budgets each phase for every source snapshot, the
+additional Dossier snapshot used by each dependent pilot file, all four SQLite
+busy windows, the full 0.7 seconds of backoff, and a bounded phase margin. A
+default five-second busy wait therefore cannot outlast a three-second
+file-stability budget and silently cancel retained startup work.
 
 The scheduler exposes separate `transient_failures`, `transient_retries`,
 `successful_replays`, `permanent_rejections`, `saturated`, `retry_exhausted`,
-`retry_shutdown`, and `superseded_retries` metrics. Parser, identity, snapshot,
-and other permanent rejections do not enter the SQLite retry policy.
+`retry_shutdown`, and `superseded_retries` metrics. The last counter remains for
+metric compatibility and stays zero because pending events no longer supersede
+retained transient work. Parser, identity, snapshot, and other permanent
+rejections do not enter the SQLite retry policy.
 
-`Persistence retry exhausted` means all four attempts failed. The final
-diagnostic contains only the source filename, sanitized SQLite category, and
-attempt count; the generation is not acknowledged and its retained memory is
-released. During orderly shutdown, an active attempt finishes and any already
-accepted newer event drains, but a retained persistence retry does not start a
-new attempt. `Persistence retry cancelled at shutdown` records that policy.
-The source file remains recoverable on disk and can be reconsidered by a later
-filesystem event or startup reconciliation.
+`Persistence retry exhausted` means all four attempts failed. Duplicate
+notifications for the same unchanged generation do not start a fresh budget.
+The final diagnostic contains only the source filename, sanitized SQLite
+category, and attempt count. The active path is released, while its terminal
+generation remains in a cache bounded by scheduler capacity. A late unchanged
+notification is rejected without new persistence attempts. Changed bytes
+receive their own bounded processing budget and replace the terminal marker if
+they also exhaust retries.
+
+During orderly shutdown, an active attempt finishes, each retained retry is
+cancelled with a diagnostic, and an already accepted latest event receives one
+drained attempt. If that event is also transient, it receives its own shutdown
+diagnostic without starting backoff. The source remains recoverable on disk and
+can be reconsidered by a later filesystem event or startup reconciliation.
 
 If either final diagnostic recurs, close SQLite viewers, backup programs, and
 every other writer before generating a new file event or restarting WoFF Mate.

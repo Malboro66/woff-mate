@@ -366,8 +366,20 @@ evals:
   EVAL-PERSIST-RETRY-002:
     work_items: [issue-95]
     status: implemented
-    evidence: Retry exhaustion and shutdown remain bounded and produce a durable sanitized diagnostic without acknowledging the failed generation.
+    evidence: Duplicate notifications preserve the four-attempt generation budget even after active work drains; a bounded terminal-generation cache suppresses unchanged late notifications while changed bytes remain eligible.
     enforced_by: [woff/tests/test_persistence_retry.py]
+  EVAL-PERSIST-RETRY-003:
+    work_items: [issue-95]
+    status: implemented
+    evidence: A partially committed generation completes before a pending correction of the same mission identity, and the correction atomically aligns the core mission, diary narrative, and RPG state.
+    enforced_by: [woff/tests/test_persistence_retry.py]
+  EVAL-PERSIST-RETRY-004:
+    work_items: [issue-95]
+    status: implemented
+    evidence: Startup reconciliation uses a bounded phase budget covering source and dependent Dossier snapshots, every SQLite busy wait, and all persistence backoff delays.
+    enforced_by:
+      - woff/tests/test_persistence_retry.py
+      - woff/tests/test_handler_integration.py
   EVAL-WINGMAN-IDENTITY-001:
     work_items: [issue-96]
     status: planned
@@ -607,7 +619,7 @@ work_items:
       - {id: issue-70, status: satisfied}
       - {id: issue-71, status: satisfied}
       - {id: issue-94, status: satisfied}
-      - {id: issue-95, status: satisfied}
+      - {id: issue-95, status: unsatisfied}
   issue-28:
     title: Validate pilots in every woff_query output format
     module: presentation
@@ -868,8 +880,12 @@ work_items:
   issue-95:
     title: Retry transient SQLite write failures without dropping file generations
     module: ingestion
-    state: done
-    evals: [EVAL-PERSIST-RETRY-001, EVAL-PERSIST-RETRY-002]
+    state: in_progress
+    evals:
+      - EVAL-PERSIST-RETRY-001
+      - EVAL-PERSIST-RETRY-002
+      - EVAL-PERSIST-RETRY-003
+      - EVAL-PERSIST-RETRY-004
     gates: [Q0, Q1, Q2, Q3, Q6-CYCLE-3.3.0]
     depends_on: []
   issue-96:
