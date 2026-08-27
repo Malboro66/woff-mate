@@ -75,10 +75,9 @@ The aggregate eval passes only when:
 
 Green CI alone does not pass this aggregate eval.
 
-Corrective work for reopened #95 is active. Its dependency edge into #27 is
-unsatisfied until the corrected implementation reaches `main`. The graph
-encodes only technical dependencies and does not make independent items
-artificial prerequisites of one another.
+Corrective work for #95 reached `main` through PR #110. Its dependency edge
+into #27 is now satisfied. The graph encodes only technical dependencies and
+does not make independent items artificial prerequisites of one another.
 
 ## Newly registered data-integrity evals
 
