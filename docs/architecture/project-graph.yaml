@@ -1,5 +1,5 @@
 version: 1
-updated: 2026-08-26
+updated: 2026-08-27
 
 project:
   repository: Malboro66/woff-mate
@@ -185,9 +185,9 @@ gates:
   Q5:
     description: Product decision gates approve data reliability, launcher viability, social core, or public release.
   Q6-CYCLE-3.3.0:
-    description: All fifteen 3.3.0 work items, applicable evals, functional exit criteria, documentation, and CI are approved.
+    description: All sixteen 3.3.0 work items, applicable evals, functional exit criteria, documentation, and CI are approved.
   Q6-CYCLE-3.4.0:
-    description: All thirteen 3.4.0 work items, applicable evals, functional exit criteria, documentation, and CI are approved.
+    description: All sixteen 3.4.0 work items, applicable evals, functional exit criteria, documentation, and CI are approved.
 
 evals:
   EVAL-DIARY-001:
@@ -311,6 +311,10 @@ evals:
       - woff/tests/test_campaign_engine.py
       - woff/tests/test_handler_integration.py
       - woff/tests/test_privacy_contracts.py
+  EVAL-CAREER-REUSE-EVIDENCE-001:
+    work_items: [issue-87]
+    status: planned
+    evidence: Sanitized longitudinal Dossier fixtures distinguish a replay from a same-name replacement career in the same pilot slot, or record that the available structure cannot do so safely.
   EVAL-PILOT-STATUS-001:
     work_items: [issue-71]
     status: implemented
@@ -571,6 +575,26 @@ evals:
     status: implemented
     evidence: The proposed toolkit and read-only presentation boundaries are documented, linked, dependency-free, and structurally enforced.
     enforced_by: [woff/tests/test_architecture_contracts.py]
+  EVAL-UI-DESIGN-001:
+    work_items: [issue-79]
+    status: planned
+    evidence: The approved six-screen Figma flow, tokens, components, focus order, scaling behavior, and synthetic-state labels pass a recorded human walkthrough.
+  EVAL-UI-STATES-001:
+    work_items: [issue-80]
+    status: planned
+    evidence: Sanitized deterministic fixtures cover every shared screen state without personal data, Qt, SQLite, WoFF files, or network access.
+  EVAL-UI-CONTRACTS-001:
+    work_items: [issue-81]
+    status: planned
+    evidence: Immutable toolkit-independent snapshots and query-service protocols preserve stable IDs, freshness, warnings, unavailable reasons, and sanitized failures.
+  EVAL-UI-SPIKE-001:
+    work_items: [issue-82]
+    status: planned
+    evidence: One isolated PySide6 line passes the supported Python and Windows matrix, clean PyInstaller startup, and measured startup, memory, and artifact budgets.
+  EVAL-UI-SPIKE-002:
+    work_items: [issue-82]
+    status: planned
+    evidence: The fixture-backed spike records Windows scaling, keyboard navigation, accessibility exposure, Qt plugin behavior, and licensing obligations without adding a production dependency.
   EVAL-GOV-001:
     work_items: [issue-51]
     status: implemented
@@ -587,6 +611,7 @@ evals:
       - issue-40
       - issue-39
       - issue-70
+      - issue-87
       - issue-71
       - issue-72
       - issue-93
@@ -757,7 +782,7 @@ work_items:
   issue-48:
     title: Bound discovery log size and retention
     module: ingestion
-    state: blocked
+    state: backlog
     evals: [EVAL-DISC-001]
     gates: [Q0, Q1, Q3]
     depends_on:
@@ -863,6 +888,47 @@ work_items:
     evals: [EVAL-SCHEMA-CONTRACT-001, EVAL-SCHEMA-CONTRACT-002]
     gates: [Q0, Q1, Q2]
     depends_on: []
+  issue-79:
+    title: Complete the approved Figma V1 flow and visual system
+    module: presentation
+    state: backlog
+    evals: [EVAL-UI-DESIGN-001]
+    gates: [Q0, Q1, Q6-CYCLE-3.4.0]
+    depends_on:
+      - {id: issue-56, status: satisfied}
+  issue-80:
+    title: Define sanitized UI fixtures and the shared screen-state matrix
+    module: presentation
+    state: backlog
+    evals: [EVAL-UI-STATES-001]
+    gates: [Q0, Q1, Q6-CYCLE-3.4.0]
+    depends_on:
+      - {id: issue-56, status: satisfied}
+  issue-81:
+    title: Define immutable read-only UI view models and query-service contracts
+    module: presentation
+    state: blocked
+    evals: [EVAL-UI-CONTRACTS-001]
+    gates: [Q0, Q1, Q6-CYCLE-3.4.0]
+    depends_on:
+      - {id: issue-56, status: satisfied}
+      - {id: issue-80, status: unsatisfied}
+  issue-82:
+    title: Validate PySide6 packaging, startup, scaling, and accessibility
+    module: platform
+    state: blocked
+    evals: [EVAL-UI-SPIKE-001, EVAL-UI-SPIKE-002]
+    gates: [Q0, Q1, Q4]
+    depends_on:
+      - {id: issue-56, status: satisfied}
+      - {id: issue-80, status: unsatisfied}
+  issue-87:
+    title: Validate same-name career reuse in the same pilot slot
+    module: persistence
+    state: blocked
+    evals: [EVAL-CAREER-REUSE-EVIDENCE-001]
+    gates: [Q0, Q1, Q3, Q6-CYCLE-3.3.0]
+    depends_on: []
   issue-93:
     title: Resolve same-name careers by stable pilot ID in CLI and journal editor
     module: presentation
@@ -898,7 +964,7 @@ work_items:
   issue-97:
     title: Do not delete retained diary blocks with an empty narrative
     module: presentation
-    state: backlog
+    state: in_progress
     evals: [EVAL-DIARY-EMPTY-001]
     gates: [Q0, Q1, Q2, Q6-CYCLE-3.4.0]
     depends_on: []
@@ -946,6 +1012,7 @@ cycles:
       - issue-40
       - issue-39
       - issue-70
+      - issue-87
       - issue-71
       - issue-72
       - issue-93
@@ -971,6 +1038,9 @@ cycles:
       - issue-96
       - issue-97
       - issue-101
+      - issue-79
+      - issue-80
+      - issue-81
     gate: Q6-CYCLE-3.4.0
   cycle-3.5.0:
     state: planned
@@ -984,3 +1054,4 @@ cycles:
       - issue-30
       - issue-98
       - issue-99
+      - issue-82

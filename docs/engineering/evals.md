@@ -40,7 +40,7 @@ public 3.2.1 release unless release evidence is recorded separately.
 
 ## Active cycle 3.3.0
 
-Issue #50 is the official tracker. The fifteen functional members remain separate
+Issue #50 is the official tracker. The sixteen work items remain separate
 issues and pull requests.
 
 | Work item | Eval IDs | Required evidence |
@@ -53,6 +53,7 @@ issues and pull requests.
 | #40 | `EVAL-DATE-001`, `EVAL-DATE-002` | Canonical validation and deterministic ordering |
 | #39 | `EVAL-MISSION-001`, `EVAL-MISSION-002` | Stable identity and non-destructive enrichment |
 | #70 | `EVAL-IDENTITY-001`, `EVAL-IDENTITY-002` | Career isolation across slot reuse, same-name independence, and rejection of identityless persistence |
+| #87 | `EVAL-CAREER-REUSE-EVIDENCE-001` | Sanitized evidence distinguishes replay from same-slot, same-name career replacement or records that the source structure cannot do so safely |
 | #71 | `EVAL-PILOT-STATUS-001`, `EVAL-PILOT-STATUS-002` | Preservation of authoritative status and idempotent explicit transitions |
 | #72 | `EVAL-DOSSIER-TXN-001`, `EVAL-DOSSIER-TXN-002` | Atomic rollback and exactly-once consistent Dossier state |
 | #93 | `EVAL-CAREER-SELECT-001`, `EVAL-CAREER-SELECT-002` | Stable career selection and pre-mutation rejection of ambiguous names |
@@ -65,7 +66,7 @@ issues and pull requests.
 
 The aggregate eval passes only when:
 
-- all fifteen member issues satisfy their acceptance criteria
+- all sixteen member issues satisfy their acceptance criteria
 - every applicable member eval is implemented and passing
 - dependency relations in the graph are satisfied
 - focused tests, related tests, the full suite, and Pyright pass
@@ -75,14 +76,16 @@ The aggregate eval passes only when:
 
 Green CI alone does not pass this aggregate eval.
 
-Corrective work for #95 reached `main` through PR #110. Its dependency edge
-into #27 is now satisfied. The graph encodes only technical dependencies and
-does not make independent items artificial prerequisites of one another.
+All implementation dependencies for #27 are now satisfied. Issue #27 is the
+next implementable P1 item and the final deferred-ingestion change in cycle
+3.3.0. Issue #87 remains a separate sanitized-evidence gap and does not weaken
+or reopen the guarantees already verified by #70.
 
 ## Newly registered data-integrity evals
 
 | Eval | Work item | Required evidence |
 |---|---|---|
+| `EVAL-CAREER-REUSE-EVIDENCE-001` | #87 | Sanitized longitudinal fixtures distinguish replay from a same-slot, same-name replacement career, or prove that available Dossier structure cannot support the distinction safely |
 | `EVAL-CAREER-SELECT-001` | #93 | Same-name careers stay separate in every query and editor flow selected by stable pilot ID |
 | `EVAL-CAREER-SELECT-002` | #93 | Ambiguous names fail before export or mutation with a deterministic candidate contract |
 | `EVAL-ROOT-BINDING-001` | #94 | Equal slots in distinct watched roots keep independent bindings and persistent career IDs, even after another root retires a same-name career, with correct dependent-file routing |
@@ -117,6 +120,21 @@ claim Q5 or approval of Product Gate A or Gate B.
 | Eval | Work item | Evidence | Enforcement |
 |---|---|---|---|
 | `EVAL-UI-FOUNDATION-001` | #56 | Proposed toolkit and read-only presentation boundaries are documented, linked, dependency-free, and structurally enforced | `woff/tests/test_architecture_contracts.py` |
+
+## Planned read-only UI work
+
+| Eval | Work item | Required evidence |
+|---|---|---|
+| `EVAL-UI-DESIGN-001` | #79 | The approved six-screen Figma flow, visual system, focus order, scaling notes, and synthetic-state labels pass a recorded walkthrough |
+| `EVAL-UI-STATES-001` | #80 | Deterministic synthetic fixtures cover every shared state and privacy constraint without production dependencies |
+| `EVAL-UI-CONTRACTS-001` | #81 | Immutable toolkit-independent view models and query protocols preserve stable identity, state, freshness, warnings, and sanitized failures |
+| `EVAL-UI-SPIKE-001` | #82 | One PySide6 line passes the supported Python and Windows packaging and measured resource matrix |
+| `EVAL-UI-SPIKE-002` | #82 | Scaling, keyboard use, accessibility, plugin behavior, and licensing evidence support a Go, Conditional Go, or No-go recommendation |
+
+Issues #79 and #80 are unblocked planning work. Issue #81 waits for the shared
+state and fixture vocabulary from #80. Issue #82 is an isolated feasibility
+spike that also waits for #80. None of these items adopts Qt, creates a
+production UI, or approves Product Gate A or Product Gate B.
 
 ### Implemented scheduler evals
 
