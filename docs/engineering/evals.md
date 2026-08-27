@@ -392,6 +392,17 @@ for the broader roster-generation and truncated-input policy.
   Backup failure preserves the previous verified snapshot. Issue #75 changes no
   schema and does not implement Issue #28's unknown-pilot matrix.
 
+### Implemented retained diary-block eval
+
+- `EVAL-DIARY-EMPTY-001` is enforced by
+  `woff/tests/test_woff_editor.py`. Empty and whitespace-only narratives in a
+  retained block fail validation with the entry ID before `BEGIN IMMEDIATE`, so
+  no row changes and no success message is emitted. The exported instructions
+  define this policy and keep complete block removal as the only deletion
+  signal. Existing coverage proves selected-pilot deletion, foreign-ID
+  rejection, multiline and unchanged narratives, verified pre-import backup,
+  and rollback behavior. The correction changes no SQLite schema.
+
 ## Planned cycle 3.4.0
 
 | Work item | Eval IDs |
