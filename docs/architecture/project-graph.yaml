@@ -619,7 +619,7 @@ work_items:
       - {id: issue-70, status: satisfied}
       - {id: issue-71, status: satisfied}
       - {id: issue-94, status: satisfied}
-      - {id: issue-95, status: unsatisfied}
+      - {id: issue-95, status: satisfied}
   issue-28:
     title: Validate pilots in every woff_query output format
     module: presentation
@@ -880,7 +880,7 @@ work_items:
   issue-95:
     title: Retry transient SQLite write failures without dropping file generations
     module: ingestion
-    state: in_progress
+    state: done
     evals:
       - EVAL-PERSIST-RETRY-001
       - EVAL-PERSIST-RETRY-002
