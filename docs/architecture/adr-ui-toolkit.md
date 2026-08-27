@@ -73,6 +73,10 @@ module**. Adoption remains gated by:
    decisions—neither is approved here;
 3. an optional-dependency policy that preserves non-UI installation;
 4. Windows 10/11 and Python 3.10–3.14 smoke coverage;
-5. a PyInstaller clean-machine packaging and licensing spike;
-6. sanitized, non-personal fixtures and accessibility/test plans; and
+5. the measured clean-machine packaging, startup, scaling, accessibility, and licensing spike in #82;
+6. sanitized fixtures and shared states from #80, the approved visual reference from #79, and immutable contracts from #81; and
 7. enforcement that each build environment contains exactly one Qt binding.
+
+Issues #79 through #82 collect the missing design, fixture, contract, and
+feasibility evidence. They do not accept this ADR, add a mandatory Qt
+dependency, create a production UI, or approve Product Gate A or Product Gate B.
