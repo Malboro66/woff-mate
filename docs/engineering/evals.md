@@ -76,10 +76,11 @@ The aggregate eval passes only when:
 
 Green CI alone does not pass this aggregate eval.
 
-All implementation dependencies for #27 are now satisfied. Issue #27 is the
-next implementable P1 item and the final deferred-ingestion change in cycle
-3.3.0. Issue #87 remains a separate sanitized-evidence gap and does not weaken
-or reopen the guarantees already verified by #70.
+Implementation of #27 is active now that all of its dependencies are satisfied.
+Its two deferred-ingestion evals are implemented on the issue branch; the cycle
+remains incomplete until the change reaches `main` and the aggregate gate is
+reviewed. Issue #87 remains a separate sanitized-evidence gap and does not
+weaken or reopen the guarantees already verified by #70.
 
 ## Newly registered data-integrity evals
 
@@ -189,6 +190,23 @@ production UI, or approves Product Gate A or Product Gate B.
   dependent path, four five-second SQLite busy windows, all 0.7 seconds of
   scheduler backoff, and a bounded phase margin. The watchdog consumes that
   calculated budget instead of using only file-stability time.
+
+### Implemented deferred ingestion evals
+
+- `EVAL-DEFER-001` is enforced by
+  `woff/tests/test_handler_integration.py` and
+  `woff/tests/test_deferred_ingestion.py`. Deterministic concurrent tests admit
+  Log, Claims, and Squads before their Dossier, retain the exact verified source
+  bytes, and release them only after the matching campaign-root and slot
+  identity persists. Duplicate notifications converge to one mission, victory,
+  and diary entry while authoritative Dossier statistics remain unchanged.
+- `EVAL-DEFER-002` is enforced by
+  `woff/tests/test_deferred_ingestion.py`. Dependency work stays inside the
+  existing canonical-path scheduler bound and retains at most 64 MiB globally.
+  Four total attempts and a five-minute lifetime are fixed defaults. Exhaustion,
+  expiry, memory saturation, replay submission failure, and shutdown release
+  admitted state with filename-only diagnostics. A transient SQLite failure
+  after dependency release continues through the existing persistence policy.
 
 ### Implemented canonical temporal evals
 

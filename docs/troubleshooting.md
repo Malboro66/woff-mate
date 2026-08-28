@@ -95,6 +95,47 @@ stable snapshot was acquired but its format could not be parsed. Share only the
 state and a synthetic reproduction—never campaign contents, personal paths, or
 complete records.
 
+## Deferred pilot identity
+
+`Pilot{N}Log.txt`, `Pilot{N}Claims.txt`, and `Pilot{N}Squads.txt` depend on the
+matching Dossier to establish a persistent pilot identity. If a dependent file
+finishes first, WoFF Mate retains its exact verified snapshot inside the existing
+path-keyed scheduler. A successfully persisted Dossier releases only work with
+the same campaign-root namespace and pilot slot. No placeholder pilot is
+created, and a replay does not reopen mutable source bytes.
+
+Dependency processing is bounded to four total attempts, five minutes from the
+first attempt, and 64 MiB of retained snapshot bytes across the scheduler. It
+also consumes the existing `max_pending_events` path capacity. Repeated events
+for an already deferred path are coalesced as its latest pending event. A replay
+that encounters transient SQLite contention continues through the separate
+bounded persistence retry policy.
+
+The scheduler exposes `dependency_pending`, `dependency_deferred`,
+`dependency_replays`, `dependency_expired`, `dependency_exhausted`,
+`dependency_saturated`, `dependency_shutdown`, and
+`dependency_retained_bytes`. Final diagnostics include only the filename,
+sanitized category, slot, and applicable bounded counters:
+
+- `Deferred dependency expired` means no matching Dossier persisted within
+  five minutes;
+- `Deferred dependency exhausted` means all four dependency attempts still
+  lacked a usable identity;
+- `Deferred dependency memory limit reached` means retaining another snapshot
+  would exceed 64 MiB;
+- `Deferred dependency submission failed` means a resolved replay could not be
+  scheduled and its admitted state was released;
+- `Deferred dependency monitor unavailable` means the expiry worker could not
+  start, so retained state was released immediately;
+- `Deferred dependency cancelled at shutdown` records the defined stop policy.
+
+The two internal scheduling failures also increment `submission_failures`.
+
+The source files remain on disk after any terminal outcome. Preserve them and
+allow startup reconciliation or a later filesystem notification to reconsider
+the current generation. If memory or scheduler saturation repeats, first check
+for missing or invalid Dossiers before changing `max_pending_events`.
+
 ## Common database messages
 
 ### Victory merge outcomes

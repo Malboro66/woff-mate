@@ -288,12 +288,16 @@ evals:
     enforced_by: [woff/tests/test_mission_upsert.py]
   EVAL-DEFER-001:
     work_items: [issue-27]
-    status: planned
-    evidence: Log, Claims, and Squads received before the Dossier are reprocessed after identity exists.
+    status: implemented
+    evidence: Log, Claims, and Squads received before the Dossier replay exact retained snapshots after the matching namespaced identity persists, without duplicate derived rows or loss of authoritative Dossier statistics.
+    enforced_by:
+      - woff/tests/test_handler_integration.py
+      - woff/tests/test_deferred_ingestion.py
   EVAL-DEFER-002:
     work_items: [issue-27]
-    status: planned
-    evidence: A pending dependency expires with a diagnostic and bounded storage.
+    status: implemented
+    evidence: Pending identity dependencies share scheduler admission bounds, retain at most 64 MiB for five minutes and four attempts, and terminate with sanitized expiry, exhaustion, saturation, submission-failure, or shutdown diagnostics.
+    enforced_by: [woff/tests/test_deferred_ingestion.py]
   EVAL-IDENTITY-001:
     work_items: [issue-70]
     status: implemented
@@ -634,7 +638,7 @@ work_items:
   issue-27:
     title: Reprocess pilot files when the Dossier is not available yet
     module: ingestion
-    state: backlog
+    state: in_progress
     evals: [EVAL-DEFER-001, EVAL-DEFER-002]
     gates: [Q0, Q1, Q3, Q6-CYCLE-3.3.0]
     depends_on:
@@ -646,6 +650,7 @@ work_items:
       - {id: issue-71, status: satisfied}
       - {id: issue-94, status: satisfied}
       - {id: issue-95, status: satisfied}
+      - {id: issue-73, status: satisfied}
   issue-28:
     title: Validate pilots in every woff_query output format
     module: presentation

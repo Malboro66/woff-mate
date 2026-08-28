@@ -35,6 +35,14 @@ def _scheduler_metrics(**overrides):
         "retry_exhausted": 0,
         "retry_shutdown": 0,
         "superseded_retries": 0,
+        "dependency_pending": 0,
+        "dependency_deferred": 0,
+        "dependency_replays": 0,
+        "dependency_shutdown": 0,
+        "dependency_expired": 0,
+        "dependency_exhausted": 0,
+        "dependency_saturated": 0,
+        "dependency_retained_bytes": 0,
     }
     values.update(overrides)
     return values
@@ -155,7 +163,14 @@ def test_two_watched_roots_route_every_slot_dependent_to_its_own_career(
         database.close()
 
 
-def _encoded_dossier(first_name: str, last_name: str, rank: str, squadron: str):
+def _encoded_dossier(
+    first_name: str,
+    last_name: str,
+    rank: str,
+    squadron: str,
+    *,
+    include_wingman: bool = False,
+):
     lines = ["Null"] * 105
     for index, value in {
         3: rank,
@@ -173,6 +188,12 @@ def _encoded_dossier(first_name: str, last_name: str, rank: str, squadron: str):
         89: "Arras",
     }.items():
         lines[index] = value
+    if include_wingman:
+        lines.append(
+            "Lieutenant;Arthur;Able;3;5;In Service;0;0;0;0;0;6;"
+            "1550;1500;9;2;8;8;1896;Reliable pilot.;75;21;651;1;"
+            "19/7/1913;Arras;2;0;Null;Null;Null;Null;Null;Null;Null"
+        )
     return _encode_dossier(lines, "Pilot1Dossier.txt")
 
 class TestHandlerIntegration(unittest.TestCase):
@@ -248,7 +269,7 @@ class TestHandlerIntegration(unittest.TestCase):
 
         self.assertIs(
             self.handler.processor.process(log_path, "created").status,
-            ProcessingStatus.PERMANENT_REJECTION,
+            ProcessingStatus.DEPENDENCY_PENDING,
         )
         self.assertEqual(
             self.db._get_conn().execute("SELECT COUNT(*) FROM pilots").fetchone(),
@@ -257,6 +278,156 @@ class TestHandlerIntegration(unittest.TestCase):
         self.assertEqual(
             self.db._get_conn().execute("SELECT COUNT(*) FROM missions").fetchone(),
             (0,),
+        )
+
+    def test_log_received_before_dossier_is_replayed_after_identity_persists(self):
+        log_path = os.path.join(self.tmp_dir, "Pilot1Log.txt")
+        dossier_path = os.path.join(self.tmp_dir, "Pilot1Dossier.txt")
+        log_processed = threading.Event()
+        process = self.handler.processor.process
+
+        def observe_log_processing(path, event_type, previous_generation=None):
+            outcome = process(path, event_type, previous_generation)
+            if path == log_path:
+                log_processed.set()
+            return outcome
+
+        self.handler.processor.process = observe_log_processing
+        with open(log_path, "w", encoding="cp1252") as source:
+            source.write(
+                "1\n6;4;1917;10;30;Arras;Filescamp;OP;SE.5a;;45;100;"
+                "SE.5a;No. 56 Squadron RFC;troops;Target;N50;E2;;"
+                "Deferred mission.\n"
+            )
+
+        self.assertTrue(self.handler.scheduler.submit(log_path, "created"))
+        self.assertTrue(log_processed.wait(2.0))
+
+        # A dependency replay must use the admitted stable bytes, not reopen a
+        # mutable source that changed without a new filesystem notification.
+        with open(log_path, "w", encoding="cp1252") as source:
+            source.write(
+                "1\n6;4;1917;10;30;Arras;Filescamp;OP;SE.5a;;45;100;"
+                "SE.5a;No. 56 Squadron RFC;troops;Target;N50;E2;;"
+                "Unnotified replacement.\n"
+            )
+
+        with open(dossier_path, "wb") as source:
+            source.write(
+                _encoded_dossier(
+                    "Alice", "Able", "Captain", "No. 56 Squadron RFC"
+                )
+            )
+        self.assertTrue(self.handler.scheduler.submit(dossier_path, "created"))
+        self.assertTrue(
+            self.handler.scheduler.wait_for_paths(
+                [log_path, dossier_path], 3.0
+            )
+        )
+        self.handler.shutdown()
+
+        connection = self.db._get_conn()
+        pilot_id = connection.execute(
+            "SELECT pilotId FROM pilot_slot_bindings WHERE slot=1"
+        ).fetchone()[0]
+        self.assertEqual(
+            connection.execute(
+                "SELECT pilotId, notes FROM missions"
+            ).fetchall(),
+            [(pilot_id, "Deferred mission.")],
+        )
+
+    def test_all_dependent_sources_converge_after_dossier_without_duplicates(self):
+        dossier_path = os.path.join(self.tmp_dir, "Pilot1Dossier.txt")
+        sources = {
+            os.path.join(self.tmp_dir, "Pilot1Log.txt"): (
+                "1\n6;4;1917;10;30;Arras;Filescamp;OP;SE.5a;;45;100;"
+                "SE.5a;No. 56 Squadron RFC;troops;Target;N50;E2;;"
+                "Deferred mission.\n"
+            ),
+            os.path.join(self.tmp_dir, "Pilot1Claims.txt"): (
+                "1\n6;4;1917;10;35;Arras;Filescamp;OP;SE.5a;1;"
+                "Albatros D.III;Destroyed Confirmed;Albatros\n"
+            ),
+            os.path.join(self.tmp_dir, "Pilot1Squads.txt"): (
+                "7;4;1917;10;30;Flanders;Filescamp;Updated Squadron;SE.5a;"
+                "SE.5a;Transferred, rank: Major.;Updated Squadron\n"
+            ),
+        }
+        processed = set()
+        processed_lock = threading.Lock()
+        all_processed = threading.Event()
+        process = self.handler.processor.process
+
+        def observe_processing(path, event_type, previous_generation=None):
+            outcome = process(path, event_type, previous_generation)
+            if path in sources:
+                with processed_lock:
+                    processed.add(path)
+                    if processed == set(sources):
+                        all_processed.set()
+            return outcome
+
+        self.handler.processor.process = observe_processing
+        for path, content in sources.items():
+            with open(path, "w", encoding="cp1252") as source:
+                source.write(content)
+            self.assertTrue(self.handler.scheduler.submit(path, "created"))
+            self.assertTrue(self.handler.scheduler.submit(path, "modified"))
+        self.assertTrue(all_processed.wait(3.0))
+
+        with open(dossier_path, "wb") as source:
+            source.write(
+                _encoded_dossier(
+                    "Alice",
+                    "Able",
+                    "Captain",
+                    "No. 56 Squadron RFC",
+                    include_wingman=True,
+                )
+            )
+        self.assertTrue(self.handler.scheduler.submit(dossier_path, "created"))
+        self.assertTrue(self.handler.scheduler.submit(dossier_path, "modified"))
+        self.assertTrue(
+            self.handler.scheduler.wait_for_paths(
+                [*sources, dossier_path], 5.0
+            )
+        )
+
+        connection = self.db._get_conn()
+        pilot = connection.execute(
+            "SELECT id, squadron, missions, flminutes, claimsCount, "
+            "killsCount, skill, reputation FROM pilots"
+        ).fetchone()
+        self.assertIsNotNone(pilot)
+        pilot_id = pilot[0]
+        self.assertEqual(
+            pilot[1:],
+            ("Updated Squadron", 2, 60, 1, 1, 50, 10),
+        )
+        self.assertEqual(
+            connection.execute(
+                "SELECT pilotId, COUNT(*) FROM missions GROUP BY pilotId"
+            ).fetchall(),
+            [(pilot_id, 1)],
+        )
+        self.assertEqual(
+            connection.execute(
+                "SELECT pilotId, COUNT(*) FROM victories GROUP BY pilotId"
+            ).fetchall(),
+            [(pilot_id, 1)],
+        )
+        self.assertEqual(
+            connection.execute(
+                "SELECT pilotId, COUNT(*) FROM diary_entries GROUP BY pilotId"
+            ).fetchall(),
+            [(pilot_id, 1)],
+        )
+        self.assertEqual(
+            connection.execute(
+                "SELECT pilotId, COUNT(*) FROM squad_members GROUP BY pilotId"
+            ).fetchall(),
+            [(pilot_id, 1)],
         )
 
     def test_mission_log_cannot_create_identityless_pilot(self):
@@ -315,7 +486,7 @@ class TestHandlerIntegration(unittest.TestCase):
             )
         self.assertIs(
             processor.process(log_path, "modified").status,
-            ProcessingStatus.PERMANENT_REJECTION,
+            ProcessingStatus.DEPENDENCY_PENDING,
         )
         self.assertEqual(
             self.db._get_conn().execute("SELECT COUNT(*) FROM missions").fetchone(),

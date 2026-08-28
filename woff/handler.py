@@ -45,6 +45,7 @@ from .identity import (
     PilotIdentityEvidence,
     PilotIdentityKind,
     PilotIdentityRejected,
+    PilotIdentityUnavailable,
     dossier_source_name,
     pilot_slot,
 )
@@ -179,9 +180,18 @@ class FileProcessor:
                         ProcessingReason.RETRY_TERMINATED
                     )
                 log.debug("Snapshot generation already processed: %s", _safe_filename(path))
-                return ProcessingOutcome.unchanged(snapshot.generation)
+                return ProcessingOutcome.unchanged(
+                    snapshot.generation,
+                    self._resolved_dependency(snapshot),
+                )
 
-            retry_input = self._verified_processing_input(path, snapshot)
+            try:
+                retry_input = self._verified_processing_input(path, snapshot)
+            except SnapshotFailure:
+                if not _requires_dependent_identity(snapshot.name):
+                    raise
+                retry_input = VerifiedProcessingInput(snapshot)
+                return self._dependency_pending(retry_input)
             return self._process_verified(
                 retry_input, event_type, record_discovery=True
             )
@@ -213,6 +223,29 @@ class FileProcessor:
             raise ValueError("only a transient processing outcome can be replayed")
         return self._process_verified(
             outcome.retry_input, event_type, record_discovery=False
+        )
+
+    def replay_dependency(
+        self, outcome: ProcessingOutcome, event_type: str
+    ) -> ProcessingOutcome:
+        """Replay retained source bytes after its Dossier dependency changes."""
+        if (
+            outcome.status is not ProcessingStatus.DEPENDENCY_PENDING
+            or outcome.retry_input is None
+        ):
+            raise ValueError("only a pending dependency can be replayed")
+        retained = outcome.retry_input
+        snapshot = retained.snapshot
+        try:
+            identity = self._dependent_identity(snapshot.path, snapshot.name)
+        except SnapshotFailure:
+            return self._dependency_pending(retained)
+        except PilotIdentityError as error:
+            return self._identity_rejection(snapshot.path, error)
+        return self._process_verified(
+            VerifiedProcessingInput(snapshot, identity),
+            event_type,
+            record_discovery=False,
         )
 
     def _verified_processing_input(
@@ -253,8 +286,13 @@ class FileProcessor:
                     ProcessingReason.UNSUPPORTED_SOURCE
                 )
             if rejection is None:
-                return ProcessingOutcome.success(snapshot.generation)
+                return ProcessingOutcome.success(
+                    snapshot.generation,
+                    self._resolved_dependency(snapshot),
+                )
             return ProcessingOutcome.permanent(rejection)
+        except PilotIdentityUnavailable:
+            return self._dependency_pending(retry_input)
         except PilotIdentityError as error:
             return self._identity_rejection(path, error)
         except sqlite3.Error as error:
@@ -281,6 +319,27 @@ class FileProcessor:
             return ProcessingOutcome.permanent(
                 ProcessingReason.UNEXPECTED_ERROR
             )
+
+    def _dependency_pending(
+        self, retry_input: VerifiedProcessingInput
+    ) -> ProcessingOutcome:
+        identity = retry_input.dependent_identity
+        dependency_key = (
+            identity.binding_key
+            if identity is not None
+            else self._dependent_binding_key(
+                retry_input.snapshot.path,
+                retry_input.snapshot.name,
+            )
+        )
+        log.info(
+            "Pilot identity dependency retained: source=%s slot=%d",
+            _safe_filename(retry_input.snapshot.path),
+            dependency_key[1],
+        )
+        return ProcessingOutcome.dependency_pending(
+            retry_input, dependency_key
+        )
 
     @staticmethod
     def _identity_rejection(
@@ -322,6 +381,17 @@ class FileProcessor:
             snapshot.generation.digest,
             campaign_namespace,
         )
+
+    def _resolved_dependency(
+        self, snapshot: StableFileSnapshot
+    ) -> Optional[tuple[str, int]]:
+        slot = pilot_slot(snapshot.name)
+        if (
+            slot is None
+            or snapshot.name.lower() != dossier_source_name(slot).lower()
+        ):
+            return None
+        return self._dossier_identity(snapshot).binding_key
 
     def _merge_and_process_latest_mission(
         self,
@@ -378,13 +448,9 @@ class FileProcessor:
     def _dependent_identity(
         self, path: str, source_name: str
     ) -> PilotIdentityEvidence:
-        slot = pilot_slot(source_name)
-        if slot is None:
-            raise PilotIdentityRejected("invalid-slot-source")
-        try:
-            campaign_namespace = self._campaign_namespaces.namespace_for(path)
-        except CampaignNamespaceError as error:
-            raise PilotIdentityRejected(str(error), slot) from error
+        campaign_namespace, slot = self._dependent_binding_key(
+            path, source_name
+        )
         dossier_path = os.path.join(
             os.path.dirname(path), dossier_source_name(slot)
         )
@@ -395,6 +461,18 @@ class FileProcessor:
             dossier.generation.digest,
             campaign_namespace,
         )
+
+    def _dependent_binding_key(
+        self, path: str, source_name: str
+    ) -> tuple[str, int]:
+        slot = pilot_slot(source_name)
+        if slot is None:
+            raise PilotIdentityRejected("invalid-slot-source")
+        try:
+            campaign_namespace = self._campaign_namespaces.namespace_for(path)
+        except CampaignNamespaceError as error:
+            raise PilotIdentityRejected(str(error), slot) from error
+        return campaign_namespace, slot
 
     def _process_xml(
         self, path: str, snapshot: Optional[StableFileSnapshot] = None
@@ -508,6 +586,7 @@ class WoFFEventHandler(FileSystemEventHandler):
             max_pending_events=config.max_pending_events,
             retry_process=self._execute_retry_pipeline,
             persistence_retry_process=self._execute_persistence_retry_pipeline,
+            dependency_retry_process=self._execute_dependency_retry_pipeline,
         )
         self._startup_admission_timeout = config.stability_timeout_sec
 
@@ -592,6 +671,13 @@ class WoFFEventHandler(FileSystemEventHandler):
         """Replay retained verified input without reopening mutable source bytes."""
         log.info("A repetir persistência [%s]: %s", event_type, _safe_filename(path))
         return self.processor.replay(previous_outcome, event_type)
+
+    def _execute_dependency_retry_pipeline(
+        self, path: str, event_type: str, previous_outcome: ProcessingOutcome
+    ) -> ProcessingOutcome:
+        """Replay retained bytes after the matching Dossier is persisted."""
+        log.info("A liberar dependência [%s]: %s", event_type, _safe_filename(path))
+        return self.processor.replay_dependency(previous_outcome, event_type)
 
     def metrics(self):
         return self.scheduler.metrics()

@@ -1,4 +1,4 @@
-"""Typed processing outcomes and bounded SQLite persistence retry policy."""
+"""Typed processing outcomes and bounded ingestion retry policies."""
 
 from __future__ import annotations
 
@@ -9,6 +9,7 @@ from enum import Enum
 from typing import Optional
 
 from ..identity import PilotIdentityEvidence
+from .deferred import DependencyKey
 from .snapshot import FileGeneration, StableFileSnapshot
 
 
@@ -19,6 +20,7 @@ class ProcessingStatus(str, Enum):
     UNCHANGED = "unchanged"
     PERMANENT_REJECTION = "permanent-rejection"
     TRANSIENT_FAILURE = "transient-failure"
+    DEPENDENCY_PENDING = "dependency-pending"
 
 
 class ProcessingReason(str, Enum):
@@ -29,6 +31,7 @@ class ProcessingReason(str, Enum):
     UNSUPPORTED_SOURCE = "unsupported-source"
     SNAPSHOT_REJECTED = "snapshot-rejected"
     IDENTITY_REJECTED = "identity-rejected"
+    IDENTITY_PENDING = "identity-pending"
     PARSER_REJECTED = "parser-rejected"
     PERSISTENCE_REJECTED = "persistence-rejected"
     RETRY_TERMINATED = "retry-terminated"
@@ -66,6 +69,8 @@ class ProcessingOutcome:
     reason: ProcessingReason
     generation: Optional[FileGeneration] = None
     retry_input: Optional[VerifiedProcessingInput] = None
+    dependency_key: Optional[DependencyKey] = None
+    resolved_dependency: Optional[DependencyKey] = None
 
     def __post_init__(self) -> None:
         acknowledged = self.status in {
@@ -82,35 +87,93 @@ class ProcessingOutcome:
                 self.reason is not expected_reason
                 or self.generation is None
                 or self.retry_input is not None
+                or self.dependency_key is not None
             ):
                 raise ValueError("acknowledged outcomes require only a generation")
+            self._validate_dependency_key(self.resolved_dependency)
             return
         if self.status is ProcessingStatus.TRANSIENT_FAILURE:
             if (
                 self.retry_input is None
                 or self.generation != self.retry_input.snapshot.generation
                 or self.reason not in _TRANSIENT_REASONS
+                or self.dependency_key is not None
+                or self.resolved_dependency is not None
             ):
                 raise ValueError(
                     "transient outcomes require matching verified retry input"
                 )
             return
+        if self.status is ProcessingStatus.DEPENDENCY_PENDING:
+            self._validate_dependency_key(self.dependency_key)
+            if (
+                self.retry_input is None
+                or self.generation != self.retry_input.snapshot.generation
+                or self.reason is not ProcessingReason.IDENTITY_PENDING
+                or self.dependency_key is None
+                or self.resolved_dependency is not None
+            ):
+                raise ValueError(
+                    "dependency outcomes require retained input and a binding key"
+                )
+            return
         if (
             self.reason in _TRANSIENT_REASONS
             or self.reason
-            in {ProcessingReason.SUCCESS, ProcessingReason.UNCHANGED}
+            in {
+                ProcessingReason.SUCCESS,
+                ProcessingReason.UNCHANGED,
+                ProcessingReason.IDENTITY_PENDING,
+            }
             or self.generation is not None
             or self.retry_input is not None
+            or self.dependency_key is not None
+            or self.resolved_dependency is not None
         ):
             raise ValueError("permanent rejection cannot acknowledge or retain input")
 
-    @classmethod
-    def success(cls, generation: FileGeneration) -> "ProcessingOutcome":
-        return cls(ProcessingStatus.SUCCESS, ProcessingReason.SUCCESS, generation)
+    @staticmethod
+    def _validate_dependency_key(
+        dependency_key: Optional[DependencyKey],
+    ) -> None:
+        if dependency_key is None:
+            return
+        if (
+            not isinstance(dependency_key, tuple)
+            or len(dependency_key) != 2
+            or not isinstance(dependency_key[0], str)
+            or not dependency_key[0]
+            or isinstance(dependency_key[1], bool)
+            or not isinstance(dependency_key[1], int)
+            or dependency_key[1] <= 0
+        ):
+            raise ValueError("dependency key requires namespace and positive slot")
 
     @classmethod
-    def unchanged(cls, generation: FileGeneration) -> "ProcessingOutcome":
-        return cls(ProcessingStatus.UNCHANGED, ProcessingReason.UNCHANGED, generation)
+    def success(
+        cls,
+        generation: FileGeneration,
+        resolved_dependency: Optional[DependencyKey] = None,
+    ) -> "ProcessingOutcome":
+        return cls(
+            ProcessingStatus.SUCCESS,
+            ProcessingReason.SUCCESS,
+            generation,
+            resolved_dependency=resolved_dependency,
+        )
+
+    @classmethod
+    def unchanged(
+        cls,
+        generation: FileGeneration,
+        resolved_dependency: Optional[DependencyKey] = None,
+    ) -> "ProcessingOutcome":
+        return cls(
+            ProcessingStatus.UNCHANGED,
+            ProcessingReason.UNCHANGED,
+            generation,
+            resolved_dependency=resolved_dependency,
+        )
 
     @classmethod
     def permanent(
@@ -129,6 +192,20 @@ class ProcessingOutcome:
             reason,
             retry_input.snapshot.generation,
             retry_input,
+        )
+
+    @classmethod
+    def dependency_pending(
+        cls,
+        retry_input: VerifiedProcessingInput,
+        dependency_key: DependencyKey,
+    ) -> "ProcessingOutcome":
+        return cls(
+            ProcessingStatus.DEPENDENCY_PENDING,
+            ProcessingReason.IDENTITY_PENDING,
+            retry_input.snapshot.generation,
+            retry_input,
+            dependency_key,
         )
 
     @property
