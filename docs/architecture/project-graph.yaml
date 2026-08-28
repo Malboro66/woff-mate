@@ -1,5 +1,5 @@
 version: 1
-updated: 2026-08-27
+updated: 2026-08-28
 
 project:
   repository: Malboro66/woff-mate
@@ -640,7 +640,7 @@ work_items:
   issue-27:
     title: Reprocess pilot files when the Dossier is not available yet
     module: ingestion
-    state: in_progress
+    state: done
     evals: [EVAL-DEFER-001, EVAL-DEFER-002]
     gates: [Q0, Q1, Q3, Q6-CYCLE-3.3.0]
     depends_on:

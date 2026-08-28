@@ -76,11 +76,11 @@ The aggregate eval passes only when:
 
 Green CI alone does not pass this aggregate eval.
 
-Implementation of #27 is active now that all of its dependencies are satisfied.
-Its two deferred-ingestion evals are implemented on the issue branch; the cycle
-remains incomplete until the change reaches `main` and the aggregate gate is
-reviewed. Issue #87 remains a separate sanitized-evidence gap and does not
-weaken or reopen the guarantees already verified by #70.
+Issue #27 and its two deferred-ingestion evals reached `main` through PR #115.
+Issue #87 remains the only unresolved cycle member. Its sanitized-evidence gap
+does not weaken or reopen the guarantees already verified by #70. The aggregate
+gate remains pending until #87 records either sufficient longitudinal evidence
+or the structural limitation defined by its acceptance criteria.
 
 ## Newly registered data-integrity evals
 
