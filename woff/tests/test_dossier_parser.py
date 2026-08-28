@@ -110,9 +110,173 @@ class TestWoFFDossierParser(unittest.TestCase):
         self.assertEqual(self.parser.pilot.name, "James Hartley")
         self.assertEqual(self.parser.pilot.nation, "French")
         self.assertEqual(self.parser.pilot.photo, "1")
+        self.assertEqual(self.parser.pilot.missions, 10)
+        self.assertEqual(self.parser.pilot.claimsCount, 5)
         self.assertEqual(self.parser.pilot.killsCount, 3)
+        self.assertEqual(self.parser.pilot.flminutes, 1520)
+        self.assertEqual(self.parser.pilot.skill, 75)
+        self.assertEqual(self.parser.pilot.reputation, 800)
         self.assertEqual(self.parser.pilot.startDate, "1915-09-20")
         self.assertEqual(self.parser.pilot.enlisted, "1918-11-11")
+
+    def test_signed_reputation_is_not_silently_rewritten_to_zero(self):
+        for raw, expected in ((" -1 ", -1), (" +5 ", 5)):
+            with self.subTest(raw=raw):
+                lines = self.mock_lines.copy()
+                lines[52] = raw
+                parser = WoFFDossierParser()
+
+                self.assertTrue(
+                    parser.parse_bytes(
+                        _encode_dossier(lines, self.filename),
+                        self.filename,
+                    )
+                )
+                self.assertIsNotNone(parser.pilot)
+                assert parser.pilot is not None
+                self.assertEqual(parser.pilot.reputation, expected)
+
+    def test_invalid_reputation_remains_missing_with_privacy_safe_diagnostic(self):
+        lines = self.mock_lines.copy()
+        lines[52] = "not-a-number"
+        parser = WoFFDossierParser()
+
+        with self.assertLogs("WoFFWatch", level="WARNING") as captured:
+            self.assertTrue(
+                parser.parse_bytes(
+                    _encode_dossier(lines, self.filename),
+                    self.filename,
+                )
+            )
+
+        self.assertIsNotNone(parser.pilot)
+        assert parser.pilot is not None
+        self.assertIsNone(parser.pilot.reputation)
+        logged = " ".join(captured.output)
+        self.assertIn("source=Pilot1Dossier.txt", logged)
+        self.assertIn("field=reputation", logged)
+        self.assertIn("reason=invalid integer syntax", logged)
+        self.assertNotIn(parser.pilot.name, logged)
+
+    def test_unsigned_pilot_fields_reject_invalid_values_without_zero(self):
+        fields = (
+            (46, "missions"),
+            (16, "claimsCount"),
+            (17, "killsCount"),
+            (11, "flminutes"),
+            (41, "skill"),
+        )
+
+        invalid_values = (
+            ("-1", "invalid integer syntax"),
+            ("not-a-number", "invalid integer syntax"),
+            ("9" * 5_000, "integer outside permitted range"),
+        )
+
+        for index, field in fields:
+            for raw, reason in invalid_values:
+                with self.subTest(field=field, raw=raw):
+                    lines = self.mock_lines.copy()
+                    lines[index] = raw
+                    parser = WoFFDossierParser()
+
+                    with self.assertLogs("WoFFWatch", level="WARNING") as captured:
+                        self.assertTrue(
+                            parser.parse_bytes(
+                                _encode_dossier(lines, self.filename),
+                                self.filename,
+                            )
+                        )
+
+                    self.assertIsNotNone(parser.pilot)
+                    assert parser.pilot is not None
+                    self.assertIsNone(getattr(parser.pilot, field))
+                    logged = " ".join(captured.output)
+                    self.assertIn(f"field={field}", logged)
+                    self.assertIn(f"reason={reason}", logged)
+
+    def test_null_numeric_sentinel_remains_missing_without_warning(self):
+        fields = (
+            (46, "missions"),
+            (16, "claimsCount"),
+            (17, "killsCount"),
+            (11, "flminutes"),
+            (41, "skill"),
+            (52, "reputation"),
+        )
+
+        for index, field in fields:
+            with self.subTest(field=field):
+                lines = self.mock_lines.copy()
+                lines[index] = "Null"
+                parser = WoFFDossierParser()
+
+                with self.assertNoLogs("WoFFWatch", level="WARNING"):
+                    self.assertTrue(
+                        parser.parse_bytes(
+                            _encode_dossier(lines, self.filename),
+                            self.filename,
+                        )
+                    )
+
+                self.assertIsNotNone(parser.pilot)
+                assert parser.pilot is not None
+                self.assertIsNone(getattr(parser.pilot, field))
+
+    def test_explicit_zero_remains_authoritative_for_pilot_numeric_fields(self):
+        lines = self.mock_lines.copy()
+        for index in (46, 16, 17, 11, 41, 52):
+            lines[index] = "0"
+        parser = WoFFDossierParser()
+
+        self.assertTrue(
+            parser.parse_bytes(
+                _encode_dossier(lines, self.filename),
+                self.filename,
+            )
+        )
+
+        self.assertIsNotNone(parser.pilot)
+        assert parser.pilot is not None
+        self.assertEqual(
+            (
+                parser.pilot.missions,
+                parser.pilot.claimsCount,
+                parser.pilot.killsCount,
+                parser.pilot.flminutes,
+                parser.pilot.skill,
+                parser.pilot.reputation,
+            ),
+            (0, 0, 0, 0, 0, 0),
+        )
+
+    def test_dossier_integer_values_outside_sqlite_range_remain_missing(self):
+        cases = (
+            (46, "missions", str(1 << 63)),
+            (52, "reputation", str(-(1 << 63) - 1)),
+        )
+
+        for index, field, raw in cases:
+            with self.subTest(field=field):
+                lines = self.mock_lines.copy()
+                lines[index] = raw
+                parser = WoFFDossierParser()
+
+                with self.assertLogs("WoFFWatch", level="WARNING") as captured:
+                    self.assertTrue(
+                        parser.parse_bytes(
+                            _encode_dossier(lines, self.filename),
+                            self.filename,
+                        )
+                    )
+
+                self.assertIsNotNone(parser.pilot)
+                assert parser.pilot is not None
+                self.assertIsNone(getattr(parser.pilot, field))
+                self.assertIn(
+                    "reason=integer outside permitted range",
+                    " ".join(captured.output),
+                )
 
     def test_parse_dossier_wrong_filename(self):
         """Testa que chave XOR errada não produz o piloto correto."""
@@ -138,8 +302,80 @@ class TestWoFFDossierParser(unittest.TestCase):
         self.assertEqual(w.rank, "Lieutenant")
         self.assertEqual(w.fName, "John")
         self.assertEqual(w.sName, "Smith")
+        self.assertEqual(w.skill, 3)
+        self.assertEqual(w.morale, 5)
+        self.assertEqual(w.flminutes, 1550)
         self.assertEqual(w.status, "In Service")
         self.assertIn("Reliable pilot", w.bio)
+
+    def test_wingman_invalid_numeric_fields_reject_the_record_without_zero(self):
+        fields = (
+            (3, "wingman.skill"),
+            (4, "wingman.morale"),
+            (12, "wingman.flminutes"),
+        )
+
+        for index, field in fields:
+            for raw in ("-1", "not-a-number"):
+                with self.subTest(field=field, raw=raw):
+                    lines = self.mock_lines.copy()
+                    wingman_parts = lines[104].split(";")
+                    wingman_parts[index] = raw
+                    lines[104] = ";".join(wingman_parts)
+                    parser = WoFFDossierParser()
+
+                    with self.assertLogs("WoFFWatch", level="WARNING") as captured:
+                        self.assertTrue(
+                            parser.parse_bytes(
+                                _encode_dossier(lines, self.filename),
+                                self.filename,
+                            )
+                        )
+
+                    self.assertEqual(parser.wingmen, [])
+                    logged = " ".join(captured.output)
+                    self.assertIn(f"field={field}", logged)
+                    self.assertIn("reason=invalid integer syntax", logged)
+                    self.assertNotIn("John Smith", logged)
+
+    def test_wingman_missing_optional_flight_minutes_preserve_the_record(self):
+        for missing in ("absent", "empty", "Null"):
+            with self.subTest(missing=missing):
+                lines = self.mock_lines.copy()
+                wingman_parts = lines[104].split(";")
+                if missing == "absent":
+                    wingman_parts = wingman_parts[:12]
+                else:
+                    wingman_parts[12] = missing if missing == "Null" else ""
+                lines[104] = ";".join(wingman_parts)
+                parser = WoFFDossierParser()
+
+                with self.assertNoLogs("WoFFWatch", level="WARNING"):
+                    self.assertTrue(
+                        parser.parse_bytes(
+                            _encode_dossier(lines, self.filename),
+                            self.filename,
+                        )
+                    )
+
+                self.assertEqual(len(parser.wingmen), 1)
+                self.assertEqual(parser.wingmen[0].flminutes, 0)
+
+    def test_non_ascii_photo_id_is_not_accepted_as_unsigned_input(self):
+        lines = self.mock_lines.copy()
+        lines[100] = "１２"
+        parser = WoFFDossierParser()
+
+        self.assertTrue(
+            parser.parse_bytes(
+                _encode_dossier(lines, self.filename),
+                self.filename,
+            )
+        )
+
+        self.assertIsNotNone(parser.pilot)
+        assert parser.pilot is not None
+        self.assertEqual(parser.pilot.photo, "")
 
     def test_decorations_extraction(self):
         """Testa extração de medalhas nos índices 19-26."""

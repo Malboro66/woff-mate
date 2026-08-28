@@ -36,6 +36,11 @@ from ..normalization import (
     normalize_date,
     normalize_time,
 )
+from .numeric import (
+    UNSIGNED_SQLITE_INTEGER,
+    InvalidIntegerError,
+    parse_integer,
+)
 
 log = logging.getLogger("WoFFWatch")
 
@@ -89,10 +94,19 @@ class WoFFXMLParser:
                     return v.strip()
         return None
 
-    def _int_field(self, raw: str | None) -> int:
-        """Converte texto numérico do jogo em inteiro."""
-        value = (raw or "").strip()
-        return int(value) if value.isdigit() else 0
+    def _int_field(self, raw: str | None, field: str) -> int:
+        """Parse an optional nonnegative mission count."""
+        try:
+            parsed = parse_integer(raw, policy=UNSIGNED_SQLITE_INTEGER)
+        except InvalidIntegerError as exc:
+            log.warning(
+                "[XML] Mission rejected: category=invalid-integer "
+                "field=%s reason=%s",
+                field,
+                exc,
+            )
+            raise
+        return 0 if parsed is None else parsed
 
     def _bool_field(self, raw: str) -> bool:
         """Converte texto boleano do jogo em True/False."""
@@ -260,8 +274,30 @@ class WoFFXMLParser:
         m.altitude      = self._find(elem, "Altitude","Height","MaxAltitude","Hoehe") or ""
         m.sector        = self._find(elem, "Sector","Area","Zone","Location","Abschnitt") or ""
         m.weather       = self._find(elem, "Weather","Conditions","Wetter") or ""
-        m.enemyContacts = self._int_field(self._find(elem, "EnemyContacts","Contacts","Encounters","Feindkontakte"))
-        m.claimsCount   = self._int_field(self._find(elem, "Claims","Victories","kills","KillClaims","Abschuesse"))
+        try:
+            m.enemyContacts = self._int_field(
+                self._find(
+                    elem,
+                    "EnemyContacts",
+                    "Contacts",
+                    "Encounters",
+                    "Feindkontakte",
+                ),
+                "enemyContacts",
+            )
+            m.claimsCount = self._int_field(
+                self._find(
+                    elem,
+                    "Claims",
+                    "Victories",
+                    "kills",
+                    "KillClaims",
+                    "Abschuesse",
+                ),
+                "claimsCount",
+            )
+        except InvalidIntegerError:
+            return None
         m.notes         = self._find(elem, "Notes","Comment","Remarks","Bemerkung") or ""
 
         raw_result      = self._find(elem, "Result","Outcome","MissionResult","Ergebnis") or ""

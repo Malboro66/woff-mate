@@ -15,13 +15,35 @@ O WoFF ofusca este ficheiro com:
 
 import os
 import logging
+from dataclasses import replace
 from datetime import datetime
 from typing import Optional, List
 from ..models import WoFFPilot, WoFFWingman, WoFFDecoration
 # FIX: Importa as funções de normalização para aplicar aos dados do Dossier.
 from ..normalization import normalize_nation, normalize_date
+from .numeric import (
+    SIGNED_SQLITE_INTEGER,
+    UNSIGNED_SQLITE_INTEGER,
+    IntegerPolicy,
+    InvalidIntegerError,
+    parse_integer,
+)
 
 log = logging.getLogger("WoFFWatch")
+
+_DOSSIER_MISSING_TOKENS = frozenset({"null"})
+# Sanitized evidence confirms only reputation as signed-capable. Counts,
+# flight minutes, skill, and morale remain nonnegative until new samples prove
+# a broader domain.
+_DOSSIER_SIGNED_INTEGER = replace(
+    SIGNED_SQLITE_INTEGER,
+    missing_tokens=_DOSSIER_MISSING_TOKENS,
+)
+_DOSSIER_UNSIGNED_INTEGER = replace(
+    UNSIGNED_SQLITE_INTEGER,
+    missing_tokens=_DOSSIER_MISSING_TOKENS,
+)
+
 
 class WoFFDossierParser:
     def __init__(self):
@@ -119,9 +141,19 @@ class WoFFDossierParser:
             def safe_get(idx):
                 return player_data[idx] if len(player_data) > idx and player_data[idx] else ""
 
-            def safe_int(idx):
-                value = safe_get(idx)
-                return int(value) if value.isdigit() else 0
+            def parse_pilot_integer(
+                idx: int, field: str, policy: IntegerPolicy
+            ) -> Optional[int]:
+                try:
+                    return parse_integer(safe_get(idx), policy=policy)
+                except InvalidIntegerError as exc:
+                    log.warning(
+                        "[BIN] Numeric field rejected: source=%s field=%s reason=%s",
+                        fname,
+                        field,
+                        exc,
+                    )
+                    return None
             
             # 1. Índices fixos para estatísticas (confirmados no Java)
             self.pilot.fName = safe_get(4)
@@ -132,17 +164,29 @@ class WoFFDossierParser:
             self.pilot.aircraft = safe_get(84)
             self.pilot.aerodrome = safe_get(88)
             self.pilot.sector = safe_get(89)
-            self.pilot.missions = safe_int(46)
-            self.pilot.claimsCount = safe_int(16)
-            self.pilot.killsCount = safe_int(17)
-            self.pilot.flminutes = safe_int(11)
-            self.pilot.skill = safe_int(41)
-            self.pilot.reputation = safe_int(52)
+            self.pilot.missions = parse_pilot_integer(
+                46, "missions", _DOSSIER_UNSIGNED_INTEGER
+            )
+            self.pilot.claimsCount = parse_pilot_integer(
+                16, "claimsCount", _DOSSIER_UNSIGNED_INTEGER
+            )
+            self.pilot.killsCount = parse_pilot_integer(
+                17, "killsCount", _DOSSIER_UNSIGNED_INTEGER
+            )
+            self.pilot.flminutes = parse_pilot_integer(
+                11, "flminutes", _DOSSIER_UNSIGNED_INTEGER
+            )
+            self.pilot.skill = parse_pilot_integer(
+                41, "skill", _DOSSIER_UNSIGNED_INTEGER
+            )
+            self.pilot.reputation = parse_pilot_integer(
+                52, "reputation", _DOSSIER_SIGNED_INTEGER
+            )
             self.pilot.birthPlace = safe_get(92)
             
             # Extração do ID da Foto centralizada (Índice 100)
             photo_id = safe_get(100)
-            if photo_id and photo_id.isdigit():
+            if photo_id and photo_id.isascii() and photo_id.isdigit():
                 self.pilot.photo = photo_id
             
             # Datas (Campanha e Alistamento)
@@ -202,12 +246,44 @@ class WoFFDossierParser:
                 if ";" in s_clean and len(s_clean) > 20 and any(s_clean.startswith(rank) for rank in wingmen_ranks):
                     parts = [p.strip() for p in s_clean.split(";")]
                     if len(parts) >= 6:
+                        wingman_numeric: dict[str, int] = {}
+                        numeric_field = "unknown"
+                        try:
+                            for index, numeric_field in (
+                                (3, "skill"),
+                                (4, "morale"),
+                            ):
+                                raw_value = parts[index] if len(parts) > index else None
+                                parsed_value = parse_integer(
+                                    raw_value, policy=_DOSSIER_UNSIGNED_INTEGER
+                                )
+                                if parsed_value is None:
+                                    raise InvalidIntegerError("missing integer value")
+                                wingman_numeric[numeric_field] = parsed_value
+
+                            numeric_field = "flminutes"
+                            parsed_flight_minutes = parse_integer(
+                                parts[12] if len(parts) > 12 else None,
+                                policy=_DOSSIER_UNSIGNED_INTEGER,
+                            )
+                            if parsed_flight_minutes is not None:
+                                wingman_numeric[numeric_field] = parsed_flight_minutes
+                        except InvalidIntegerError as exc:
+                            log.warning(
+                                "[BIN] Numeric field rejected: source=%s "
+                                "field=wingman.%s reason=%s",
+                                fname,
+                                numeric_field,
+                                exc,
+                            )
+                            continue
+
                         w = WoFFWingman()
                         w.rank = parts[0]
                         w.fName = parts[1]
                         w.sName = parts[2]
-                        w.skill = int(parts[3]) if len(parts) > 3 and parts[3].isdigit() else 0
-                        w.morale = int(parts[4]) if len(parts) > 4 and parts[4].isdigit() else 0
+                        w.skill = wingman_numeric["skill"]
+                        w.morale = wingman_numeric["morale"]
                         w.status = parts[5] if len(parts) > 5 else "Active"
                         
                         for part in parts:
@@ -215,8 +291,8 @@ class WoFFDossierParser:
                                 w.bio = part
                                 break
                         
-                        if len(parts) > 12 and parts[12].isdigit():
-                            w.flminutes = int(parts[12])
+                        if "flminutes" in wingman_numeric:
+                            w.flminutes = wingman_numeric["flminutes"]
                             
                         self.wingmen.append(w)
 
