@@ -443,12 +443,20 @@ evals:
     enforced_by: [woff/tests/test_victory_decoration_merge.py, woff/tests/test_victory_identity_migration.py]
   EVAL-NUM-001:
     work_items: [issue-41]
-    status: planned
+    status: implemented
     evidence: A permitted signed integer never becomes zero silently.
+    enforced_by:
+      - woff/tests/test_numeric_parser.py
+      - woff/tests/test_dossier_parser.py
   EVAL-NUM-002:
     work_items: [issue-41]
-    status: planned
+    status: implemented
     evidence: An unsigned field rejects negative input.
+    enforced_by:
+      - woff/tests/test_numeric_parser.py
+      - woff/tests/test_dossier_parser.py
+      - woff/tests/test_xml_parser.py
+      - woff/tests/test_pilot_data_parser.py
   EVAL-NATION-001:
     work_items: [issue-38]
     status: planned
@@ -628,6 +636,26 @@ evals:
       - issue-27
     status: planned
     evidence: Every 3.3.0 member passes its acceptance criteria and applicable evals before the tracker closes.
+  EVAL-CYCLE-340-001:
+    work_items:
+      - issue-41
+      - issue-38
+      - issue-74
+      - issue-35
+      - issue-37
+      - issue-44
+      - issue-43
+      - issue-28
+      - issue-75
+      - issue-76
+      - issue-96
+      - issue-97
+      - issue-101
+      - issue-79
+      - issue-80
+      - issue-81
+    status: planned
+    evidence: Every 3.4.0 member passes its acceptance criteria and applicable evals before the cycle is approved.
 
 work_items:
   issue-26:
@@ -690,7 +718,7 @@ work_items:
     evals: [EVAL-DOSSIER-001, EVAL-DOSSIER-002]
     gates: [Q0, Q1, Q3, Q6-CYCLE-3.4.0]
     depends_on:
-      - {id: issue-41, status: unsatisfied}
+      - {id: issue-41, status: satisfied}
       - {id: issue-38, status: unsatisfied}
   issue-36:
     title: Bound and coalesce filesystem event scheduling
@@ -733,8 +761,8 @@ work_items:
     depends_on: []
   issue-41:
     title: Parse signed integers without silently converting them to zero
-    module: domain
-    state: backlog
+    module: ingestion
+    state: done
     evals: [EVAL-NUM-001, EVAL-NUM-002]
     gates: [Q0, Q1, Q6-CYCLE-3.4.0]
     depends_on: []
@@ -1031,7 +1059,7 @@ cycles:
     aggregate_eval: EVAL-CYCLE-330-001
     gate: Q6-CYCLE-3.3.0
   cycle-3.4.0:
-    state: planned
+    state: active
     members:
       - issue-41
       - issue-38
@@ -1049,6 +1077,7 @@ cycles:
       - issue-79
       - issue-80
       - issue-81
+    aggregate_eval: EVAL-CYCLE-340-001
     gate: Q6-CYCLE-3.4.0
   cycle-3.5.0:
     state: planned
