@@ -143,7 +143,7 @@ Green CI without this evidence does not approve a public release.
 
 Issue #50 closes only when all conditions below pass:
 
-- #34, #57, #45, #36, #42, #40, #39, #70, #71, #72, #93, #94, #95, #73, and #27 are complete
+- #34, #57, #45, #36, #42, #40, #39, #70, #87, #71, #72, #93, #94, #95, #73, and #27 are complete
 - every dependency in `cycle-3.3.0` is satisfied
 - all member acceptance criteria are demonstrated
 - every applicable eval in `EVAL-CYCLE-330-001` passes
