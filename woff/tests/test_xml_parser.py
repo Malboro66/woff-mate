@@ -182,6 +182,45 @@ class TestWoFFXMLParser(unittest.TestCase):
         self.assertFalse(m.woundsReceived)
         self.assertEqual(m.source_file, os.path.basename(self.tmp_file.name))
 
+    def test_invalid_xml_counts_reject_only_the_affected_mission(self):
+        fields = (
+            ("EnemyContacts", "enemyContacts"),
+            ("Claims", "claimsCount"),
+        )
+
+        for tag, field in fields:
+            for raw in ("-1", "not-a-number"):
+                with self.subTest(field=field, raw=raw):
+                    xml = f"""<?xml version="1.0" encoding="UTF-8"?>
+<Campaign>
+  <Pilot><PilotName>Numeric Contract Pilot</PilotName></Pilot>
+  <Missions>
+    <Mission>
+      <Date>1917-04-06</Date><Time>10:30</Time><Type>Patrol</Type>
+      <{tag}>{raw}</{tag}>
+    </Mission>
+    <Mission>
+      <Date>1917-04-07</Date><Time>10:30</Time><Type>Patrol</Type>
+      <{tag}>0</{tag}>
+    </Mission>
+  </Missions>
+</Campaign>
+"""
+                    parser = WoFFXMLParser()
+
+                    with self.assertLogs("WoFFWatch", level="WARNING") as captured:
+                        self.assertTrue(
+                            parser.parse_bytes(xml.encode("utf-8"), "campaign.xml")
+                        )
+
+                    self.assertEqual(len(parser.missions), 1)
+                    self.assertEqual(parser.missions[0].date, "1917-04-07")
+                    self.assertEqual(getattr(parser.missions[0], field), 0)
+                    logged = " ".join(captured.output)
+                    self.assertIn("category=invalid-integer", logged)
+                    self.assertIn(f"field={field}", logged)
+                    self.assertNotIn("Numeric Contract Pilot", logged)
+
     def test_mission_temporal_contract_rejects_invalid_dates_and_times(self):
         xml = """<?xml version="1.0" encoding="UTF-8"?>
 <Campaign>
