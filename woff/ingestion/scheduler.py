@@ -9,9 +9,10 @@ import time
 from collections import OrderedDict
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
-from typing import Any, Callable, Dict, Optional, Protocol, Tuple
+from typing import Any, Callable, Dict, Optional, Protocol, Set, Tuple
 
 from ..campaign_namespace import canonical_windows_path
+from .deferred import DependencyKey, DependencyRetryPolicy
 from .outcome import (
     PersistenceRetryPolicy,
     ProcessingOutcome,
@@ -39,6 +40,15 @@ class _Executor(Protocol):
 class _PathState:
     pending: Optional[Event] = None
     terminal_outcome: Optional[ProcessingOutcome] = None
+    deferred_event: Optional[Event] = None
+    deferred_outcome: Optional[ProcessingOutcome] = None
+    expected_dependency: Optional[DependencyKey] = None
+    matching_resolution_sequence: int = 0
+    dependency_baseline: int = 0
+    dependency_global_baseline: int = 0
+    dependency_attempts: int = 0
+    deferred_since: Optional[float] = None
+    retained_bytes: int = 0
 
 
 class EventScheduler:
@@ -58,7 +68,14 @@ class EventScheduler:
         persistence_retry_process: Optional[
             Callable[[str, str, ProcessingOutcome], Any]
         ] = None,
+        dependency_retry_process: Optional[
+            Callable[[str, str, ProcessingOutcome], Any]
+        ] = None,
+        dependency_key_for_event: Optional[
+            Callable[[str, str], Optional[DependencyKey]]
+        ] = None,
         persistence_retry_policy: Optional[PersistenceRetryPolicy] = None,
+        dependency_retry_policy: Optional[DependencyRetryPolicy] = None,
     ) -> None:
         if (
             isinstance(max_pending_events, bool)
@@ -69,8 +86,13 @@ class EventScheduler:
         self._process = process
         self._retry_process = retry_process
         self._persistence_retry_process = persistence_retry_process
+        self._dependency_retry_process = dependency_retry_process
+        self._dependency_key_for_event = dependency_key_for_event
         self._persistence_retry_policy = (
             persistence_retry_policy or PersistenceRetryPolicy()
+        )
+        self._dependency_retry_policy = (
+            dependency_retry_policy or DependencyRetryPolicy()
         )
         self._executor = executor or ThreadPoolExecutor(
             max_workers=max_workers, thread_name_prefix="woff-worker"
@@ -80,6 +102,8 @@ class EventScheduler:
         self._terminal_outcomes: OrderedDict[str, ProcessingOutcome] = (
             OrderedDict()
         )
+        self._deferred_by_dependency: Dict[DependencyKey, Set[str]] = {}
+        self._dependency_resolution_sequence = 0
         self._lock = threading.Lock()
         self._changed = threading.Condition(self._lock)
         self._accepting = True
@@ -100,7 +124,16 @@ class EventScheduler:
             "retry_exhausted": 0,
             "retry_shutdown": 0,
             "superseded_retries": 0,
+            "dependency_pending": 0,
+            "dependency_deferred": 0,
+            "dependency_replays": 0,
+            "dependency_shutdown": 0,
+            "dependency_expired": 0,
+            "dependency_exhausted": 0,
+            "dependency_saturated": 0,
+            "dependency_retained_bytes": 0,
         }
+        self._dependency_monitor: Optional[threading.Thread] = None
 
     @property
     def admitted_paths(self) -> int:
@@ -119,6 +152,19 @@ class EventScheduler:
     @property
     def persistence_retry_policy(self) -> PersistenceRetryPolicy:
         return self._persistence_retry_policy
+
+    @property
+    def dependency_retry_policy(self) -> DependencyRetryPolicy:
+        return self._dependency_retry_policy
+
+    @property
+    def dependency_resolution_records(self) -> int:
+        """Return bounded per-path dependency epoch records."""
+        with self._lock:
+            return sum(
+                state.matching_resolution_sequence > 0
+                for state in self._states.values()
+            )
 
     def metrics(self) -> Dict[str, int]:
         """Return an atomic snapshot of scheduler gauges and counters."""
@@ -154,8 +200,14 @@ class EventScheduler:
                     self._reject_locked("shutdown")
                     return False
             terminal_outcome = self._terminal_outcomes.pop(key, None)
+            expected_dependency = (
+                self._dependency_key_for_event(*event)
+                if self._dependency_key_for_event is not None
+                else None
+            )
             self._states[key] = _PathState(
-                terminal_outcome=terminal_outcome
+                terminal_outcome=terminal_outcome,
+                expected_dependency=expected_dependency,
             )
             self._metrics["queued"] += 1
             try:
@@ -179,18 +231,108 @@ class EventScheduler:
             self._metrics["shutdown_rejected"] += 1
         log.warning("Filesystem event rejected: scheduler %s", reason)
 
-    def _run(self, key: str, event: Event) -> None:
+    def _discard_pending_locked(self, state: _PathState) -> None:
+        """Release the queued gauge when a deferred path terminates."""
+        if state.pending is None:
+            return
+        state.pending = None
+        self._metrics["queued"] -= 1
+
+    def _release_retained_bytes_locked(self, state: _PathState) -> None:
+        if state.retained_bytes == 0:
+            return
+        self._metrics["dependency_retained_bytes"] -= state.retained_bytes
+        state.retained_bytes = 0
+
+    def _charge_retained_bytes_locked(
+        self, state: _PathState, retained_bytes: int
+    ) -> bool:
+        delta = retained_bytes - state.retained_bytes
+        if (
+            delta > 0
+            and self._metrics["dependency_retained_bytes"] + delta
+            > self._dependency_retry_policy.max_retained_bytes
+        ):
+            return False
+        self._metrics["dependency_retained_bytes"] += delta
+        state.retained_bytes = retained_bytes
+        return True
+
+    @staticmethod
+    def _take_pending_locked(state: _PathState) -> Event:
+        """Start a coalesced generation with a fresh dependency budget."""
+        pending = state.pending
+        if pending is None:
+            raise RuntimeError("pending event required")
+        state.pending = None
+        state.dependency_attempts = 0
+        state.deferred_since = None
+        return pending
+
+    def _continue_pending_or_remove_locked(
+        self, key: str, state: _PathState
+    ) -> Optional[Event]:
+        """Release an old snapshot, preserving one accepted newer event."""
+        self._release_retained_bytes_locked(state)
+        if state.pending is not None:
+            self._metrics["retried"] += 1
+            return self._take_pending_locked(state)
+        del self._states[key]
+        return None
+
+    def _submit_pending_locked(self, key: str, state: _PathState) -> bool:
+        """Submit an already-counted newer event after old work terminates."""
+        event = self._take_pending_locked(state)
+        self._metrics["retried"] += 1
+        try:
+            self._executor.submit(self._run, key, event)
+        except Exception:
+            self._metrics["queued"] -= 1
+            self._metrics["rejected"] += 1
+            self._metrics["submission_failures"] += 1
+            del self._states[key]
+            log.warning(
+                "Coalesced event fallback submission failed; state released"
+            )
+            return False
+        return True
+
+    def _run(
+        self,
+        key: str,
+        event: Event,
+        dependency_outcome: Optional[ProcessingOutcome] = None,
+    ) -> None:
         state = self._states[key]
-        previous_result: Any = state.terminal_outcome
+        previous_result: Any = dependency_outcome or state.terminal_outcome
         coalesced_retry = state.terminal_outcome is not None
         persistence_retry = False
+        dependency_retry = dependency_outcome is not None
         persistence_attempts = 0
         while True:
             with self._lock:
+                if not persistence_retry:
+                    state.dependency_baseline = (
+                        state.matching_resolution_sequence
+                    )
+                    state.dependency_global_baseline = (
+                        self._dependency_resolution_sequence
+                    )
                 self._metrics["queued"] -= 1
                 self._metrics["active"] += 1
             try:
-                if persistence_retry:
+                if dependency_retry:
+                    if (
+                        self._dependency_retry_process is None
+                        or not isinstance(previous_result, ProcessingOutcome)
+                    ):
+                        raise RuntimeError(
+                            "dependency retry requires a typed retry callback"
+                        )
+                    previous_result = self._dependency_retry_process(
+                        *event, previous_result
+                    )
+                elif persistence_retry:
                     if (
                         self._persistence_retry_process is None
                         or not isinstance(previous_result, ProcessingOutcome)
@@ -242,6 +384,43 @@ class EventScheduler:
 
                 if (
                     outcome is not None
+                    and outcome.resolved_dependency is not None
+                    and outcome.status
+                    in {ProcessingStatus.SUCCESS, ProcessingStatus.UNCHANGED}
+                ):
+                    self._resolve_dependency_locked(
+                        outcome.resolved_dependency
+                    )
+
+                if (
+                    outcome is not None
+                    and outcome.status is ProcessingStatus.DEPENDENCY_PENDING
+                ):
+                    next_event = self._defer_dependency_locked(
+                        key, event, state, outcome
+                    )
+                    self._changed.notify_all()
+                    if next_event is not None:
+                        event = next_event
+                        persistence_attempts = 0
+                        coalesced_retry = True
+                        persistence_retry = False
+                        dependency_retry = False
+                        continue
+                    return
+
+                if (
+                    outcome is None
+                    or outcome.status
+                    not in {
+                        ProcessingStatus.DEPENDENCY_PENDING,
+                        ProcessingStatus.TRANSIENT_FAILURE,
+                    }
+                ):
+                    self._release_retained_bytes_locked(state)
+
+                if (
+                    outcome is not None
                     and outcome.status is not ProcessingStatus.TRANSIENT_FAILURE
                     and outcome.reason is not ProcessingReason.RETRY_TERMINATED
                 ):
@@ -251,12 +430,12 @@ class EventScheduler:
                     outcome is None
                     or outcome.status is not ProcessingStatus.TRANSIENT_FAILURE
                 ):
-                    event = state.pending
-                    state.pending = None
+                    event = self._take_pending_locked(state)
                     self._metrics["retried"] += 1
                     persistence_attempts = 0
                     coalesced_retry = True
                     persistence_retry = False
+                    dependency_retry = False
                     continue
 
                 if (
@@ -283,21 +462,32 @@ class EventScheduler:
                         outcome,
                         persistence_attempts,
                     )
-                    state.terminal_outcome = outcome
+                    generation = outcome.generation
+                    if generation is None:
+                        raise RuntimeError(
+                            "transient outcome requires a generation"
+                        )
+                    state.terminal_outcome = (
+                        ProcessingOutcome.retry_terminated(generation)
+                    )
+                    self._release_retained_bytes_locked(state)
                     if state.pending is not None:
-                        event = state.pending
-                        state.pending = None
+                        event = self._take_pending_locked(state)
                         self._metrics["retried"] += 1
                         persistence_attempts = 0
                         coalesced_retry = True
                         persistence_retry = False
+                        dependency_retry = False
                         continue
-                    self._remember_terminal_locked(key, outcome)
+                    self._remember_terminal_locked(
+                        key, state.terminal_outcome
+                    )
                     del self._states[key]
                     self._changed.notify_all()
                     return
 
                 if not self._accepting:
+                    self._release_retained_bytes_locked(state)
                     self._metrics["retry_shutdown"] += 1
                     self._log_retry_terminal(
                         "Persistence retry cancelled at shutdown",
@@ -306,12 +496,12 @@ class EventScheduler:
                         persistence_attempts,
                     )
                     if state.pending is not None:
-                        event = state.pending
-                        state.pending = None
+                        event = self._take_pending_locked(state)
                         self._metrics["retried"] += 1
                         persistence_attempts = 0
                         coalesced_retry = True
                         persistence_retry = False
+                        dependency_retry = False
                         continue
                     del self._states[key]
                     self._changed.notify_all()
@@ -324,6 +514,7 @@ class EventScheduler:
                 self._metrics["retry_pending"] += 1
                 while True:
                     if not self._accepting:
+                        self._release_retained_bytes_locked(state)
                         self._metrics["retry_pending"] -= 1
                         self._metrics["retry_shutdown"] += 1
                         self._log_retry_terminal(
@@ -333,12 +524,12 @@ class EventScheduler:
                             persistence_attempts,
                         )
                         if state.pending is not None:
-                            event = state.pending
-                            state.pending = None
+                            event = self._take_pending_locked(state)
                             self._metrics["retried"] += 1
                             persistence_attempts = 0
                             coalesced_retry = True
                             persistence_retry = False
+                            dependency_retry = False
                             break
                         del self._states[key]
                         self._changed.notify_all()
@@ -351,8 +542,259 @@ class EventScheduler:
                         self._metrics["transient_retries"] += 1
                         coalesced_retry = False
                         persistence_retry = True
+                        dependency_retry = False
                         break
                     self._changed.wait(remaining)
+
+    def _defer_dependency_locked(
+        self,
+        key: str,
+        event: Event,
+        state: _PathState,
+        outcome: ProcessingOutcome,
+    ) -> Optional[Event]:
+        dependency_key = outcome.dependency_key
+        retry_input = outcome.retry_input
+        if dependency_key is None or retry_input is None:
+            raise RuntimeError(
+                "pending dependency requires retained input and a binding key"
+            )
+        if not self._accepting:
+            self._metrics["dependency_shutdown"] += 1
+            self._log_dependency_terminal(
+                "Deferred dependency cancelled at shutdown", event, outcome
+            )
+            self._release_retained_bytes_locked(state)
+            self._discard_pending_locked(state)
+            del self._states[key]
+            return None
+        now = time.monotonic()
+        if state.deferred_since is None:
+            state.deferred_since = now
+        state.dependency_attempts += 1
+        if state.dependency_attempts >= self._dependency_retry_policy.max_attempts:
+            self._metrics["dependency_exhausted"] += 1
+            self._log_dependency_terminal(
+                "Deferred dependency exhausted",
+                event,
+                outcome,
+                state.dependency_attempts,
+            )
+            return self._continue_pending_or_remove_locked(key, state)
+        if (
+            now - state.deferred_since
+            >= self._dependency_retry_policy.max_age_seconds
+        ):
+            self._metrics["dependency_expired"] += 1
+            self._log_dependency_terminal(
+                "Deferred dependency expired",
+                event,
+                outcome,
+                state.dependency_attempts,
+            )
+            return self._continue_pending_or_remove_locked(key, state)
+        retained_bytes = len(retry_input.snapshot.data)
+        if not self._charge_retained_bytes_locked(state, retained_bytes):
+            self._metrics["dependency_saturated"] += 1
+            self._log_dependency_memory_terminal(
+                event,
+                outcome,
+                self._metrics["dependency_retained_bytes"],
+                self._dependency_retry_policy.max_retained_bytes,
+            )
+            return self._continue_pending_or_remove_locked(key, state)
+        expected_dependency = state.expected_dependency
+        exact_resolution_seen = (
+            expected_dependency == dependency_key
+            and state.matching_resolution_sequence
+            > state.dependency_baseline
+        )
+        fallback_resolution_seen = (
+            expected_dependency != dependency_key
+            and self._dependency_resolution_sequence
+            > state.dependency_global_baseline
+        )
+        state.expected_dependency = dependency_key
+        if exact_resolution_seen or fallback_resolution_seen:
+            self._metrics["queued"] += 1
+            self._metrics["retried"] += 1
+            self._metrics["dependency_replays"] += 1
+            try:
+                self._executor.submit(self._run, key, event, outcome)
+            except Exception:
+                self._metrics["queued"] -= 1
+                self._metrics["rejected"] += 1
+                self._metrics["submission_failures"] += 1
+                log.warning(
+                    "Deferred dependency submission failed; state released"
+                )
+                return self._continue_pending_or_remove_locked(key, state)
+            return None
+        state.deferred_event = event
+        state.deferred_outcome = outcome
+        self._deferred_by_dependency.setdefault(
+            dependency_key, set()
+        ).add(key)
+        self._metrics["dependency_pending"] += 1
+        self._metrics["dependency_deferred"] += 1
+        try:
+            self._start_dependency_monitor_locked()
+        except Exception:
+            waiting = self._deferred_by_dependency.get(dependency_key)
+            if waiting is not None:
+                waiting.discard(key)
+                if not waiting:
+                    del self._deferred_by_dependency[dependency_key]
+            self._metrics["dependency_pending"] -= 1
+            state.deferred_event = None
+            state.deferred_outcome = None
+            self._metrics["rejected"] += 1
+            self._metrics["submission_failures"] += 1
+            log.warning(
+                "Deferred dependency monitor unavailable; state released"
+            )
+            return self._continue_pending_or_remove_locked(key, state)
+        return None
+
+    def _start_dependency_monitor_locked(self) -> None:
+        if self._dependency_monitor is not None:
+            return
+        monitor = threading.Thread(
+            target=self._monitor_dependencies,
+            name="woff-dependency-monitor",
+            daemon=True,
+        )
+        monitor.start()
+        self._dependency_monitor = monitor
+
+    def _cancel_deferred_locked(
+        self, key: str, state: _PathState
+    ) -> None:
+        outcome = state.deferred_outcome
+        event = state.deferred_event
+        if outcome is None or event is None:
+            return
+        dependency_key = outcome.dependency_key
+        if dependency_key is not None:
+            waiting = self._deferred_by_dependency.get(dependency_key)
+            if waiting is not None:
+                waiting.discard(key)
+                if not waiting:
+                    del self._deferred_by_dependency[dependency_key]
+        self._metrics["dependency_pending"] -= 1
+        self._release_retained_bytes_locked(state)
+        self._metrics["dependency_shutdown"] += 1
+        self._log_dependency_terminal(
+            "Deferred dependency cancelled at shutdown", event, outcome
+        )
+        self._discard_pending_locked(state)
+        del self._states[key]
+
+    def _expire_deferred_locked(
+        self, key: str, state: _PathState
+    ) -> None:
+        outcome = state.deferred_outcome
+        event = state.deferred_event
+        if outcome is None or event is None:
+            return
+        dependency_key = outcome.dependency_key
+        if dependency_key is not None:
+            waiting = self._deferred_by_dependency.get(dependency_key)
+            if waiting is not None:
+                waiting.discard(key)
+                if not waiting:
+                    del self._deferred_by_dependency[dependency_key]
+        self._metrics["dependency_pending"] -= 1
+        state.deferred_event = None
+        state.deferred_outcome = None
+        self._metrics["dependency_expired"] += 1
+        self._log_dependency_terminal(
+            "Deferred dependency expired",
+            event,
+            outcome,
+            state.dependency_attempts,
+        )
+        self._release_retained_bytes_locked(state)
+        if state.pending is not None:
+            self._submit_pending_locked(key, state)
+        else:
+            del self._states[key]
+
+    def _monitor_dependencies(self) -> None:
+        while True:
+            with self._changed:
+                if not self._accepting:
+                    return
+                deadlines = [
+                    state.deferred_since
+                    + self._dependency_retry_policy.max_age_seconds
+                    for state in self._states.values()
+                    if state.deferred_outcome is not None
+                    and state.deferred_since is not None
+                ]
+                if not deadlines:
+                    self._changed.wait()
+                    continue
+                remaining = min(deadlines) - time.monotonic()
+                if remaining > 0:
+                    self._changed.wait(remaining)
+                    continue
+                now = time.monotonic()
+                for key, state in list(self._states.items()):
+                    if (
+                        state.deferred_outcome is not None
+                        and state.deferred_since is not None
+                        and now - state.deferred_since
+                        >= self._dependency_retry_policy.max_age_seconds
+                    ):
+                        self._expire_deferred_locked(key, state)
+                self._changed.notify_all()
+
+    def _resolve_dependency_locked(
+        self, dependency_key: DependencyKey
+    ) -> None:
+        self._dependency_resolution_sequence += 1
+        for state in self._states.values():
+            if state.expected_dependency == dependency_key:
+                state.matching_resolution_sequence = (
+                    self._dependency_resolution_sequence
+                )
+        self._release_dependency_locked(dependency_key)
+
+    def _release_dependency_locked(
+        self, dependency_key: DependencyKey
+    ) -> None:
+        waiting = self._deferred_by_dependency.pop(dependency_key, set())
+        for key in waiting:
+            state = self._states.get(key)
+            if (
+                state is None
+                or state.deferred_event is None
+                or state.deferred_outcome is None
+            ):
+                continue
+            event = state.deferred_event
+            outcome = state.deferred_outcome
+            state.deferred_event = None
+            state.deferred_outcome = None
+            self._metrics["dependency_pending"] -= 1
+            self._metrics["queued"] += 1
+            self._metrics["retried"] += 1
+            self._metrics["dependency_replays"] += 1
+            try:
+                self._executor.submit(self._run, key, event, outcome)
+            except Exception:
+                self._metrics["queued"] -= 1
+                self._metrics["rejected"] += 1
+                self._metrics["submission_failures"] += 1
+                log.warning(
+                    "Deferred dependency submission failed; state released"
+                )
+                self._release_retained_bytes_locked(state)
+                if state.pending is not None:
+                    self._submit_pending_locked(key, state)
+                else:
+                    del self._states[key]
 
     def _remember_terminal_locked(
         self, key: str, outcome: ProcessingOutcome
@@ -378,12 +820,62 @@ class EventScheduler:
             attempts,
         )
 
+    @staticmethod
+    def _log_dependency_terminal(
+        message: str,
+        event: Event,
+        outcome: ProcessingOutcome,
+        attempts: Optional[int] = None,
+    ) -> None:
+        slot = outcome.dependency_key[1] if outcome.dependency_key else 0
+        if attempts is not None:
+            log.error(
+                "%s: source=%s category=%s slot=%d attempts=%d",
+                message,
+                _safe_filename(event[0]),
+                outcome.reason.value,
+                slot,
+                attempts,
+            )
+            return
+        log.error(
+            "%s: source=%s category=%s slot=%d",
+            message,
+            _safe_filename(event[0]),
+            outcome.reason.value,
+            slot,
+        )
+
+    @staticmethod
+    def _log_dependency_memory_terminal(
+        event: Event,
+        outcome: ProcessingOutcome,
+        retained_bytes: int,
+        limit_bytes: int,
+    ) -> None:
+        slot = outcome.dependency_key[1] if outcome.dependency_key else 0
+        log.error(
+            "Deferred dependency memory limit reached: "
+            "source=%s category=%s slot=%d retained_bytes=%d limit_bytes=%d",
+            _safe_filename(event[0]),
+            outcome.reason.value,
+            slot,
+            retained_bytes,
+            limit_bytes,
+        )
+
     def shutdown(self) -> None:
         """Stop admission and wait for every accepted generation to finish."""
         with self._changed:
             self._accepting = False
+            for key, state in list(self._states.items()):
+                if state.deferred_outcome is not None:
+                    self._cancel_deferred_locked(key, state)
+            dependency_monitor = self._dependency_monitor
             self._changed.notify_all()
         self._executor.shutdown(wait=True)
+        if dependency_monitor is not None:
+            dependency_monitor.join()
 
     def wait_for_paths(self, paths: list[str], timeout: float) -> bool:
         """Wait at most ``timeout`` for the named admitted paths to drain."""
@@ -391,6 +883,24 @@ class EventScheduler:
         deadline = time.monotonic() + timeout
         with self._changed:
             while keys.intersection(self._states):
+                remaining = deadline - time.monotonic()
+                if remaining <= 0:
+                    return False
+                self._changed.wait(remaining)
+            return True
+
+    def wait_for_settled_paths(
+        self, paths: list[str], timeout: float
+    ) -> bool:
+        """Wait until paths finish or reach a retained dependency state."""
+        keys = {canonical_windows_path(path) for path in paths}
+        deadline = time.monotonic() + timeout
+        with self._changed:
+            while any(
+                key in self._states
+                and self._states[key].deferred_outcome is None
+                for key in keys
+            ):
                 remaining = deadline - time.monotonic()
                 if remaining <= 0:
                     return False

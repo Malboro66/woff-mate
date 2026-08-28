@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import ast
+import logging
 import sys
 from pathlib import Path
 from unittest.mock import MagicMock
@@ -240,7 +241,7 @@ def test_unknown_supported_file_is_metadata_only_before_ingestion(
     assert "preview bloqueado pela política de privacidade" in logged.lower()
 
 
-def test_identity_rejection_diagnostic_omits_personal_data_and_digest(
+def test_identity_dependency_diagnostic_omits_personal_data_and_digest(
     caplog, monkeypatch
 ) -> None:
     private_name = "PRIVATE PILOT NAME"
@@ -274,20 +275,20 @@ def test_identity_rejection_diagnostic_omits_personal_data_and_digest(
     processor = FileProcessor(database, MagicMock())
     processor.guard = MagicMock()
     processor.guard.acquire.return_value = snapshot
+    caplog.set_level(logging.INFO, logger="WoFFWatch")
 
     assert (
         processor.process(path, "modified").status
-        is ProcessingStatus.PERMANENT_REJECTION
+        is ProcessingStatus.DEPENDENCY_PENDING
     )
 
     diagnostics = [
         record.getMessage()
         for record in caplog.records
-        if "Pilot identity rejected" in record.getMessage()
+        if "Pilot identity dependency retained" in record.getMessage()
     ]
     assert diagnostics == [
-        "Pilot identity rejected: source=Pilot1Log.txt "
-        "category=stale-dossier-binding slot=1"
+        "Pilot identity dependency retained: source=Pilot1Log.txt slot=1"
     ]
     diagnostic = diagnostics[0]
     assert private_name not in diagnostic

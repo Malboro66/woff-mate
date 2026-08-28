@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 import os
 import threading
+import time
 from typing import Any, cast
 from unittest.mock import MagicMock
 
@@ -10,7 +11,11 @@ from ..campaign_namespace import campaign_namespace_for_root
 from ..handler import FileProcessor, FileStabilityGuard
 from ..campaign_engine import CampaignEngine
 from ..database import DatabaseManager
-from ..ingestion.outcome import ProcessingReason, ProcessingStatus
+from ..ingestion.outcome import (
+    ProcessingOutcome,
+    ProcessingReason,
+    ProcessingStatus,
+)
 from ..ingestion.scheduler import EventScheduler
 from ..ingestion.snapshot import (
     FileGeneration,
@@ -47,6 +52,14 @@ def _scheduler_metrics(**overrides):
         "retry_exhausted": 0,
         "retry_shutdown": 0,
         "superseded_retries": 0,
+        "dependency_pending": 0,
+        "dependency_deferred": 0,
+        "dependency_replays": 0,
+        "dependency_shutdown": 0,
+        "dependency_expired": 0,
+        "dependency_exhausted": 0,
+        "dependency_saturated": 0,
+        "dependency_retained_bytes": 0,
     }
     values.update(overrides)
     return values
@@ -446,10 +459,29 @@ def test_unresolved_identity_does_not_acknowledge_coalesced_generation(monkeypat
     processor = FileProcessor(database, engine)
     processor.guard = cast(Any, MagicMock())
     processor.guard.acquire.return_value = snapshot
+    dependency_outcomes = []
+    dossier_path = r"C:\Campaign\Pilot1Dossier.txt"
+
+    def process(submitted_path, event_type, previous=None):
+        if submitted_path == dossier_path:
+            return ProcessingOutcome.success(
+                snapshot.generation,
+                resolved_dependency=dependency_outcomes[0].dependency_key,
+            )
+        outcome = processor.process(
+            submitted_path, event_type, previous_generation=previous
+        )
+        if outcome.status is ProcessingStatus.DEPENDENCY_PENDING:
+            dependency_outcomes.append(outcome)
+        return outcome
+
     scheduler = EventScheduler(
-        processor.process, max_workers=2, max_pending_events=2,
+        process, max_workers=2, max_pending_events=2,
         retry_process=lambda submitted_path, event, previous: processor.process(
             submitted_path, event, previous_generation=previous
+        ),
+        dependency_retry_process=lambda _path, event, previous: (
+            processor.replay_dependency(previous, event)
         ),
     )
 
@@ -457,6 +489,15 @@ def test_unresolved_identity_does_not_acknowledge_coalesced_generation(monkeypat
     assert merge_started.wait(2)
     assert scheduler.submit(path.upper(), "initial")
     dossier_ready.set()
+    deadline = time.monotonic() + 2.0
+    while (
+        scheduler.metrics()["dependency_pending"] != 1
+        and time.monotonic() < deadline
+    ):
+        time.sleep(0.001)
+    assert scheduler.metrics()["dependency_pending"] == 1
+    assert scheduler.submit(dossier_path, "modified")
+    assert scheduler.wait_for_paths([path, dossier_path], 2.0)
     scheduler.shutdown()
 
     assert database.merge_and_write.call_count == 2
@@ -466,7 +507,8 @@ def test_unresolved_identity_does_not_acknowledge_coalesced_generation(monkeypat
     assert persisted["decorations"] == []
     assert processor.guard.acquire.call_count == 4
     assert scheduler.admitted_paths == 0
-    assert scheduler.metrics()["retried"] == 1
+    assert scheduler.metrics()["retried"] == 2
+    assert scheduler.metrics()["dependency_replays"] == 1
 
 
 @pytest.mark.parametrize(

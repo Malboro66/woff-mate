@@ -24,6 +24,14 @@ def _metrics(**overrides):
         "retry_exhausted": 0,
         "retry_shutdown": 0,
         "superseded_retries": 0,
+        "dependency_pending": 0,
+        "dependency_deferred": 0,
+        "dependency_replays": 0,
+        "dependency_shutdown": 0,
+        "dependency_expired": 0,
+        "dependency_exhausted": 0,
+        "dependency_saturated": 0,
+        "dependency_retained_bytes": 0,
     }
     values.update(overrides)
     return values
