@@ -90,7 +90,10 @@ class WoFFPilotDataParser:
         year = parts[2].strip()
         hour = parts[3].lower().removesuffix("h").strip()
         minute = parts[4].strip()
-        if not all(value.isdigit() for value in (day, month, year, hour, minute)):
+        if not all(
+            value.isascii() and value.isdigit()
+            for value in (day, month, year, hour, minute)
+        ):
             raise ValueError("date or time contains a non-numeric component")
         canonical_date = normalize_date(f"{day}/{month}/{year}")
         canonical_time = normalize_time(f"{hour}:{minute}")

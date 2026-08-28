@@ -1,6 +1,14 @@
 import pytest
 
-from ..parsers.numeric import IntegerPolicy, InvalidIntegerError, parse_integer
+from ..parsers.numeric import (
+    SIGNED_SQLITE_INTEGER,
+    SQLITE_INTEGER_MAX,
+    SQLITE_INTEGER_MIN,
+    UNSIGNED_SQLITE_INTEGER,
+    IntegerPolicy,
+    InvalidIntegerError,
+    parse_integer,
+)
 
 
 @pytest.mark.parametrize(
@@ -44,12 +52,35 @@ def test_policy_rejects_values_outside_declared_bounds(raw: str) -> None:
         parse_integer(raw, policy=policy)
 
 
-def test_declared_sentinel_is_accepted_outside_normal_bounds() -> None:
-    policy = IntegerPolicy(
-        allow_sign=True,
-        minimum=0,
-        maximum=100,
-        sentinels=frozenset({-1}),
-    )
+@pytest.mark.parametrize(
+    ("raw", "policy", "expected"),
+    [
+        (str(SQLITE_INTEGER_MIN), SIGNED_SQLITE_INTEGER, SQLITE_INTEGER_MIN),
+        (str(SQLITE_INTEGER_MAX), SIGNED_SQLITE_INTEGER, SQLITE_INTEGER_MAX),
+        (str(SQLITE_INTEGER_MAX), UNSIGNED_SQLITE_INTEGER, SQLITE_INTEGER_MAX),
+    ],
+)
+def test_sqlite_integer_boundaries_are_inclusive(
+    raw: str, policy: IntegerPolicy, expected: int
+) -> None:
+    assert parse_integer(raw, policy=policy) == expected
 
-    assert parse_integer("-1", policy=policy) == -1
+
+@pytest.mark.parametrize(
+    ("raw", "policy"),
+    [
+        (str(SQLITE_INTEGER_MIN - 1), SIGNED_SQLITE_INTEGER),
+        (str(SQLITE_INTEGER_MAX + 1), SIGNED_SQLITE_INTEGER),
+        (str(SQLITE_INTEGER_MAX + 1), UNSIGNED_SQLITE_INTEGER),
+    ],
+)
+def test_sqlite_integer_values_adjacent_to_boundaries_are_rejected(
+    raw: str, policy: IntegerPolicy
+) -> None:
+    with pytest.raises(InvalidIntegerError, match="outside permitted range"):
+        parse_integer(raw, policy=policy)
+
+
+def test_overlong_sqlite_integer_uses_the_controlled_range_error() -> None:
+    with pytest.raises(InvalidIntegerError, match="outside permitted range"):
+        parse_integer("9" * 5_000, policy=UNSIGNED_SQLITE_INTEGER)

@@ -437,6 +437,21 @@ class TestPilotLogRecordClassification(unittest.TestCase):
                     self.assertEqual(parser.missions, [])
                     self.assertEqual(parser.rejected_records, 1)
 
+    def test_non_ascii_date_and_time_components_remain_invalid(self):
+        ascii_to_full_width = str.maketrans("0123456789", "０１２３４５６７８９")
+
+        for index, field in enumerate(("day", "month", "year", "hour", "minute")):
+            with self.subTest(field=field):
+                fields = VERIFIED_FIELDS.copy()
+                fields[index] = fields[index].translate(ascii_to_full_width)
+
+                with self.assertLogs("WoFFWatch", level="WARNING"):
+                    parser, ok = self.parse_content("1\n" + self.line(fields) + "\n")
+
+                self.assertFalse(ok)
+                self.assertEqual(parser.missions, [])
+                self.assertEqual(parser.rejected_records, 1)
+
     def test_inline_sanitized_samples_end_to_end(self):
         for filename, sample, count, physical_count in (
             ("Pilot1Log.txt", PILOT1_SAMPLE, 2, 2),

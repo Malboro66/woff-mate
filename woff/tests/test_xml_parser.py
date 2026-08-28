@@ -189,7 +189,7 @@ class TestWoFFXMLParser(unittest.TestCase):
         )
 
         for tag, field in fields:
-            for raw in ("-1", "not-a-number"):
+            for raw in ("-1", "not-a-number", "9" * 5_000):
                 with self.subTest(field=field, raw=raw):
                     xml = f"""<?xml version="1.0" encoding="UTF-8"?>
 <Campaign>

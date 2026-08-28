@@ -44,6 +44,7 @@ _DOSSIER_UNSIGNED_INTEGER = replace(
     missing_tokens=_DOSSIER_MISSING_TOKENS,
 )
 
+
 class WoFFDossierParser:
     def __init__(self):
         self.pilot: Optional[WoFFPilot] = None
@@ -185,7 +186,7 @@ class WoFFDossierParser:
             
             # Extração do ID da Foto centralizada (Índice 100)
             photo_id = safe_get(100)
-            if photo_id and photo_id.isdigit():
+            if photo_id and photo_id.isascii() and photo_id.isdigit():
                 self.pilot.photo = photo_id
             
             # Datas (Campanha e Alistamento)
@@ -251,7 +252,6 @@ class WoFFDossierParser:
                             for index, numeric_field in (
                                 (3, "skill"),
                                 (4, "morale"),
-                                (12, "flminutes"),
                             ):
                                 raw_value = parts[index] if len(parts) > index else None
                                 parsed_value = parse_integer(
@@ -260,6 +260,14 @@ class WoFFDossierParser:
                                 if parsed_value is None:
                                     raise InvalidIntegerError("missing integer value")
                                 wingman_numeric[numeric_field] = parsed_value
+
+                            numeric_field = "flminutes"
+                            parsed_flight_minutes = parse_integer(
+                                parts[12] if len(parts) > 12 else None,
+                                policy=_DOSSIER_UNSIGNED_INTEGER,
+                            )
+                            if parsed_flight_minutes is not None:
+                                wingman_numeric[numeric_field] = parsed_flight_minutes
                         except InvalidIntegerError as exc:
                             log.warning(
                                 "[BIN] Numeric field rejected: source=%s "
@@ -283,7 +291,8 @@ class WoFFDossierParser:
                                 w.bio = part
                                 break
                         
-                        w.flminutes = wingman_numeric["flminutes"]
+                        if "flminutes" in wingman_numeric:
+                            w.flminutes = wingman_numeric["flminutes"]
                             
                         self.wingmen.append(w)
 

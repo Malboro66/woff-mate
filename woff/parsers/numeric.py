@@ -15,7 +15,6 @@ class IntegerPolicy:
     allow_sign: bool = False
     minimum: int | None = None
     maximum: int | None = None
-    sentinels: frozenset[int] = frozenset()
     missing_tokens: frozenset[str] = frozenset()
 
 
@@ -41,9 +40,40 @@ def parse_integer(raw: str | None, *, policy: IntegerPolicy) -> int | None:
     pattern = r"[+-]?[0-9]+" if policy.allow_sign else r"[0-9]+"
     if re.fullmatch(pattern, value) is None:
         raise InvalidIntegerError("invalid integer syntax")
-    parsed = int(value)
-    below_minimum = policy.minimum is not None and parsed < policy.minimum
-    above_maximum = policy.maximum is not None and parsed > policy.maximum
-    if parsed not in policy.sentinels and (below_minimum or above_maximum):
+
+    sign = value[0] if value[0] in "+-" else ""
+    digits = value[1:] if sign else value
+    magnitude = digits.lstrip("0") or "0"
+    is_negative = sign == "-" and magnitude != "0"
+
+    def compare_to_bound(bound: int) -> int:
+        """Compare the normalized source value to a bounded Python integer."""
+
+        bound_is_negative = bound < 0
+        if is_negative != bound_is_negative:
+            return -1 if is_negative else 1
+
+        bound_magnitude = str(abs(bound))
+        if len(magnitude) != len(bound_magnitude):
+            magnitude_comparison = -1 if len(magnitude) < len(bound_magnitude) else 1
+        elif magnitude == bound_magnitude:
+            magnitude_comparison = 0
+        else:
+            magnitude_comparison = -1 if magnitude < bound_magnitude else 1
+        return -magnitude_comparison if is_negative else magnitude_comparison
+
+    below_minimum = (
+        policy.minimum is not None and compare_to_bound(policy.minimum) < 0
+    )
+    above_maximum = (
+        policy.maximum is not None and compare_to_bound(policy.maximum) > 0
+    )
+    if below_minimum or above_maximum:
         raise InvalidIntegerError("integer outside permitted range")
-    return parsed
+
+    normalized = f"-{magnitude}" if is_negative else magnitude
+    try:
+        return int(normalized)
+    except ValueError as exc:
+        # Python 3.11+ can reject an unbounded, extremely long decimal string.
+        raise InvalidIntegerError("integer outside permitted range") from exc
