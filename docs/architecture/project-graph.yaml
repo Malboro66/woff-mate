@@ -296,8 +296,10 @@ evals:
   EVAL-DEFER-002:
     work_items: [issue-27]
     status: implemented
-    evidence: Pending identity dependencies share scheduler admission bounds, retain at most 64 MiB for five minutes and four attempts, and terminate with sanitized expiry, exhaustion, saturation, submission-failure, or shutdown diagnostics.
-    enforced_by: [woff/tests/test_deferred_ingestion.py]
+    evidence: Pending identity dependencies share scheduler admission bounds, keep queued and in-flight snapshots inside a 64 MiB global charge, cache exhausted persistence generations without source bytes, preserve newer coalesced generations across non-shutdown terminal paths, settle startup without bypassing the five-minute monitor, track one matching Dossier epoch per admitted path across persistence backoff, and terminate after four attempts with sanitized diagnostics.
+    enforced_by:
+      - woff/tests/test_deferred_ingestion.py
+      - woff/tests/test_handler_integration.py
   EVAL-IDENTITY-001:
     work_items: [issue-70]
     status: implemented

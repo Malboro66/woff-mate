@@ -337,6 +337,27 @@ class TestHandlerIntegration(unittest.TestCase):
             [(pilot_id, "Deferred mission.")],
         )
 
+    def test_startup_wait_settles_while_missing_dossier_is_retained(self):
+        log_path = os.path.join(self.tmp_dir, "Pilot1Log.txt")
+        with open(log_path, "w", encoding="cp1252") as source:
+            source.write(
+                "1\n6;4;1917;10;30;Arras;Filescamp;OP;SE.5a;;45;100;"
+                "SE.5a;No. 56 Squadron RFC;troops;Target;N50;E2;;"
+                "Deferred startup mission.\n"
+            )
+
+        self.assertTrue(self.handler.submit_initial(log_path))
+        self.assertTrue(
+            self.handler.wait_initial(
+                [log_path], self.handler.startup_phase_timeout([log_path])
+            )
+        )
+
+        self.assertEqual(self.handler.scheduler.admitted_paths, 1)
+        metrics = self.handler.scheduler.metrics()
+        self.assertEqual(metrics["dependency_pending"], 1)
+        self.assertGreater(metrics["dependency_retained_bytes"], 0)
+
     def test_all_dependent_sources_converge_after_dossier_without_duplicates(self):
         dossier_path = os.path.join(self.tmp_dir, "Pilot1Dossier.txt")
         sources = {

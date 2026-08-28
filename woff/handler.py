@@ -155,8 +155,12 @@ class FileProcessor:
             if isinstance(previous_generation, ProcessingOutcome):
                 previous_generation = (
                     previous_generation.generation
-                    if previous_generation.status
-                    is ProcessingStatus.TRANSIENT_FAILURE
+                    if (
+                        previous_generation.status
+                        is ProcessingStatus.TRANSIENT_FAILURE
+                        or previous_generation.reason
+                        is ProcessingReason.RETRY_TERMINATED
+                    )
                     else previous_generation.acknowledged_generation
                 )
             ext = os.path.splitext(path)[1].lower()
@@ -169,8 +173,12 @@ class FileProcessor:
             if snapshot.generation == previous_generation:
                 if (
                     previous_outcome is not None
-                    and previous_outcome.status
-                    is ProcessingStatus.TRANSIENT_FAILURE
+                    and (
+                        previous_outcome.status
+                        is ProcessingStatus.TRANSIENT_FAILURE
+                        or previous_outcome.reason
+                        is ProcessingReason.RETRY_TERMINATED
+                    )
                 ):
                     log.debug(
                         "Terminal retry generation already considered: %s",
@@ -474,6 +482,18 @@ class FileProcessor:
             raise PilotIdentityRejected(str(error), slot) from error
         return campaign_namespace, slot
 
+    def dependency_key_for_path(
+        self, path: str
+    ) -> Optional[tuple[str, int]]:
+        """Return a dependent path key without reading its Dossier."""
+        source_name = _safe_filename(path)
+        if not _requires_dependent_identity(source_name):
+            return None
+        try:
+            return self._dependent_binding_key(path, source_name)
+        except PilotIdentityError:
+            return None
+
     def _process_xml(
         self, path: str, snapshot: Optional[StableFileSnapshot] = None
     ) -> Optional[ProcessingReason]:
@@ -587,6 +607,7 @@ class WoFFEventHandler(FileSystemEventHandler):
             retry_process=self._execute_retry_pipeline,
             persistence_retry_process=self._execute_persistence_retry_pipeline,
             dependency_retry_process=self._execute_dependency_retry_pipeline,
+            dependency_key_for_event=self._dependency_key_for_event,
         )
         self._startup_admission_timeout = config.stability_timeout_sec
 
@@ -622,8 +643,8 @@ class WoFFEventHandler(FileSystemEventHandler):
         )
 
     def wait_initial(self, paths: list[str], timeout: float) -> bool:
-        """Wait for a startup dependency phase without creating another queue."""
-        return self.scheduler.wait_for_paths(paths, timeout)
+        """Wait until startup paths finish or retain a bounded dependency."""
+        return self.scheduler.wait_for_settled_paths(paths, timeout)
 
     def startup_phase_timeout(self, paths: int | Sequence[str]) -> float:
         """Bound startup waits across snapshots and every persistence attempt."""
@@ -678,6 +699,12 @@ class WoFFEventHandler(FileSystemEventHandler):
         """Replay retained bytes after the matching Dossier is persisted."""
         log.info("A liberar dependência [%s]: %s", event_type, _safe_filename(path))
         return self.processor.replay_dependency(previous_outcome, event_type)
+
+    def _dependency_key_for_event(
+        self, path: str, _event_type: str
+    ) -> Optional[tuple[str, int]]:
+        """Resolve a dependent source binding before its worker starts."""
+        return self.processor.dependency_key_for_path(path)
 
     def metrics(self):
         return self.scheduler.metrics()

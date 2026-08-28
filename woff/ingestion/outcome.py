@@ -117,6 +117,17 @@ class ProcessingOutcome:
                     "dependency outcomes require retained input and a binding key"
                 )
             return
+        if self.reason is ProcessingReason.RETRY_TERMINATED:
+            if (
+                self.status is not ProcessingStatus.PERMANENT_REJECTION
+                or self.retry_input is not None
+                or self.dependency_key is not None
+                or self.resolved_dependency is not None
+            ):
+                raise ValueError(
+                    "terminated retry outcomes retain at most a generation"
+                )
+            return
         if (
             self.reason in _TRANSIENT_REASONS
             or self.reason
@@ -180,6 +191,17 @@ class ProcessingOutcome:
         cls, reason: ProcessingReason
     ) -> "ProcessingOutcome":
         return cls(ProcessingStatus.PERMANENT_REJECTION, reason)
+
+    @classmethod
+    def retry_terminated(
+        cls, generation: FileGeneration
+    ) -> "ProcessingOutcome":
+        """Remember an exhausted generation without retaining source bytes."""
+        return cls(
+            ProcessingStatus.PERMANENT_REJECTION,
+            ProcessingReason.RETRY_TERMINATED,
+            generation,
+        )
 
     @classmethod
     def transient(

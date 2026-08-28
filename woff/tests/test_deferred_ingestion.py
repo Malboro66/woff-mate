@@ -8,6 +8,7 @@ from unittest import mock
 from ..ingestion import outcome as outcome_module
 from ..ingestion.deferred import DependencyRetryPolicy
 from ..ingestion.outcome import (
+    PersistenceRetryPolicy,
     ProcessingOutcome,
     ProcessingReason,
     VerifiedProcessingInput,
@@ -191,7 +192,6 @@ class TestDeferredIngestion(unittest.TestCase):
         with self.assertLogs("WoFFWatch", level="ERROR") as records:
             self.assertTrue(scheduler.submit(path, "created"))
             self.assertTrue(_wait_for_metric(scheduler, "dependency_pending", 1))
-            self.assertTrue(scheduler.submit(path, "modified"))
             self.assertTrue(scheduler.wait_for_paths([path], 1.0))
             scheduler.shutdown()
 
@@ -207,6 +207,39 @@ class TestDeferredIngestion(unittest.TestCase):
                 "attempts=1"
             ],
         )
+
+    def test_expired_snapshot_processes_newer_coalesced_generation(self):
+        path = "/private/campaign/Pilot1Log.txt"
+        processed: list[str] = []
+
+        def process(source, event_type):
+            if event_type == "modified":
+                processed.append(source)
+                return ProcessingOutcome.success(
+                    _retained_input(_pending_outcome(source)).snapshot.generation
+                )
+            return _pending_outcome(source)
+
+        scheduler = EventScheduler(
+            process,
+            max_workers=1,
+            max_pending_events=1,
+            dependency_retry_policy=DependencyRetryPolicy(
+                max_attempts=4,
+                max_age_seconds=0.02,
+                max_retained_bytes=1024,
+            ),
+        )
+        self.assertTrue(scheduler.submit(path, "created"))
+        self.assertTrue(_wait_for_metric(scheduler, "dependency_pending", 1))
+        self.assertTrue(scheduler.submit(path, "modified"))
+        with self.assertLogs("WoFFWatch", level="ERROR"):
+            self.assertTrue(scheduler.wait_for_paths([path], 1.0))
+        scheduler.shutdown()
+
+        self.assertEqual(processed, [path])
+        self.assertEqual(scheduler.metrics()["dependency_expired"], 1)
+        self.assertEqual(scheduler.metrics()["queued"], 0)
 
     def test_retained_snapshot_bytes_are_globally_bounded(self):
         policy = DependencyRetryPolicy(
@@ -252,6 +285,236 @@ class TestDeferredIngestion(unittest.TestCase):
         )
         with self.assertLogs("WoFFWatch", level="ERROR"):
             scheduler.shutdown()
+
+    def test_memory_saturation_processes_newer_coalesced_generation(self):
+        blocker = "/private/campaign/Pilot1Log.txt"
+        source = "/private/campaign/Pilot2Log.txt"
+        source_started = threading.Event()
+        allow_source = threading.Event()
+        processed: list[str] = []
+
+        def process(path, event_type):
+            if path == blocker:
+                return _pending_outcome(path, data=b"four")
+            if event_type == "modified":
+                processed.append(path)
+                return ProcessingOutcome.success(
+                    _retained_input(_pending_outcome(path)).snapshot.generation
+                )
+            source_started.set()
+            self.assertTrue(allow_source.wait(1.0))
+            return _pending_outcome(
+                path,
+                data=b"x",
+                dependency_key=("root-v1:synthetic", 2),
+            )
+
+        scheduler = EventScheduler(
+            process,
+            max_workers=2,
+            max_pending_events=2,
+            dependency_retry_policy=DependencyRetryPolicy(
+                max_retained_bytes=4
+            ),
+        )
+        self.assertTrue(scheduler.submit(blocker, "created"))
+        self.assertTrue(_wait_for_metric(scheduler, "dependency_pending", 1))
+        self.assertTrue(scheduler.submit(source, "created"))
+        self.assertTrue(source_started.wait(1.0))
+        self.assertTrue(scheduler.submit(source, "modified"))
+        allow_source.set()
+        with self.assertLogs("WoFFWatch", level="ERROR"):
+            self.assertTrue(scheduler.wait_for_paths([source], 1.0))
+
+        self.assertEqual(processed, [source])
+        self.assertEqual(scheduler.metrics()["dependency_saturated"], 1)
+        with self.assertLogs("WoFFWatch", level="ERROR"):
+            scheduler.shutdown()
+
+    def test_inflight_dependency_replay_keeps_snapshot_bytes_charged(self):
+        first = "/private/campaign/Pilot1Log.txt"
+        second = "/private/campaign/Pilot2Log.txt"
+        dossier = "/private/campaign/Pilot1Dossier.txt"
+        first_key = ("root-v1:synthetic", 1)
+        second_key = ("root-v1:synthetic", 2)
+        replay_started = threading.Event()
+        allow_replay = threading.Event()
+
+        def process(path, _event_type):
+            if path == dossier:
+                return _resolved_outcome(path, first_key)
+            return _pending_outcome(
+                path,
+                data=b"four" if path == first else b"x",
+                dependency_key=first_key if path == first else second_key,
+            )
+
+        def replay_dependency(_path, _event_type, outcome):
+            replay_started.set()
+            self.assertTrue(allow_replay.wait(1.0))
+            return ProcessingOutcome.success(
+                _retained_input(outcome).snapshot.generation
+            )
+
+        scheduler = EventScheduler(
+            process,
+            max_workers=2,
+            max_pending_events=3,
+            dependency_retry_process=replay_dependency,
+            dependency_retry_policy=DependencyRetryPolicy(
+                max_attempts=4,
+                max_age_seconds=300.0,
+                max_retained_bytes=4,
+            ),
+        )
+        self.assertTrue(scheduler.submit(first, "created"))
+        self.assertTrue(_wait_for_metric(scheduler, "dependency_pending", 1))
+        self.assertTrue(scheduler.submit(dossier, "created"))
+        self.assertTrue(replay_started.wait(1.0))
+        self.assertTrue(scheduler.submit(second, "created"))
+        second_drained = scheduler.wait_for_paths([second], 0.2)
+        metrics_during_replay = scheduler.metrics()
+
+        allow_replay.set()
+        self.assertTrue(scheduler.wait_for_paths([first, dossier], 1.0))
+        if scheduler.metrics()["dependency_pending"]:
+            with self.assertLogs("WoFFWatch", level="ERROR"):
+                scheduler.shutdown()
+        else:
+            scheduler.shutdown()
+
+        self.assertTrue(second_drained)
+        self.assertEqual(
+            metrics_during_replay["dependency_retained_bytes"], 4
+        )
+        self.assertEqual(metrics_during_replay["dependency_saturated"], 1)
+        self.assertEqual(scheduler.metrics()["dependency_retained_bytes"], 0)
+
+    def test_resolution_during_persistence_backoff_replays_pending_identity(self):
+        source = "/private/campaign/Pilot1Log.txt"
+        dossier = "/private/campaign/Pilot1Dossier.txt"
+        dependency_calls: list[str] = []
+
+        def process(path, _event_type):
+            if path == dossier:
+                return _resolved_outcome(path)
+            return _pending_outcome(path)
+
+        def replay_dependency(path, _event_type, outcome):
+            dependency_calls.append(path)
+            if len(dependency_calls) == 1:
+                return ProcessingOutcome.transient(
+                    _retained_input(outcome), ProcessingReason.SQLITE_BUSY
+                )
+            return ProcessingOutcome.success(
+                _retained_input(outcome).snapshot.generation
+            )
+
+        def replay_persistence(_path, _event_type, outcome):
+            return ProcessingOutcome.dependency_pending(
+                _retained_input(outcome), DEPENDENCY_KEY
+            )
+
+        scheduler = EventScheduler(
+            process,
+            max_workers=2,
+            max_pending_events=2,
+            persistence_retry_process=replay_persistence,
+            dependency_retry_process=replay_dependency,
+            persistence_retry_policy=PersistenceRetryPolicy(
+                max_attempts=2, initial_delay=0.05, max_delay=0.05
+            ),
+        )
+        self.assertTrue(scheduler.submit(source, "created"))
+        self.assertTrue(_wait_for_metric(scheduler, "dependency_pending", 1))
+        self.assertTrue(scheduler.submit(dossier, "created"))
+        self.assertTrue(_wait_for_metric(scheduler, "retry_pending", 1))
+        self.assertTrue(scheduler.wait_for_paths([dossier], 1.0))
+        self.assertTrue(scheduler.submit(dossier, "modified"))
+
+        drained = scheduler.wait_for_paths([source, dossier], 1.0)
+        if not drained:
+            with self.assertLogs("WoFFWatch", level="ERROR"):
+                scheduler.shutdown()
+        else:
+            scheduler.shutdown()
+
+        self.assertTrue(drained)
+        self.assertEqual(dependency_calls, [source, source])
+        self.assertEqual(scheduler.metrics()["dependency_replays"], 2)
+        self.assertEqual(scheduler.metrics()["dependency_pending"], 0)
+
+    def test_resolution_tracking_is_bounded_by_admitted_paths(self):
+        source = "/private/campaign/Pilot1Log.txt"
+        source_started = threading.Event()
+        allow_source = threading.Event()
+
+        def process(path, _event_type):
+            if path == source:
+                source_started.set()
+                self.assertTrue(allow_source.wait(1.0))
+                return ProcessingOutcome.success(
+                    _retained_input(_pending_outcome(path)).snapshot.generation
+                )
+            slot = int(path.rsplit("Pilot", 1)[1].split("Dossier", 1)[0])
+            return _resolved_outcome(path, ("root-v1:synthetic", slot))
+
+        scheduler = EventScheduler(
+            process, max_workers=2, max_pending_events=2
+        )
+        self.assertTrue(scheduler.submit(source, "created"))
+        self.assertTrue(source_started.wait(1.0))
+        for slot in range(1, 21):
+            dossier = f"/private/campaign/Pilot{slot}Dossier.txt"
+            self.assertTrue(scheduler.submit(dossier, "created"))
+            self.assertTrue(scheduler.wait_for_paths([dossier], 1.0))
+            self.assertLessEqual(
+                scheduler.dependency_resolution_records,
+                scheduler.admitted_paths,
+            )
+
+        allow_source.set()
+        self.assertTrue(scheduler.wait_for_paths([source], 1.0))
+        scheduler.shutdown()
+        self.assertEqual(scheduler.dependency_resolution_records, 0)
+
+    def test_terminal_retry_cache_does_not_retain_snapshot_bytes(self):
+        source = "/private/campaign/Pilot1Log.txt"
+        dossier = "/private/campaign/Pilot1Dossier.txt"
+
+        def process(path, _event_type):
+            if path == dossier:
+                return _resolved_outcome(path)
+            return _pending_outcome(path, data=b"four")
+
+        scheduler = EventScheduler(
+            process,
+            max_workers=2,
+            max_pending_events=2,
+            dependency_retry_process=lambda _path, _event_type, outcome: (
+                ProcessingOutcome.transient(
+                    _retained_input(outcome), ProcessingReason.SQLITE_BUSY
+                )
+            ),
+            persistence_retry_process=lambda _path, _event_type, outcome: outcome,
+            persistence_retry_policy=PersistenceRetryPolicy(max_attempts=1),
+            dependency_retry_policy=DependencyRetryPolicy(
+                max_retained_bytes=4
+            ),
+        )
+        self.assertTrue(scheduler.submit(source, "created"))
+        self.assertTrue(_wait_for_metric(scheduler, "dependency_pending", 1))
+        with self.assertLogs("WoFFWatch", level="ERROR"):
+            self.assertTrue(scheduler.submit(dossier, "created"))
+            self.assertTrue(scheduler.wait_for_paths([source, dossier], 1.0))
+
+        cached = list(scheduler._terminal_outcomes.values())
+        scheduler.shutdown()
+
+        self.assertEqual(len(cached), 1)
+        self.assertIs(cached[0].reason, ProcessingReason.RETRY_TERMINATED)
+        self.assertIsNone(cached[0].retry_input)
+        self.assertEqual(scheduler.metrics()["dependency_retained_bytes"], 0)
 
     def test_dependency_replay_exhausts_after_four_total_attempts(self):
         source_path = "/private/campaign/Pilot1Log.txt"
@@ -303,6 +566,46 @@ class TestDeferredIngestion(unittest.TestCase):
             ],
         )
         scheduler.shutdown()
+
+    def test_exhausted_snapshot_processes_newer_coalesced_generation(self):
+        source_path = "/private/campaign/Pilot1Log.txt"
+        dossier_path = "/private/campaign/Pilot1Dossier.txt"
+        coalesced: list[str] = []
+
+        def process(path, _event_type):
+            if path == dossier_path:
+                return _resolved_outcome(path)
+            return _pending_outcome(path)
+
+        def process_coalesced(path, _event_type, _outcome):
+            coalesced.append(path)
+            return ProcessingOutcome.success(
+                _retained_input(_pending_outcome(path)).snapshot.generation
+            )
+
+        scheduler = EventScheduler(
+            process,
+            max_workers=1,
+            max_pending_events=2,
+            retry_process=process_coalesced,
+            dependency_retry_process=lambda path, *_: _pending_outcome(path),
+            dependency_retry_policy=DependencyRetryPolicy(max_attempts=2),
+        )
+        self.assertTrue(scheduler.submit(source_path, "created"))
+        self.assertTrue(_wait_for_metric(scheduler, "dependency_pending", 1))
+        self.assertTrue(scheduler.submit(source_path, "modified"))
+
+        with self.assertLogs("WoFFWatch", level="ERROR"):
+            self.assertTrue(scheduler.submit(dossier_path, "created"))
+            self.assertTrue(
+                scheduler.wait_for_paths([source_path, dossier_path], 1.0)
+            )
+        scheduler.shutdown()
+
+        self.assertEqual(coalesced, [source_path])
+        metrics = scheduler.metrics()
+        self.assertEqual(metrics["dependency_exhausted"], 1)
+        self.assertEqual(metrics["queued"], 0)
 
     def test_dependency_replay_composes_with_persistence_retry(self):
         source_path = "/private/campaign/Pilot1Log.txt"
@@ -494,6 +797,129 @@ class TestDeferredIngestion(unittest.TestCase):
         self.assertTrue(_wait_for_metric(scheduler, "dependency_pending", 1))
         self.assertEqual(replayed, [])
         self.assertEqual(scheduler.metrics()["dependency_replays"], 0)
+        with self.assertLogs("WoFFWatch", level="ERROR"):
+            scheduler.shutdown()
+
+    def test_active_source_cannot_lose_resolution_to_key_eviction(self):
+        source_path = "/private/campaign/Pilot1Log.txt"
+        dossier_paths = [
+            f"/private/campaign/Pilot{slot}Dossier.txt"
+            for slot in (1, 2, 3)
+        ]
+        dependency_keys = {
+            path: ("root-v1:synthetic", slot)
+            for path, slot in zip(dossier_paths, (1, 2, 3))
+        }
+        source_started = threading.Event()
+        allow_source = threading.Event()
+        replayed = threading.Event()
+
+        def process(path, _event_type):
+            if path in dependency_keys:
+                return _resolved_outcome(path, dependency_keys[path])
+            source_started.set()
+            self.assertTrue(allow_source.wait(1.0))
+            return _pending_outcome(
+                path, dependency_key=dependency_keys[dossier_paths[0]]
+            )
+
+        def replay_dependency(_path, _event_type, outcome):
+            replayed.set()
+            return ProcessingOutcome.success(
+                _retained_input(outcome).snapshot.generation
+            )
+
+        scheduler = EventScheduler(
+            process,
+            max_workers=2,
+            max_pending_events=2,
+            dependency_retry_process=replay_dependency,
+        )
+        self.assertTrue(scheduler.submit(source_path, "created"))
+        self.assertTrue(source_started.wait(1.0))
+        for dossier_path in dossier_paths:
+            self.assertTrue(scheduler.submit(dossier_path, "created"))
+            self.assertTrue(scheduler.wait_for_paths([dossier_path], 1.0))
+
+        allow_source.set()
+        resolution_replayed = replayed.wait(1.0)
+        source_drained = scheduler.wait_for_paths([source_path], 1.0)
+        if not source_drained:
+            with self.assertLogs("WoFFWatch", level="ERROR"):
+                scheduler.shutdown()
+        else:
+            scheduler.shutdown()
+
+        self.assertTrue(resolution_replayed)
+        self.assertTrue(source_drained)
+        self.assertEqual(scheduler.metrics()["dependency_replays"], 1)
+
+    def test_known_dependency_ignores_unrelated_concurrent_resolution(self):
+        source = "/private/campaign/Pilot1Log.txt"
+        matching_dossier = "/private/campaign/Pilot1Dossier.txt"
+        unrelated_dossier = "/private/campaign/Pilot2Dossier.txt"
+        matching_key = ("root-v1:synthetic", 1)
+        unrelated_key = ("root-v1:synthetic", 2)
+        source_started = threading.Event()
+        allow_source = threading.Event()
+        replayed: list[str] = []
+
+        def process(path, _event_type):
+            if path == matching_dossier:
+                return _resolved_outcome(path, matching_key)
+            if path == unrelated_dossier:
+                return _resolved_outcome(path, unrelated_key)
+            source_started.set()
+            self.assertTrue(allow_source.wait(1.0))
+            return _pending_outcome(path, dependency_key=matching_key)
+
+        def replay_dependency(path, _event_type, outcome):
+            replayed.append(path)
+            return ProcessingOutcome.success(
+                _retained_input(outcome).snapshot.generation
+            )
+
+        scheduler = EventScheduler(
+            process,
+            max_workers=2,
+            max_pending_events=2,
+            dependency_retry_process=replay_dependency,
+            dependency_key_for_event=lambda path, _event_type: (
+                matching_key if path == source else None
+            ),
+        )
+        self.assertTrue(scheduler.submit(source, "created"))
+        self.assertTrue(source_started.wait(1.0))
+        self.assertTrue(scheduler.submit(unrelated_dossier, "created"))
+        self.assertTrue(
+            scheduler.wait_for_paths([unrelated_dossier], 1.0)
+        )
+        allow_source.set()
+        self.assertTrue(_wait_for_metric(scheduler, "dependency_pending", 1))
+        self.assertEqual(replayed, [])
+
+        self.assertTrue(scheduler.submit(matching_dossier, "created"))
+        self.assertTrue(
+            scheduler.wait_for_paths([source, matching_dossier], 1.0)
+        )
+        scheduler.shutdown()
+
+        self.assertEqual(replayed, [source])
+        self.assertEqual(scheduler.metrics()["dependency_replays"], 1)
+
+    def test_startup_wait_can_settle_with_dependency_retained(self):
+        source_path = "/private/campaign/Pilot1Log.txt"
+        scheduler = EventScheduler(
+            lambda *_: _pending_outcome(source_path),
+            max_workers=1,
+            max_pending_events=1,
+        )
+        self.assertTrue(scheduler.submit(source_path, "initial"))
+        self.assertTrue(
+            scheduler.wait_for_settled_paths([source_path], 1.0)
+        )
+        self.assertEqual(scheduler.admitted_paths, 1)
+        self.assertEqual(scheduler.metrics()["dependency_pending"], 1)
         with self.assertLogs("WoFFWatch", level="ERROR"):
             scheduler.shutdown()
 
@@ -701,6 +1127,60 @@ class TestDeferredIngestion(unittest.TestCase):
             ],
         )
 
+    def test_replay_submission_failure_preserves_newer_coalesced_event(self):
+        source_path = "/campaign/Pilot1Log.txt"
+        dossier_path = "/campaign/Pilot1Dossier.txt"
+        coalesced: list[str] = []
+
+        def process(path, event_type):
+            if path == dossier_path:
+                return _resolved_outcome(path)
+            if event_type == "modified":
+                coalesced.append(path)
+                return ProcessingOutcome.success(
+                    _retained_input(
+                        _pending_outcome(path)
+                    ).snapshot.generation
+                )
+            return _pending_outcome(path)
+
+        scheduler = EventScheduler(
+            process,
+            max_workers=2,
+            max_pending_events=2,
+            executor=_ReplayFailingExecutor(),
+            dependency_retry_process=lambda *_: ProcessingOutcome.success(
+                _retained_input(
+                    _pending_outcome(source_path)
+                ).snapshot.generation
+            ),
+        )
+        self.assertTrue(scheduler.submit(source_path, "created"))
+        self.assertTrue(_wait_for_metric(scheduler, "dependency_pending", 1))
+        self.assertTrue(scheduler.submit(source_path, "modified"))
+
+        with self.assertLogs("WoFFWatch", level="WARNING") as records:
+            self.assertTrue(scheduler.submit(dossier_path, "created"))
+            self.assertTrue(
+                scheduler.wait_for_paths(
+                    [source_path, dossier_path], 1.0
+                )
+            )
+        scheduler.shutdown()
+
+        self.assertEqual(coalesced, [source_path])
+        self.assertEqual(scheduler.admitted_paths, 0)
+        metrics = scheduler.metrics()
+        self.assertEqual(metrics["submission_failures"], 1)
+        self.assertEqual(metrics["queued"], 0)
+        self.assertEqual(
+            records.output,
+            [
+                "WARNING:WoFFWatch:Deferred dependency submission failed; "
+                "state released"
+            ],
+        )
+
     def test_dependency_monitor_start_failure_releases_retained_state(self):
         source_path = "/campaign/Pilot1Log.txt"
         scheduler = EventScheduler(
@@ -731,6 +1211,45 @@ class TestDeferredIngestion(unittest.TestCase):
         self.assertEqual(metrics["dependency_pending"], 0)
         self.assertEqual(metrics["dependency_retained_bytes"], 0)
         self.assertEqual(metrics["submission_failures"], 1)
+
+    def test_monitor_failure_processes_newer_coalesced_generation(self):
+        source_path = "/campaign/Pilot1Log.txt"
+        source_started = threading.Event()
+        allow_source = threading.Event()
+        processed: list[str] = []
+
+        def process(path, event_type):
+            if event_type == "modified":
+                processed.append(path)
+                return ProcessingOutcome.success(
+                    _retained_input(_pending_outcome(path)).snapshot.generation
+                )
+            source_started.set()
+            self.assertTrue(allow_source.wait(1.0))
+            return _pending_outcome(path)
+
+        scheduler = EventScheduler(
+            process, max_workers=1, max_pending_events=1
+        )
+        with mock.patch.object(
+            scheduler,
+            "_start_dependency_monitor_locked",
+            side_effect=RuntimeError("synthetic monitor failure"),
+        ):
+            self.assertTrue(scheduler.submit(source_path, "created"))
+            self.assertTrue(source_started.wait(1.0))
+            self.assertTrue(scheduler.submit(source_path, "modified"))
+            with self.assertLogs("WoFFWatch", level="WARNING"):
+                allow_source.set()
+                self.assertTrue(
+                    scheduler.wait_for_paths([source_path], 1.0)
+                )
+        scheduler.shutdown()
+
+        self.assertEqual(processed, [source_path])
+        self.assertEqual(scheduler.admitted_paths, 0)
+        self.assertEqual(scheduler.metrics()["submission_failures"], 1)
+        self.assertEqual(scheduler.metrics()["queued"], 0)
 
 
 if __name__ == "__main__":

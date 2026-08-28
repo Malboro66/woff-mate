@@ -203,10 +203,17 @@ production UI, or approves Product Gate A or Product Gate B.
 - `EVAL-DEFER-002` is enforced by
   `woff/tests/test_deferred_ingestion.py`. Dependency work stays inside the
   existing canonical-path scheduler bound and retains at most 64 MiB globally.
+  Queued and in-flight dependency replays remain charged to that byte bound.
   Four total attempts and a five-minute lifetime are fixed defaults. Exhaustion,
-  expiry, memory saturation, replay submission failure, and shutdown release
-  admitted state with filename-only diagnostics. A transient SQLite failure
-  after dependency release continues through the existing persistence policy.
+  expiry, memory saturation, and replay submission failure preserve an accepted
+  newer coalesced generation with a fresh budget; shutdown follows the explicit
+  cancellation policy. Startup can continue once a dependency is safely
+  retained, while the monitor enforces its lifetime. Each admitted path keeps
+  one matching resolution epoch across dependency processing and persistence
+  backoff, so the race metadata is bounded by scheduler admission. Exhausted
+  persistence generations retain only a marker, not snapshot bytes. All terminal
+  diagnostics are filename-only, and a transient SQLite failure after dependency
+  release continues through the existing persistence policy.
 
 ### Implemented canonical temporal evals
 
