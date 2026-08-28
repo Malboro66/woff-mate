@@ -423,17 +423,20 @@ def test_implementation_work_item_rejects_unsatisfied_dependency(
     work_items = graph["work_items"]
     assert isinstance(work_items, dict)
     issue_34 = work_items["issue-34"]
+    issue_30 = work_items["issue-30"]
     assert isinstance(issue_34, dict)
+    assert isinstance(issue_30, dict)
     _set_issue_34_incomplete_state(graph, state)
+    issue_30["state"] = "backlog"
     issue_34["depends_on"] = [
-        {"id": "issue-41", "status": "unsatisfied"}
+        {"id": "issue-30", "status": "unsatisfied"}
     ]
 
     with pytest.raises(
         GraphValidationError,
         match=(
             f"work_items.issue-34 is {state} but dependency "
-            "issue-41 is unsatisfied"
+            "issue-30 is unsatisfied"
         ),
     ):
         validate_graph(REPOSITORY_ROOT, graph)
@@ -444,10 +447,13 @@ def test_blocked_work_item_accepts_unsatisfied_dependency() -> None:
     work_items = graph["work_items"]
     assert isinstance(work_items, dict)
     issue_34 = work_items["issue-34"]
+    issue_30 = work_items["issue-30"]
     assert isinstance(issue_34, dict)
+    assert isinstance(issue_30, dict)
     _set_issue_34_incomplete_state(graph, "blocked")
+    issue_30["state"] = "backlog"
     issue_34["depends_on"] = [
-        {"id": "issue-41", "status": "unsatisfied"}
+        {"id": "issue-30", "status": "unsatisfied"}
     ]
 
     validate_graph(REPOSITORY_ROOT, graph)
@@ -503,7 +509,9 @@ def test_cycle_requires_its_gate_on_every_participant(participant: str) -> None:
         validate_graph(REPOSITORY_ROOT, graph)
 
 
-@pytest.mark.parametrize("cycle_id", ["cycle-3.2.1", "cycle-3.3.0"])
+@pytest.mark.parametrize(
+    "cycle_id", ["cycle-3.2.1", "cycle-3.3.0", "cycle-3.4.0"]
+)
 def test_non_planned_cycle_requires_a_gate(cycle_id: str) -> None:
     graph = _graph()
     cycles = graph["cycles"]
@@ -525,6 +533,7 @@ def test_planned_cycle_may_omit_its_gate() -> None:
     assert isinstance(cycles, dict)
     cycle = cycles["cycle-3.4.0"]
     assert isinstance(cycle, dict)
+    cycle["state"] = "planned"
     cycle.pop("gate", None)
 
     validate_graph(REPOSITORY_ROOT, graph)
@@ -1176,10 +1185,13 @@ def test_completed_cycle_requires_aggregate_eval() -> None:
 def test_planned_cycle_may_omit_aggregate_eval() -> None:
     graph = _graph()
     cycles = graph["cycles"]
-    assert isinstance(cycles, dict)
+    evals = graph["evals"]
+    assert isinstance(cycles, dict) and isinstance(evals, dict)
     cycle = cycles["cycle-3.4.0"]
     assert isinstance(cycle, dict)
+    cycle["state"] = "planned"
     cycle.pop("aggregate_eval", None)
+    del evals["EVAL-CYCLE-340-001"]
 
     validate_graph(REPOSITORY_ROOT, graph)
 

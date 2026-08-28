@@ -166,12 +166,15 @@ CI success alone does not close #50 or release 3.3.0.
 
 ## Q6-CYCLE-3.4.0: parser, roster, presentation, and RPG integrity
 
+Cycle 3.4.0 is active. Issues #41, #75, and #97 are complete. The aggregate
+gate remains pending until every member and `EVAL-CYCLE-340-001` pass.
+
 Cycle 3.4.0 is approved only when all conditions below pass:
 
-- #41, #38, #74, #35, #37, #44, #43, #28, #75, #76, #96, #97, and #101 are complete
+- #41, #38, #74, #35, #37, #44, #43, #28, #75, #76, #96, #97, #101, #79, #80, and #81 are complete
 - every dependency in `cycle-3.4.0` is satisfied
 - all member acceptance criteria are demonstrated
-- every applicable member eval passes
+- every applicable member eval and `EVAL-CYCLE-340-001` pass
 - numeric, nation, mission, victory, and Dossier parsing never fabricate known values from unknown or invalid input
 - roster lifecycle distinguishes transfers, arrivals, genuine disappearances, incomplete input, and replay without duplicate events
 - same-name wingmen retain distinct persistent identity, personality, memory, and history

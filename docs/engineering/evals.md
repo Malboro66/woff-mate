@@ -458,12 +458,12 @@ for the broader roster-generation and truncated-input policy.
   rejection, multiline and unchanged narratives, verified pre-import backup,
   and rollback behavior. The correction changes no SQLite schema.
 
-## Planned cycle 3.4.0
+## Active cycle 3.4.0
 
 | Work item | Eval IDs |
 |---|---|
 | #41 | `EVAL-NUM-001`, `EVAL-NUM-002` |
-| #38 | `EVAL-NATION-001`, `EVAL-NATION-002` |
+| #38 | `EVAL-NATION-001`, `EVAL-NATION-002`, `EVAL-NORM-MISSION-001`, `EVAL-NORM-VICTORY-001` |
 | #74 | `EVAL-PARSE-SEM-001`, `EVAL-PARSE-SEM-002` |
 | #35 | `EVAL-DOSSIER-001`, `EVAL-DOSSIER-002` |
 | #37 | `EVAL-ROSTER-001`, `EVAL-ROSTER-002` |
@@ -475,12 +475,31 @@ for the broader roster-generation and truncated-input policy.
 | #96 | `EVAL-WINGMAN-IDENTITY-001`, `EVAL-WINGMAN-MERGE-001` |
 | #97 | `EVAL-DIARY-EMPTY-001` |
 | #101 | `EVAL-WINGMAN-TRANSFER-001`, `EVAL-WINGMAN-TRANSFER-002`, `EVAL-WINGMAN-TRANSFER-003` |
+| #79 | `EVAL-UI-DESIGN-001` |
+| #80 | `EVAL-UI-STATES-001` |
+| #81 | `EVAL-UI-CONTRACTS-001` |
 
-Cycle 3.4.0 remains `planned`, even though member #75 is complete, so it
-intentionally has no aggregate eval yet.
-Its thirteen members reference `Q6-CYCLE-3.4.0`, which defines the eventual
-cycle-exit contract. An aggregate eval may be introduced when the cycle becomes
-active without weakening the individual member evals registered above.
+Cycle 3.4.0 is `active`. Issues #41, #75, and #97 are complete. Issue #38 is
+the next dependency-ordered implementation item. Issue #35 remains blocked by
+#38, #37 remains blocked by #35, and #101 remains blocked by #37 and #96.
+`EVAL-CYCLE-340-001` aggregates all sixteen members and remains planned until
+every member acceptance criterion, applicable eval, and `Q6-CYCLE-3.4.0`
+condition passes.
+
+### Implemented numeric parsing evals
+
+- `EVAL-NUM-001` is enforced by `woff/tests/test_numeric_parser.py` and
+  `woff/tests/test_dossier_parser.py`. Permitted signed values, surrounding
+  whitespace, explicit zero, missing input, malformed text, and SQLite integer
+  boundaries remain distinct. Signed Dossier reputation values retain their
+  value instead of becoming zero.
+- `EVAL-NUM-002` is enforced by `woff/tests/test_numeric_parser.py`,
+  `woff/tests/test_dossier_parser.py`, `woff/tests/test_xml_parser.py`, and
+  `woff/tests/test_pilot_data_parser.py`. Unsigned fields reject negative,
+  malformed, non-ASCII, and out-of-range input under explicit field policies.
+  PilotLog date and time components remain unsigned, invalid XML counts reject
+  only the affected mission, and invalid Dossier values never become an
+  authoritative zero. Issue #41 changes no SQLite column type or schema.
 
 ## Planned cycle 3.5.0
 
