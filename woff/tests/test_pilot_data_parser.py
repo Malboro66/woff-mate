@@ -27,6 +27,25 @@ class TestWoFFPilotDataParser(unittest.TestCase):
         self.assertEqual(m.sector, "Arras")
         self.assertEqual(m.aircraft, "SE.5a")
         self.assertEqual(m.squadron, "No. 56 Sqn RFC")
+
+    def test_pilotlog_preserves_mission_text_with_embedded_short_aliases(self):
+        mock_content = (
+            "2\n"
+            "6;4;1917;10;30;Arras;Filescamp;Troop Support;SE.5a;;45;100;"
+            "SE.5a;No. 56 Sqn;troops;Target;N50;E2;;Mission completed.\n"
+            "7;4;1917;11;30;Arras;Filescamp;Cooperation Flight;SE.5a;;45;100;"
+            "SE.5a;No. 56 Sqn;troops;Target;N50;E2;;Mission completed.\n"
+        )
+
+        parser = WoFFPilotDataParser()
+        with patch("builtins.open", mock_open(read_data=mock_content)):
+            ok = parser.parse("Pilot1Log.txt")
+
+        self.assertTrue(ok)
+        self.assertEqual(
+            [mission.missionType for mission in parser.missions],
+            ["Troop Support", "Cooperation Flight"],
+        )
     
 
     def test_parse_log_extended_looking_fields_use_verified_layout(self):
@@ -78,6 +97,21 @@ class TestWoFFPilotDataParser(unittest.TestCase):
         self.assertEqual(v2.enemyType, "DFW C.V")
         self.assertEqual(v2.victoryType, "Forced to Land") # Normalizado
         self.assertTrue(v2.confirmed) # Contém "Confirmed"
+
+    def test_pilotclaims_preserves_unknown_victory_text(self):
+        mock_content = (
+            "1\n"
+            "6;4;1917;10;30;Arras;Filescamp;OP;SE.5a;1;"
+            "Albatros D.III;Engine exploded;Albatros\n"
+        )
+
+        parser = WoFFPilotDataParser()
+        with patch("builtins.open", mock_open(read_data=mock_content)):
+            ok = parser.parse("Pilot1Claims.txt")
+
+        self.assertTrue(ok)
+        self.assertEqual(len(parser.victories), 1)
+        self.assertEqual(parser.victories[0].victoryType, "Engine exploded")
 
     def test_full_width_claim_with_invalid_date_time_is_rejected(self):
         mock_content = (

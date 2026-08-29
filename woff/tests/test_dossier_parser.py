@@ -119,6 +119,34 @@ class TestWoFFDossierParser(unittest.TestCase):
         self.assertEqual(self.parser.pilot.startDate, "1915-09-20")
         self.assertEqual(self.parser.pilot.enlisted, "1918-11-11")
 
+    def test_dossier_nation_recognition_uses_all_supported_exact_aliases(self):
+        cases = (
+            ("Britain", "RFC"),
+            ("RFC", "RFC"),
+            ("RNAS", "RNAS"),
+            ("RAF", "RAF"),
+            ("France", "French"),
+            ("Germany", "German"),
+            ("USA", "American"),
+            ("Belgium", "Belgian"),
+        )
+
+        for raw, expected in cases:
+            with self.subTest(raw=raw):
+                lines = self.mock_lines.copy()
+                lines[1] = raw
+                parser = WoFFDossierParser()
+
+                self.assertTrue(
+                    parser.parse_bytes(
+                        _encode_dossier(lines, self.filename),
+                        self.filename,
+                    )
+                )
+                self.assertIsNotNone(parser.pilot)
+                assert parser.pilot is not None
+                self.assertEqual(parser.pilot.nation, expected)
+
     def test_signed_reputation_is_not_silently_rewritten_to_zero(self):
         for raw, expected in ((" -1 ", -1), (" +5 ", 5)):
             with self.subTest(raw=raw):

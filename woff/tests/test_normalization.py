@@ -21,28 +21,62 @@ class TestNormalization(unittest.TestCase):
     # ── Testes de Nação ──
 
     def test_normalize_nation_known(self):
-        self.assertEqual(normalize_nation("RFC"), "RFC")
-        self.assertEqual(normalize_nation("royal flying corps"), "RFC")
-        self.assertEqual(normalize_nation("German"), "German")
-        self.assertEqual(normalize_nation("USA"), "American")
-        self.assertEqual(normalize_nation("france"), "French")
+        cases = (
+            ("RFC", "RFC"),
+            ("Britain", "RFC"),
+            ("RNAS", "RNAS"),
+            ("RAF", "RAF"),
+            ("france", "French"),
+            ("German", "German"),
+            ("USA", "American"),
+            ("Belgium", "Belgian"),
+        )
+
+        for raw, expected in cases:
+            with self.subTest(raw=raw):
+                self.assertEqual(normalize_nation(raw), expected)
 
     def test_normalize_nation_unknown(self):
-        """Testa se retorna o fallback ('RFC') para nações desconhecidas."""
-        self.assertEqual(normalize_nation("Martian"), "RFC")
-        self.assertEqual(normalize_nation(""), "RFC")
+        self.assertEqual(normalize_nation("  Martian  "), "Martian")
+        self.assertEqual(normalize_nation(""), "")
+        self.assertEqual(normalize_nation("   "), "")
+
+    def test_short_nation_aliases_do_not_match_inside_other_names(self):
+        self.assertEqual(normalize_nation("Austria"), "Austria")
+        self.assertEqual(normalize_nation("Russia"), "Russia")
 
     # ── Testes de Tipo de Missão ──
 
     def test_normalize_mission_type_known(self):
-        self.assertEqual(normalize_mission_type("Offensive Patrol"), "Offensive Patrol (OP)")
-        self.assertEqual(normalize_mission_type("fighter op"), "Offensive Patrol (OP)")
-        self.assertEqual(normalize_mission_type("Bombing"), "Bombing Raid (Tactical)")
+        cases = (
+            ("Offensive Patrol", "Offensive Patrol (OP)"),
+            ("fighter op", "Offensive Patrol (OP)"),
+            ("Defensive Patrol", "Defensive Patrol"),
+            ("CAS", "Close Air Support (CAS)"),
+            ("Artillery", "Artillery Observation (Art.Obs.)"),
+            ("Photographic", "Photographic Reconnaissance"),
+            ("Strategic Recon", "Strategic Reconnaissance"),
+            ("Bombing", "Bombing Raid (Tactical)"),
+            ("Balloon", "Balloon Busting"),
+            ("Escort", "Escort Duty"),
+            ("Ground Attack", "Ground Attack / Strafing"),
+        )
+
+        for raw, expected in cases:
+            with self.subTest(raw=raw):
+                self.assertEqual(normalize_mission_type(raw), expected)
 
     def test_normalize_mission_type_unknown(self):
         """Testa se retorna o texto original (limpo) para tipos desconhecidos."""
-        self.assertEqual(normalize_mission_type("Reconnaissance"), "Reconnaissance")
+        self.assertEqual(normalize_mission_type(" Reconnaissance "), "Reconnaissance")
         self.assertEqual(normalize_mission_type(""), "")
+
+    def test_short_mission_aliases_require_token_boundaries(self):
+        self.assertEqual(normalize_mission_type("Troop Support"), "Troop Support")
+        self.assertEqual(
+            normalize_mission_type("Cooperation Flight"),
+            "Cooperation Flight",
+        )
 
     # ── Testes de Status do Piloto ──
 
@@ -82,11 +116,28 @@ class TestNormalization(unittest.TestCase):
 
     # ── Testes de Tipo de Vitória ──
 
-    def test_normalize_victory_type(self):
-        self.assertEqual(normalize_victory_type("went down in flames"), "Destroyed — In Flames")
-        self.assertEqual(normalize_victory_type("OOC"), "Out of Control (OOC)")
-        self.assertEqual(normalize_victory_type("Driven down"), "Driven Down (Unconfirmed)")
-        self.assertEqual(normalize_victory_type("Unknown event"), "Out of Control (OOC)") # Fallback
+    def test_normalize_victory_type_known(self):
+        cases = (
+            ("went down in flames", "Destroyed — In Flames"),
+            ("structural failure", "Destroyed — Structural Failure"),
+            ("OOC", "Out of Control (OOC)"),
+            ("out of control", "Out of Control (OOC)"),
+            ("forced to land", "Forced to Land"),
+            ("Driven down", "Driven Down (Unconfirmed)"),
+            ("balloon", "Balloon Destroyed (Flames)"),
+        )
+
+        for raw, expected in cases:
+            with self.subTest(raw=raw):
+                self.assertEqual(normalize_victory_type(raw), expected)
+
+    def test_normalize_victory_type_unknown(self):
+        self.assertEqual(normalize_victory_type("  Engine exploded  "), "Engine exploded")
+        self.assertEqual(normalize_victory_type(""), "")
+
+    def test_victory_aliases_require_token_boundaries(self):
+        self.assertEqual(normalize_victory_type("Spinning away"), "Spinning away")
+        self.assertEqual(normalize_victory_type("Firewood damage"), "Firewood damage")
 
     # ── Testes de Normalização de Datas ──
 

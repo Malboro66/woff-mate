@@ -167,6 +167,18 @@ class TestWoFFXMLParser(unittest.TestCase):
         self.assertEqual(p.startDate, "1917-04-01") # Já estava normalizado
         self.assertTrue(p.id) # Tem de ter um ID gerado
 
+    def test_xml_preserves_an_unknown_explicit_nation(self):
+        xml = """<?xml version="1.0" encoding="UTF-8"?>
+<Campaign>
+  <Pilot><PilotName>Unknown Nation Pilot</PilotName><Nation>Austria</Nation></Pilot>
+</Campaign>
+"""
+
+        self.assertTrue(self._write_and_parse(xml))
+        self.assertIsNotNone(self.parser.pilot)
+        assert self.parser.pilot is not None
+        self.assertEqual(self.parser.pilot.nation, "Austria")
+
     def test_mission_data_normalization(self):
         """Testa a extração e normalização da missão."""
         self._write_and_parse(MOCK_XML_VALID)
@@ -181,6 +193,23 @@ class TestWoFFXMLParser(unittest.TestCase):
         self.assertFalse(m.damageReceived)
         self.assertFalse(m.woundsReceived)
         self.assertEqual(m.source_file, os.path.basename(self.tmp_file.name))
+
+    def test_xml_preserves_mission_text_with_embedded_short_aliases(self):
+        xml = """<?xml version="1.0" encoding="UTF-8"?>
+<Campaign>
+  <Pilot><PilotName>Mission Alias Pilot</PilotName></Pilot>
+  <Missions>
+    <Mission><Date>1917-04-06</Date><Type>Troop Support</Type></Mission>
+    <Mission><Date>1917-04-07</Date><Type>Cooperation Flight</Type></Mission>
+  </Missions>
+</Campaign>
+"""
+
+        self.assertTrue(self._write_and_parse(xml))
+        self.assertEqual(
+            [mission.missionType for mission in self.parser.missions],
+            ["Troop Support", "Cooperation Flight"],
+        )
 
     def test_invalid_xml_counts_reject_only_the_affected_mission(self):
         fields = (
@@ -281,6 +310,24 @@ class TestWoFFXMLParser(unittest.TestCase):
         self.assertEqual(v.enemyType, "Albatros D.III")
         self.assertEqual(v.victoryType, "Out of Control (OOC)") # Normalizado
         self.assertTrue(v.confirmed)
+
+    def test_xml_preserves_unknown_victory_text(self):
+        xml = """<?xml version="1.0" encoding="UTF-8"?>
+<Campaign>
+  <Pilot><PilotName>Unknown Victory Pilot</PilotName></Pilot>
+  <Victories>
+    <Victory>
+      <Date>1917-04-06</Date>
+      <EnemyType>Albatros D.III</EnemyType>
+      <Type>Engine exploded</Type>
+    </Victory>
+  </Victories>
+</Campaign>
+"""
+
+        self.assertTrue(self._write_and_parse(xml))
+        self.assertEqual(len(self.parser.victories), 1)
+        self.assertEqual(self.parser.victories[0].victoryType, "Engine exploded")
 
     def test_decoration_date_normalization(self):
         """Testa se a data da condecoração é normalizada para ISO 8601."""
