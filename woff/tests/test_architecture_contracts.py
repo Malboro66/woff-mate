@@ -1359,6 +1359,20 @@ def test_ui_v2_reference_contract() -> None:
     )
     assert "RFC, RNAS, and RAF remain distinct" in reference
     assert "Missing status does not become" in reference
+    assert "`SYS-01` remains available when no career is selected" in reference
+    normalized_statuses = (
+        "Active",
+        "KIA",
+        "PoW",
+        "MIA",
+        "Invalided Out",
+        "Survived War",
+        "Lightly Wounded",
+        "Seriously Wounded",
+    )
+    for status in normalized_statuses:
+        assert f"`{status}`" in reference
+    assert "displays that value verbatim" in reference
     for state in (
         "Authoritative zero",
         "Unknown",
@@ -1391,6 +1405,8 @@ def test_ui_v2_reference_contract() -> None:
     assert "## Keyboard model" in visual_system
     assert "no horizontal scrollbar" in visual_system
     assert "Synthetic`, `Fixture-backed`, or `Unavailable`" in visual_system
+    for status in normalized_statuses:
+        assert f"`{status}`" in visual_system
 
     walkthrough = walkthrough_path.read_text(encoding="utf-8")
     assert "Status: Passed repository design review" in walkthrough
@@ -1398,6 +1414,9 @@ def test_ui_v2_reference_contract() -> None:
     assert "There is no dead end" in walkthrough
     assert "Result: Pass." in walkthrough
     assert "Issue #80 owns the formal deterministic fixture matrix" in walkthrough
+    assert "opens `SYS-01` without a career" in walkthrough
+    for status in normalized_statuses:
+        assert f"`{status}`" in walkthrough
 
     pyproject = _load_pyproject()
     project = pyproject["project"]

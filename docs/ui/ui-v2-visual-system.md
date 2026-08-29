@@ -130,7 +130,7 @@ high. Related information stays closer than unrelated sections.
 | `ContextBar` | career selected, no career, partial data, unavailable data |
 | `PageHeader` | default, back route, contextual read-only link, warning summary |
 | `CareerIdentityHeader` | complete, partial, unknown status, no portrait |
-| `CareerStatusBadge` | active, wounded, KIA, unknown |
+| `CareerStatusBadge` | `Active`, `KIA`, `PoW`, `MIA`, `Invalided Out`, `Survived War`, `Lightly Wounded`, `Seriously Wounded`, unknown, unsupported authoritative value |
 | `DataCoverageBadge` | complete, partial, missing, truncated, unsupported, unreadable |
 | `StatTile` | known positive, authoritative zero, unknown, unavailable, invalid |
 | `MissionSummary` | ready, no narrative, no mission, unavailable detail |

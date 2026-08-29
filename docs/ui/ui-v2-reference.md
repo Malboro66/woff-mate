@@ -89,7 +89,7 @@ gaps. Scaling adaptations are defined in the visual-system document.
 
 | ID | Screen | Purpose | Primary entry | Expected exit |
 |---|---|---|---|---|
-| `APP-00` | Application Shell | Preserve career and navigation context around every view. | Application start or return from an unavailable state. | Any enabled primary destination or `SEL-01`. |
+| `APP-00` | Application Shell | Preserve career and navigation context around every view. | Application start or return from an unavailable state. | Any enabled primary destination, `SYS-01`, or `SEL-01`; `SYS-01` remains available when no career is selected. |
 | `SEL-01` | Career Selector | Select one stable career and disambiguate same-name careers. | Context-bar career control or no-career state. | The last safe view for the selected `career_id`, normally `OPR-01`. |
 | `OPR-01` | Operations | Summarize the active career, latest mission, warnings, and next read-only routes. | Default selected-career destination or primary navigation. | `DOS-01`, `MIS-02`, `JRN-01`, `SQD-01`, or `SYS-01`. |
 | `DOS-01` | Pilot Dossier | Present the central identity, status, statistics, and record coverage for one career. | Primary navigation, Operations, or career selection. | `DOS-02`, `DOS-03`, `DOS-04`, `MIS-02`, or the previous primary view. |
@@ -165,10 +165,28 @@ the main column without changing reading order.
 | Skill | `skill` | Show the supplied value without inventing a percentage, tier, or description. |
 | Reputation | `reputation` | Show the supplied value without an inferred progress range. |
 
-RFC, RNAS, and RAF remain distinct labels. Missing status does not become
-`Active`; it renders as `Unknown`. The supported status labels are `Active`,
-`Wounded`, `Killed in Action`, and `Unknown`, but only an authoritative value
-may select the first three.
+RFC, RNAS, and RAF remain distinct labels. Status rendering is lossless across
+the normalized pilot-status contract:
+
+| Authoritative normalized value | UI label |
+|---|---|
+| `Active` | Active |
+| `KIA` | Killed in Action (KIA) |
+| `PoW` | Prisoner of War (PoW) |
+| `MIA` | Missing in Action (MIA) |
+| `Invalided Out` | Invalided Out |
+| `Survived War` | Survived War |
+| `Lightly Wounded` | Lightly Wounded |
+| `Seriously Wounded` | Seriously Wounded |
+| Missing or unavailable | Unknown |
+
+Missing status does not become `Active`; it renders as `Unknown`. The UI must
+not collapse `PoW`, `MIA`, `Invalided Out`, `Survived War`, `Lightly Wounded`,
+or `Seriously Wounded` into a generic `Wounded` or `Unknown` state. If the
+presentation contract later receives a new authoritative non-empty normalized
+value, it displays that value verbatim with an unsupported-mapping notice until
+the label map is extended; it does not silently replace the value with
+`Unknown`.
 
 ### Portrait contract
 

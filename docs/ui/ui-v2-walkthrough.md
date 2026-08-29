@@ -42,7 +42,7 @@ path, database row, log excerpt, or real person's asserted identity.
 
 | Step | Action and expected result | Focus return / exit | Result |
 |---:|---|---|---|
-| 1 | Open `APP-00` with no career. The shell keeps its six destinations visible but presents no previous-career values. | `Select career` opens `SEL-01`. | Pass |
+| 1 | Open `APP-00` with no career. The shell keeps its six historical destinations visible, presents no previous-career values, and keeps the separated `SYS-01` system entry available. | `Select career` opens `SEL-01`; `View data status` opens `SYS-01` without a career. | Pass |
 | 2 | Open `SEL-01`. The two `Lt. Avery North` entries remain distinct through their safe reference and metadata; selection value is `career_id`. | Choose `career-demo-001`; focus returns to the `OPR-01` heading. | Pass |
 | 3 | Review `OPR-01`. The active career is visible, `0` missions is a value, warnings are textual, and operational indicators say `Unavailable`. | Open Pilot Dossier or another primary destination. | Pass |
 | 4 | Open `DOS-01`. RFC is not changed to RAF, absent status is `Unknown`, `0` is not a placeholder, and unavailable victories are not treated as an empty collection. | Open `DOS-02`, `DOS-03`, or `DOS-04`; each returns to Dossier. | Pass |
@@ -71,6 +71,27 @@ next route. There is no dead end.
 | Unreadable source | The message contains no local path, raw exception, or payload. | Pass |
 | Query error | Active-career context remains; `Retry view` and `View data status` are available. | Pass |
 | Loading after career change | Geometry remains stable and no prior-career values appear. | Pass |
+
+### Authoritative status walkthrough
+
+The status badge was checked against every value produced by the normalized
+pilot-status contract. Each value remains distinguishable in visible and
+accessible text:
+
+| Normalized value | Expected badge label | Result |
+|---|---|---|
+| `Active` | Active | Pass |
+| `KIA` | Killed in Action (KIA) | Pass |
+| `PoW` | Prisoner of War (PoW) | Pass |
+| `MIA` | Missing in Action (MIA) | Pass |
+| `Invalided Out` | Invalided Out | Pass |
+| `Survived War` | Survived War | Pass |
+| `Lightly Wounded` | Lightly Wounded | Pass |
+| `Seriously Wounded` | Seriously Wounded | Pass |
+| Missing or unavailable | Unknown | Pass |
+
+No prisoner, missing, invalided-out, survived-war, or wound-severity value is
+collapsed into a generic `Wounded` or `Unknown` badge.
 
 ## Keyboard walkthrough
 
