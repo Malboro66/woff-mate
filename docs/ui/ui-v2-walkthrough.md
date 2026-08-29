@@ -1,6 +1,6 @@
 # UI V2 design walkthrough
 
-Status: Passed repository design review
+Status: Pending rendered contrast verification
 
 Date: 2026-08-29
 
@@ -106,14 +106,17 @@ The reference order was reviewed as:
 7. War Diary
 8. Reports
 9. Data & System Status
-10. Page heading or contextual back route
+10. Contextual back control, when present
 11. Page-level read-only links
 12. Main content and contextual records in visual reading order
 
 The visible focus token works on graphite, aviation green, felt/canvas, beige
 paper, and overlays. Opening and closing `SEL-01` or another overlay restores
 focus to its opener. Selecting a career sends focus to the resulting page
-heading. Dynamic status does not steal focus.
+heading programmatically; the heading is not part of the sequential `Tab` order
+and is never made generally tabbable. Primary navigation uses the same
+programmatic heading target. A contextual back control, when present, remains
+an ordinary interactive `Tab` stop. Dynamic status does not steal focus.
 
 Result: Pass.
 
@@ -138,7 +141,27 @@ an accessible, visible way to obtain its label.
 | Felt/canvas | Texture is limited to broad, low-density surfaces and carries no state meaning. | Pass |
 | Wood | Grain is restricted to a narrow structural accent rather than every card. | Pass |
 | Brass | Used sparingly and never as the sole focus, selection, status, or text contrast. | Pass |
-| Text and controls | Flat token pairs pass at 5.30:1 or higher; each textured Figma composition remains subject to a rendered WCAG AA check. | Pass |
+| Text and controls | Flat token pairs pass at 5.30:1 or higher, but flat-token calculations do not establish rendered contrast after texture and opacity. | Pending |
+
+### Rendered frame contrast evidence
+
+Rendered frame contrast evidence is pending for every approved V2 composition:
+
+| Figma node | Approved frame | Rendered WCAG AA result |
+|---|---|---|
+| `15:2` | Operations Room / V2 Field Briefing | Pending |
+| `21:2` | V2 / Pilot | Pending |
+| `21:184` | V2 / Missions | Pending |
+| `21:366` | V2 / Diary | Pending |
+| `21:548` | V2 / Squadron | Pending |
+| `21:730` | V2 / Settings | Pending |
+
+To pass, each frame must be exported at its native 1440 by 1024 size and checked
+on the rendered pixels after texture, opacity, focus, and state composition.
+Normal text must reach 4.5:1; large text and essential non-text boundaries must
+reach 3:1. The evidence record must identify the frame, tested foreground and
+background, measured ratio, and outcome. Flat-token ratios are supporting data,
+not a substitute for this rendered check.
 
 ## Privacy and scope review
 
@@ -150,7 +173,7 @@ an accessible, visible way to obtain its label.
 - No PySide, PyQt, React, web runtime, or other GUI dependency is introduced.
 - No Product Gate, toolkit ADR, or aggregate cycle is approved by this review.
 
-Result: Pass.
+Result: Pending rendered contrast verification.
 
 ## Traceability
 

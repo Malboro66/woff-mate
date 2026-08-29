@@ -107,9 +107,10 @@ WoFF files or SQLite.
 
 The approved follow-up work is now tracked explicitly:
 
-- #79 completed the repository UI V2 screen map, visual system, component and
-  state inventory, focus order, Windows scaling notes, and design walkthrough
-  without production UI code.
+- #79 records the repository UI V2 screen map, visual system, component and
+  state inventory, focus order, and Windows scaling notes without production UI
+  code; it remains in progress until all six approved Figma frames have recorded
+  rendered WCAG AA evidence after texture and opacity are applied.
 - #80 defines the shared state matrix and deterministic sanitized fixtures used
   by designs, contract tests, and the toolkit spike.
 - #81 defines immutable read-only view models and application query-service

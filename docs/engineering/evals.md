@@ -126,18 +126,21 @@ claim Q5 or approval of Product Gate A or Gate B.
 
 | Eval | Work item | Status | Evidence or required evidence | Enforcement |
 |---|---|---|---|---|
-| `EVAL-UI-DESIGN-001` | #79 | Implemented | The approved V2 screen map, visual tokens and materials, component/state inventory, focus order, Windows scaling behavior, and synthetic labels pass the recorded repository design walkthrough | `woff/tests/test_architecture_contracts.py` |
+| `EVAL-UI-DESIGN-001` | #79 | Planned | The approved V2 screen map, visual tokens and materials, component/state inventory, focus order, Windows scaling behavior, and synthetic labels pass the recorded repository design walkthrough, including rendered WCAG AA evidence for every textured Figma frame | — |
 | `EVAL-UI-STATES-001` | #80 | Planned | Deterministic synthetic fixtures cover every shared state and privacy constraint without production dependencies | — |
 | `EVAL-UI-CONTRACTS-001` | #81 | Planned | Immutable toolkit-independent view models and query protocols preserve stable identity, state, freshness, warnings, and sanitized failures | — |
 | `EVAL-UI-SPIKE-001` | #82 | Planned | One PySide6 line passes the supported Python and Windows packaging and measured resource matrix | — |
 | `EVAL-UI-SPIKE-002` | #82 | Planned | Scaling, keyboard use, accessibility, plugin behavior, and licensing evidence support a Go, Conditional Go, or No-go recommendation | — |
 
-Issue #79 is completed design-reference work. Its evidence is
+Issue #79 remains in progress. Its repository design artifacts are
 `docs/ui/ui-v2-reference.md`, `docs/ui/ui-v2-visual-system.md`, and
 `docs/ui/ui-v2-walkthrough.md`. The architecture contract verifies the required
 screen IDs, stable-career boundary, data-honesty vocabulary, material rules,
-focus/scaling coverage, synthetic labeling, repository links, and governance
-state. It also preserves the absence of GUI runtime dependencies.
+focus/scaling coverage, synthetic labeling, repository links, and pending
+governance state. It also preserves the absence of GUI runtime dependencies.
+`EVAL-UI-DESIGN-001` becomes implemented only after rendered screenshots of all
+six approved V2 Figma frames have recorded passing WCAG AA checks after texture,
+opacity, focus, and state composition.
 
 Issue #80 remains unblocked planning work. Issue #81 waits for the shared state
 and fixture vocabulary from #80. Issue #82 is an isolated feasibility spike
@@ -486,9 +489,10 @@ for the broader roster-generation and truncated-input policy.
 | #80 | `EVAL-UI-STATES-001` |
 | #81 | `EVAL-UI-CONTRACTS-001` |
 
-Cycle 3.4.0 is `active`. Issues #41, #75, #79, and #97 are complete. Issue #38 is
-the next dependency-ordered implementation item. Issue #35 remains blocked by
-#38, #37 remains blocked by #35, and #101 remains blocked by #37 and #96.
+Cycle 3.4.0 is `active`. Issues #41, #75, and #97 are complete. Issue #79 remains
+in progress pending rendered contrast evidence. Issue #38 is the next
+dependency-ordered implementation item. Issue #35 remains blocked by #38, #37
+remains blocked by #35, and #101 remains blocked by #37 and #96.
 `EVAL-CYCLE-340-001` aggregates all sixteen members and remains planned until
 every member acceptance criterion, applicable eval, and `Q6-CYCLE-3.4.0`
 condition passes.

@@ -173,7 +173,7 @@ The default focus sequence is structural and remains stable across screens:
 2. Career selector.
 3. Primary navigation in visual order.
 4. Data & System Status footer entry.
-5. Page heading or back route.
+5. Contextual back control, when present.
 6. Page-level read-only links.
 7. Main content in reading order.
 8. Contextual records or rows.
@@ -191,7 +191,14 @@ Rules:
 - A two-edge, 2-pixel minimum focus treatment remains visible on paper, felt,
   canvas, and shell surfaces and is not communicated by brass color alone.
 - Loading a different career clears old content before the new career snapshot
-  is presented and returns focus to the resulting page heading.
+  is presented and moves focus programmatically to the resulting page heading.
+
+Page headings are programmatic focus targets, not stops in the sequential `Tab`
+order. After primary navigation or career selection changes the top-level view,
+the resulting heading receives one-time programmatic focus through
+`tabindex="-1"` or the toolkit-equivalent accessibility API. A contextual back
+control remains an ordinary interactive `Tab` stop when present; headings are
+never made generally tabbable.
 
 ## Windows scaling behavior
 

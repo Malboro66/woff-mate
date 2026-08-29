@@ -592,9 +592,8 @@ evals:
     enforced_by: [woff/tests/test_architecture_contracts.py]
   EVAL-UI-DESIGN-001:
     work_items: [issue-79]
-    status: implemented
-    evidence: The approved UI V2 screen map, visual system, focus order, Windows scaling behavior, data-honesty vocabulary, and synthetic-state labels pass a recorded design walkthrough.
-    enforced_by: [woff/tests/test_architecture_contracts.py]
+    status: planned
+    evidence: All six approved UI V2 Figma frames must record passing rendered WCAG AA checks after texture, opacity, focus, and state composition before the repository design walkthrough passes.
   EVAL-UI-STATES-001:
     work_items: [issue-80]
     status: planned
@@ -928,7 +927,7 @@ work_items:
   issue-79:
     title: Consolidate the approved UI V2 reference and visual system
     module: presentation
-    state: done
+    state: in_progress
     evals: [EVAL-UI-DESIGN-001]
     gates: [Q0, Q1, Q6-CYCLE-3.4.0]
     depends_on:

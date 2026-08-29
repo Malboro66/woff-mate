@@ -1326,8 +1326,12 @@ def test_ui_v2_reference_contract() -> None:
     reference_path = ui_root / "ui-v2-reference.md"
     visual_system_path = ui_root / "ui-v2-visual-system.md"
     walkthrough_path = ui_root / "ui-v2-walkthrough.md"
+    quality_gates_path = REPOSITORY_ROOT / "docs" / "engineering" / "quality-gates.md"
+    evals_path = REPOSITORY_ROOT / "docs" / "engineering" / "evals.md"
     for path in (reference_path, visual_system_path, walkthrough_path):
         assert path.is_file()
+    assert quality_gates_path.is_file()
+    assert evals_path.is_file()
 
     readme = (REPOSITORY_ROOT / "README.md").read_text(encoding="utf-8")
     for path in (reference_path, visual_system_path, walkthrough_path):
@@ -1405,18 +1409,39 @@ def test_ui_v2_reference_contract() -> None:
     assert "## Keyboard model" in visual_system
     assert "no horizontal scrollbar" in visual_system
     assert "Synthetic`, `Fixture-backed`, or `Unavailable`" in visual_system
+    assert "Page headings are programmatic focus targets" in visual_system
+    assert "never made generally tabbable" in visual_system
+    assert "Page heading or back route" not in visual_system
     for status in normalized_statuses:
         assert f"`{status}`" in visual_system
 
     walkthrough = walkthrough_path.read_text(encoding="utf-8")
-    assert "Status: Passed repository design review" in walkthrough
+    assert "Status: Pending rendered contrast verification" in walkthrough
     assert "Eval: `EVAL-UI-DESIGN-001`" in walkthrough
     assert "There is no dead end" in walkthrough
-    assert "Result: Pass." in walkthrough
+    assert "Result: Pending rendered contrast verification." in walkthrough
     assert "Issue #80 owns the formal deterministic fixture matrix" in walkthrough
     assert "opens `SYS-01` without a career" in walkthrough
+    assert "the heading is not part of the sequential `Tab` order" in walkthrough
+    assert "Rendered frame contrast evidence is pending" in walkthrough
+    assert "Page heading or contextual back route" not in walkthrough
+    assert re.search(r"\| Text and controls .* \| Pending \|", walkthrough)
+    for node_id in ("15:2", "21:2", "21:184", "21:366", "21:548", "21:730"):
+        assert f"`{node_id}`" in walkthrough
     for status in normalized_statuses:
         assert f"`{status}`" in walkthrough
+
+    quality_gates = quality_gates_path.read_text(encoding="utf-8")
+    assert re.search(r"Issue #79 is in\s+progress", quality_gates)
+    assert re.search(
+        r"rendered WCAG AA\s+checks for all six approved V2 Figma frames "
+        r"remain pending",
+        quality_gates,
+    )
+
+    eval_catalog = evals_path.read_text(encoding="utf-8")
+    assert "Issue #79 remains in progress" in eval_catalog
+    assert "`EVAL-UI-DESIGN-001` becomes implemented only after" in eval_catalog
 
     pyproject = _load_pyproject()
     project = pyproject["project"]
@@ -1433,11 +1458,11 @@ def test_ui_v2_reference_contract() -> None:
     assert work_items["issue-79"] == {
         "title": "Consolidate the approved UI V2 reference and visual system",
         "module": "presentation",
-        "state": "done",
+        "state": "in_progress",
         "evals": ["EVAL-UI-DESIGN-001"],
         "gates": ["Q0", "Q1", "Q6-CYCLE-3.4.0"],
         "depends_on": [{"id": "issue-56", "status": "satisfied"}],
     }
     ui_eval = evals["EVAL-UI-DESIGN-001"]
-    assert ui_eval["status"] == "implemented"
-    assert ui_eval["enforced_by"] == ["woff/tests/test_architecture_contracts.py"]
+    assert ui_eval["status"] == "planned"
+    assert "enforced_by" not in ui_eval
