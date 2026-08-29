@@ -1319,3 +1319,106 @@ def test_ui_read_only_foundation_contract() -> None:
     for cycle in cycles.values():
         assert isinstance(cycle, dict)
         assert "issue-56" not in cycle.get("members", [])
+
+
+def test_ui_v2_reference_contract() -> None:
+    ui_root = REPOSITORY_ROOT / "docs" / "ui"
+    reference_path = ui_root / "ui-v2-reference.md"
+    visual_system_path = ui_root / "ui-v2-visual-system.md"
+    walkthrough_path = ui_root / "ui-v2-walkthrough.md"
+    for path in (reference_path, visual_system_path, walkthrough_path):
+        assert path.is_file()
+
+    readme = (REPOSITORY_ROOT / "README.md").read_text(encoding="utf-8")
+    for path in (reference_path, visual_system_path, walkthrough_path):
+        assert path.relative_to(REPOSITORY_ROOT).as_posix() in readme
+
+    reference = reference_path.read_text(encoding="utf-8")
+    for screen_id in (
+        "APP-00",
+        "SEL-01",
+        "OPR-01",
+        "DOS-01",
+        "DOS-02",
+        "DOS-03",
+        "DOS-04",
+        "MIS-01",
+        "MIS-02",
+        "SQD-01",
+        "SQD-02",
+        "JRN-01",
+        "RPT-01",
+        "RPT-02",
+        "SYS-01",
+    ):
+        assert f"`{screen_id}`" in reference
+    assert "stable `career_id`" in reference
+    assert re.search(
+        r"Two careers with the same display\s+name remain separate",
+        reference,
+    )
+    assert "RFC, RNAS, and RAF remain distinct" in reference
+    assert "Missing status does not become" in reference
+    for state in (
+        "Authoritative zero",
+        "Unknown",
+        "Not available",
+        "None recorded",
+        "Partial record",
+        "Missing",
+        "Truncated",
+        "Unsupported",
+        "Unreadable",
+        "Error",
+    ):
+        assert state in reference
+
+    visual_system = visual_system_path.read_text(encoding="utf-8")
+    for token in (
+        "color.shell.graphite",
+        "color.surface.paper",
+        "material.paper.subtle",
+        "material.felt.matte",
+        "material.canvas.quiet",
+        "material.wood.restrained",
+        "material.brass.aged",
+    ):
+        assert f"`{token}`" in visual_system
+    assert "All beige cards use `material.paper.subtle`" in visual_system
+    assert "WCAG AA" in visual_system
+    for scale in ("100%", "125%", "150%", "200%"):
+        assert scale in visual_system
+    assert "## Keyboard model" in visual_system
+    assert "no horizontal scrollbar" in visual_system
+    assert "Synthetic`, `Fixture-backed`, or `Unavailable`" in visual_system
+
+    walkthrough = walkthrough_path.read_text(encoding="utf-8")
+    assert "Status: Passed repository design review" in walkthrough
+    assert "Eval: `EVAL-UI-DESIGN-001`" in walkthrough
+    assert "There is no dead end" in walkthrough
+    assert "Result: Pass." in walkthrough
+    assert "Issue #80 owns the formal deterministic fixture matrix" in walkthrough
+
+    pyproject = _load_pyproject()
+    project = pyproject["project"]
+    assert isinstance(project, dict)
+    dependencies = project.get("dependencies", [])
+    assert isinstance(dependencies, list)
+    runtime_names = {_requirement_name(dependency) for dependency in dependencies}
+    assert runtime_names.isdisjoint({"pyside2", "pyside6", "pyqt5", "pyqt6"})
+
+    graph = _graph()
+    work_items = graph["work_items"]
+    evals = graph["evals"]
+    assert isinstance(work_items, dict) and isinstance(evals, dict)
+    assert work_items["issue-79"] == {
+        "title": "Consolidate the approved UI V2 reference and visual system",
+        "module": "presentation",
+        "state": "done",
+        "evals": ["EVAL-UI-DESIGN-001"],
+        "gates": ["Q0", "Q1", "Q6-CYCLE-3.4.0"],
+        "depends_on": [{"id": "issue-56", "status": "satisfied"}],
+    }
+    ui_eval = evals["EVAL-UI-DESIGN-001"]
+    assert ui_eval["status"] == "implemented"
+    assert ui_eval["enforced_by"] == ["woff/tests/test_architecture_contracts.py"]

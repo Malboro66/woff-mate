@@ -1,5 +1,5 @@
 version: 1
-updated: 2026-08-28
+updated: 2026-08-29
 
 project:
   repository: Malboro66/woff-mate
@@ -592,8 +592,9 @@ evals:
     enforced_by: [woff/tests/test_architecture_contracts.py]
   EVAL-UI-DESIGN-001:
     work_items: [issue-79]
-    status: planned
-    evidence: The approved six-screen Figma flow, tokens, components, focus order, scaling behavior, and synthetic-state labels pass a recorded human walkthrough.
+    status: implemented
+    evidence: The approved UI V2 screen map, visual system, focus order, Windows scaling behavior, data-honesty vocabulary, and synthetic-state labels pass a recorded design walkthrough.
+    enforced_by: [woff/tests/test_architecture_contracts.py]
   EVAL-UI-STATES-001:
     work_items: [issue-80]
     status: planned
@@ -925,9 +926,9 @@ work_items:
     gates: [Q0, Q1, Q2]
     depends_on: []
   issue-79:
-    title: Complete the approved Figma V1 flow and visual system
+    title: Consolidate the approved UI V2 reference and visual system
     module: presentation
-    state: backlog
+    state: done
     evals: [EVAL-UI-DESIGN-001]
     gates: [Q0, Q1, Q6-CYCLE-3.4.0]
     depends_on:
