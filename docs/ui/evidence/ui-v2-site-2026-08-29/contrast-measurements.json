@@ -1,0 +1,3960 @@
+{
+  "method": "computed foreground + rendered 4px background ring, 5th percentile",
+  "screens": [
+    {
+      "screen": "01-operations",
+      "heading": "Operations Board",
+      "runs": 103,
+      "minCssRatio": 2.015647581611413,
+      "minRenderedP05": 1.1559678625689722,
+      "failedCss": 11,
+      "failedRendered": 26,
+      "worstCss": [
+        {
+          "text": "RFC \u00b7 FORM 14A \u00b7 FIELD COPY",
+          "fontSizePx": 9,
+          "fontWeight": 700,
+          "threshold": 4.5,
+          "cssRatio": 2.015647581611413,
+          "renderedP05": 1.2868288550030675,
+          "renderedP50": 2.1719209454971335,
+          "foreground": "rgb(145, 95, 79)",
+          "background": {
+            "backgroundColor": "rgb(200, 180, 140)",
+            "backgroundImage": "linear-gradient(110deg, rgba(143, 116, 75, 0.2), rgba(244, 226, 177, 0.12) 72%, rgba(126, 98, 62, 0.18)), url(\"https://woff-mate-ui-v2.pilotohans.chatgpt.site/textures/card-paper.webp\")",
+            "className": "paper-card active-pilot",
+            "opacity": 1,
+            "rect": {
+              "height": 220,
+              "width": 463.828125,
+              "x": 304,
+              "y": 136
+            },
+            "tag": "section"
+          }
+        },
+        {
+          "text": "\u00b7",
+          "fontSizePx": 13,
+          "fontWeight": 400,
+          "threshold": 4.5,
+          "cssRatio": 3.3053719261108263,
+          "renderedP05": 3.111479321861921,
+          "renderedP50": 3.247002748798674,
+          "foreground": "rgb(113, 107, 89)",
+          "background": {
+            "backgroundColor": "rgb(18, 27, 23)",
+            "backgroundImage": "radial-gradient(circle at 92% 0px, rgba(55, 78, 63, 0.22), rgba(0, 0, 0, 0) 38%), linear-gradient(rgba(6, 13, 10, 0.54), rgba(5, 11, 9, 0.68)), url(\"https://woff-mate-ui-v2.pilotohans.chatgpt.site/textures/workspace-felt.webp\")",
+            "className": "workspace",
+            "opacity": 1,
+            "rect": {
+              "height": 936,
+              "width": 1091,
+              "x": 272,
+              "y": 0
+            },
+            "tag": "main"
+          }
+        },
+        {
+          "text": "In service",
+          "fontSizePx": 9,
+          "fontWeight": 700,
+          "threshold": 4.5,
+          "cssRatio": 3.582467169823216,
+          "renderedP05": 3.077312830341481,
+          "renderedP50": 3.5558500173815824,
+          "foreground": "rgb(238, 240, 210)",
+          "background": {
+            "backgroundColor": "rgb(102, 133, 79)",
+            "backgroundImage": "none",
+            "className": "",
+            "opacity": 1,
+            "rect": {
+              "height": 43.6875,
+              "width": 66.859375,
+              "x": 441,
+              "y": 286
+            },
+            "tag": "em"
+          }
+        },
+        {
+          "text": "\u2713",
+          "fontSizePx": 12,
+          "fontWeight": 700,
+          "threshold": 4.5,
+          "cssRatio": 3.582467169823216,
+          "renderedP05": 1.322809207078748,
+          "renderedP50": 3.5518304737603383,
+          "foreground": "rgb(238, 240, 210)",
+          "background": {
+            "backgroundColor": "rgb(102, 133, 79)",
+            "backgroundImage": "none",
+            "className": "",
+            "opacity": 1,
+            "rect": {
+              "height": 43.6875,
+              "width": 66.859375,
+              "x": 441,
+              "y": 286
+            },
+            "tag": "em"
+          }
+        },
+        {
+          "text": "Flight Commander",
+          "fontSizePx": 9,
+          "fontWeight": 400,
+          "threshold": 4.5,
+          "cssRatio": 3.620928892546645,
+          "renderedP05": 3.280465081223156,
+          "renderedP50": 3.6613057484790597,
+          "foreground": "rgb(168, 168, 143)",
+          "background": {
+            "backgroundColor": "rgb(69, 78, 52)",
+            "backgroundImage": "radial-gradient(circle at 11px 11px, rgb(224, 175, 86) 0px, rgb(224, 175, 86) 3px, rgb(73, 55, 28) 3.3px, rgb(73, 55, 28) 4px, rgba(0, 0, 0, 0) 4.3px), radial-gradient(circle at calc(100% - 11px) 11px, rgb(224, 175, 86) 0px, rgb(224, 175, 86) 3px, rgb(73, 55, 28) 3.3px, rgb(73, 55, 28) 4px, rgba(0, 0, 0, 0) 4.3px), radial-gradient(circle at 11px calc(100% - 11px), rgb(224, 175, 86) 0px, rgb(224, 175, 86) 3px, rgb(73, 55, 28) 3.3px, rgb(73, 55, 28) 4px, rgba(0, 0, 0, 0) 4.3px), radial-gradient(circle at calc(100% - 11px) calc(100% - 11px), rgb(224, 175, 86) 0px, rgb(224, 175, 86) 3px, rgb(73, 55, 28) 3.3px, rgb(73, 55, 28) 4px, rgba(0, 0, 0, 0) 4.3px)",
+            "className": "squadron-panel riveted",
+            "opacity": 1,
+            "rect": {
+              "height": 371.421875,
+              "width": 269.671875,
+              "x": 1061.3125,
+              "y": 376
+            },
+            "tag": "section"
+          }
+        },
+        {
+          "text": "\u2713",
+          "fontSizePx": 9,
+          "fontWeight": 400,
+          "threshold": 4.5,
+          "cssRatio": 3.620928892546645,
+          "renderedP05": 1.455808597832024,
+          "renderedP50": 3.6424679345124495,
+          "foreground": "rgb(168, 168, 143)",
+          "background": {
+            "backgroundColor": "rgb(69, 78, 52)",
+            "backgroundImage": "radial-gradient(circle at 11px 11px, rgb(224, 175, 86) 0px, rgb(224, 175, 86) 3px, rgb(73, 55, 28) 3.3px, rgb(73, 55, 28) 4px, rgba(0, 0, 0, 0) 4.3px), radial-gradient(circle at calc(100% - 11px) 11px, rgb(224, 175, 86) 0px, rgb(224, 175, 86) 3px, rgb(73, 55, 28) 3.3px, rgb(73, 55, 28) 4px, rgba(0, 0, 0, 0) 4.3px), radial-gradient(circle at 11px calc(100% - 11px), rgb(224, 175, 86) 0px, rgb(224, 175, 86) 3px, rgb(73, 55, 28) 3.3px, rgb(73, 55, 28) 4px, rgba(0, 0, 0, 0) 4.3px), radial-gradient(circle at calc(100% - 11px) calc(100% - 11px), rgb(224, 175, 86) 0px, rgb(224, 175, 86) 3px, rgb(73, 55, 28) 3.3px, rgb(73, 55, 28) 4px, rgba(0, 0, 0, 0) 4.3px)",
+            "className": "squadron-panel riveted",
+            "opacity": 1,
+            "rect": {
+              "height": 371.421875,
+              "width": 269.671875,
+              "x": 1061.3125,
+              "y": 376
+            },
+            "tag": "section"
+          }
+        },
+        {
+          "text": "Wingman",
+          "fontSizePx": 9,
+          "fontWeight": 400,
+          "threshold": 4.5,
+          "cssRatio": 3.620928892546645,
+          "renderedP05": 3.2804650812231566,
+          "renderedP50": 3.6613057484790597,
+          "foreground": "rgb(168, 168, 143)",
+          "background": {
+            "backgroundColor": "rgb(69, 78, 52)",
+            "backgroundImage": "radial-gradient(circle at 11px 11px, rgb(224, 175, 86) 0px, rgb(224, 175, 86) 3px, rgb(73, 55, 28) 3.3px, rgb(73, 55, 28) 4px, rgba(0, 0, 0, 0) 4.3px), radial-gradient(circle at calc(100% - 11px) 11px, rgb(224, 175, 86) 0px, rgb(224, 175, 86) 3px, rgb(73, 55, 28) 3.3px, rgb(73, 55, 28) 4px, rgba(0, 0, 0, 0) 4.3px), radial-gradient(circle at 11px calc(100% - 11px), rgb(224, 175, 86) 0px, rgb(224, 175, 86) 3px, rgb(73, 55, 28) 3.3px, rgb(73, 55, 28) 4px, rgba(0, 0, 0, 0) 4.3px), radial-gradient(circle at calc(100% - 11px) calc(100% - 11px), rgb(224, 175, 86) 0px, rgb(224, 175, 86) 3px, rgb(73, 55, 28) 3.3px, rgb(73, 55, 28) 4px, rgba(0, 0, 0, 0) 4.3px)",
+            "className": "squadron-panel riveted",
+            "opacity": 1,
+            "rect": {
+              "height": 371.421875,
+              "width": 269.671875,
+              "x": 1061.3125,
+              "y": 376
+            },
+            "tag": "section"
+          }
+        },
+        {
+          "text": "\u2713",
+          "fontSizePx": 9,
+          "fontWeight": 400,
+          "threshold": 4.5,
+          "cssRatio": 3.620928892546645,
+          "renderedP05": 1.5531241615870097,
+          "renderedP50": 3.629168266204576,
+          "foreground": "rgb(168, 168, 143)",
+          "background": {
+            "backgroundColor": "rgb(69, 78, 52)",
+            "backgroundImage": "radial-gradient(circle at 11px 11px, rgb(224, 175, 86) 0px, rgb(224, 175, 86) 3px, rgb(73, 55, 28) 3.3px, rgb(73, 55, 28) 4px, rgba(0, 0, 0, 0) 4.3px), radial-gradient(circle at calc(100% - 11px) 11px, rgb(224, 175, 86) 0px, rgb(224, 175, 86) 3px, rgb(73, 55, 28) 3.3px, rgb(73, 55, 28) 4px, rgba(0, 0, 0, 0) 4.3px), radial-gradient(circle at 11px calc(100% - 11px), rgb(224, 175, 86) 0px, rgb(224, 175, 86) 3px, rgb(73, 55, 28) 3.3px, rgb(73, 55, 28) 4px, rgba(0, 0, 0, 0) 4.3px), radial-gradient(circle at calc(100% - 11px) calc(100% - 11px), rgb(224, 175, 86) 0px, rgb(224, 175, 86) 3px, rgb(73, 55, 28) 3.3px, rgb(73, 55, 28) 4px, rgba(0, 0, 0, 0) 4.3px)",
+            "className": "squadron-panel riveted",
+            "opacity": 1,
+            "rect": {
+              "height": 371.421875,
+              "width": 269.671875,
+              "x": 1061.3125,
+              "y": 376
+            },
+            "tag": "section"
+          }
+        },
+        {
+          "text": "Pilot",
+          "fontSizePx": 9,
+          "fontWeight": 400,
+          "threshold": 4.5,
+          "cssRatio": 3.620928892546645,
+          "renderedP05": 3.380932901897898,
+          "renderedP50": 3.6613057484790597,
+          "foreground": "rgb(168, 168, 143)",
+          "background": {
+            "backgroundColor": "rgb(69, 78, 52)",
+            "backgroundImage": "radial-gradient(circle at 11px 11px, rgb(224, 175, 86) 0px, rgb(224, 175, 86) 3px, rgb(73, 55, 28) 3.3px, rgb(73, 55, 28) 4px, rgba(0, 0, 0, 0) 4.3px), radial-gradient(circle at calc(100% - 11px) 11px, rgb(224, 175, 86) 0px, rgb(224, 175, 86) 3px, rgb(73, 55, 28) 3.3px, rgb(73, 55, 28) 4px, rgba(0, 0, 0, 0) 4.3px), radial-gradient(circle at 11px calc(100% - 11px), rgb(224, 175, 86) 0px, rgb(224, 175, 86) 3px, rgb(73, 55, 28) 3.3px, rgb(73, 55, 28) 4px, rgba(0, 0, 0, 0) 4.3px), radial-gradient(circle at calc(100% - 11px) calc(100% - 11px), rgb(224, 175, 86) 0px, rgb(224, 175, 86) 3px, rgb(73, 55, 28) 3.3px, rgb(73, 55, 28) 4px, rgba(0, 0, 0, 0) 4.3px)",
+            "className": "squadron-panel riveted",
+            "opacity": 1,
+            "rect": {
+              "height": 371.421875,
+              "width": 269.671875,
+              "x": 1061.3125,
+              "y": 376
+            },
+            "tag": "section"
+          }
+        },
+        {
+          "text": "!",
+          "fontSizePx": 9,
+          "fontWeight": 400,
+          "threshold": 4.5,
+          "cssRatio": 3.620928892546645,
+          "renderedP05": 1.4262897955222602,
+          "renderedP50": 3.620912237224302,
+          "foreground": "rgb(168, 168, 143)",
+          "background": {
+            "backgroundColor": "rgb(69, 78, 52)",
+            "backgroundImage": "radial-gradient(circle at 11px 11px, rgb(224, 175, 86) 0px, rgb(224, 175, 86) 3px, rgb(73, 55, 28) 3.3px, rgb(73, 55, 28) 4px, rgba(0, 0, 0, 0) 4.3px), radial-gradient(circle at calc(100% - 11px) 11px, rgb(224, 175, 86) 0px, rgb(224, 175, 86) 3px, rgb(73, 55, 28) 3.3px, rgb(73, 55, 28) 4px, rgba(0, 0, 0, 0) 4.3px), radial-gradient(circle at 11px calc(100% - 11px), rgb(224, 175, 86) 0px, rgb(224, 175, 86) 3px, rgb(73, 55, 28) 3.3px, rgb(73, 55, 28) 4px, rgba(0, 0, 0, 0) 4.3px), radial-gradient(circle at calc(100% - 11px) calc(100% - 11px), rgb(224, 175, 86) 0px, rgb(224, 175, 86) 3px, rgb(73, 55, 28) 3.3px, rgb(73, 55, 28) 4px, rgba(0, 0, 0, 0) 4.3px)",
+            "className": "squadron-panel riveted",
+            "opacity": 1,
+            "rect": {
+              "height": 371.421875,
+              "width": 269.671875,
+              "x": 1061.3125,
+              "y": 376
+            },
+            "tag": "section"
+          }
+        },
+        {
+          "text": "8 pilots active \u00b7 2 wounded \u00b7 1 unavailable",
+          "fontSizePx": 9,
+          "fontWeight": 400,
+          "threshold": 4.5,
+          "cssRatio": 3.6368996202678425,
+          "renderedP05": 3.418309716961734,
+          "renderedP50": 3.67745456524632,
+          "foreground": "rgb(170, 168, 142)",
+          "background": {
+            "backgroundColor": "rgb(69, 78, 52)",
+            "backgroundImage": "radial-gradient(circle at 11px 11px, rgb(224, 175, 86) 0px, rgb(224, 175, 86) 3px, rgb(73, 55, 28) 3.3px, rgb(73, 55, 28) 4px, rgba(0, 0, 0, 0) 4.3px), radial-gradient(circle at calc(100% - 11px) 11px, rgb(224, 175, 86) 0px, rgb(224, 175, 86) 3px, rgb(73, 55, 28) 3.3px, rgb(73, 55, 28) 4px, rgba(0, 0, 0, 0) 4.3px), radial-gradient(circle at 11px calc(100% - 11px), rgb(224, 175, 86) 0px, rgb(224, 175, 86) 3px, rgb(73, 55, 28) 3.3px, rgb(73, 55, 28) 4px, rgba(0, 0, 0, 0) 4.3px), radial-gradient(circle at calc(100% - 11px) calc(100% - 11px), rgb(224, 175, 86) 0px, rgb(224, 175, 86) 3px, rgb(73, 55, 28) 3.3px, rgb(73, 55, 28) 4px, rgba(0, 0, 0, 0) 4.3px)",
+            "className": "squadron-panel riveted",
+            "opacity": 1,
+            "rect": {
+              "height": 371.421875,
+              "width": 269.671875,
+              "x": 1061.3125,
+              "y": 376
+            },
+            "tag": "section"
+          }
+        },
+        {
+          "text": "Wounded",
+          "fontSizePx": 9,
+          "fontWeight": 400,
+          "threshold": 4.5,
+          "cssRatio": 4.613712539261924,
+          "renderedP05": 3.9524581047165244,
+          "renderedP50": 4.631205490197575,
+          "foreground": "rgb(239, 172, 154)",
+          "background": {
+            "backgroundColor": "rgb(69, 78, 52)",
+            "backgroundImage": "radial-gradient(circle at 11px 11px, rgb(224, 175, 86) 0px, rgb(224, 175, 86) 3px, rgb(73, 55, 28) 3.3px, rgb(73, 55, 28) 4px, rgba(0, 0, 0, 0) 4.3px), radial-gradient(circle at calc(100% - 11px) 11px, rgb(224, 175, 86) 0px, rgb(224, 175, 86) 3px, rgb(73, 55, 28) 3.3px, rgb(73, 55, 28) 4px, rgba(0, 0, 0, 0) 4.3px), radial-gradient(circle at 11px calc(100% - 11px), rgb(224, 175, 86) 0px, rgb(224, 175, 86) 3px, rgb(73, 55, 28) 3.3px, rgb(73, 55, 28) 4px, rgba(0, 0, 0, 0) 4.3px), radial-gradient(circle at calc(100% - 11px) calc(100% - 11px), rgb(224, 175, 86) 0px, rgb(224, 175, 86) 3px, rgb(73, 55, 28) 3.3px, rgb(73, 55, 28) 4px, rgba(0, 0, 0, 0) 4.3px)",
+            "className": "squadron-panel riveted",
+            "opacity": 1,
+            "rect": {
+              "height": 371.421875,
+              "width": 269.671875,
+              "x": 1061.3125,
+              "y": 376
+            },
+            "tag": "section"
+          }
+        }
+      ],
+      "worstRendered": [
+        {
+          "text": "!",
+          "fontSizePx": 9.02,
+          "fontWeight": 400,
+          "threshold": 4.5,
+          "cssRatio": 4.9545015018126985,
+          "renderedP05": 1.1559678625689722,
+          "renderedP50": 4.79706766088939,
+          "foreground": "rgb(203, 118, 101)",
+          "background": {
+            "backgroundColor": "rgb(20, 34, 28)",
+            "backgroundImage": "radial-gradient(circle at 11px 11px, rgb(224, 175, 86) 0px, rgb(224, 175, 86) 3px, rgb(73, 55, 28) 3.3px, rgb(73, 55, 28) 4px, rgba(0, 0, 0, 0) 4.3px), radial-gradient(circle at calc(100% - 11px) 11px, rgb(224, 175, 86) 0px, rgb(224, 175, 86) 3px, rgb(73, 55, 28) 3.3px, rgb(73, 55, 28) 4px, rgba(0, 0, 0, 0) 4.3px), radial-gradient(circle at 11px calc(100% - 11px), rgb(224, 175, 86) 0px, rgb(224, 175, 86) 3px, rgb(73, 55, 28) 3.3px, rgb(73, 55, 28) 4px, rgba(0, 0, 0, 0) 4.3px), radial-gradient(circle at calc(100% - 11px) calc(100% - 11px), rgb(224, 175, 86) 0px, rgb(224, 175, 86) 3px, rgb(73, 55, 28) 3.3px, rgb(73, 55, 28) 4px, rgba(0, 0, 0, 0) 4.3px)",
+            "className": "dark-panel riveted sorties",
+            "opacity": 1,
+            "rect": {
+              "height": 371.421875,
+              "width": 737.3125,
+              "x": 304,
+              "y": 376
+            },
+            "tag": "section"
+          }
+        },
+        {
+          "text": "RFC \u00b7 FORM 14A \u00b7 FIELD COPY",
+          "fontSizePx": 9,
+          "fontWeight": 700,
+          "threshold": 4.5,
+          "cssRatio": 2.015647581611413,
+          "renderedP05": 1.2868288550030675,
+          "renderedP50": 2.1719209454971335,
+          "foreground": "rgb(145, 95, 79)",
+          "background": {
+            "backgroundColor": "rgb(200, 180, 140)",
+            "backgroundImage": "linear-gradient(110deg, rgba(143, 116, 75, 0.2), rgba(244, 226, 177, 0.12) 72%, rgba(126, 98, 62, 0.18)), url(\"https://woff-mate-ui-v2.pilotohans.chatgpt.site/textures/card-paper.webp\")",
+            "className": "paper-card active-pilot",
+            "opacity": 1,
+            "rect": {
+              "height": 220,
+              "width": 463.828125,
+              "x": 304,
+              "y": 136
+            },
+            "tag": "section"
+          }
+        },
+        {
+          "text": "\u2713",
+          "fontSizePx": 12,
+          "fontWeight": 700,
+          "threshold": 4.5,
+          "cssRatio": 3.582467169823216,
+          "renderedP05": 1.322809207078748,
+          "renderedP50": 3.5518304737603383,
+          "foreground": "rgb(238, 240, 210)",
+          "background": {
+            "backgroundColor": "rgb(102, 133, 79)",
+            "backgroundImage": "none",
+            "className": "",
+            "opacity": 1,
+            "rect": {
+              "height": 43.6875,
+              "width": 66.859375,
+              "x": 441,
+              "y": 286
+            },
+            "tag": "em"
+          }
+        },
+        {
+          "text": "!",
+          "fontSizePx": 9,
+          "fontWeight": 400,
+          "threshold": 4.5,
+          "cssRatio": 3.620928892546645,
+          "renderedP05": 1.4262897955222602,
+          "renderedP50": 3.620912237224302,
+          "foreground": "rgb(168, 168, 143)",
+          "background": {
+            "backgroundColor": "rgb(69, 78, 52)",
+            "backgroundImage": "radial-gradient(circle at 11px 11px, rgb(224, 175, 86) 0px, rgb(224, 175, 86) 3px, rgb(73, 55, 28) 3.3px, rgb(73, 55, 28) 4px, rgba(0, 0, 0, 0) 4.3px), radial-gradient(circle at calc(100% - 11px) 11px, rgb(224, 175, 86) 0px, rgb(224, 175, 86) 3px, rgb(73, 55, 28) 3.3px, rgb(73, 55, 28) 4px, rgba(0, 0, 0, 0) 4.3px), radial-gradient(circle at 11px calc(100% - 11px), rgb(224, 175, 86) 0px, rgb(224, 175, 86) 3px, rgb(73, 55, 28) 3.3px, rgb(73, 55, 28) 4px, rgba(0, 0, 0, 0) 4.3px), radial-gradient(circle at calc(100% - 11px) calc(100% - 11px), rgb(224, 175, 86) 0px, rgb(224, 175, 86) 3px, rgb(73, 55, 28) 3.3px, rgb(73, 55, 28) 4px, rgba(0, 0, 0, 0) 4.3px)",
+            "className": "squadron-panel riveted",
+            "opacity": 1,
+            "rect": {
+              "height": 371.421875,
+              "width": 269.671875,
+              "x": 1061.3125,
+              "y": 376
+            },
+            "tag": "section"
+          }
+        },
+        {
+          "text": "\u2713",
+          "fontSizePx": 9.84,
+          "fontWeight": 600,
+          "threshold": 4.5,
+          "cssRatio": 8.613481808196193,
+          "renderedP05": 1.4301820335576938,
+          "renderedP50": 7.589377693001278,
+          "foreground": "rgb(168, 190, 118)",
+          "background": {
+            "backgroundColor": "rgb(18, 27, 23)",
+            "backgroundImage": "radial-gradient(circle at 92% 0px, rgba(55, 78, 63, 0.22), rgba(0, 0, 0, 0) 38%), linear-gradient(rgba(6, 13, 10, 0.54), rgba(5, 11, 9, 0.68)), url(\"https://woff-mate-ui-v2.pilotohans.chatgpt.site/textures/workspace-felt.webp\")",
+            "className": "workspace",
+            "opacity": 1,
+            "rect": {
+              "height": 936,
+              "width": 1091,
+              "x": 272,
+              "y": 0
+            },
+            "tag": "main"
+          }
+        },
+        {
+          "text": "\u2713",
+          "fontSizePx": 9,
+          "fontWeight": 400,
+          "threshold": 4.5,
+          "cssRatio": 3.620928892546645,
+          "renderedP05": 1.455808597832024,
+          "renderedP50": 3.6424679345124495,
+          "foreground": "rgb(168, 168, 143)",
+          "background": {
+            "backgroundColor": "rgb(69, 78, 52)",
+            "backgroundImage": "radial-gradient(circle at 11px 11px, rgb(224, 175, 86) 0px, rgb(224, 175, 86) 3px, rgb(73, 55, 28) 3.3px, rgb(73, 55, 28) 4px, rgba(0, 0, 0, 0) 4.3px), radial-gradient(circle at calc(100% - 11px) 11px, rgb(224, 175, 86) 0px, rgb(224, 175, 86) 3px, rgb(73, 55, 28) 3.3px, rgb(73, 55, 28) 4px, rgba(0, 0, 0, 0) 4.3px), radial-gradient(circle at 11px calc(100% - 11px), rgb(224, 175, 86) 0px, rgb(224, 175, 86) 3px, rgb(73, 55, 28) 3.3px, rgb(73, 55, 28) 4px, rgba(0, 0, 0, 0) 4.3px), radial-gradient(circle at calc(100% - 11px) calc(100% - 11px), rgb(224, 175, 86) 0px, rgb(224, 175, 86) 3px, rgb(73, 55, 28) 3.3px, rgb(73, 55, 28) 4px, rgba(0, 0, 0, 0) 4.3px)",
+            "className": "squadron-panel riveted",
+            "opacity": 1,
+            "rect": {
+              "height": 371.421875,
+              "width": 269.671875,
+              "x": 1061.3125,
+              "y": 376
+            },
+            "tag": "section"
+          }
+        },
+        {
+          "text": "\u2713",
+          "fontSizePx": 9,
+          "fontWeight": 400,
+          "threshold": 4.5,
+          "cssRatio": 3.620928892546645,
+          "renderedP05": 1.5531241615870097,
+          "renderedP50": 3.629168266204576,
+          "foreground": "rgb(168, 168, 143)",
+          "background": {
+            "backgroundColor": "rgb(69, 78, 52)",
+            "backgroundImage": "radial-gradient(circle at 11px 11px, rgb(224, 175, 86) 0px, rgb(224, 175, 86) 3px, rgb(73, 55, 28) 3.3px, rgb(73, 55, 28) 4px, rgba(0, 0, 0, 0) 4.3px), radial-gradient(circle at calc(100% - 11px) 11px, rgb(224, 175, 86) 0px, rgb(224, 175, 86) 3px, rgb(73, 55, 28) 3.3px, rgb(73, 55, 28) 4px, rgba(0, 0, 0, 0) 4.3px), radial-gradient(circle at 11px calc(100% - 11px), rgb(224, 175, 86) 0px, rgb(224, 175, 86) 3px, rgb(73, 55, 28) 3.3px, rgb(73, 55, 28) 4px, rgba(0, 0, 0, 0) 4.3px), radial-gradient(circle at calc(100% - 11px) calc(100% - 11px), rgb(224, 175, 86) 0px, rgb(224, 175, 86) 3px, rgb(73, 55, 28) 3.3px, rgb(73, 55, 28) 4px, rgba(0, 0, 0, 0) 4.3px)",
+            "className": "squadron-panel riveted",
+            "opacity": 1,
+            "rect": {
+              "height": 371.421875,
+              "width": 269.671875,
+              "x": 1061.3125,
+              "y": 376
+            },
+            "tag": "section"
+          }
+        },
+        {
+          "text": "\u2713",
+          "fontSizePx": 9.02,
+          "fontWeight": 400,
+          "threshold": 4.5,
+          "cssRatio": 8.469650388282407,
+          "renderedP05": 1.555261773226273,
+          "renderedP50": 8.198582611364905,
+          "foreground": "rgb(187, 187, 170)",
+          "background": {
+            "backgroundColor": "rgb(20, 34, 28)",
+            "backgroundImage": "radial-gradient(circle at 11px 11px, rgb(224, 175, 86) 0px, rgb(224, 175, 86) 3px, rgb(73, 55, 28) 3.3px, rgb(73, 55, 28) 4px, rgba(0, 0, 0, 0) 4.3px), radial-gradient(circle at calc(100% - 11px) 11px, rgb(224, 175, 86) 0px, rgb(224, 175, 86) 3px, rgb(73, 55, 28) 3.3px, rgb(73, 55, 28) 4px, rgba(0, 0, 0, 0) 4.3px), radial-gradient(circle at 11px calc(100% - 11px), rgb(224, 175, 86) 0px, rgb(224, 175, 86) 3px, rgb(73, 55, 28) 3.3px, rgb(73, 55, 28) 4px, rgba(0, 0, 0, 0) 4.3px), radial-gradient(circle at calc(100% - 11px) calc(100% - 11px), rgb(224, 175, 86) 0px, rgb(224, 175, 86) 3px, rgb(73, 55, 28) 3.3px, rgb(73, 55, 28) 4px, rgba(0, 0, 0, 0) 4.3px)",
+            "className": "dark-panel riveted sorties",
+            "opacity": 1,
+            "rect": {
+              "height": 371.421875,
+              "width": 737.3125,
+              "x": 304,
+              "y": 376
+            },
+            "tag": "section"
+          }
+        },
+        {
+          "text": "\u2713",
+          "fontSizePx": 9.02,
+          "fontWeight": 400,
+          "threshold": 4.5,
+          "cssRatio": 7.517506005450787,
+          "renderedP05": 1.8488607635643568,
+          "renderedP50": 7.477542062146467,
+          "foreground": "rgb(159, 184, 117)",
+          "background": {
+            "backgroundColor": "rgb(20, 34, 28)",
+            "backgroundImage": "radial-gradient(circle at 11px 11px, rgb(224, 175, 86) 0px, rgb(224, 175, 86) 3px, rgb(73, 55, 28) 3.3px, rgb(73, 55, 28) 4px, rgba(0, 0, 0, 0) 4.3px), radial-gradient(circle at calc(100% - 11px) 11px, rgb(224, 175, 86) 0px, rgb(224, 175, 86) 3px, rgb(73, 55, 28) 3.3px, rgb(73, 55, 28) 4px, rgba(0, 0, 0, 0) 4.3px), radial-gradient(circle at 11px calc(100% - 11px), rgb(224, 175, 86) 0px, rgb(224, 175, 86) 3px, rgb(73, 55, 28) 3.3px, rgb(73, 55, 28) 4px, rgba(0, 0, 0, 0) 4.3px), radial-gradient(circle at calc(100% - 11px) calc(100% - 11px), rgb(224, 175, 86) 0px, rgb(224, 175, 86) 3px, rgb(73, 55, 28) 3.3px, rgb(73, 55, 28) 4px, rgba(0, 0, 0, 0) 4.3px)",
+            "className": "dark-panel riveted sorties",
+            "opacity": 1,
+            "rect": {
+              "height": 371.421875,
+              "width": 737.3125,
+              "x": 304,
+              "y": 376
+            },
+            "tag": "section"
+          }
+        },
+        {
+          "text": "\u00b7",
+          "fontSizePx": 8,
+          "fontWeight": 400,
+          "threshold": 4.5,
+          "cssRatio": 7.373432387639004,
+          "renderedP05": 2.308509510887715,
+          "renderedP50": 8.581356934323013,
+          "foreground": "rgb(192, 180, 146)",
+          "background": {
+            "backgroundColor": "rgb(53, 33, 23)",
+            "backgroundImage": "linear-gradient(90deg, rgba(20, 9, 5, 0.08), rgba(26, 12, 7, 0.16) 72%, rgba(12, 6, 4, 0.46)), linear-gradient(rgba(255, 235, 190, 0.035), rgba(18, 8, 5, 0.22)), url(\"https://woff-mate-ui-v2.pilotohans.chatgpt.site/textures/sidebar-wood.webp\")",
+            "className": "sidebar",
+            "opacity": 1,
+            "rect": {
+              "height": 936,
+              "width": 272,
+              "x": 0,
+              "y": 0
+            },
+            "tag": "aside"
+          }
+        },
+        {
+          "text": "\u00b7",
+          "fontSizePx": 8,
+          "fontWeight": 400,
+          "threshold": 4.5,
+          "cssRatio": 7.373432387639004,
+          "renderedP05": 2.4610069798829692,
+          "renderedP50": 8.632600705626178,
+          "foreground": "rgb(192, 180, 146)",
+          "background": {
+            "backgroundColor": "rgb(53, 33, 23)",
+            "backgroundImage": "linear-gradient(90deg, rgba(20, 9, 5, 0.08), rgba(26, 12, 7, 0.16) 72%, rgba(12, 6, 4, 0.46)), linear-gradient(rgba(255, 235, 190, 0.035), rgba(18, 8, 5, 0.22)), url(\"https://woff-mate-ui-v2.pilotohans.chatgpt.site/textures/sidebar-wood.webp\")",
+            "className": "sidebar",
+            "opacity": 1,
+            "rect": {
+              "height": 936,
+              "width": 272,
+              "x": 0,
+              "y": 0
+            },
+            "tag": "aside"
+          }
+        },
+        {
+          "text": "In service",
+          "fontSizePx": 9,
+          "fontWeight": 700,
+          "threshold": 4.5,
+          "cssRatio": 3.582467169823216,
+          "renderedP05": 3.077312830341481,
+          "renderedP50": 3.5558500173815824,
+          "foreground": "rgb(238, 240, 210)",
+          "background": {
+            "backgroundColor": "rgb(102, 133, 79)",
+            "backgroundImage": "none",
+            "className": "",
+            "opacity": 1,
+            "rect": {
+              "height": 43.6875,
+              "width": 66.859375,
+              "x": 441,
+              "y": 286
+            },
+            "tag": "em"
+          }
+        }
+      ]
+    },
+    {
+      "screen": "02-pilot",
+      "heading": "Pilot Dossier",
+      "runs": 101,
+      "minCssRatio": 2.015647581611413,
+      "minRenderedP05": 1.1024158694364123,
+      "failedCss": 25,
+      "failedRendered": 40,
+      "worstCss": [
+        {
+          "text": "CAREER_ID \u00b7",
+          "fontSizePx": 9,
+          "fontWeight": 700,
+          "threshold": 4.5,
+          "cssRatio": 2.015647581611413,
+          "renderedP05": 1.28044184805839,
+          "renderedP50": 2.208285733597395,
+          "foreground": "rgb(145, 95, 79)",
+          "background": {
+            "backgroundColor": "rgb(200, 180, 140)",
+            "backgroundImage": "linear-gradient(110deg, rgba(143, 116, 75, 0.2), rgba(244, 226, 177, 0.12) 72%, rgba(126, 98, 62, 0.18)), url(\"https://woff-mate-ui-v2.pilotohans.chatgpt.site/textures/card-paper.webp\")",
+            "className": "paper-card dossier-identity",
+            "opacity": 1,
+            "rect": {
+              "height": 285,
+              "width": 1012,
+              "x": 304,
+              "y": 136
+            },
+            "tag": "section"
+          }
+        },
+        {
+          "text": "rfc-14a-08f2",
+          "fontSizePx": 9,
+          "fontWeight": 700,
+          "threshold": 4.5,
+          "cssRatio": 2.015647581611413,
+          "renderedP05": 1.2680471077375055,
+          "renderedP50": 2.096864005517304,
+          "foreground": "rgb(145, 95, 79)",
+          "background": {
+            "backgroundColor": "rgb(200, 180, 140)",
+            "backgroundImage": "linear-gradient(110deg, rgba(143, 116, 75, 0.2), rgba(244, 226, 177, 0.12) 72%, rgba(126, 98, 62, 0.18)), url(\"https://woff-mate-ui-v2.pilotohans.chatgpt.site/textures/card-paper.webp\")",
+            "className": "paper-card dossier-identity",
+            "opacity": 1,
+            "rect": {
+              "height": 285,
+              "width": 1012,
+              "x": 304,
+              "y": 136
+            },
+            "tag": "section"
+          }
+        },
+        {
+          "text": "\u00b7 READ ONLY",
+          "fontSizePx": 9,
+          "fontWeight": 700,
+          "threshold": 4.5,
+          "cssRatio": 2.015647581611413,
+          "renderedP05": 1.2478560667437972,
+          "renderedP50": 2.072326844268706,
+          "foreground": "rgb(145, 95, 79)",
+          "background": {
+            "backgroundColor": "rgb(200, 180, 140)",
+            "backgroundImage": "linear-gradient(110deg, rgba(143, 116, 75, 0.2), rgba(244, 226, 177, 0.12) 72%, rgba(126, 98, 62, 0.18)), url(\"https://woff-mate-ui-v2.pilotohans.chatgpt.site/textures/card-paper.webp\")",
+            "className": "paper-card dossier-identity",
+            "opacity": 1,
+            "rect": {
+              "height": 285,
+              "width": 1012,
+              "x": 304,
+              "y": 136
+            },
+            "tag": "section"
+          }
+        },
+        {
+          "text": "Missions",
+          "fontSizePx": 8,
+          "fontWeight": 700,
+          "threshold": 4.5,
+          "cssRatio": 2.5935324702026517,
+          "renderedP05": 2.408658817083322,
+          "renderedP50": 2.644880200109168,
+          "foreground": "rgb(117, 94, 69)",
+          "background": {
+            "backgroundColor": "rgba(91, 75, 49, 0.125)",
+            "backgroundImage": "none",
+            "className": "",
+            "opacity": 1,
+            "rect": {
+              "height": 76,
+              "width": 154,
+              "x": 323,
+              "y": 488
+            },
+            "tag": "div"
+          }
+        },
+        {
+          "text": "Flight time",
+          "fontSizePx": 8,
+          "fontWeight": 700,
+          "threshold": 4.5,
+          "cssRatio": 2.5935324702026517,
+          "renderedP05": 2.5385067990726133,
+          "renderedP50": 2.8000186292167317,
+          "foreground": "rgb(117, 94, 69)",
+          "background": {
+            "backgroundColor": "rgba(91, 75, 49, 0.125)",
+            "backgroundImage": "none",
+            "className": "",
+            "opacity": 1,
+            "rect": {
+              "height": 76,
+              "width": 154,
+              "x": 487,
+              "y": 488
+            },
+            "tag": "div"
+          }
+        },
+        {
+          "text": "Victories",
+          "fontSizePx": 8,
+          "fontWeight": 700,
+          "threshold": 4.5,
+          "cssRatio": 2.5935324702026517,
+          "renderedP05": 2.5860477691298316,
+          "renderedP50": 2.8955598940817904,
+          "foreground": "rgb(117, 94, 69)",
+          "background": {
+            "backgroundColor": "rgba(91, 75, 49, 0.125)",
+            "backgroundImage": "none",
+            "className": "",
+            "opacity": 1,
+            "rect": {
+              "height": 76,
+              "width": 154,
+              "x": 651,
+              "y": 488
+            },
+            "tag": "div"
+          }
+        },
+        {
+          "text": "Claims",
+          "fontSizePx": 8,
+          "fontWeight": 700,
+          "threshold": 4.5,
+          "cssRatio": 2.5935324702026517,
+          "renderedP05": 2.336627306196542,
+          "renderedP50": 3.0091964376783027,
+          "foreground": "rgb(117, 94, 69)",
+          "background": {
+            "backgroundColor": "rgba(91, 75, 49, 0.125)",
+            "backgroundImage": "none",
+            "className": "",
+            "opacity": 1,
+            "rect": {
+              "height": 76,
+              "width": 154,
+              "x": 815,
+              "y": 488
+            },
+            "tag": "div"
+          }
+        },
+        {
+          "text": "Skill",
+          "fontSizePx": 8,
+          "fontWeight": 700,
+          "threshold": 4.5,
+          "cssRatio": 2.5935324702026517,
+          "renderedP05": 2.3974616375952627,
+          "renderedP50": 3.215799732450763,
+          "foreground": "rgb(117, 94, 69)",
+          "background": {
+            "backgroundColor": "rgba(91, 75, 49, 0.125)",
+            "backgroundImage": "none",
+            "className": "",
+            "opacity": 1,
+            "rect": {
+              "height": 76,
+              "width": 154,
+              "x": 979,
+              "y": 488
+            },
+            "tag": "div"
+          }
+        },
+        {
+          "text": "Reputation",
+          "fontSizePx": 8,
+          "fontWeight": 700,
+          "threshold": 4.5,
+          "cssRatio": 2.5935324702026517,
+          "renderedP05": 2.5662472879076867,
+          "renderedP50": 2.9466349516198065,
+          "foreground": "rgb(117, 94, 69)",
+          "background": {
+            "backgroundColor": "rgba(91, 75, 49, 0.125)",
+            "backgroundImage": "none",
+            "className": "",
+            "opacity": 1,
+            "rect": {
+              "height": 76,
+              "width": 154,
+              "x": 1143,
+              "y": 488
+            },
+            "tag": "div"
+          }
+        },
+        {
+          "text": "RFC personnel file",
+          "fontSizePx": 9,
+          "fontWeight": 700,
+          "threshold": 4.5,
+          "cssRatio": 3.1598315873186444,
+          "renderedP05": 3.2666738144925516,
+          "renderedP50": 3.447476074019422,
+          "foreground": "rgb(113, 91, 67)",
+          "background": {
+            "backgroundColor": "rgb(200, 180, 140)",
+            "backgroundImage": "linear-gradient(110deg, rgba(143, 116, 75, 0.2), rgba(244, 226, 177, 0.12) 72%, rgba(126, 98, 62, 0.18)), url(\"https://woff-mate-ui-v2.pilotohans.chatgpt.site/textures/card-paper.webp\")",
+            "className": "paper-card dossier-identity",
+            "opacity": 1,
+            "rect": {
+              "height": 285,
+              "width": 1012,
+              "x": 304,
+              "y": 136
+            },
+            "tag": "section"
+          }
+        },
+        {
+          "text": "\u00b7",
+          "fontSizePx": 13,
+          "fontWeight": 400,
+          "threshold": 4.5,
+          "cssRatio": 3.3053719261108263,
+          "renderedP05": 3.111999637132117,
+          "renderedP50": 3.2539078367754084,
+          "foreground": "rgb(113, 107, 89)",
+          "background": {
+            "backgroundColor": "rgb(18, 27, 23)",
+            "backgroundImage": "radial-gradient(circle at 92% 0px, rgba(55, 78, 63, 0.22), rgba(0, 0, 0, 0) 38%), linear-gradient(rgba(6, 13, 10, 0.54), rgba(5, 11, 9, 0.68)), url(\"https://woff-mate-ui-v2.pilotohans.chatgpt.site/textures/workspace-felt.webp\")",
+            "className": "workspace",
+            "opacity": 1,
+            "rect": {
+              "height": 992.890625,
+              "width": 1076,
+              "x": 272,
+              "y": 0
+            },
+            "tag": "main"
+          }
+        },
+        {
+          "text": "In service",
+          "fontSizePx": 8,
+          "fontWeight": 600,
+          "threshold": 4.5,
+          "cssRatio": 3.5879651513846347,
+          "renderedP05": 3.15511852652348,
+          "renderedP50": 3.620920618776477,
+          "foreground": "rgb(241, 239, 214)",
+          "background": {
+            "backgroundColor": "rgb(102, 133, 79)",
+            "backgroundImage": "none",
+            "className": "",
+            "opacity": 1,
+            "rect": {
+              "height": 18,
+              "width": 68.984375,
+              "x": 734.65625,
+              "y": 305.296875
+            },
+            "tag": "em"
+          }
+        }
+      ],
+      "worstRendered": [
+        {
+          "text": "11",
+          "fontSizePx": 19,
+          "fontWeight": 700,
+          "threshold": 3.0,
+          "cssRatio": 5.7344869074730465,
+          "renderedP05": 1.1024158694364123,
+          "renderedP50": 6.727083288418759,
+          "foreground": "rgb(57, 44, 34)",
+          "background": {
+            "backgroundColor": "rgba(91, 75, 49, 0.125)",
+            "backgroundImage": "none",
+            "className": "",
+            "opacity": 1,
+            "rect": {
+              "height": 76,
+              "width": 154,
+              "x": 815,
+              "y": 488
+            },
+            "tag": "div"
+          }
+        },
+        {
+          "text": "8",
+          "fontSizePx": 19,
+          "fontWeight": 700,
+          "threshold": 3.0,
+          "cssRatio": 5.7344869074730465,
+          "renderedP05": 1.161459341757397,
+          "renderedP50": 6.377946067218879,
+          "foreground": "rgb(57, 44, 34)",
+          "background": {
+            "backgroundColor": "rgba(91, 75, 49, 0.125)",
+            "backgroundImage": "none",
+            "className": "",
+            "opacity": 1,
+            "rect": {
+              "height": 76,
+              "width": 154,
+              "x": 651,
+              "y": 488
+            },
+            "tag": "div"
+          }
+        },
+        {
+          "text": "\u00b7 READ ONLY",
+          "fontSizePx": 9,
+          "fontWeight": 700,
+          "threshold": 4.5,
+          "cssRatio": 2.015647581611413,
+          "renderedP05": 1.2478560667437972,
+          "renderedP50": 2.072326844268706,
+          "foreground": "rgb(145, 95, 79)",
+          "background": {
+            "backgroundColor": "rgb(200, 180, 140)",
+            "backgroundImage": "linear-gradient(110deg, rgba(143, 116, 75, 0.2), rgba(244, 226, 177, 0.12) 72%, rgba(126, 98, 62, 0.18)), url(\"https://woff-mate-ui-v2.pilotohans.chatgpt.site/textures/card-paper.webp\")",
+            "className": "paper-card dossier-identity",
+            "opacity": 1,
+            "rect": {
+              "height": 285,
+              "width": 1012,
+              "x": 304,
+              "y": 136
+            },
+            "tag": "section"
+          }
+        },
+        {
+          "text": "rfc-14a-08f2",
+          "fontSizePx": 9,
+          "fontWeight": 700,
+          "threshold": 4.5,
+          "cssRatio": 2.015647581611413,
+          "renderedP05": 1.2680471077375055,
+          "renderedP50": 2.096864005517304,
+          "foreground": "rgb(145, 95, 79)",
+          "background": {
+            "backgroundColor": "rgb(200, 180, 140)",
+            "backgroundImage": "linear-gradient(110deg, rgba(143, 116, 75, 0.2), rgba(244, 226, 177, 0.12) 72%, rgba(126, 98, 62, 0.18)), url(\"https://woff-mate-ui-v2.pilotohans.chatgpt.site/textures/card-paper.webp\")",
+            "className": "paper-card dossier-identity",
+            "opacity": 1,
+            "rect": {
+              "height": 285,
+              "width": 1012,
+              "x": 304,
+              "y": 136
+            },
+            "tag": "section"
+          }
+        },
+        {
+          "text": "CAREER_ID \u00b7",
+          "fontSizePx": 9,
+          "fontWeight": 700,
+          "threshold": 4.5,
+          "cssRatio": 2.015647581611413,
+          "renderedP05": 1.28044184805839,
+          "renderedP50": 2.208285733597395,
+          "foreground": "rgb(145, 95, 79)",
+          "background": {
+            "backgroundColor": "rgb(200, 180, 140)",
+            "backgroundImage": "linear-gradient(110deg, rgba(143, 116, 75, 0.2), rgba(244, 226, 177, 0.12) 72%, rgba(126, 98, 62, 0.18)), url(\"https://woff-mate-ui-v2.pilotohans.chatgpt.site/textures/card-paper.webp\")",
+            "className": "paper-card dossier-identity",
+            "opacity": 1,
+            "rect": {
+              "height": 285,
+              "width": 1012,
+              "x": 304,
+              "y": 136
+            },
+            "tag": "section"
+          }
+        },
+        {
+          "text": "\u2713",
+          "fontSizePx": 6.56,
+          "fontWeight": 600,
+          "threshold": 4.5,
+          "cssRatio": 3.5879651513846347,
+          "renderedP05": 1.399093680916476,
+          "renderedP50": 3.574110868407798,
+          "foreground": "rgb(241, 239, 214)",
+          "background": {
+            "backgroundColor": "rgb(102, 133, 79)",
+            "backgroundImage": "none",
+            "className": "",
+            "opacity": 1,
+            "rect": {
+              "height": 18,
+              "width": 68.984375,
+              "x": 734.65625,
+              "y": 305.296875
+            },
+            "tag": "em"
+          }
+        },
+        {
+          "text": "Active",
+          "fontSizePx": 12,
+          "fontWeight": 600,
+          "threshold": 4.5,
+          "cssRatio": 8.613481808196193,
+          "renderedP05": 2.190194233494628,
+          "renderedP50": 7.672686852261258,
+          "foreground": "rgb(168, 190, 118)",
+          "background": {
+            "backgroundColor": "rgb(18, 27, 23)",
+            "backgroundImage": "radial-gradient(circle at 92% 0px, rgba(55, 78, 63, 0.22), rgba(0, 0, 0, 0) 38%), linear-gradient(rgba(6, 13, 10, 0.54), rgba(5, 11, 9, 0.68)), url(\"https://woff-mate-ui-v2.pilotohans.chatgpt.site/textures/workspace-felt.webp\")",
+            "className": "workspace",
+            "opacity": 1,
+            "rect": {
+              "height": 992.890625,
+              "width": 1076,
+              "x": 272,
+              "y": 0
+            },
+            "tag": "main"
+          }
+        },
+        {
+          "text": "\u00b7",
+          "fontSizePx": 8,
+          "fontWeight": 400,
+          "threshold": 4.5,
+          "cssRatio": 7.373432387639004,
+          "renderedP05": 2.308509510887715,
+          "renderedP50": 8.581356934323013,
+          "foreground": "rgb(192, 180, 146)",
+          "background": {
+            "backgroundColor": "rgb(53, 33, 23)",
+            "backgroundImage": "linear-gradient(90deg, rgba(20, 9, 5, 0.08), rgba(26, 12, 7, 0.16) 72%, rgba(12, 6, 4, 0.46)), linear-gradient(rgba(255, 235, 190, 0.035), rgba(18, 8, 5, 0.22)), url(\"https://woff-mate-ui-v2.pilotohans.chatgpt.site/textures/sidebar-wood.webp\")",
+            "className": "sidebar",
+            "opacity": 1,
+            "rect": {
+              "height": 936,
+              "width": 272,
+              "x": 0,
+              "y": 0
+            },
+            "tag": "aside"
+          }
+        },
+        {
+          "text": "Claims",
+          "fontSizePx": 8,
+          "fontWeight": 700,
+          "threshold": 4.5,
+          "cssRatio": 2.5935324702026517,
+          "renderedP05": 2.336627306196542,
+          "renderedP50": 3.0091964376783027,
+          "foreground": "rgb(117, 94, 69)",
+          "background": {
+            "backgroundColor": "rgba(91, 75, 49, 0.125)",
+            "backgroundImage": "none",
+            "className": "",
+            "opacity": 1,
+            "rect": {
+              "height": 76,
+              "width": 154,
+              "x": 815,
+              "y": 488
+            },
+            "tag": "div"
+          }
+        },
+        {
+          "text": "Skill",
+          "fontSizePx": 8,
+          "fontWeight": 700,
+          "threshold": 4.5,
+          "cssRatio": 2.5935324702026517,
+          "renderedP05": 2.3974616375952627,
+          "renderedP50": 3.215799732450763,
+          "foreground": "rgb(117, 94, 69)",
+          "background": {
+            "backgroundColor": "rgba(91, 75, 49, 0.125)",
+            "backgroundImage": "none",
+            "className": "",
+            "opacity": 1,
+            "rect": {
+              "height": 76,
+              "width": 154,
+              "x": 979,
+              "y": 488
+            },
+            "tag": "div"
+          }
+        },
+        {
+          "text": "Missions",
+          "fontSizePx": 8,
+          "fontWeight": 700,
+          "threshold": 4.5,
+          "cssRatio": 2.5935324702026517,
+          "renderedP05": 2.408658817083322,
+          "renderedP50": 2.644880200109168,
+          "foreground": "rgb(117, 94, 69)",
+          "background": {
+            "backgroundColor": "rgba(91, 75, 49, 0.125)",
+            "backgroundImage": "none",
+            "className": "",
+            "opacity": 1,
+            "rect": {
+              "height": 76,
+              "width": 154,
+              "x": 323,
+              "y": 488
+            },
+            "tag": "div"
+          }
+        },
+        {
+          "text": "\u00b7",
+          "fontSizePx": 8,
+          "fontWeight": 400,
+          "threshold": 4.5,
+          "cssRatio": 7.373432387639004,
+          "renderedP05": 2.4610069798829692,
+          "renderedP50": 8.632600705626178,
+          "foreground": "rgb(192, 180, 146)",
+          "background": {
+            "backgroundColor": "rgb(53, 33, 23)",
+            "backgroundImage": "linear-gradient(90deg, rgba(20, 9, 5, 0.08), rgba(26, 12, 7, 0.16) 72%, rgba(12, 6, 4, 0.46)), linear-gradient(rgba(255, 235, 190, 0.035), rgba(18, 8, 5, 0.22)), url(\"https://woff-mate-ui-v2.pilotohans.chatgpt.site/textures/sidebar-wood.webp\")",
+            "className": "sidebar",
+            "opacity": 1,
+            "rect": {
+              "height": 936,
+              "width": 272,
+              "x": 0,
+              "y": 0
+            },
+            "tag": "aside"
+          }
+        }
+      ]
+    },
+    {
+      "screen": "03-missions",
+      "heading": "Mission Log",
+      "runs": 121,
+      "minCssRatio": 2.6838629820355036,
+      "minRenderedP05": 1.2873420147505712,
+      "failedCss": 16,
+      "failedRendered": 28,
+      "worstCss": [
+        {
+          "text": "14 SQN \u00b7 RFC",
+          "fontSizePx": 9,
+          "fontWeight": 800,
+          "threshold": 4.5,
+          "cssRatio": 2.6838629820355036,
+          "renderedP05": 2.5479433720927007,
+          "renderedP50": 2.95729665565415,
+          "foreground": "rgb(142, 94, 78)",
+          "background": {
+            "backgroundColor": "rgb(200, 180, 140)",
+            "backgroundImage": "linear-gradient(110deg, rgba(143, 116, 75, 0.2), rgba(244, 226, 177, 0.12) 72%, rgba(126, 98, 62, 0.18)), url(\"https://woff-mate-ui-v2.pilotohans.chatgpt.site/textures/card-paper.webp\")",
+            "className": "paper-card mission-register",
+            "opacity": 1,
+            "rect": {
+              "height": 208,
+              "width": 1026.984375,
+              "x": 304,
+              "y": 136
+            },
+            "tag": "section"
+          }
+        },
+        {
+          "text": "AUG 1917",
+          "fontSizePx": 9,
+          "fontWeight": 800,
+          "threshold": 4.5,
+          "cssRatio": 2.6838629820355036,
+          "renderedP05": 2.5323187794749327,
+          "renderedP50": 2.9626195523393384,
+          "foreground": "rgb(142, 94, 78)",
+          "background": {
+            "backgroundColor": "rgb(200, 180, 140)",
+            "backgroundImage": "linear-gradient(110deg, rgba(143, 116, 75, 0.2), rgba(244, 226, 177, 0.12) 72%, rgba(126, 98, 62, 0.18)), url(\"https://woff-mate-ui-v2.pilotohans.chatgpt.site/textures/card-paper.webp\")",
+            "className": "paper-card mission-register",
+            "opacity": 1,
+            "rect": {
+              "height": 208,
+              "width": 1026.984375,
+              "x": 304,
+              "y": 136
+            },
+            "tag": "section"
+          }
+        },
+        {
+          "text": "Career missions",
+          "fontSizePx": 8,
+          "fontWeight": 700,
+          "threshold": 4.5,
+          "cssRatio": 3.050832229656031,
+          "renderedP05": 2.878908141591525,
+          "renderedP50": 3.2214201664991005,
+          "foreground": "rgb(113, 94, 72)",
+          "background": {
+            "backgroundColor": "rgb(200, 180, 140)",
+            "backgroundImage": "linear-gradient(110deg, rgba(143, 116, 75, 0.2), rgba(244, 226, 177, 0.12) 72%, rgba(126, 98, 62, 0.18)), url(\"https://woff-mate-ui-v2.pilotohans.chatgpt.site/textures/card-paper.webp\")",
+            "className": "paper-card mission-register",
+            "opacity": 1,
+            "rect": {
+              "height": 208,
+              "width": 1026.984375,
+              "x": 304,
+              "y": 136
+            },
+            "tag": "section"
+          }
+        },
+        {
+          "text": "Displayed",
+          "fontSizePx": 8,
+          "fontWeight": 700,
+          "threshold": 4.5,
+          "cssRatio": 3.050832229656031,
+          "renderedP05": 3.1349838632351306,
+          "renderedP50": 3.4397882299353144,
+          "foreground": "rgb(113, 94, 72)",
+          "background": {
+            "backgroundColor": "rgb(200, 180, 140)",
+            "backgroundImage": "linear-gradient(110deg, rgba(143, 116, 75, 0.2), rgba(244, 226, 177, 0.12) 72%, rgba(126, 98, 62, 0.18)), url(\"https://woff-mate-ui-v2.pilotohans.chatgpt.site/textures/card-paper.webp\")",
+            "className": "paper-card mission-register",
+            "opacity": 1,
+            "rect": {
+              "height": 208,
+              "width": 1026.984375,
+              "x": 304,
+              "y": 136
+            },
+            "tag": "section"
+          }
+        },
+        {
+          "text": "Victories",
+          "fontSizePx": 8,
+          "fontWeight": 700,
+          "threshold": 4.5,
+          "cssRatio": 3.050832229656031,
+          "renderedP05": 3.2180123707870245,
+          "renderedP50": 3.624306271441027,
+          "foreground": "rgb(113, 94, 72)",
+          "background": {
+            "backgroundColor": "rgb(200, 180, 140)",
+            "backgroundImage": "linear-gradient(110deg, rgba(143, 116, 75, 0.2), rgba(244, 226, 177, 0.12) 72%, rgba(126, 98, 62, 0.18)), url(\"https://woff-mate-ui-v2.pilotohans.chatgpt.site/textures/card-paper.webp\")",
+            "className": "paper-card mission-register",
+            "opacity": 1,
+            "rect": {
+              "height": 208,
+              "width": 1026.984375,
+              "x": 304,
+              "y": 136
+            },
+            "tag": "section"
+          }
+        },
+        {
+          "text": "Flight time",
+          "fontSizePx": 8,
+          "fontWeight": 700,
+          "threshold": 4.5,
+          "cssRatio": 3.050832229656031,
+          "renderedP05": 3.3656980933335245,
+          "renderedP50": 3.7376935940239675,
+          "foreground": "rgb(113, 94, 72)",
+          "background": {
+            "backgroundColor": "rgb(200, 180, 140)",
+            "backgroundImage": "linear-gradient(110deg, rgba(143, 116, 75, 0.2), rgba(244, 226, 177, 0.12) 72%, rgba(126, 98, 62, 0.18)), url(\"https://woff-mate-ui-v2.pilotohans.chatgpt.site/textures/card-paper.webp\")",
+            "className": "paper-card mission-register",
+            "opacity": 1,
+            "rect": {
+              "height": 208,
+              "width": 1026.984375,
+              "x": 304,
+              "y": 136
+            },
+            "tag": "section"
+          }
+        },
+        {
+          "text": "Field copy \u00b7 chronological order",
+          "fontSizePx": 9,
+          "fontWeight": 400,
+          "threshold": 4.5,
+          "cssRatio": 3.053159717474773,
+          "renderedP05": 2.987742578878318,
+          "renderedP50": 3.190849160667653,
+          "foreground": "rgb(113, 94, 71)",
+          "background": {
+            "backgroundColor": "rgb(200, 180, 140)",
+            "backgroundImage": "linear-gradient(110deg, rgba(143, 116, 75, 0.2), rgba(244, 226, 177, 0.12) 72%, rgba(126, 98, 62, 0.18)), url(\"https://woff-mate-ui-v2.pilotohans.chatgpt.site/textures/card-paper.webp\")",
+            "className": "paper-card mission-register",
+            "opacity": 1,
+            "rect": {
+              "height": 208,
+              "width": 1026.984375,
+              "x": 304,
+              "y": 136
+            },
+            "tag": "section"
+          }
+        },
+        {
+          "text": "\u00b7",
+          "fontSizePx": 13,
+          "fontWeight": 400,
+          "threshold": 4.5,
+          "cssRatio": 3.3053719261108263,
+          "renderedP05": 3.067535292867075,
+          "renderedP50": 3.222213202916524,
+          "foreground": "rgb(113, 107, 89)",
+          "background": {
+            "backgroundColor": "rgb(18, 27, 23)",
+            "backgroundImage": "radial-gradient(circle at 92% 0px, rgba(55, 78, 63, 0.22), rgba(0, 0, 0, 0) 38%), linear-gradient(rgba(6, 13, 10, 0.54), rgba(5, 11, 9, 0.68)), url(\"https://woff-mate-ui-v2.pilotohans.chatgpt.site/textures/workspace-felt.webp\")",
+            "className": "workspace",
+            "opacity": 1,
+            "rect": {
+              "height": 936,
+              "width": 1091,
+              "x": 272,
+              "y": 0
+            },
+            "tag": "main"
+          }
+        },
+        {
+          "text": "Victory confirmed",
+          "fontSizePx": 8,
+          "fontWeight": 400,
+          "threshold": 4.5,
+          "cssRatio": 3.8512334015122045,
+          "renderedP05": 3.4349220144726247,
+          "renderedP50": 3.894178375255004,
+          "foreground": "rgb(171, 174, 148)",
+          "background": {
+            "backgroundColor": "rgb(69, 78, 52)",
+            "backgroundImage": "radial-gradient(circle at 11px 11px, rgb(224, 175, 86) 0px, rgb(224, 175, 86) 3px, rgb(73, 55, 28) 3.3px, rgb(73, 55, 28) 4px, rgba(0, 0, 0, 0) 4.3px), radial-gradient(circle at calc(100% - 11px) 11px, rgb(224, 175, 86) 0px, rgb(224, 175, 86) 3px, rgb(73, 55, 28) 3.3px, rgb(73, 55, 28) 4px, rgba(0, 0, 0, 0) 4.3px), radial-gradient(circle at 11px calc(100% - 11px), rgb(224, 175, 86) 0px, rgb(224, 175, 86) 3px, rgb(73, 55, 28) 3.3px, rgb(73, 55, 28) 4px, rgba(0, 0, 0, 0) 4.3px), radial-gradient(circle at calc(100% - 11px) calc(100% - 11px), rgb(224, 175, 86) 0px, rgb(224, 175, 86) 3px, rgb(73, 55, 28) 3.3px, rgb(73, 55, 28) 4px, rgba(0, 0, 0, 0) 4.3px)",
+            "className": "squadron-panel riveted mission-context",
+            "opacity": 1,
+            "rect": {
+              "height": 523,
+              "width": 282.109375,
+              "x": 1048.875,
+              "y": 364
+            },
+            "tag": "aside"
+          }
+        },
+        {
+          "text": "Aircraft damaged",
+          "fontSizePx": 8,
+          "fontWeight": 400,
+          "threshold": 4.5,
+          "cssRatio": 3.8512334015122045,
+          "renderedP05": 3.83669231002641,
+          "renderedP50": 3.894178375255004,
+          "foreground": "rgb(171, 174, 148)",
+          "background": {
+            "backgroundColor": "rgb(69, 78, 52)",
+            "backgroundImage": "radial-gradient(circle at 11px 11px, rgb(224, 175, 86) 0px, rgb(224, 175, 86) 3px, rgb(73, 55, 28) 3.3px, rgb(73, 55, 28) 4px, rgba(0, 0, 0, 0) 4.3px), radial-gradient(circle at calc(100% - 11px) 11px, rgb(224, 175, 86) 0px, rgb(224, 175, 86) 3px, rgb(73, 55, 28) 3.3px, rgb(73, 55, 28) 4px, rgba(0, 0, 0, 0) 4.3px), radial-gradient(circle at 11px calc(100% - 11px), rgb(224, 175, 86) 0px, rgb(224, 175, 86) 3px, rgb(73, 55, 28) 3.3px, rgb(73, 55, 28) 4px, rgba(0, 0, 0, 0) 4.3px), radial-gradient(circle at calc(100% - 11px) calc(100% - 11px), rgb(224, 175, 86) 0px, rgb(224, 175, 86) 3px, rgb(73, 55, 28) 3.3px, rgb(73, 55, 28) 4px, rgba(0, 0, 0, 0) 4.3px)",
+            "className": "squadron-panel riveted mission-context",
+            "opacity": 1,
+            "rect": {
+              "height": 523,
+              "width": 282.109375,
+              "x": 1048.875,
+              "y": 364
+            },
+            "tag": "aside"
+          }
+        },
+        {
+          "text": "Completed sortie",
+          "fontSizePx": 8,
+          "fontWeight": 400,
+          "threshold": 4.5,
+          "cssRatio": 3.8512334015122045,
+          "renderedP05": 3.4538894995148706,
+          "renderedP50": 3.894178375255004,
+          "foreground": "rgb(171, 174, 148)",
+          "background": {
+            "backgroundColor": "rgb(69, 78, 52)",
+            "backgroundImage": "radial-gradient(circle at 11px 11px, rgb(224, 175, 86) 0px, rgb(224, 175, 86) 3px, rgb(73, 55, 28) 3.3px, rgb(73, 55, 28) 4px, rgba(0, 0, 0, 0) 4.3px), radial-gradient(circle at calc(100% - 11px) 11px, rgb(224, 175, 86) 0px, rgb(224, 175, 86) 3px, rgb(73, 55, 28) 3.3px, rgb(73, 55, 28) 4px, rgba(0, 0, 0, 0) 4.3px), radial-gradient(circle at 11px calc(100% - 11px), rgb(224, 175, 86) 0px, rgb(224, 175, 86) 3px, rgb(73, 55, 28) 3.3px, rgb(73, 55, 28) 4px, rgba(0, 0, 0, 0) 4.3px), radial-gradient(circle at calc(100% - 11px) calc(100% - 11px), rgb(224, 175, 86) 0px, rgb(224, 175, 86) 3px, rgb(73, 55, 28) 3.3px, rgb(73, 55, 28) 4px, rgba(0, 0, 0, 0) 4.3px)",
+            "className": "squadron-panel riveted mission-context",
+            "opacity": 1,
+            "rect": {
+              "height": 523,
+              "width": 282.109375,
+              "x": 1048.875,
+              "y": 364
+            },
+            "tag": "aside"
+          }
+        },
+        {
+          "text": "Armenti\u00e8res sector",
+          "fontSizePx": 8,
+          "fontWeight": 400,
+          "threshold": 4.5,
+          "cssRatio": 3.8608227866527787,
+          "renderedP05": 3.7623747825327616,
+          "renderedP50": 3.869916392328645,
+          "foreground": "rgb(117, 125, 112)",
+          "background": {
+            "backgroundColor": "rgb(20, 34, 28)",
+            "backgroundImage": "radial-gradient(circle at 11px 11px, rgb(224, 175, 86) 0px, rgb(224, 175, 86) 3px, rgb(73, 55, 28) 3.3px, rgb(73, 55, 28) 4px, rgba(0, 0, 0, 0) 4.3px), radial-gradient(circle at calc(100% - 11px) 11px, rgb(224, 175, 86) 0px, rgb(224, 175, 86) 3px, rgb(73, 55, 28) 3.3px, rgb(73, 55, 28) 4px, rgba(0, 0, 0, 0) 4.3px), radial-gradient(circle at 11px calc(100% - 11px), rgb(224, 175, 86) 0px, rgb(224, 175, 86) 3px, rgb(73, 55, 28) 3.3px, rgb(73, 55, 28) 4px, rgba(0, 0, 0, 0) 4.3px), radial-gradient(circle at calc(100% - 11px) calc(100% - 11px), rgb(224, 175, 86) 0px, rgb(224, 175, 86) 3px, rgb(73, 55, 28) 3.3px, rgb(73, 55, 28) 4px, rgba(0, 0, 0, 0) 4.3px)",
+            "className": "dark-panel riveted mission-list",
+            "opacity": 1,
+            "rect": {
+              "height": 523,
+              "width": 724.875,
+              "x": 304,
+              "y": 364
+            },
+            "tag": "section"
+          }
+        }
+      ],
+      "worstRendered": [
+        {
+          "text": "!",
+          "fontSizePx": 7.38,
+          "fontWeight": 400,
+          "threshold": 4.5,
+          "cssRatio": 4.760798217403551,
+          "renderedP05": 1.2873420147505712,
+          "renderedP50": 4.735489255906789,
+          "foreground": "rgb(205, 112, 93)",
+          "background": {
+            "backgroundColor": "rgb(20, 34, 28)",
+            "backgroundImage": "radial-gradient(circle at 11px 11px, rgb(224, 175, 86) 0px, rgb(224, 175, 86) 3px, rgb(73, 55, 28) 3.3px, rgb(73, 55, 28) 4px, rgba(0, 0, 0, 0) 4.3px), radial-gradient(circle at calc(100% - 11px) 11px, rgb(224, 175, 86) 0px, rgb(224, 175, 86) 3px, rgb(73, 55, 28) 3.3px, rgb(73, 55, 28) 4px, rgba(0, 0, 0, 0) 4.3px), radial-gradient(circle at 11px calc(100% - 11px), rgb(224, 175, 86) 0px, rgb(224, 175, 86) 3px, rgb(73, 55, 28) 3.3px, rgb(73, 55, 28) 4px, rgba(0, 0, 0, 0) 4.3px), radial-gradient(circle at calc(100% - 11px) calc(100% - 11px), rgb(224, 175, 86) 0px, rgb(224, 175, 86) 3px, rgb(73, 55, 28) 3.3px, rgb(73, 55, 28) 4px, rgba(0, 0, 0, 0) 4.3px)",
+            "className": "dark-panel riveted mission-list",
+            "opacity": 1,
+            "rect": {
+              "height": 523,
+              "width": 724.875,
+              "x": 304,
+              "y": 364
+            },
+            "tag": "section"
+          }
+        },
+        {
+          "text": "\u2713",
+          "fontSizePx": 9.84,
+          "fontWeight": 600,
+          "threshold": 4.5,
+          "cssRatio": 8.613481808196193,
+          "renderedP05": 1.4301820335576938,
+          "renderedP50": 7.589377693001278,
+          "foreground": "rgb(168, 190, 118)",
+          "background": {
+            "backgroundColor": "rgb(18, 27, 23)",
+            "backgroundImage": "radial-gradient(circle at 92% 0px, rgba(55, 78, 63, 0.22), rgba(0, 0, 0, 0) 38%), linear-gradient(rgba(6, 13, 10, 0.54), rgba(5, 11, 9, 0.68)), url(\"https://woff-mate-ui-v2.pilotohans.chatgpt.site/textures/workspace-felt.webp\")",
+            "className": "workspace",
+            "opacity": 1,
+            "rect": {
+              "height": 936,
+              "width": 1091,
+              "x": 272,
+              "y": 0
+            },
+            "tag": "main"
+          }
+        },
+        {
+          "text": "\u00b7",
+          "fontSizePx": 8,
+          "fontWeight": 400,
+          "threshold": 4.5,
+          "cssRatio": 7.373432387639004,
+          "renderedP05": 2.5290514191805005,
+          "renderedP50": 8.632600705626178,
+          "foreground": "rgb(192, 180, 146)",
+          "background": {
+            "backgroundColor": "rgb(53, 33, 23)",
+            "backgroundImage": "linear-gradient(90deg, rgba(20, 9, 5, 0.08), rgba(26, 12, 7, 0.16) 72%, rgba(12, 6, 4, 0.46)), linear-gradient(rgba(255, 235, 190, 0.035), rgba(18, 8, 5, 0.22)), url(\"https://woff-mate-ui-v2.pilotohans.chatgpt.site/textures/sidebar-wood.webp\")",
+            "className": "sidebar",
+            "opacity": 1,
+            "rect": {
+              "height": 936,
+              "width": 272,
+              "x": 0,
+              "y": 0
+            },
+            "tag": "aside"
+          }
+        },
+        {
+          "text": "AUG 1917",
+          "fontSizePx": 9,
+          "fontWeight": 800,
+          "threshold": 4.5,
+          "cssRatio": 2.6838629820355036,
+          "renderedP05": 2.5323187794749327,
+          "renderedP50": 2.9626195523393384,
+          "foreground": "rgb(142, 94, 78)",
+          "background": {
+            "backgroundColor": "rgb(200, 180, 140)",
+            "backgroundImage": "linear-gradient(110deg, rgba(143, 116, 75, 0.2), rgba(244, 226, 177, 0.12) 72%, rgba(126, 98, 62, 0.18)), url(\"https://woff-mate-ui-v2.pilotohans.chatgpt.site/textures/card-paper.webp\")",
+            "className": "paper-card mission-register",
+            "opacity": 1,
+            "rect": {
+              "height": 208,
+              "width": 1026.984375,
+              "x": 304,
+              "y": 136
+            },
+            "tag": "section"
+          }
+        },
+        {
+          "text": "14 SQN \u00b7 RFC",
+          "fontSizePx": 9,
+          "fontWeight": 800,
+          "threshold": 4.5,
+          "cssRatio": 2.6838629820355036,
+          "renderedP05": 2.5479433720927007,
+          "renderedP50": 2.95729665565415,
+          "foreground": "rgb(142, 94, 78)",
+          "background": {
+            "backgroundColor": "rgb(200, 180, 140)",
+            "backgroundImage": "linear-gradient(110deg, rgba(143, 116, 75, 0.2), rgba(244, 226, 177, 0.12) 72%, rgba(126, 98, 62, 0.18)), url(\"https://woff-mate-ui-v2.pilotohans.chatgpt.site/textures/card-paper.webp\")",
+            "className": "paper-card mission-register",
+            "opacity": 1,
+            "rect": {
+              "height": 208,
+              "width": 1026.984375,
+              "x": 304,
+              "y": 136
+            },
+            "tag": "section"
+          }
+        },
+        {
+          "text": "\u00b7",
+          "fontSizePx": 8,
+          "fontWeight": 400,
+          "threshold": 4.5,
+          "cssRatio": 7.373432387639004,
+          "renderedP05": 2.771405810396719,
+          "renderedP50": 8.593450596033358,
+          "foreground": "rgb(192, 180, 146)",
+          "background": {
+            "backgroundColor": "rgb(53, 33, 23)",
+            "backgroundImage": "linear-gradient(90deg, rgba(20, 9, 5, 0.08), rgba(26, 12, 7, 0.16) 72%, rgba(12, 6, 4, 0.46)), linear-gradient(rgba(255, 235, 190, 0.035), rgba(18, 8, 5, 0.22)), url(\"https://woff-mate-ui-v2.pilotohans.chatgpt.site/textures/sidebar-wood.webp\")",
+            "className": "sidebar",
+            "opacity": 1,
+            "rect": {
+              "height": 936,
+              "width": 272,
+              "x": 0,
+              "y": 0
+            },
+            "tag": "aside"
+          }
+        },
+        {
+          "text": "Career missions",
+          "fontSizePx": 8,
+          "fontWeight": 700,
+          "threshold": 4.5,
+          "cssRatio": 3.050832229656031,
+          "renderedP05": 2.878908141591525,
+          "renderedP50": 3.2214201664991005,
+          "foreground": "rgb(113, 94, 72)",
+          "background": {
+            "backgroundColor": "rgb(200, 180, 140)",
+            "backgroundImage": "linear-gradient(110deg, rgba(143, 116, 75, 0.2), rgba(244, 226, 177, 0.12) 72%, rgba(126, 98, 62, 0.18)), url(\"https://woff-mate-ui-v2.pilotohans.chatgpt.site/textures/card-paper.webp\")",
+            "className": "paper-card mission-register",
+            "opacity": 1,
+            "rect": {
+              "height": 208,
+              "width": 1026.984375,
+              "x": 304,
+              "y": 136
+            },
+            "tag": "section"
+          }
+        },
+        {
+          "text": "Field copy \u00b7 chronological order",
+          "fontSizePx": 9,
+          "fontWeight": 400,
+          "threshold": 4.5,
+          "cssRatio": 3.053159717474773,
+          "renderedP05": 2.987742578878318,
+          "renderedP50": 3.190849160667653,
+          "foreground": "rgb(113, 94, 71)",
+          "background": {
+            "backgroundColor": "rgb(200, 180, 140)",
+            "backgroundImage": "linear-gradient(110deg, rgba(143, 116, 75, 0.2), rgba(244, 226, 177, 0.12) 72%, rgba(126, 98, 62, 0.18)), url(\"https://woff-mate-ui-v2.pilotohans.chatgpt.site/textures/card-paper.webp\")",
+            "className": "paper-card mission-register",
+            "opacity": 1,
+            "rect": {
+              "height": 208,
+              "width": 1026.984375,
+              "x": 304,
+              "y": 136
+            },
+            "tag": "section"
+          }
+        },
+        {
+          "text": "\u00b7",
+          "fontSizePx": 13,
+          "fontWeight": 400,
+          "threshold": 4.5,
+          "cssRatio": 3.3053719261108263,
+          "renderedP05": 3.067535292867075,
+          "renderedP50": 3.222213202916524,
+          "foreground": "rgb(113, 107, 89)",
+          "background": {
+            "backgroundColor": "rgb(18, 27, 23)",
+            "backgroundImage": "radial-gradient(circle at 92% 0px, rgba(55, 78, 63, 0.22), rgba(0, 0, 0, 0) 38%), linear-gradient(rgba(6, 13, 10, 0.54), rgba(5, 11, 9, 0.68)), url(\"https://woff-mate-ui-v2.pilotohans.chatgpt.site/textures/workspace-felt.webp\")",
+            "className": "workspace",
+            "opacity": 1,
+            "rect": {
+              "height": 936,
+              "width": 1091,
+              "x": 272,
+              "y": 0
+            },
+            "tag": "main"
+          }
+        },
+        {
+          "text": "Displayed",
+          "fontSizePx": 8,
+          "fontWeight": 700,
+          "threshold": 4.5,
+          "cssRatio": 3.050832229656031,
+          "renderedP05": 3.1349838632351306,
+          "renderedP50": 3.4397882299353144,
+          "foreground": "rgb(113, 94, 72)",
+          "background": {
+            "backgroundColor": "rgb(200, 180, 140)",
+            "backgroundImage": "linear-gradient(110deg, rgba(143, 116, 75, 0.2), rgba(244, 226, 177, 0.12) 72%, rgba(126, 98, 62, 0.18)), url(\"https://woff-mate-ui-v2.pilotohans.chatgpt.site/textures/card-paper.webp\")",
+            "className": "paper-card mission-register",
+            "opacity": 1,
+            "rect": {
+              "height": 208,
+              "width": 1026.984375,
+              "x": 304,
+              "y": 136
+            },
+            "tag": "section"
+          }
+        },
+        {
+          "text": "Victories",
+          "fontSizePx": 8,
+          "fontWeight": 700,
+          "threshold": 4.5,
+          "cssRatio": 3.050832229656031,
+          "renderedP05": 3.2180123707870245,
+          "renderedP50": 3.624306271441027,
+          "foreground": "rgb(113, 94, 72)",
+          "background": {
+            "backgroundColor": "rgb(200, 180, 140)",
+            "backgroundImage": "linear-gradient(110deg, rgba(143, 116, 75, 0.2), rgba(244, 226, 177, 0.12) 72%, rgba(126, 98, 62, 0.18)), url(\"https://woff-mate-ui-v2.pilotohans.chatgpt.site/textures/card-paper.webp\")",
+            "className": "paper-card mission-register",
+            "opacity": 1,
+            "rect": {
+              "height": 208,
+              "width": 1026.984375,
+              "x": 304,
+              "y": 136
+            },
+            "tag": "section"
+          }
+        },
+        {
+          "text": "Flight time",
+          "fontSizePx": 8,
+          "fontWeight": 700,
+          "threshold": 4.5,
+          "cssRatio": 3.050832229656031,
+          "renderedP05": 3.3656980933335245,
+          "renderedP50": 3.7376935940239675,
+          "foreground": "rgb(113, 94, 72)",
+          "background": {
+            "backgroundColor": "rgb(200, 180, 140)",
+            "backgroundImage": "linear-gradient(110deg, rgba(143, 116, 75, 0.2), rgba(244, 226, 177, 0.12) 72%, rgba(126, 98, 62, 0.18)), url(\"https://woff-mate-ui-v2.pilotohans.chatgpt.site/textures/card-paper.webp\")",
+            "className": "paper-card mission-register",
+            "opacity": 1,
+            "rect": {
+              "height": 208,
+              "width": 1026.984375,
+              "x": 304,
+              "y": 136
+            },
+            "tag": "section"
+          }
+        }
+      ]
+    },
+    {
+      "screen": "04-diary",
+      "heading": "War Diary",
+      "runs": 150,
+      "minCssRatio": 1.0640211957628432,
+      "minRenderedP05": 1.0642398729704907,
+      "failedCss": 42,
+      "failedRendered": 53,
+      "worstCss": [
+        {
+          "text": "JRN-RFC14A-19170815-027",
+          "fontSizePx": 10,
+          "fontWeight": 400,
+          "threshold": 4.5,
+          "cssRatio": 1.0640211957628432,
+          "renderedP05": 1.180500323504576,
+          "renderedP50": 1.2903740323320043,
+          "foreground": "rgb(173, 179, 161)",
+          "background": {
+            "backgroundColor": "rgb(200, 180, 140)",
+            "backgroundImage": "linear-gradient(110deg, rgba(143, 116, 75, 0.2), rgba(244, 226, 177, 0.12) 72%, rgba(126, 98, 62, 0.18)), url(\"https://woff-mate-ui-v2.pilotohans.chatgpt.site/textures/card-paper.webp\")",
+            "className": "paper-card diary-entry-card",
+            "opacity": 1,
+            "rect": {
+              "height": 225.625,
+              "width": 544.296875,
+              "x": 447,
+              "y": 523.1875
+            },
+            "tag": "article"
+          }
+        },
+        {
+          "text": "Location",
+          "fontSizePx": 10,
+          "fontWeight": 700,
+          "threshold": 4.5,
+          "cssRatio": 1.0640211957628432,
+          "renderedP05": 1.086606328152254,
+          "renderedP50": 1.1362736514761902,
+          "foreground": "rgb(173, 179, 161)",
+          "background": {
+            "backgroundColor": "rgb(200, 180, 140)",
+            "backgroundImage": "linear-gradient(110deg, rgba(143, 116, 75, 0.2), rgba(244, 226, 177, 0.12) 72%, rgba(126, 98, 62, 0.18)), url(\"https://woff-mate-ui-v2.pilotohans.chatgpt.site/textures/card-paper.webp\")",
+            "className": "paper-card diary-entry-card",
+            "opacity": 1,
+            "rect": {
+              "height": 225.625,
+              "width": 544.296875,
+              "x": 447,
+              "y": 523.1875
+            },
+            "tag": "article"
+          }
+        },
+        {
+          "text": "Mission ID",
+          "fontSizePx": 10,
+          "fontWeight": 700,
+          "threshold": 4.5,
+          "cssRatio": 1.0640211957628432,
+          "renderedP05": 1.1237195943445324,
+          "renderedP50": 1.1996751411005573,
+          "foreground": "rgb(173, 179, 161)",
+          "background": {
+            "backgroundColor": "rgb(200, 180, 140)",
+            "backgroundImage": "linear-gradient(110deg, rgba(143, 116, 75, 0.2), rgba(244, 226, 177, 0.12) 72%, rgba(126, 98, 62, 0.18)), url(\"https://woff-mate-ui-v2.pilotohans.chatgpt.site/textures/card-paper.webp\")",
+            "className": "paper-card diary-entry-card",
+            "opacity": 1,
+            "rect": {
+              "height": 225.625,
+              "width": 544.296875,
+              "x": 447,
+              "y": 523.1875
+            },
+            "tag": "article"
+          }
+        },
+        {
+          "text": "Provenance",
+          "fontSizePx": 10,
+          "fontWeight": 700,
+          "threshold": 4.5,
+          "cssRatio": 1.0640211957628432,
+          "renderedP05": 1.1794528212353135,
+          "renderedP50": 1.3004630993659554,
+          "foreground": "rgb(173, 179, 161)",
+          "background": {
+            "backgroundColor": "rgb(200, 180, 140)",
+            "backgroundImage": "linear-gradient(110deg, rgba(143, 116, 75, 0.2), rgba(244, 226, 177, 0.12) 72%, rgba(126, 98, 62, 0.18)), url(\"https://woff-mate-ui-v2.pilotohans.chatgpt.site/textures/card-paper.webp\")",
+            "className": "paper-card diary-entry-card",
+            "opacity": 1,
+            "rect": {
+              "height": 225.625,
+              "width": 544.296875,
+              "x": 447,
+              "y": 523.1875
+            },
+            "tag": "article"
+          }
+        },
+        {
+          "text": "JRN-RFC14A-19170814-026",
+          "fontSizePx": 10,
+          "fontWeight": 400,
+          "threshold": 4.5,
+          "cssRatio": 1.0640211957628432,
+          "renderedP05": 1.1715109498622174,
+          "renderedP50": 1.2903740323320043,
+          "foreground": "rgb(173, 179, 161)",
+          "background": {
+            "backgroundColor": "rgb(200, 180, 140)",
+            "backgroundImage": "linear-gradient(110deg, rgba(143, 116, 75, 0.2), rgba(244, 226, 177, 0.12) 72%, rgba(126, 98, 62, 0.18)), url(\"https://woff-mate-ui-v2.pilotohans.chatgpt.site/textures/card-paper.webp\")",
+            "className": "paper-card diary-entry-card",
+            "opacity": 1,
+            "rect": {
+              "height": 225.625,
+              "width": 544.296875,
+              "x": 447,
+              "y": 764.8125
+            },
+            "tag": "article"
+          }
+        },
+        {
+          "text": "Location",
+          "fontSizePx": 10,
+          "fontWeight": 700,
+          "threshold": 4.5,
+          "cssRatio": 1.0640211957628432,
+          "renderedP05": 1.0875106927899232,
+          "renderedP50": 1.1374633883215615,
+          "foreground": "rgb(173, 179, 161)",
+          "background": {
+            "backgroundColor": "rgb(200, 180, 140)",
+            "backgroundImage": "linear-gradient(110deg, rgba(143, 116, 75, 0.2), rgba(244, 226, 177, 0.12) 72%, rgba(126, 98, 62, 0.18)), url(\"https://woff-mate-ui-v2.pilotohans.chatgpt.site/textures/card-paper.webp\")",
+            "className": "paper-card diary-entry-card",
+            "opacity": 1,
+            "rect": {
+              "height": 225.625,
+              "width": 544.296875,
+              "x": 447,
+              "y": 764.8125
+            },
+            "tag": "article"
+          }
+        },
+        {
+          "text": "Mission ID",
+          "fontSizePx": 10,
+          "fontWeight": 700,
+          "threshold": 4.5,
+          "cssRatio": 1.0640211957628432,
+          "renderedP05": 1.1362736514761902,
+          "renderedP50": 1.1996751411005573,
+          "foreground": "rgb(173, 179, 161)",
+          "background": {
+            "backgroundColor": "rgb(200, 180, 140)",
+            "backgroundImage": "linear-gradient(110deg, rgba(143, 116, 75, 0.2), rgba(244, 226, 177, 0.12) 72%, rgba(126, 98, 62, 0.18)), url(\"https://woff-mate-ui-v2.pilotohans.chatgpt.site/textures/card-paper.webp\")",
+            "className": "paper-card diary-entry-card",
+            "opacity": 1,
+            "rect": {
+              "height": 225.625,
+              "width": 544.296875,
+              "x": 447,
+              "y": 764.8125
+            },
+            "tag": "article"
+          }
+        },
+        {
+          "text": "Provenance",
+          "fontSizePx": 10,
+          "fontWeight": 700,
+          "threshold": 4.5,
+          "cssRatio": 1.0640211957628432,
+          "renderedP05": 1.1914602907029572,
+          "renderedP50": 1.3004630993659554,
+          "foreground": "rgb(173, 179, 161)",
+          "background": {
+            "backgroundColor": "rgb(200, 180, 140)",
+            "backgroundImage": "linear-gradient(110deg, rgba(143, 116, 75, 0.2), rgba(244, 226, 177, 0.12) 72%, rgba(126, 98, 62, 0.18)), url(\"https://woff-mate-ui-v2.pilotohans.chatgpt.site/textures/card-paper.webp\")",
+            "className": "paper-card diary-entry-card",
+            "opacity": 1,
+            "rect": {
+              "height": 225.625,
+              "width": 544.296875,
+              "x": 447,
+              "y": 764.8125
+            },
+            "tag": "article"
+          }
+        },
+        {
+          "text": "JRN-RFC14A-19170813-025",
+          "fontSizePx": 10,
+          "fontWeight": 400,
+          "threshold": 4.5,
+          "cssRatio": 1.0640211957628432,
+          "renderedP05": 1.1745271619339666,
+          "renderedP50": 1.2903740323320043,
+          "foreground": "rgb(173, 179, 161)",
+          "background": {
+            "backgroundColor": "rgb(200, 180, 140)",
+            "backgroundImage": "linear-gradient(110deg, rgba(143, 116, 75, 0.2), rgba(244, 226, 177, 0.12) 72%, rgba(126, 98, 62, 0.18)), url(\"https://woff-mate-ui-v2.pilotohans.chatgpt.site/textures/card-paper.webp\")",
+            "className": "paper-card diary-entry-card",
+            "opacity": 1,
+            "rect": {
+              "height": 225.625,
+              "width": 544.296875,
+              "x": 447,
+              "y": 1006.4375
+            },
+            "tag": "article"
+          }
+        },
+        {
+          "text": "Location",
+          "fontSizePx": 10,
+          "fontWeight": 700,
+          "threshold": 4.5,
+          "cssRatio": 1.0640211957628432,
+          "renderedP05": 1.0872153363625763,
+          "renderedP50": 1.135644098905232,
+          "foreground": "rgb(173, 179, 161)",
+          "background": {
+            "backgroundColor": "rgb(200, 180, 140)",
+            "backgroundImage": "linear-gradient(110deg, rgba(143, 116, 75, 0.2), rgba(244, 226, 177, 0.12) 72%, rgba(126, 98, 62, 0.18)), url(\"https://woff-mate-ui-v2.pilotohans.chatgpt.site/textures/card-paper.webp\")",
+            "className": "paper-card diary-entry-card",
+            "opacity": 1,
+            "rect": {
+              "height": 225.625,
+              "width": 544.296875,
+              "x": 447,
+              "y": 1006.4375
+            },
+            "tag": "article"
+          }
+        },
+        {
+          "text": "Mission ID",
+          "fontSizePx": 10,
+          "fontWeight": 700,
+          "threshold": 4.5,
+          "cssRatio": 1.0640211957628432,
+          "renderedP05": 1.1362736514761902,
+          "renderedP50": 1.1950963129647312,
+          "foreground": "rgb(173, 179, 161)",
+          "background": {
+            "backgroundColor": "rgb(200, 180, 140)",
+            "backgroundImage": "linear-gradient(110deg, rgba(143, 116, 75, 0.2), rgba(244, 226, 177, 0.12) 72%, rgba(126, 98, 62, 0.18)), url(\"https://woff-mate-ui-v2.pilotohans.chatgpt.site/textures/card-paper.webp\")",
+            "className": "paper-card diary-entry-card",
+            "opacity": 1,
+            "rect": {
+              "height": 225.625,
+              "width": 544.296875,
+              "x": 447,
+              "y": 1006.4375
+            },
+            "tag": "article"
+          }
+        },
+        {
+          "text": "Provenance",
+          "fontSizePx": 10,
+          "fontWeight": 700,
+          "threshold": 4.5,
+          "cssRatio": 1.0640211957628432,
+          "renderedP05": 1.197204822276122,
+          "renderedP50": 1.3016836081898053,
+          "foreground": "rgb(173, 179, 161)",
+          "background": {
+            "backgroundColor": "rgb(200, 180, 140)",
+            "backgroundImage": "linear-gradient(110deg, rgba(143, 116, 75, 0.2), rgba(244, 226, 177, 0.12) 72%, rgba(126, 98, 62, 0.18)), url(\"https://woff-mate-ui-v2.pilotohans.chatgpt.site/textures/card-paper.webp\")",
+            "className": "paper-card diary-entry-card",
+            "opacity": 1,
+            "rect": {
+              "height": 225.625,
+              "width": 544.296875,
+              "x": 447,
+              "y": 1006.4375
+            },
+            "tag": "article"
+          }
+        }
+      ],
+      "worstRendered": [
+        {
+          "text": "Location",
+          "fontSizePx": 10,
+          "fontWeight": 700,
+          "threshold": 4.5,
+          "cssRatio": 1.0640211957628432,
+          "renderedP05": 1.0642398729704907,
+          "renderedP50": 1.1374633883215615,
+          "foreground": "rgb(173, 179, 161)",
+          "background": {
+            "backgroundColor": "rgb(200, 180, 140)",
+            "backgroundImage": "linear-gradient(110deg, rgba(143, 116, 75, 0.2), rgba(244, 226, 177, 0.12) 72%, rgba(126, 98, 62, 0.18)), url(\"https://woff-mate-ui-v2.pilotohans.chatgpt.site/textures/card-paper.webp\")",
+            "className": "paper-card diary-entry-card",
+            "opacity": 1,
+            "rect": {
+              "height": 225.625,
+              "width": 544.296875,
+              "x": 447,
+              "y": 1489.6875
+            },
+            "tag": "article"
+          }
+        },
+        {
+          "text": "Location",
+          "fontSizePx": 10,
+          "fontWeight": 700,
+          "threshold": 4.5,
+          "cssRatio": 1.0640211957628432,
+          "renderedP05": 1.0762368562838003,
+          "renderedP50": 1.1362736514761902,
+          "foreground": "rgb(173, 179, 161)",
+          "background": {
+            "backgroundColor": "rgb(200, 180, 140)",
+            "backgroundImage": "linear-gradient(110deg, rgba(143, 116, 75, 0.2), rgba(244, 226, 177, 0.12) 72%, rgba(126, 98, 62, 0.18)), url(\"https://woff-mate-ui-v2.pilotohans.chatgpt.site/textures/card-paper.webp\")",
+            "className": "paper-card diary-entry-card",
+            "opacity": 1,
+            "rect": {
+              "height": 225.625,
+              "width": 544.296875,
+              "x": 447,
+              "y": 1248.0625
+            },
+            "tag": "article"
+          }
+        },
+        {
+          "text": "Location",
+          "fontSizePx": 10,
+          "fontWeight": 700,
+          "threshold": 4.5,
+          "cssRatio": 1.0640211957628432,
+          "renderedP05": 1.086606328152254,
+          "renderedP50": 1.1362736514761902,
+          "foreground": "rgb(173, 179, 161)",
+          "background": {
+            "backgroundColor": "rgb(200, 180, 140)",
+            "backgroundImage": "linear-gradient(110deg, rgba(143, 116, 75, 0.2), rgba(244, 226, 177, 0.12) 72%, rgba(126, 98, 62, 0.18)), url(\"https://woff-mate-ui-v2.pilotohans.chatgpt.site/textures/card-paper.webp\")",
+            "className": "paper-card diary-entry-card",
+            "opacity": 1,
+            "rect": {
+              "height": 225.625,
+              "width": 544.296875,
+              "x": 447,
+              "y": 523.1875
+            },
+            "tag": "article"
+          }
+        },
+        {
+          "text": "Location",
+          "fontSizePx": 10,
+          "fontWeight": 700,
+          "threshold": 4.5,
+          "cssRatio": 1.0640211957628432,
+          "renderedP05": 1.0872153363625763,
+          "renderedP50": 1.135644098905232,
+          "foreground": "rgb(173, 179, 161)",
+          "background": {
+            "backgroundColor": "rgb(200, 180, 140)",
+            "backgroundImage": "linear-gradient(110deg, rgba(143, 116, 75, 0.2), rgba(244, 226, 177, 0.12) 72%, rgba(126, 98, 62, 0.18)), url(\"https://woff-mate-ui-v2.pilotohans.chatgpt.site/textures/card-paper.webp\")",
+            "className": "paper-card diary-entry-card",
+            "opacity": 1,
+            "rect": {
+              "height": 225.625,
+              "width": 544.296875,
+              "x": 447,
+              "y": 1006.4375
+            },
+            "tag": "article"
+          }
+        },
+        {
+          "text": "Location",
+          "fontSizePx": 10,
+          "fontWeight": 700,
+          "threshold": 4.5,
+          "cssRatio": 1.0640211957628432,
+          "renderedP05": 1.0875106927899232,
+          "renderedP50": 1.1374633883215615,
+          "foreground": "rgb(173, 179, 161)",
+          "background": {
+            "backgroundColor": "rgb(200, 180, 140)",
+            "backgroundImage": "linear-gradient(110deg, rgba(143, 116, 75, 0.2), rgba(244, 226, 177, 0.12) 72%, rgba(126, 98, 62, 0.18)), url(\"https://woff-mate-ui-v2.pilotohans.chatgpt.site/textures/card-paper.webp\")",
+            "className": "paper-card diary-entry-card",
+            "opacity": 1,
+            "rect": {
+              "height": 225.625,
+              "width": 544.296875,
+              "x": 447,
+              "y": 764.8125
+            },
+            "tag": "article"
+          }
+        },
+        {
+          "text": "Mission ID",
+          "fontSizePx": 10,
+          "fontWeight": 700,
+          "threshold": 4.5,
+          "cssRatio": 1.0640211957628432,
+          "renderedP05": 1.0920214806384272,
+          "renderedP50": 1.1978161371193257,
+          "foreground": "rgb(173, 179, 161)",
+          "background": {
+            "backgroundColor": "rgb(200, 180, 140)",
+            "backgroundImage": "linear-gradient(110deg, rgba(143, 116, 75, 0.2), rgba(244, 226, 177, 0.12) 72%, rgba(126, 98, 62, 0.18)), url(\"https://woff-mate-ui-v2.pilotohans.chatgpt.site/textures/card-paper.webp\")",
+            "className": "paper-card diary-entry-card",
+            "opacity": 1,
+            "rect": {
+              "height": 225.625,
+              "width": 544.296875,
+              "x": 447,
+              "y": 1489.6875
+            },
+            "tag": "article"
+          }
+        },
+        {
+          "text": "Mission ID",
+          "fontSizePx": 10,
+          "fontWeight": 700,
+          "threshold": 4.5,
+          "cssRatio": 1.0640211957628432,
+          "renderedP05": 1.107620574453053,
+          "renderedP50": 1.1984950796970328,
+          "foreground": "rgb(173, 179, 161)",
+          "background": {
+            "backgroundColor": "rgb(200, 180, 140)",
+            "backgroundImage": "linear-gradient(110deg, rgba(143, 116, 75, 0.2), rgba(244, 226, 177, 0.12) 72%, rgba(126, 98, 62, 0.18)), url(\"https://woff-mate-ui-v2.pilotohans.chatgpt.site/textures/card-paper.webp\")",
+            "className": "paper-card diary-entry-card",
+            "opacity": 1,
+            "rect": {
+              "height": 225.625,
+              "width": 544.296875,
+              "x": 447,
+              "y": 1248.0625
+            },
+            "tag": "article"
+          }
+        },
+        {
+          "text": "Mission ID",
+          "fontSizePx": 10,
+          "fontWeight": 700,
+          "threshold": 4.5,
+          "cssRatio": 1.0640211957628432,
+          "renderedP05": 1.1237195943445324,
+          "renderedP50": 1.1996751411005573,
+          "foreground": "rgb(173, 179, 161)",
+          "background": {
+            "backgroundColor": "rgb(200, 180, 140)",
+            "backgroundImage": "linear-gradient(110deg, rgba(143, 116, 75, 0.2), rgba(244, 226, 177, 0.12) 72%, rgba(126, 98, 62, 0.18)), url(\"https://woff-mate-ui-v2.pilotohans.chatgpt.site/textures/card-paper.webp\")",
+            "className": "paper-card diary-entry-card",
+            "opacity": 1,
+            "rect": {
+              "height": 225.625,
+              "width": 544.296875,
+              "x": 447,
+              "y": 523.1875
+            },
+            "tag": "article"
+          }
+        },
+        {
+          "text": "Mission ID",
+          "fontSizePx": 10,
+          "fontWeight": 700,
+          "threshold": 4.5,
+          "cssRatio": 1.0640211957628432,
+          "renderedP05": 1.1362736514761902,
+          "renderedP50": 1.1996751411005573,
+          "foreground": "rgb(173, 179, 161)",
+          "background": {
+            "backgroundColor": "rgb(200, 180, 140)",
+            "backgroundImage": "linear-gradient(110deg, rgba(143, 116, 75, 0.2), rgba(244, 226, 177, 0.12) 72%, rgba(126, 98, 62, 0.18)), url(\"https://woff-mate-ui-v2.pilotohans.chatgpt.site/textures/card-paper.webp\")",
+            "className": "paper-card diary-entry-card",
+            "opacity": 1,
+            "rect": {
+              "height": 225.625,
+              "width": 544.296875,
+              "x": 447,
+              "y": 764.8125
+            },
+            "tag": "article"
+          }
+        },
+        {
+          "text": "Mission ID",
+          "fontSizePx": 10,
+          "fontWeight": 700,
+          "threshold": 4.5,
+          "cssRatio": 1.0640211957628432,
+          "renderedP05": 1.1362736514761902,
+          "renderedP50": 1.1950963129647312,
+          "foreground": "rgb(173, 179, 161)",
+          "background": {
+            "backgroundColor": "rgb(200, 180, 140)",
+            "backgroundImage": "linear-gradient(110deg, rgba(143, 116, 75, 0.2), rgba(244, 226, 177, 0.12) 72%, rgba(126, 98, 62, 0.18)), url(\"https://woff-mate-ui-v2.pilotohans.chatgpt.site/textures/card-paper.webp\")",
+            "className": "paper-card diary-entry-card",
+            "opacity": 1,
+            "rect": {
+              "height": 225.625,
+              "width": 544.296875,
+              "x": 447,
+              "y": 1006.4375
+            },
+            "tag": "article"
+          }
+        },
+        {
+          "text": "Provenance",
+          "fontSizePx": 10,
+          "fontWeight": 700,
+          "threshold": 4.5,
+          "cssRatio": 1.0640211957628432,
+          "renderedP05": 1.1674122626051497,
+          "renderedP50": 1.303200430551003,
+          "foreground": "rgb(173, 179, 161)",
+          "background": {
+            "backgroundColor": "rgb(200, 180, 140)",
+            "backgroundImage": "linear-gradient(110deg, rgba(143, 116, 75, 0.2), rgba(244, 226, 177, 0.12) 72%, rgba(126, 98, 62, 0.18)), url(\"https://woff-mate-ui-v2.pilotohans.chatgpt.site/textures/card-paper.webp\")",
+            "className": "paper-card diary-entry-card",
+            "opacity": 1,
+            "rect": {
+              "height": 225.625,
+              "width": 544.296875,
+              "x": 447,
+              "y": 1248.0625
+            },
+            "tag": "article"
+          }
+        },
+        {
+          "text": "JRN-RFC14A-19170814-026",
+          "fontSizePx": 10,
+          "fontWeight": 400,
+          "threshold": 4.5,
+          "cssRatio": 1.0640211957628432,
+          "renderedP05": 1.1715109498622174,
+          "renderedP50": 1.2903740323320043,
+          "foreground": "rgb(173, 179, 161)",
+          "background": {
+            "backgroundColor": "rgb(200, 180, 140)",
+            "backgroundImage": "linear-gradient(110deg, rgba(143, 116, 75, 0.2), rgba(244, 226, 177, 0.12) 72%, rgba(126, 98, 62, 0.18)), url(\"https://woff-mate-ui-v2.pilotohans.chatgpt.site/textures/card-paper.webp\")",
+            "className": "paper-card diary-entry-card",
+            "opacity": 1,
+            "rect": {
+              "height": 225.625,
+              "width": 544.296875,
+              "x": 447,
+              "y": 764.8125
+            },
+            "tag": "article"
+          }
+        }
+      ]
+    },
+    {
+      "screen": "05-reports",
+      "heading": "Reports Library",
+      "runs": 132,
+      "minCssRatio": 1.0640211957628432,
+      "minRenderedP05": 1.0671360485466477,
+      "failedCss": 31,
+      "failedRendered": 47,
+      "worstCss": [
+        {
+          "text": "Period",
+          "fontSizePx": 10,
+          "fontWeight": 700,
+          "threshold": 4.5,
+          "cssRatio": 1.0640211957628432,
+          "renderedP05": 1.1073159357095599,
+          "renderedP50": 1.1626324594738824,
+          "foreground": "rgb(173, 179, 161)",
+          "background": {
+            "backgroundColor": "rgb(200, 180, 140)",
+            "backgroundImage": "linear-gradient(110deg, rgba(143, 116, 75, 0.2), rgba(244, 226, 177, 0.12) 72%, rgba(126, 98, 62, 0.18)), url(\"https://woff-mate-ui-v2.pilotohans.chatgpt.site/textures/card-paper.webp\")",
+            "className": "paper-card report-card",
+            "opacity": 1,
+            "rect": {
+              "height": 319.5,
+              "width": 327.640625,
+              "x": 323,
+              "y": 522.1875
+            },
+            "tag": "article"
+          }
+        },
+        {
+          "text": "Coverage",
+          "fontSizePx": 10,
+          "fontWeight": 700,
+          "threshold": 4.5,
+          "cssRatio": 1.0640211957628432,
+          "renderedP05": 1.124178764879645,
+          "renderedP50": 1.1784432726300222,
+          "foreground": "rgb(173, 179, 161)",
+          "background": {
+            "backgroundColor": "rgb(200, 180, 140)",
+            "backgroundImage": "linear-gradient(110deg, rgba(143, 116, 75, 0.2), rgba(244, 226, 177, 0.12) 72%, rgba(126, 98, 62, 0.18)), url(\"https://woff-mate-ui-v2.pilotohans.chatgpt.site/textures/card-paper.webp\")",
+            "className": "paper-card report-card",
+            "opacity": 1,
+            "rect": {
+              "height": 319.5,
+              "width": 327.640625,
+              "x": 323,
+              "y": 522.1875
+            },
+            "tag": "article"
+          }
+        },
+        {
+          "text": "Identity",
+          "fontSizePx": 10,
+          "fontWeight": 700,
+          "threshold": 4.5,
+          "cssRatio": 1.0640211957628432,
+          "renderedP05": 1.11789461963882,
+          "renderedP50": 1.179153517745958,
+          "foreground": "rgb(173, 179, 161)",
+          "background": {
+            "backgroundColor": "rgb(200, 180, 140)",
+            "backgroundImage": "linear-gradient(110deg, rgba(143, 116, 75, 0.2), rgba(244, 226, 177, 0.12) 72%, rgba(126, 98, 62, 0.18)), url(\"https://woff-mate-ui-v2.pilotohans.chatgpt.site/textures/card-paper.webp\")",
+            "className": "paper-card report-card",
+            "opacity": 1,
+            "rect": {
+              "height": 319.5,
+              "width": 327.640625,
+              "x": 323,
+              "y": 522.1875
+            },
+            "tag": "article"
+          }
+        },
+        {
+          "text": "Period",
+          "fontSizePx": 10,
+          "fontWeight": 700,
+          "threshold": 4.5,
+          "cssRatio": 1.0640211957628432,
+          "renderedP05": 1.0671360485466477,
+          "renderedP50": 1.1497354191213844,
+          "foreground": "rgb(173, 179, 161)",
+          "background": {
+            "backgroundColor": "rgb(200, 180, 140)",
+            "backgroundImage": "linear-gradient(110deg, rgba(143, 116, 75, 0.2), rgba(244, 226, 177, 0.12) 72%, rgba(126, 98, 62, 0.18)), url(\"https://woff-mate-ui-v2.pilotohans.chatgpt.site/textures/card-paper.webp\")",
+            "className": "paper-card report-card",
+            "opacity": 1,
+            "rect": {
+              "height": 319.5,
+              "width": 327.65625,
+              "x": 663.640625,
+              "y": 522.1875
+            },
+            "tag": "article"
+          }
+        },
+        {
+          "text": "Coverage",
+          "fontSizePx": 10,
+          "fontWeight": 700,
+          "threshold": 4.5,
+          "cssRatio": 1.0640211957628432,
+          "renderedP05": 1.0894018019551563,
+          "renderedP50": 1.1631724774146885,
+          "foreground": "rgb(173, 179, 161)",
+          "background": {
+            "backgroundColor": "rgb(200, 180, 140)",
+            "backgroundImage": "linear-gradient(110deg, rgba(143, 116, 75, 0.2), rgba(244, 226, 177, 0.12) 72%, rgba(126, 98, 62, 0.18)), url(\"https://woff-mate-ui-v2.pilotohans.chatgpt.site/textures/card-paper.webp\")",
+            "className": "paper-card report-card",
+            "opacity": 1,
+            "rect": {
+              "height": 319.5,
+              "width": 327.65625,
+              "x": 663.640625,
+              "y": 522.1875
+            },
+            "tag": "article"
+          }
+        },
+        {
+          "text": "Identity",
+          "fontSizePx": 10,
+          "fontWeight": 700,
+          "threshold": 4.5,
+          "cssRatio": 1.0640211957628432,
+          "renderedP05": 1.0762368562838003,
+          "renderedP50": 1.166680277836984,
+          "foreground": "rgb(173, 179, 161)",
+          "background": {
+            "backgroundColor": "rgb(200, 180, 140)",
+            "backgroundImage": "linear-gradient(110deg, rgba(143, 116, 75, 0.2), rgba(244, 226, 177, 0.12) 72%, rgba(126, 98, 62, 0.18)), url(\"https://woff-mate-ui-v2.pilotohans.chatgpt.site/textures/card-paper.webp\")",
+            "className": "paper-card report-card",
+            "opacity": 1,
+            "rect": {
+              "height": 319.5,
+              "width": 327.65625,
+              "x": 663.640625,
+              "y": 522.1875
+            },
+            "tag": "article"
+          }
+        },
+        {
+          "text": "Period",
+          "fontSizePx": 10,
+          "fontWeight": 700,
+          "threshold": 4.5,
+          "cssRatio": 1.0640211957628432,
+          "renderedP05": 1.1057390187697629,
+          "renderedP50": 1.1620924415330764,
+          "foreground": "rgb(173, 179, 161)",
+          "background": {
+            "backgroundColor": "rgb(200, 180, 140)",
+            "backgroundImage": "linear-gradient(110deg, rgba(143, 116, 75, 0.2), rgba(244, 226, 177, 0.12) 72%, rgba(126, 98, 62, 0.18)), url(\"https://woff-mate-ui-v2.pilotohans.chatgpt.site/textures/card-paper.webp\")",
+            "className": "paper-card report-card",
+            "opacity": 1,
+            "rect": {
+              "height": 319.5,
+              "width": 327.640625,
+              "x": 323,
+              "y": 854.6875
+            },
+            "tag": "article"
+          }
+        },
+        {
+          "text": "Coverage",
+          "fontSizePx": 10,
+          "fontWeight": 700,
+          "threshold": 4.5,
+          "cssRatio": 1.0640211957628432,
+          "renderedP05": 1.1064876966990653,
+          "renderedP50": 1.1802044223995323,
+          "foreground": "rgb(173, 179, 161)",
+          "background": {
+            "backgroundColor": "rgb(200, 180, 140)",
+            "backgroundImage": "linear-gradient(110deg, rgba(143, 116, 75, 0.2), rgba(244, 226, 177, 0.12) 72%, rgba(126, 98, 62, 0.18)), url(\"https://woff-mate-ui-v2.pilotohans.chatgpt.site/textures/card-paper.webp\")",
+            "className": "paper-card report-card",
+            "opacity": 1,
+            "rect": {
+              "height": 319.5,
+              "width": 327.640625,
+              "x": 323,
+              "y": 854.6875
+            },
+            "tag": "article"
+          }
+        },
+        {
+          "text": "Identity",
+          "fontSizePx": 10,
+          "fontWeight": 700,
+          "threshold": 4.5,
+          "cssRatio": 1.0640211957628432,
+          "renderedP05": 1.1310070941362118,
+          "renderedP50": 1.1733118892997838,
+          "foreground": "rgb(173, 179, 161)",
+          "background": {
+            "backgroundColor": "rgb(200, 180, 140)",
+            "backgroundImage": "linear-gradient(110deg, rgba(143, 116, 75, 0.2), rgba(244, 226, 177, 0.12) 72%, rgba(126, 98, 62, 0.18)), url(\"https://woff-mate-ui-v2.pilotohans.chatgpt.site/textures/card-paper.webp\")",
+            "className": "paper-card report-card",
+            "opacity": 1,
+            "rect": {
+              "height": 319.5,
+              "width": 327.640625,
+              "x": 323,
+              "y": 854.6875
+            },
+            "tag": "article"
+          }
+        },
+        {
+          "text": "Period",
+          "fontSizePx": 10,
+          "fontWeight": 700,
+          "threshold": 4.5,
+          "cssRatio": 1.0640211957628432,
+          "renderedP05": 1.0764620315561753,
+          "renderedP50": 1.1485347116437787,
+          "foreground": "rgb(173, 179, 161)",
+          "background": {
+            "backgroundColor": "rgb(200, 180, 140)",
+            "backgroundImage": "linear-gradient(110deg, rgba(143, 116, 75, 0.2), rgba(244, 226, 177, 0.12) 72%, rgba(126, 98, 62, 0.18)), url(\"https://woff-mate-ui-v2.pilotohans.chatgpt.site/textures/card-paper.webp\")",
+            "className": "paper-card report-card",
+            "opacity": 1,
+            "rect": {
+              "height": 319.5,
+              "width": 327.65625,
+              "x": 663.640625,
+              "y": 854.6875
+            },
+            "tag": "article"
+          }
+        },
+        {
+          "text": "Coverage",
+          "fontSizePx": 10,
+          "fontWeight": 700,
+          "threshold": 4.5,
+          "cssRatio": 1.0640211957628432,
+          "renderedP05": 1.088075649328367,
+          "renderedP50": 1.1727094093695727,
+          "foreground": "rgb(173, 179, 161)",
+          "background": {
+            "backgroundColor": "rgb(200, 180, 140)",
+            "backgroundImage": "linear-gradient(110deg, rgba(143, 116, 75, 0.2), rgba(244, 226, 177, 0.12) 72%, rgba(126, 98, 62, 0.18)), url(\"https://woff-mate-ui-v2.pilotohans.chatgpt.site/textures/card-paper.webp\")",
+            "className": "paper-card report-card",
+            "opacity": 1,
+            "rect": {
+              "height": 319.5,
+              "width": 327.65625,
+              "x": 663.640625,
+              "y": 854.6875
+            },
+            "tag": "article"
+          }
+        },
+        {
+          "text": "Identity",
+          "fontSizePx": 10,
+          "fontWeight": 700,
+          "threshold": 4.5,
+          "cssRatio": 1.0640211957628432,
+          "renderedP05": 1.0863292670805353,
+          "renderedP50": 1.1620924415330764,
+          "foreground": "rgb(173, 179, 161)",
+          "background": {
+            "backgroundColor": "rgb(200, 180, 140)",
+            "backgroundImage": "linear-gradient(110deg, rgba(143, 116, 75, 0.2), rgba(244, 226, 177, 0.12) 72%, rgba(126, 98, 62, 0.18)), url(\"https://woff-mate-ui-v2.pilotohans.chatgpt.site/textures/card-paper.webp\")",
+            "className": "paper-card report-card",
+            "opacity": 1,
+            "rect": {
+              "height": 319.5,
+              "width": 327.65625,
+              "x": 663.640625,
+              "y": 854.6875
+            },
+            "tag": "article"
+          }
+        }
+      ],
+      "worstRendered": [
+        {
+          "text": "Period",
+          "fontSizePx": 10,
+          "fontWeight": 700,
+          "threshold": 4.5,
+          "cssRatio": 1.0640211957628432,
+          "renderedP05": 1.0671360485466477,
+          "renderedP50": 1.1497354191213844,
+          "foreground": "rgb(173, 179, 161)",
+          "background": {
+            "backgroundColor": "rgb(200, 180, 140)",
+            "backgroundImage": "linear-gradient(110deg, rgba(143, 116, 75, 0.2), rgba(244, 226, 177, 0.12) 72%, rgba(126, 98, 62, 0.18)), url(\"https://woff-mate-ui-v2.pilotohans.chatgpt.site/textures/card-paper.webp\")",
+            "className": "paper-card report-card",
+            "opacity": 1,
+            "rect": {
+              "height": 319.5,
+              "width": 327.65625,
+              "x": 663.640625,
+              "y": 522.1875
+            },
+            "tag": "article"
+          }
+        },
+        {
+          "text": "Identity",
+          "fontSizePx": 10,
+          "fontWeight": 700,
+          "threshold": 4.5,
+          "cssRatio": 1.0640211957628432,
+          "renderedP05": 1.0762368562838003,
+          "renderedP50": 1.166680277836984,
+          "foreground": "rgb(173, 179, 161)",
+          "background": {
+            "backgroundColor": "rgb(200, 180, 140)",
+            "backgroundImage": "linear-gradient(110deg, rgba(143, 116, 75, 0.2), rgba(244, 226, 177, 0.12) 72%, rgba(126, 98, 62, 0.18)), url(\"https://woff-mate-ui-v2.pilotohans.chatgpt.site/textures/card-paper.webp\")",
+            "className": "paper-card report-card",
+            "opacity": 1,
+            "rect": {
+              "height": 319.5,
+              "width": 327.65625,
+              "x": 663.640625,
+              "y": 522.1875
+            },
+            "tag": "article"
+          }
+        },
+        {
+          "text": "Period",
+          "fontSizePx": 10,
+          "fontWeight": 700,
+          "threshold": 4.5,
+          "cssRatio": 1.0640211957628432,
+          "renderedP05": 1.0764620315561753,
+          "renderedP50": 1.1485347116437787,
+          "foreground": "rgb(173, 179, 161)",
+          "background": {
+            "backgroundColor": "rgb(200, 180, 140)",
+            "backgroundImage": "linear-gradient(110deg, rgba(143, 116, 75, 0.2), rgba(244, 226, 177, 0.12) 72%, rgba(126, 98, 62, 0.18)), url(\"https://woff-mate-ui-v2.pilotohans.chatgpt.site/textures/card-paper.webp\")",
+            "className": "paper-card report-card",
+            "opacity": 1,
+            "rect": {
+              "height": 319.5,
+              "width": 327.65625,
+              "x": 663.640625,
+              "y": 854.6875
+            },
+            "tag": "article"
+          }
+        },
+        {
+          "text": "Identity",
+          "fontSizePx": 10,
+          "fontWeight": 700,
+          "threshold": 4.5,
+          "cssRatio": 1.0640211957628432,
+          "renderedP05": 1.0863292670805353,
+          "renderedP50": 1.1620924415330764,
+          "foreground": "rgb(173, 179, 161)",
+          "background": {
+            "backgroundColor": "rgb(200, 180, 140)",
+            "backgroundImage": "linear-gradient(110deg, rgba(143, 116, 75, 0.2), rgba(244, 226, 177, 0.12) 72%, rgba(126, 98, 62, 0.18)), url(\"https://woff-mate-ui-v2.pilotohans.chatgpt.site/textures/card-paper.webp\")",
+            "className": "paper-card report-card",
+            "opacity": 1,
+            "rect": {
+              "height": 319.5,
+              "width": 327.65625,
+              "x": 663.640625,
+              "y": 854.6875
+            },
+            "tag": "article"
+          }
+        },
+        {
+          "text": "Coverage",
+          "fontSizePx": 10,
+          "fontWeight": 700,
+          "threshold": 4.5,
+          "cssRatio": 1.0640211957628432,
+          "renderedP05": 1.088075649328367,
+          "renderedP50": 1.1727094093695727,
+          "foreground": "rgb(173, 179, 161)",
+          "background": {
+            "backgroundColor": "rgb(200, 180, 140)",
+            "backgroundImage": "linear-gradient(110deg, rgba(143, 116, 75, 0.2), rgba(244, 226, 177, 0.12) 72%, rgba(126, 98, 62, 0.18)), url(\"https://woff-mate-ui-v2.pilotohans.chatgpt.site/textures/card-paper.webp\")",
+            "className": "paper-card report-card",
+            "opacity": 1,
+            "rect": {
+              "height": 319.5,
+              "width": 327.65625,
+              "x": 663.640625,
+              "y": 854.6875
+            },
+            "tag": "article"
+          }
+        },
+        {
+          "text": "Coverage",
+          "fontSizePx": 10,
+          "fontWeight": 700,
+          "threshold": 4.5,
+          "cssRatio": 1.0640211957628432,
+          "renderedP05": 1.0894018019551563,
+          "renderedP50": 1.1631724774146885,
+          "foreground": "rgb(173, 179, 161)",
+          "background": {
+            "backgroundColor": "rgb(200, 180, 140)",
+            "backgroundImage": "linear-gradient(110deg, rgba(143, 116, 75, 0.2), rgba(244, 226, 177, 0.12) 72%, rgba(126, 98, 62, 0.18)), url(\"https://woff-mate-ui-v2.pilotohans.chatgpt.site/textures/card-paper.webp\")",
+            "className": "paper-card report-card",
+            "opacity": 1,
+            "rect": {
+              "height": 319.5,
+              "width": 327.65625,
+              "x": 663.640625,
+              "y": 522.1875
+            },
+            "tag": "article"
+          }
+        },
+        {
+          "text": "Period",
+          "fontSizePx": 10,
+          "fontWeight": 700,
+          "threshold": 4.5,
+          "cssRatio": 1.0640211957628432,
+          "renderedP05": 1.1057390187697629,
+          "renderedP50": 1.1620924415330764,
+          "foreground": "rgb(173, 179, 161)",
+          "background": {
+            "backgroundColor": "rgb(200, 180, 140)",
+            "backgroundImage": "linear-gradient(110deg, rgba(143, 116, 75, 0.2), rgba(244, 226, 177, 0.12) 72%, rgba(126, 98, 62, 0.18)), url(\"https://woff-mate-ui-v2.pilotohans.chatgpt.site/textures/card-paper.webp\")",
+            "className": "paper-card report-card",
+            "opacity": 1,
+            "rect": {
+              "height": 319.5,
+              "width": 327.640625,
+              "x": 323,
+              "y": 854.6875
+            },
+            "tag": "article"
+          }
+        },
+        {
+          "text": "Coverage",
+          "fontSizePx": 10,
+          "fontWeight": 700,
+          "threshold": 4.5,
+          "cssRatio": 1.0640211957628432,
+          "renderedP05": 1.1064876966990653,
+          "renderedP50": 1.1802044223995323,
+          "foreground": "rgb(173, 179, 161)",
+          "background": {
+            "backgroundColor": "rgb(200, 180, 140)",
+            "backgroundImage": "linear-gradient(110deg, rgba(143, 116, 75, 0.2), rgba(244, 226, 177, 0.12) 72%, rgba(126, 98, 62, 0.18)), url(\"https://woff-mate-ui-v2.pilotohans.chatgpt.site/textures/card-paper.webp\")",
+            "className": "paper-card report-card",
+            "opacity": 1,
+            "rect": {
+              "height": 319.5,
+              "width": 327.640625,
+              "x": 323,
+              "y": 854.6875
+            },
+            "tag": "article"
+          }
+        },
+        {
+          "text": "Period",
+          "fontSizePx": 10,
+          "fontWeight": 700,
+          "threshold": 4.5,
+          "cssRatio": 1.0640211957628432,
+          "renderedP05": 1.1073159357095599,
+          "renderedP50": 1.1626324594738824,
+          "foreground": "rgb(173, 179, 161)",
+          "background": {
+            "backgroundColor": "rgb(200, 180, 140)",
+            "backgroundImage": "linear-gradient(110deg, rgba(143, 116, 75, 0.2), rgba(244, 226, 177, 0.12) 72%, rgba(126, 98, 62, 0.18)), url(\"https://woff-mate-ui-v2.pilotohans.chatgpt.site/textures/card-paper.webp\")",
+            "className": "paper-card report-card",
+            "opacity": 1,
+            "rect": {
+              "height": 319.5,
+              "width": 327.640625,
+              "x": 323,
+              "y": 522.1875
+            },
+            "tag": "article"
+          }
+        },
+        {
+          "text": "Identity",
+          "fontSizePx": 10,
+          "fontWeight": 700,
+          "threshold": 4.5,
+          "cssRatio": 1.0640211957628432,
+          "renderedP05": 1.11789461963882,
+          "renderedP50": 1.179153517745958,
+          "foreground": "rgb(173, 179, 161)",
+          "background": {
+            "backgroundColor": "rgb(200, 180, 140)",
+            "backgroundImage": "linear-gradient(110deg, rgba(143, 116, 75, 0.2), rgba(244, 226, 177, 0.12) 72%, rgba(126, 98, 62, 0.18)), url(\"https://woff-mate-ui-v2.pilotohans.chatgpt.site/textures/card-paper.webp\")",
+            "className": "paper-card report-card",
+            "opacity": 1,
+            "rect": {
+              "height": 319.5,
+              "width": 327.640625,
+              "x": 323,
+              "y": 522.1875
+            },
+            "tag": "article"
+          }
+        },
+        {
+          "text": "Coverage",
+          "fontSizePx": 10,
+          "fontWeight": 700,
+          "threshold": 4.5,
+          "cssRatio": 1.0640211957628432,
+          "renderedP05": 1.124178764879645,
+          "renderedP50": 1.1784432726300222,
+          "foreground": "rgb(173, 179, 161)",
+          "background": {
+            "backgroundColor": "rgb(200, 180, 140)",
+            "backgroundImage": "linear-gradient(110deg, rgba(143, 116, 75, 0.2), rgba(244, 226, 177, 0.12) 72%, rgba(126, 98, 62, 0.18)), url(\"https://woff-mate-ui-v2.pilotohans.chatgpt.site/textures/card-paper.webp\")",
+            "className": "paper-card report-card",
+            "opacity": 1,
+            "rect": {
+              "height": 319.5,
+              "width": 327.640625,
+              "x": 323,
+              "y": 522.1875
+            },
+            "tag": "article"
+          }
+        },
+        {
+          "text": "Identity",
+          "fontSizePx": 10,
+          "fontWeight": 700,
+          "threshold": 4.5,
+          "cssRatio": 1.0640211957628432,
+          "renderedP05": 1.1310070941362118,
+          "renderedP50": 1.1733118892997838,
+          "foreground": "rgb(173, 179, 161)",
+          "background": {
+            "backgroundColor": "rgb(200, 180, 140)",
+            "backgroundImage": "linear-gradient(110deg, rgba(143, 116, 75, 0.2), rgba(244, 226, 177, 0.12) 72%, rgba(126, 98, 62, 0.18)), url(\"https://woff-mate-ui-v2.pilotohans.chatgpt.site/textures/card-paper.webp\")",
+            "className": "paper-card report-card",
+            "opacity": 1,
+            "rect": {
+              "height": 319.5,
+              "width": 327.640625,
+              "x": 323,
+              "y": 854.6875
+            },
+            "tag": "article"
+          }
+        }
+      ]
+    },
+    {
+      "screen": "06-squadron",
+      "heading": "Squadron Roster",
+      "runs": 200,
+      "minCssRatio": 3.050832229656031,
+      "minRenderedP05": 1.2327517919213213,
+      "failedCss": 9,
+      "failedRendered": 25,
+      "worstCss": [
+        {
+          "text": "Roster entries",
+          "fontSizePx": 8,
+          "fontWeight": 700,
+          "threshold": 4.5,
+          "cssRatio": 3.050832229656031,
+          "renderedP05": 2.8872248621365184,
+          "renderedP50": 3.223086669040489,
+          "foreground": "rgb(113, 94, 72)",
+          "background": {
+            "backgroundColor": "rgb(200, 180, 140)",
+            "backgroundImage": "linear-gradient(110deg, rgba(143, 116, 75, 0.2), rgba(244, 226, 177, 0.12) 72%, rgba(126, 98, 62, 0.18)), url(\"https://woff-mate-ui-v2.pilotohans.chatgpt.site/textures/card-paper.webp\")",
+            "className": "paper-card squadron-register",
+            "opacity": 1,
+            "rect": {
+              "height": 210.5,
+              "width": 1012,
+              "x": 304,
+              "y": 136
+            },
+            "tag": "section"
+          }
+        },
+        {
+          "text": "In service",
+          "fontSizePx": 8,
+          "fontWeight": 700,
+          "threshold": 4.5,
+          "cssRatio": 3.050832229656031,
+          "renderedP05": 3.0803707283893935,
+          "renderedP50": 3.4362188386906913,
+          "foreground": "rgb(113, 94, 72)",
+          "background": {
+            "backgroundColor": "rgb(200, 180, 140)",
+            "backgroundImage": "linear-gradient(110deg, rgba(143, 116, 75, 0.2), rgba(244, 226, 177, 0.12) 72%, rgba(126, 98, 62, 0.18)), url(\"https://woff-mate-ui-v2.pilotohans.chatgpt.site/textures/card-paper.webp\")",
+            "className": "paper-card squadron-register",
+            "opacity": 1,
+            "rect": {
+              "height": 210.5,
+              "width": 1012,
+              "x": 304,
+              "y": 136
+            },
+            "tag": "section"
+          }
+        },
+        {
+          "text": "Wounded",
+          "fontSizePx": 8,
+          "fontWeight": 700,
+          "threshold": 4.5,
+          "cssRatio": 3.050832229656031,
+          "renderedP05": 3.2191057623517736,
+          "renderedP50": 3.6391269976075638,
+          "foreground": "rgb(113, 94, 72)",
+          "background": {
+            "backgroundColor": "rgb(200, 180, 140)",
+            "backgroundImage": "linear-gradient(110deg, rgba(143, 116, 75, 0.2), rgba(244, 226, 177, 0.12) 72%, rgba(126, 98, 62, 0.18)), url(\"https://woff-mate-ui-v2.pilotohans.chatgpt.site/textures/card-paper.webp\")",
+            "className": "paper-card squadron-register",
+            "opacity": 1,
+            "rect": {
+              "height": 210.5,
+              "width": 1012,
+              "x": 304,
+              "y": 136
+            },
+            "tag": "section"
+          }
+        },
+        {
+          "text": "Unavailable",
+          "fontSizePx": 8,
+          "fontWeight": 700,
+          "threshold": 4.5,
+          "cssRatio": 3.050832229656031,
+          "renderedP05": 2.707859445606563,
+          "renderedP50": 3.776099596027194,
+          "foreground": "rgb(113, 94, 72)",
+          "background": {
+            "backgroundColor": "rgb(200, 180, 140)",
+            "backgroundImage": "linear-gradient(110deg, rgba(143, 116, 75, 0.2), rgba(244, 226, 177, 0.12) 72%, rgba(126, 98, 62, 0.18)), url(\"https://woff-mate-ui-v2.pilotohans.chatgpt.site/textures/card-paper.webp\")",
+            "className": "paper-card squadron-register",
+            "opacity": 1,
+            "rect": {
+              "height": 210.5,
+              "width": 1012,
+              "x": 304,
+              "y": 136
+            },
+            "tag": "section"
+          }
+        },
+        {
+          "text": "Bailleul Aerodrome \u00b7 15 AUG 1917",
+          "fontSizePx": 9,
+          "fontWeight": 400,
+          "threshold": 4.5,
+          "cssRatio": 3.053159717474773,
+          "renderedP05": 3.020992345197403,
+          "renderedP50": 3.195928996624314,
+          "foreground": "rgb(113, 94, 71)",
+          "background": {
+            "backgroundColor": "rgb(200, 180, 140)",
+            "backgroundImage": "linear-gradient(110deg, rgba(143, 116, 75, 0.2), rgba(244, 226, 177, 0.12) 72%, rgba(126, 98, 62, 0.18)), url(\"https://woff-mate-ui-v2.pilotohans.chatgpt.site/textures/card-paper.webp\")",
+            "className": "paper-card squadron-register",
+            "opacity": 1,
+            "rect": {
+              "height": 210.5,
+              "width": 1012,
+              "x": 304,
+              "y": 136
+            },
+            "tag": "section"
+          }
+        },
+        {
+          "text": "\u00b7",
+          "fontSizePx": 13,
+          "fontWeight": 400,
+          "threshold": 4.5,
+          "cssRatio": 3.3053719261108263,
+          "renderedP05": 3.1463089960069217,
+          "renderedP50": 3.26260199881623,
+          "foreground": "rgb(113, 107, 89)",
+          "background": {
+            "backgroundColor": "rgb(18, 27, 23)",
+            "backgroundImage": "radial-gradient(circle at 92% 0px, rgba(55, 78, 63, 0.22), rgba(0, 0, 0, 0) 38%), linear-gradient(rgba(6, 13, 10, 0.54), rgba(5, 11, 9, 0.68)), url(\"https://woff-mate-ui-v2.pilotohans.chatgpt.site/textures/workspace-felt.webp\")",
+            "className": "workspace",
+            "opacity": 1,
+            "rect": {
+              "height": 1282,
+              "width": 1076,
+              "x": 272,
+              "y": 0
+            },
+            "tag": "main"
+          }
+        },
+        {
+          "text": "Pilot availability",
+          "fontSizePx": 8,
+          "fontWeight": 400,
+          "threshold": 4.5,
+          "cssRatio": 3.675523044957424,
+          "renderedP05": 3.509280253099393,
+          "renderedP50": 3.7165086784416927,
+          "foreground": "rgb(170, 169, 145)",
+          "background": {
+            "backgroundColor": "rgb(69, 78, 52)",
+            "backgroundImage": "radial-gradient(circle at 11px 11px, rgb(224, 175, 86) 0px, rgb(224, 175, 86) 3px, rgb(73, 55, 28) 3.3px, rgb(73, 55, 28) 4px, rgba(0, 0, 0, 0) 4.3px), radial-gradient(circle at calc(100% - 11px) 11px, rgb(224, 175, 86) 0px, rgb(224, 175, 86) 3px, rgb(73, 55, 28) 3.3px, rgb(73, 55, 28) 4px, rgba(0, 0, 0, 0) 4.3px), radial-gradient(circle at 11px calc(100% - 11px), rgb(224, 175, 86) 0px, rgb(224, 175, 86) 3px, rgb(73, 55, 28) 3.3px, rgb(73, 55, 28) 4px, rgba(0, 0, 0, 0) 4.3px), radial-gradient(circle at calc(100% - 11px) calc(100% - 11px), rgb(224, 175, 86) 0px, rgb(224, 175, 86) 3px, rgb(73, 55, 28) 3.3px, rgb(73, 55, 28) 4px, rgba(0, 0, 0, 0) 4.3px)",
+            "className": "squadron-panel riveted command-board",
+            "opacity": 1,
+            "rect": {
+              "height": 885.5,
+              "width": 275,
+              "x": 1041,
+              "y": 366.5
+            },
+            "tag": "aside"
+          }
+        },
+        {
+          "text": "Serviceable aircraft",
+          "fontSizePx": 8,
+          "fontWeight": 400,
+          "threshold": 4.5,
+          "cssRatio": 3.675523044957424,
+          "renderedP05": 3.6212849406611216,
+          "renderedP50": 3.7165086784416927,
+          "foreground": "rgb(170, 169, 145)",
+          "background": {
+            "backgroundColor": "rgb(69, 78, 52)",
+            "backgroundImage": "radial-gradient(circle at 11px 11px, rgb(224, 175, 86) 0px, rgb(224, 175, 86) 3px, rgb(73, 55, 28) 3.3px, rgb(73, 55, 28) 4px, rgba(0, 0, 0, 0) 4.3px), radial-gradient(circle at calc(100% - 11px) 11px, rgb(224, 175, 86) 0px, rgb(224, 175, 86) 3px, rgb(73, 55, 28) 3.3px, rgb(73, 55, 28) 4px, rgba(0, 0, 0, 0) 4.3px), radial-gradient(circle at 11px calc(100% - 11px), rgb(224, 175, 86) 0px, rgb(224, 175, 86) 3px, rgb(73, 55, 28) 3.3px, rgb(73, 55, 28) 4px, rgba(0, 0, 0, 0) 4.3px), radial-gradient(circle at calc(100% - 11px) calc(100% - 11px), rgb(224, 175, 86) 0px, rgb(224, 175, 86) 3px, rgb(73, 55, 28) 3.3px, rgb(73, 55, 28) 4px, rgba(0, 0, 0, 0) 4.3px)",
+            "className": "squadron-panel riveted command-board",
+            "opacity": 1,
+            "rect": {
+              "height": 885.5,
+              "width": 275,
+              "x": 1041,
+              "y": 366.5
+            },
+            "tag": "aside"
+          }
+        },
+        {
+          "text": "14",
+          "fontSizePx": 9,
+          "fontWeight": 800,
+          "threshold": 4.5,
+          "cssRatio": 3.7119139998443638,
+          "renderedP05": 1.2327517919213213,
+          "renderedP50": 3.518103819229568,
+          "foreground": "rgb(230, 212, 166)",
+          "background": {
+            "backgroundColor": "rgb(142, 94, 78)",
+            "backgroundImage": "none",
+            "className": "",
+            "opacity": 1,
+            "rect": {
+              "height": 24,
+              "width": 24,
+              "x": 1259,
+              "y": 169
+            },
+            "tag": "i"
+          }
+        },
+        {
+          "text": "All aircrew",
+          "fontSizePx": 10,
+          "fontWeight": 400,
+          "threshold": 4.5,
+          "cssRatio": 4.680773935082021,
+          "renderedP05": 4.2135612150805954,
+          "renderedP50": 4.680773935082021,
+          "foreground": "rgb(234, 218, 176)",
+          "background": {
+            "backgroundColor": "rgb(115, 90, 50)",
+            "backgroundImage": "none",
+            "className": "active",
+            "opacity": 1,
+            "rect": {
+              "height": 36,
+              "width": 88.875,
+              "x": 323,
+              "y": 445
+            },
+            "tag": "button"
+          }
+        },
+        {
+          "text": "Recorded unit context",
+          "fontSizePx": 10,
+          "fontWeight": 400,
+          "threshold": 4.5,
+          "cssRatio": 4.767894838032892,
+          "renderedP05": 4.196409150791799,
+          "renderedP50": 4.847486037392318,
+          "foreground": "rgb(194, 192, 169)",
+          "background": {
+            "backgroundColor": "rgb(69, 78, 52)",
+            "backgroundImage": "radial-gradient(circle at 11px 11px, rgb(224, 175, 86) 0px, rgb(224, 175, 86) 3px, rgb(73, 55, 28) 3.3px, rgb(73, 55, 28) 4px, rgba(0, 0, 0, 0) 4.3px), radial-gradient(circle at calc(100% - 11px) 11px, rgb(224, 175, 86) 0px, rgb(224, 175, 86) 3px, rgb(73, 55, 28) 3.3px, rgb(73, 55, 28) 4px, rgba(0, 0, 0, 0) 4.3px), radial-gradient(circle at 11px calc(100% - 11px), rgb(224, 175, 86) 0px, rgb(224, 175, 86) 3px, rgb(73, 55, 28) 3.3px, rgb(73, 55, 28) 4px, rgba(0, 0, 0, 0) 4.3px), radial-gradient(circle at calc(100% - 11px) calc(100% - 11px), rgb(224, 175, 86) 0px, rgb(224, 175, 86) 3px, rgb(73, 55, 28) 3.3px, rgb(73, 55, 28) 4px, rgba(0, 0, 0, 0) 4.3px)",
+            "className": "squadron-panel riveted command-board",
+            "opacity": 1,
+            "rect": {
+              "height": 885.5,
+              "width": 275,
+              "x": 1041,
+              "y": 366.5
+            },
+            "tag": "aside"
+          }
+        },
+        {
+          "text": "Commanding officer",
+          "fontSizePx": 10,
+          "fontWeight": 400,
+          "threshold": 4.5,
+          "cssRatio": 4.767894838032892,
+          "renderedP05": 4.175811936103415,
+          "renderedP50": 4.821061472531688,
+          "foreground": "rgb(194, 192, 169)",
+          "background": {
+            "backgroundColor": "rgb(69, 78, 52)",
+            "backgroundImage": "radial-gradient(circle at 11px 11px, rgb(224, 175, 86) 0px, rgb(224, 175, 86) 3px, rgb(73, 55, 28) 3.3px, rgb(73, 55, 28) 4px, rgba(0, 0, 0, 0) 4.3px), radial-gradient(circle at calc(100% - 11px) 11px, rgb(224, 175, 86) 0px, rgb(224, 175, 86) 3px, rgb(73, 55, 28) 3.3px, rgb(73, 55, 28) 4px, rgba(0, 0, 0, 0) 4.3px), radial-gradient(circle at 11px calc(100% - 11px), rgb(224, 175, 86) 0px, rgb(224, 175, 86) 3px, rgb(73, 55, 28) 3.3px, rgb(73, 55, 28) 4px, rgba(0, 0, 0, 0) 4.3px), radial-gradient(circle at calc(100% - 11px) calc(100% - 11px), rgb(224, 175, 86) 0px, rgb(224, 175, 86) 3px, rgb(73, 55, 28) 3.3px, rgb(73, 55, 28) 4px, rgba(0, 0, 0, 0) 4.3px)",
+            "className": "squadron-panel riveted command-board",
+            "opacity": 1,
+            "rect": {
+              "height": 885.5,
+              "width": 275,
+              "x": 1041,
+              "y": 366.5
+            },
+            "tag": "aside"
+          }
+        }
+      ],
+      "worstRendered": [
+        {
+          "text": "14",
+          "fontSizePx": 9,
+          "fontWeight": 800,
+          "threshold": 4.5,
+          "cssRatio": 3.7119139998443638,
+          "renderedP05": 1.2327517919213213,
+          "renderedP50": 3.518103819229568,
+          "foreground": "rgb(230, 212, 166)",
+          "background": {
+            "backgroundColor": "rgb(142, 94, 78)",
+            "backgroundImage": "none",
+            "className": "",
+            "opacity": 1,
+            "rect": {
+              "height": 24,
+              "width": 24,
+              "x": 1259,
+              "y": 169
+            },
+            "tag": "i"
+          }
+        },
+        {
+          "text": "8",
+          "fontSizePx": 19,
+          "fontWeight": 700,
+          "threshold": 3.0,
+          "cssRatio": 6.654324635011502,
+          "renderedP05": 1.245892612288367,
+          "renderedP50": 7.335936190962926,
+          "foreground": "rgb(57, 44, 34)",
+          "background": {
+            "backgroundColor": "rgb(200, 180, 140)",
+            "backgroundImage": "linear-gradient(110deg, rgba(143, 116, 75, 0.2), rgba(244, 226, 177, 0.12) 72%, rgba(126, 98, 62, 0.18)), url(\"https://woff-mate-ui-v2.pilotohans.chatgpt.site/textures/card-paper.webp\")",
+            "className": "paper-card squadron-register",
+            "opacity": 1,
+            "rect": {
+              "height": 210.5,
+              "width": 1012,
+              "x": 304,
+              "y": 136
+            },
+            "tag": "section"
+          }
+        },
+        {
+          "text": "2",
+          "fontSizePx": 19,
+          "fontWeight": 700,
+          "threshold": 3.0,
+          "cssRatio": 6.654324635011502,
+          "renderedP05": 1.445360073042143,
+          "renderedP50": 7.855688702459049,
+          "foreground": "rgb(57, 44, 34)",
+          "background": {
+            "backgroundColor": "rgb(200, 180, 140)",
+            "backgroundImage": "linear-gradient(110deg, rgba(143, 116, 75, 0.2), rgba(244, 226, 177, 0.12) 72%, rgba(126, 98, 62, 0.18)), url(\"https://woff-mate-ui-v2.pilotohans.chatgpt.site/textures/card-paper.webp\")",
+            "className": "paper-card squadron-register",
+            "opacity": 1,
+            "rect": {
+              "height": 210.5,
+              "width": 1012,
+              "x": 304,
+              "y": 136
+            },
+            "tag": "section"
+          }
+        },
+        {
+          "text": "Active",
+          "fontSizePx": 12,
+          "fontWeight": 600,
+          "threshold": 4.5,
+          "cssRatio": 8.613481808196193,
+          "renderedP05": 2.1123839667689124,
+          "renderedP50": 7.693845645435393,
+          "foreground": "rgb(168, 190, 118)",
+          "background": {
+            "backgroundColor": "rgb(18, 27, 23)",
+            "backgroundImage": "radial-gradient(circle at 92% 0px, rgba(55, 78, 63, 0.22), rgba(0, 0, 0, 0) 38%), linear-gradient(rgba(6, 13, 10, 0.54), rgba(5, 11, 9, 0.68)), url(\"https://woff-mate-ui-v2.pilotohans.chatgpt.site/textures/workspace-felt.webp\")",
+            "className": "workspace",
+            "opacity": 1,
+            "rect": {
+              "height": 1282,
+              "width": 1076,
+              "x": 272,
+              "y": 0
+            },
+            "tag": "main"
+          }
+        },
+        {
+          "text": "On leave",
+          "fontSizePx": 10,
+          "fontWeight": 400,
+          "threshold": 4.5,
+          "cssRatio": 5.0676079964118355,
+          "renderedP05": 2.2794947976054294,
+          "renderedP50": 6.145657427359496,
+          "foreground": "rgb(80, 61, 44)",
+          "background": {
+            "backgroundColor": "rgb(200, 180, 140)",
+            "backgroundImage": "linear-gradient(110deg, rgba(143, 116, 75, 0.2), rgba(244, 226, 177, 0.12) 72%, rgba(126, 98, 62, 0.18)), url(\"https://woff-mate-ui-v2.pilotohans.chatgpt.site/textures/card-paper.webp\")",
+            "className": "paper-card squadron-register",
+            "opacity": 1,
+            "rect": {
+              "height": 210.5,
+              "width": 1012,
+              "x": 304,
+              "y": 136
+            },
+            "tag": "section"
+          }
+        },
+        {
+          "text": "\u00b7",
+          "fontSizePx": 8,
+          "fontWeight": 400,
+          "threshold": 4.5,
+          "cssRatio": 7.373432387639004,
+          "renderedP05": 2.308509510887715,
+          "renderedP50": 8.581356934323013,
+          "foreground": "rgb(192, 180, 146)",
+          "background": {
+            "backgroundColor": "rgb(53, 33, 23)",
+            "backgroundImage": "linear-gradient(90deg, rgba(20, 9, 5, 0.08), rgba(26, 12, 7, 0.16) 72%, rgba(12, 6, 4, 0.46)), linear-gradient(rgba(255, 235, 190, 0.035), rgba(18, 8, 5, 0.22)), url(\"https://woff-mate-ui-v2.pilotohans.chatgpt.site/textures/sidebar-wood.webp\")",
+            "className": "sidebar",
+            "opacity": 1,
+            "rect": {
+              "height": 936,
+              "width": 272,
+              "x": 0,
+              "y": 0
+            },
+            "tag": "aside"
+          }
+        },
+        {
+          "text": "\u00b7",
+          "fontSizePx": 8,
+          "fontWeight": 400,
+          "threshold": 4.5,
+          "cssRatio": 7.373432387639004,
+          "renderedP05": 2.4610069798829692,
+          "renderedP50": 8.632600705626178,
+          "foreground": "rgb(192, 180, 146)",
+          "background": {
+            "backgroundColor": "rgb(53, 33, 23)",
+            "backgroundImage": "linear-gradient(90deg, rgba(20, 9, 5, 0.08), rgba(26, 12, 7, 0.16) 72%, rgba(12, 6, 4, 0.46)), linear-gradient(rgba(255, 235, 190, 0.035), rgba(18, 8, 5, 0.22)), url(\"https://woff-mate-ui-v2.pilotohans.chatgpt.site/textures/sidebar-wood.webp\")",
+            "className": "sidebar",
+            "opacity": 1,
+            "rect": {
+              "height": 936,
+              "width": 272,
+              "x": 0,
+              "y": 0
+            },
+            "tag": "aside"
+          }
+        },
+        {
+          "text": "Unavailable",
+          "fontSizePx": 8,
+          "fontWeight": 700,
+          "threshold": 4.5,
+          "cssRatio": 3.050832229656031,
+          "renderedP05": 2.707859445606563,
+          "renderedP50": 3.776099596027194,
+          "foreground": "rgb(113, 94, 72)",
+          "background": {
+            "backgroundColor": "rgb(200, 180, 140)",
+            "backgroundImage": "linear-gradient(110deg, rgba(143, 116, 75, 0.2), rgba(244, 226, 177, 0.12) 72%, rgba(126, 98, 62, 0.18)), url(\"https://woff-mate-ui-v2.pilotohans.chatgpt.site/textures/card-paper.webp\")",
+            "className": "paper-card squadron-register",
+            "opacity": 1,
+            "rect": {
+              "height": 210.5,
+              "width": 1012,
+              "x": 304,
+              "y": 136
+            },
+            "tag": "section"
+          }
+        },
+        {
+          "text": "1",
+          "fontSizePx": 19,
+          "fontWeight": 700,
+          "threshold": 3.0,
+          "cssRatio": 6.654324635011502,
+          "renderedP05": 2.804342641380736,
+          "renderedP50": 8.216637796850085,
+          "foreground": "rgb(57, 44, 34)",
+          "background": {
+            "backgroundColor": "rgb(200, 180, 140)",
+            "backgroundImage": "linear-gradient(110deg, rgba(143, 116, 75, 0.2), rgba(244, 226, 177, 0.12) 72%, rgba(126, 98, 62, 0.18)), url(\"https://woff-mate-ui-v2.pilotohans.chatgpt.site/textures/card-paper.webp\")",
+            "className": "paper-card squadron-register",
+            "opacity": 1,
+            "rect": {
+              "height": 210.5,
+              "width": 1012,
+              "x": 304,
+              "y": 136
+            },
+            "tag": "section"
+          }
+        },
+        {
+          "text": "Roster entries",
+          "fontSizePx": 8,
+          "fontWeight": 700,
+          "threshold": 4.5,
+          "cssRatio": 3.050832229656031,
+          "renderedP05": 2.8872248621365184,
+          "renderedP50": 3.223086669040489,
+          "foreground": "rgb(113, 94, 72)",
+          "background": {
+            "backgroundColor": "rgb(200, 180, 140)",
+            "backgroundImage": "linear-gradient(110deg, rgba(143, 116, 75, 0.2), rgba(244, 226, 177, 0.12) 72%, rgba(126, 98, 62, 0.18)), url(\"https://woff-mate-ui-v2.pilotohans.chatgpt.site/textures/card-paper.webp\")",
+            "className": "paper-card squadron-register",
+            "opacity": 1,
+            "rect": {
+              "height": 210.5,
+              "width": 1012,
+              "x": 304,
+              "y": 136
+            },
+            "tag": "section"
+          }
+        },
+        {
+          "text": "Bailleul Aerodrome \u00b7 15 AUG 1917",
+          "fontSizePx": 9,
+          "fontWeight": 400,
+          "threshold": 4.5,
+          "cssRatio": 3.053159717474773,
+          "renderedP05": 3.020992345197403,
+          "renderedP50": 3.195928996624314,
+          "foreground": "rgb(113, 94, 71)",
+          "background": {
+            "backgroundColor": "rgb(200, 180, 140)",
+            "backgroundImage": "linear-gradient(110deg, rgba(143, 116, 75, 0.2), rgba(244, 226, 177, 0.12) 72%, rgba(126, 98, 62, 0.18)), url(\"https://woff-mate-ui-v2.pilotohans.chatgpt.site/textures/card-paper.webp\")",
+            "className": "paper-card squadron-register",
+            "opacity": 1,
+            "rect": {
+              "height": 210.5,
+              "width": 1012,
+              "x": 304,
+              "y": 136
+            },
+            "tag": "section"
+          }
+        },
+        {
+          "text": "In service",
+          "fontSizePx": 8,
+          "fontWeight": 700,
+          "threshold": 4.5,
+          "cssRatio": 3.050832229656031,
+          "renderedP05": 3.0803707283893935,
+          "renderedP50": 3.4362188386906913,
+          "foreground": "rgb(113, 94, 72)",
+          "background": {
+            "backgroundColor": "rgb(200, 180, 140)",
+            "backgroundImage": "linear-gradient(110deg, rgba(143, 116, 75, 0.2), rgba(244, 226, 177, 0.12) 72%, rgba(126, 98, 62, 0.18)), url(\"https://woff-mate-ui-v2.pilotohans.chatgpt.site/textures/card-paper.webp\")",
+            "className": "paper-card squadron-register",
+            "opacity": 1,
+            "rect": {
+              "height": 210.5,
+              "width": 1012,
+              "x": 304,
+              "y": 136
+            },
+            "tag": "section"
+          }
+        }
+      ]
+    },
+    {
+      "screen": "07-system-status",
+      "heading": "System Status",
+      "runs": 180,
+      "minCssRatio": 2.6705372246177737,
+      "minRenderedP05": 1.046754439061759,
+      "failedCss": 19,
+      "failedRendered": 58,
+      "worstCss": [
+        {
+          "text": "\u2014",
+          "fontSizePx": 7,
+          "fontWeight": 400,
+          "threshold": 4.5,
+          "cssRatio": 2.6705372246177737,
+          "renderedP05": 1.6308230855268606,
+          "renderedP50": 2.7300261665455787,
+          "foreground": "rgb(198, 122, 105)",
+          "background": {
+            "backgroundColor": "rgb(69, 78, 52)",
+            "backgroundImage": "radial-gradient(circle at 11px 11px, rgb(224, 175, 86) 0px, rgb(224, 175, 86) 3px, rgb(73, 55, 28) 3.3px, rgb(73, 55, 28) 4px, rgba(0, 0, 0, 0) 4.3px), radial-gradient(circle at calc(100% - 11px) 11px, rgb(224, 175, 86) 0px, rgb(224, 175, 86) 3px, rgb(73, 55, 28) 3.3px, rgb(73, 55, 28) 4px, rgba(0, 0, 0, 0) 4.3px), radial-gradient(circle at 11px calc(100% - 11px), rgb(224, 175, 86) 0px, rgb(224, 175, 86) 3px, rgb(73, 55, 28) 3.3px, rgb(73, 55, 28) 4px, rgba(0, 0, 0, 0) 4.3px), radial-gradient(circle at calc(100% - 11px) calc(100% - 11px), rgb(224, 175, 86) 0px, rgb(224, 175, 86) 3px, rgb(73, 55, 28) 3.3px, rgb(73, 55, 28) 4px, rgba(0, 0, 0, 0) 4.3px)",
+            "className": "squadron-panel riveted system-context",
+            "opacity": 1,
+            "rect": {
+              "height": 954,
+              "width": 285.6875,
+              "x": 1030.296875,
+              "y": 387
+            },
+            "tag": "aside"
+          }
+        },
+        {
+          "text": "STATUS COPY",
+          "fontSizePx": 9,
+          "fontWeight": 800,
+          "threshold": 4.5,
+          "cssRatio": 2.6838629820355036,
+          "renderedP05": 1.8317194638861292,
+          "renderedP50": 2.994218661751473,
+          "foreground": "rgb(142, 94, 78)",
+          "background": {
+            "backgroundColor": "rgb(200, 180, 140)",
+            "backgroundImage": "linear-gradient(110deg, rgba(143, 116, 75, 0.2), rgba(244, 226, 177, 0.12) 72%, rgba(126, 98, 62, 0.18)), url(\"https://woff-mate-ui-v2.pilotohans.chatgpt.site/textures/card-paper.webp\")",
+            "className": "paper-card system-summary",
+            "opacity": 1,
+            "rect": {
+              "height": 212,
+              "width": 1011.984375,
+              "x": 304,
+              "y": 155
+            },
+            "tag": "section"
+          }
+        },
+        {
+          "text": "READ ONLY",
+          "fontSizePx": 9,
+          "fontWeight": 800,
+          "threshold": 4.5,
+          "cssRatio": 2.6838629820355036,
+          "renderedP05": 1.1047043993119385,
+          "renderedP50": 2.97635695316773,
+          "foreground": "rgb(142, 94, 78)",
+          "background": {
+            "backgroundColor": "rgb(200, 180, 140)",
+            "backgroundImage": "linear-gradient(110deg, rgba(143, 116, 75, 0.2), rgba(244, 226, 177, 0.12) 72%, rgba(126, 98, 62, 0.18)), url(\"https://woff-mate-ui-v2.pilotohans.chatgpt.site/textures/card-paper.webp\")",
+            "className": "paper-card system-summary",
+            "opacity": 1,
+            "rect": {
+              "height": 212,
+              "width": 1011.984375,
+              "x": 304,
+              "y": 155
+            },
+            "tag": "section"
+          }
+        },
+        {
+          "text": "Sanitized summaries \u00b7 not a live log",
+          "fontSizePx": 10,
+          "fontWeight": 400,
+          "threshold": 4.5,
+          "cssRatio": 2.9956016022630148,
+          "renderedP05": 2.8668759197657763,
+          "renderedP50": 3.1339833339588017,
+          "foreground": "rgb(115, 95, 72)",
+          "background": {
+            "backgroundColor": "rgb(200, 180, 140)",
+            "backgroundImage": "linear-gradient(110deg, rgba(143, 116, 75, 0.2), rgba(244, 226, 177, 0.12) 72%, rgba(126, 98, 62, 0.18)), url(\"https://woff-mate-ui-v2.pilotohans.chatgpt.site/textures/card-paper.webp\")",
+            "className": "paper-card system-observations",
+            "opacity": 1,
+            "rect": {
+              "height": 274,
+              "width": 1011.984375,
+              "x": 304,
+              "y": 1361
+            },
+            "tag": "section"
+          }
+        },
+        {
+          "text": "6",
+          "fontSizePx": 9,
+          "fontWeight": 400,
+          "threshold": 4.5,
+          "cssRatio": 2.9956016022630148,
+          "renderedP05": 3.12471987640697,
+          "renderedP50": 3.463509028139923,
+          "foreground": "rgb(115, 95, 72)",
+          "background": {
+            "backgroundColor": "rgb(200, 180, 140)",
+            "backgroundImage": "linear-gradient(110deg, rgba(143, 116, 75, 0.2), rgba(244, 226, 177, 0.12) 72%, rgba(126, 98, 62, 0.18)), url(\"https://woff-mate-ui-v2.pilotohans.chatgpt.site/textures/card-paper.webp\")",
+            "className": "paper-card system-observations",
+            "opacity": 1,
+            "rect": {
+              "height": 274,
+              "width": 1011.984375,
+              "x": 304,
+              "y": 1361
+            },
+            "tag": "section"
+          }
+        },
+        {
+          "text": "records",
+          "fontSizePx": 9,
+          "fontWeight": 400,
+          "threshold": 4.5,
+          "cssRatio": 2.9956016022630148,
+          "renderedP05": 3.0025410146981386,
+          "renderedP50": 3.4274152281447794,
+          "foreground": "rgb(115, 95, 72)",
+          "background": {
+            "backgroundColor": "rgb(200, 180, 140)",
+            "backgroundImage": "linear-gradient(110deg, rgba(143, 116, 75, 0.2), rgba(244, 226, 177, 0.12) 72%, rgba(126, 98, 62, 0.18)), url(\"https://woff-mate-ui-v2.pilotohans.chatgpt.site/textures/card-paper.webp\")",
+            "className": "paper-card system-observations",
+            "opacity": 1,
+            "rect": {
+              "height": 274,
+              "width": 1011.984375,
+              "x": 304,
+              "y": 1361
+            },
+            "tag": "section"
+          }
+        },
+        {
+          "text": "healthy",
+          "fontSizePx": 8,
+          "fontWeight": 700,
+          "threshold": 4.5,
+          "cssRatio": 3.050832229656031,
+          "renderedP05": 2.973415563666867,
+          "renderedP50": 3.1917653386295965,
+          "foreground": "rgb(113, 94, 72)",
+          "background": {
+            "backgroundColor": "rgb(200, 180, 140)",
+            "backgroundImage": "linear-gradient(110deg, rgba(143, 116, 75, 0.2), rgba(244, 226, 177, 0.12) 72%, rgba(126, 98, 62, 0.18)), url(\"https://woff-mate-ui-v2.pilotohans.chatgpt.site/textures/card-paper.webp\")",
+            "className": "paper-card system-summary",
+            "opacity": 1,
+            "rect": {
+              "height": 212,
+              "width": 1011.984375,
+              "x": 304,
+              "y": 155
+            },
+            "tag": "section"
+          }
+        },
+        {
+          "text": "attention",
+          "fontSizePx": 8,
+          "fontWeight": 700,
+          "threshold": 4.5,
+          "cssRatio": 3.050832229656031,
+          "renderedP05": 3.1364825475218883,
+          "renderedP50": 3.4397882299353144,
+          "foreground": "rgb(113, 94, 72)",
+          "background": {
+            "backgroundColor": "rgb(200, 180, 140)",
+            "backgroundImage": "linear-gradient(110deg, rgba(143, 116, 75, 0.2), rgba(244, 226, 177, 0.12) 72%, rgba(126, 98, 62, 0.18)), url(\"https://woff-mate-ui-v2.pilotohans.chatgpt.site/textures/card-paper.webp\")",
+            "className": "paper-card system-summary",
+            "opacity": 1,
+            "rect": {
+              "height": 212,
+              "width": 1011.984375,
+              "x": 304,
+              "y": 155
+            },
+            "tag": "section"
+          }
+        },
+        {
+          "text": "stale",
+          "fontSizePx": 8,
+          "fontWeight": 700,
+          "threshold": 4.5,
+          "cssRatio": 3.050832229656031,
+          "renderedP05": 3.344525439490666,
+          "renderedP50": 3.6320892689339415,
+          "foreground": "rgb(113, 94, 72)",
+          "background": {
+            "backgroundColor": "rgb(200, 180, 140)",
+            "backgroundImage": "linear-gradient(110deg, rgba(143, 116, 75, 0.2), rgba(244, 226, 177, 0.12) 72%, rgba(126, 98, 62, 0.18)), url(\"https://woff-mate-ui-v2.pilotohans.chatgpt.site/textures/card-paper.webp\")",
+            "className": "paper-card system-summary",
+            "opacity": 1,
+            "rect": {
+              "height": 212,
+              "width": 1011.984375,
+              "x": 304,
+              "y": 155
+            },
+            "tag": "section"
+          }
+        },
+        {
+          "text": "unavailable",
+          "fontSizePx": 8,
+          "fontWeight": 700,
+          "threshold": 4.5,
+          "cssRatio": 3.050832229656031,
+          "renderedP05": 2.4459205939187543,
+          "renderedP50": 3.776099596027194,
+          "foreground": "rgb(113, 94, 72)",
+          "background": {
+            "backgroundColor": "rgb(200, 180, 140)",
+            "backgroundImage": "linear-gradient(110deg, rgba(143, 116, 75, 0.2), rgba(244, 226, 177, 0.12) 72%, rgba(126, 98, 62, 0.18)), url(\"https://woff-mate-ui-v2.pilotohans.chatgpt.site/textures/card-paper.webp\")",
+            "className": "paper-card system-summary",
+            "opacity": 1,
+            "rect": {
+              "height": 212,
+              "width": 1011.984375,
+              "x": 304,
+              "y": 155
+            },
+            "tag": "section"
+          }
+        },
+        {
+          "text": "Global read-only snapshot \u00b7 sanitized fixtures",
+          "fontSizePx": 9,
+          "fontWeight": 400,
+          "threshold": 4.5,
+          "cssRatio": 3.053159717474773,
+          "renderedP05": 2.8894275334703496,
+          "renderedP50": 3.225545570217689,
+          "foreground": "rgb(113, 94, 71)",
+          "background": {
+            "backgroundColor": "rgb(200, 180, 140)",
+            "backgroundImage": "linear-gradient(110deg, rgba(143, 116, 75, 0.2), rgba(244, 226, 177, 0.12) 72%, rgba(126, 98, 62, 0.18)), url(\"https://woff-mate-ui-v2.pilotohans.chatgpt.site/textures/card-paper.webp\")",
+            "className": "paper-card system-summary",
+            "opacity": 1,
+            "rect": {
+              "height": 212,
+              "width": 1011.984375,
+              "x": 304,
+              "y": 155
+            },
+            "tag": "section"
+          }
+        },
+        {
+          "text": "\u25f7",
+          "fontSizePx": 7,
+          "fontWeight": 400,
+          "threshold": 4.5,
+          "cssRatio": 3.2957448838827577,
+          "renderedP05": 1.703465603437047,
+          "renderedP50": 3.369160964437195,
+          "foreground": "rgb(195, 151, 87)",
+          "background": {
+            "backgroundColor": "rgb(69, 78, 52)",
+            "backgroundImage": "radial-gradient(circle at 11px 11px, rgb(224, 175, 86) 0px, rgb(224, 175, 86) 3px, rgb(73, 55, 28) 3.3px, rgb(73, 55, 28) 4px, rgba(0, 0, 0, 0) 4.3px), radial-gradient(circle at calc(100% - 11px) 11px, rgb(224, 175, 86) 0px, rgb(224, 175, 86) 3px, rgb(73, 55, 28) 3.3px, rgb(73, 55, 28) 4px, rgba(0, 0, 0, 0) 4.3px), radial-gradient(circle at 11px calc(100% - 11px), rgb(224, 175, 86) 0px, rgb(224, 175, 86) 3px, rgb(73, 55, 28) 3.3px, rgb(73, 55, 28) 4px, rgba(0, 0, 0, 0) 4.3px), radial-gradient(circle at calc(100% - 11px) calc(100% - 11px), rgb(224, 175, 86) 0px, rgb(224, 175, 86) 3px, rgb(73, 55, 28) 3.3px, rgb(73, 55, 28) 4px, rgba(0, 0, 0, 0) 4.3px)",
+            "className": "squadron-panel riveted system-context",
+            "opacity": 1,
+            "rect": {
+              "height": 954,
+              "width": 285.6875,
+              "x": 1030.296875,
+              "y": 387
+            },
+            "tag": "aside"
+          }
+        }
+      ],
+      "worstRendered": [
+        {
+          "text": "1",
+          "fontSizePx": 20,
+          "fontWeight": 700,
+          "threshold": 3.0,
+          "cssRatio": 6.654324635011502,
+          "renderedP05": 1.046754439061759,
+          "renderedP50": 7.774433609105784,
+          "foreground": "rgb(57, 44, 34)",
+          "background": {
+            "backgroundColor": "rgb(200, 180, 140)",
+            "backgroundImage": "linear-gradient(110deg, rgba(143, 116, 75, 0.2), rgba(244, 226, 177, 0.12) 72%, rgba(126, 98, 62, 0.18)), url(\"https://woff-mate-ui-v2.pilotohans.chatgpt.site/textures/card-paper.webp\")",
+            "className": "paper-card system-summary",
+            "opacity": 1,
+            "rect": {
+              "height": 212,
+              "width": 1011.984375,
+              "x": 304,
+              "y": 155
+            },
+            "tag": "section"
+          }
+        },
+        {
+          "text": "READ ONLY",
+          "fontSizePx": 9,
+          "fontWeight": 800,
+          "threshold": 4.5,
+          "cssRatio": 2.6838629820355036,
+          "renderedP05": 1.1047043993119385,
+          "renderedP50": 2.97635695316773,
+          "foreground": "rgb(142, 94, 78)",
+          "background": {
+            "backgroundColor": "rgb(200, 180, 140)",
+            "backgroundImage": "linear-gradient(110deg, rgba(143, 116, 75, 0.2), rgba(244, 226, 177, 0.12) 72%, rgba(126, 98, 62, 0.18)), url(\"https://woff-mate-ui-v2.pilotohans.chatgpt.site/textures/card-paper.webp\")",
+            "className": "paper-card system-summary",
+            "opacity": 1,
+            "rect": {
+              "height": 212,
+              "width": 1011.984375,
+              "x": 304,
+              "y": 155
+            },
+            "tag": "section"
+          }
+        },
+        {
+          "text": "\u2713",
+          "fontSizePx": 8,
+          "fontWeight": 800,
+          "threshold": 4.5,
+          "cssRatio": 5.0647354923944246,
+          "renderedP05": 1.1275093018280236,
+          "renderedP50": 5.0503528263112525,
+          "foreground": "rgb(51, 70, 39)",
+          "background": {
+            "backgroundColor": "rgb(200, 180, 140)",
+            "backgroundImage": "linear-gradient(110deg, rgba(143, 116, 75, 0.2), rgba(244, 226, 177, 0.12) 72%, rgba(126, 98, 62, 0.18)), url(\"https://woff-mate-ui-v2.pilotohans.chatgpt.site/textures/card-paper.webp\")",
+            "className": "paper-card system-observations",
+            "opacity": 1,
+            "rect": {
+              "height": 274,
+              "width": 1011.984375,
+              "x": 304,
+              "y": 1361
+            },
+            "tag": "section"
+          }
+        },
+        {
+          "text": "\u2713",
+          "fontSizePx": 8,
+          "fontWeight": 800,
+          "threshold": 4.5,
+          "cssRatio": 5.0647354923944246,
+          "renderedP05": 1.1569949507769257,
+          "renderedP50": 5.008663291820724,
+          "foreground": "rgb(51, 70, 39)",
+          "background": {
+            "backgroundColor": "rgb(200, 180, 140)",
+            "backgroundImage": "linear-gradient(110deg, rgba(143, 116, 75, 0.2), rgba(244, 226, 177, 0.12) 72%, rgba(126, 98, 62, 0.18)), url(\"https://woff-mate-ui-v2.pilotohans.chatgpt.site/textures/card-paper.webp\")",
+            "className": "paper-card system-observations",
+            "opacity": 1,
+            "rect": {
+              "height": 274,
+              "width": 1011.984375,
+              "x": 304,
+              "y": 1361
+            },
+            "tag": "section"
+          }
+        },
+        {
+          "text": "\u2713",
+          "fontSizePx": 8,
+          "fontWeight": 800,
+          "threshold": 4.5,
+          "cssRatio": 7.603052333553434,
+          "renderedP05": 1.184934740455032,
+          "renderedP50": 7.067086909431993,
+          "foreground": "rgb(164, 191, 120)",
+          "background": {
+            "backgroundColor": "rgb(26, 39, 32)",
+            "backgroundImage": "none",
+            "className": "system-check",
+            "opacity": 1,
+            "rect": {
+              "height": 255.5,
+              "width": 328.140625,
+              "x": 323,
+              "y": 531.5
+            },
+            "tag": "article"
+          }
+        },
+        {
+          "text": "\u25f7",
+          "fontSizePx": 8,
+          "fontWeight": 800,
+          "threshold": 4.5,
+          "cssRatio": 4.816399563879602,
+          "renderedP05": 1.3084389638630325,
+          "renderedP50": 4.9109979614916295,
+          "foreground": "rgb(91, 62, 29)",
+          "background": {
+            "backgroundColor": "rgb(200, 180, 140)",
+            "backgroundImage": "linear-gradient(110deg, rgba(143, 116, 75, 0.2), rgba(244, 226, 177, 0.12) 72%, rgba(126, 98, 62, 0.18)), url(\"https://woff-mate-ui-v2.pilotohans.chatgpt.site/textures/card-paper.webp\")",
+            "className": "paper-card system-observations",
+            "opacity": 1,
+            "rect": {
+              "height": 274,
+              "width": 1011.984375,
+              "x": 304,
+              "y": 1361
+            },
+            "tag": "section"
+          }
+        },
+        {
+          "text": "\u25f7",
+          "fontSizePx": 8,
+          "fontWeight": 800,
+          "threshold": 4.5,
+          "cssRatio": 5.819013988990038,
+          "renderedP05": 1.4087948203486584,
+          "renderedP50": 5.793525084320461,
+          "foreground": "rgb(195, 151, 87)",
+          "background": {
+            "backgroundColor": "rgb(26, 39, 32)",
+            "backgroundImage": "none",
+            "className": "system-check",
+            "opacity": 1,
+            "rect": {
+              "height": 255.5,
+              "width": 328.15625,
+              "x": 663.140625,
+              "y": 799
+            },
+            "tag": "article"
+          }
+        },
+        {
+          "text": "!",
+          "fontSizePx": 8,
+          "fontWeight": 800,
+          "threshold": 4.5,
+          "cssRatio": 6.856491144576257,
+          "renderedP05": 1.4889906768123609,
+          "renderedP50": 6.6472826011026305,
+          "foreground": "rgb(209, 166, 83)",
+          "background": {
+            "backgroundColor": "rgb(26, 39, 32)",
+            "backgroundImage": "none",
+            "className": "system-check",
+            "opacity": 1,
+            "rect": {
+              "height": 255.5,
+              "width": 328.140625,
+              "x": 323,
+              "y": 799
+            },
+            "tag": "article"
+          }
+        },
+        {
+          "text": "\u2014",
+          "fontSizePx": 8,
+          "fontWeight": 800,
+          "threshold": 4.5,
+          "cssRatio": 4.7151384635881515,
+          "renderedP05": 1.509361205528998,
+          "renderedP50": 4.760541510348002,
+          "foreground": "rgb(198, 122, 105)",
+          "background": {
+            "backgroundColor": "rgb(26, 39, 32)",
+            "backgroundImage": "none",
+            "className": "system-check",
+            "opacity": 1,
+            "rect": {
+              "height": 255.5,
+              "width": 328.15625,
+              "x": 663.140625,
+              "y": 1066.5
+            },
+            "tag": "article"
+          }
+        },
+        {
+          "text": "!",
+          "fontSizePx": 8,
+          "fontWeight": 800,
+          "threshold": 4.5,
+          "cssRatio": 6.856491144576257,
+          "renderedP05": 1.5186169707829964,
+          "renderedP50": 6.73724590455005,
+          "foreground": "rgb(209, 166, 83)",
+          "background": {
+            "backgroundColor": "rgb(26, 39, 32)",
+            "backgroundImage": "none",
+            "className": "system-check",
+            "opacity": 1,
+            "rect": {
+              "height": 255.5,
+              "width": 328.140625,
+              "x": 323,
+              "y": 1066.5
+            },
+            "tag": "article"
+          }
+        },
+        {
+          "text": "!",
+          "fontSizePx": 8,
+          "fontWeight": 800,
+          "threshold": 4.5,
+          "cssRatio": 4.816399563879602,
+          "renderedP05": 1.5804032091019258,
+          "renderedP50": 4.897820303570796,
+          "foreground": "rgb(91, 62, 29)",
+          "background": {
+            "backgroundColor": "rgb(200, 180, 140)",
+            "backgroundImage": "linear-gradient(110deg, rgba(143, 116, 75, 0.2), rgba(244, 226, 177, 0.12) 72%, rgba(126, 98, 62, 0.18)), url(\"https://woff-mate-ui-v2.pilotohans.chatgpt.site/textures/card-paper.webp\")",
+            "className": "paper-card system-observations",
+            "opacity": 1,
+            "rect": {
+              "height": 274,
+              "width": 1011.984375,
+              "x": 304,
+              "y": 1361
+            },
+            "tag": "section"
+          }
+        },
+        {
+          "text": "\u2014",
+          "fontSizePx": 7,
+          "fontWeight": 400,
+          "threshold": 4.5,
+          "cssRatio": 2.6705372246177737,
+          "renderedP05": 1.6308230855268606,
+          "renderedP50": 2.7300261665455787,
+          "foreground": "rgb(198, 122, 105)",
+          "background": {
+            "backgroundColor": "rgb(69, 78, 52)",
+            "backgroundImage": "radial-gradient(circle at 11px 11px, rgb(224, 175, 86) 0px, rgb(224, 175, 86) 3px, rgb(73, 55, 28) 3.3px, rgb(73, 55, 28) 4px, rgba(0, 0, 0, 0) 4.3px), radial-gradient(circle at calc(100% - 11px) 11px, rgb(224, 175, 86) 0px, rgb(224, 175, 86) 3px, rgb(73, 55, 28) 3.3px, rgb(73, 55, 28) 4px, rgba(0, 0, 0, 0) 4.3px), radial-gradient(circle at 11px calc(100% - 11px), rgb(224, 175, 86) 0px, rgb(224, 175, 86) 3px, rgb(73, 55, 28) 3.3px, rgb(73, 55, 28) 4px, rgba(0, 0, 0, 0) 4.3px), radial-gradient(circle at calc(100% - 11px) calc(100% - 11px), rgb(224, 175, 86) 0px, rgb(224, 175, 86) 3px, rgb(73, 55, 28) 3.3px, rgb(73, 55, 28) 4px, rgba(0, 0, 0, 0) 4.3px)",
+            "className": "squadron-panel riveted system-context",
+            "opacity": 1,
+            "rect": {
+              "height": 954,
+              "width": 285.6875,
+              "x": 1030.296875,
+              "y": 387
+            },
+            "tag": "aside"
+          }
+        }
+      ]
+    }
+  ]
+}

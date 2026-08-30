@@ -272,12 +272,18 @@ of the published Site.
 
 The normative reference set covers:
 
-- `APP-00`, `SEL-01`, `OPR-01`, `DOS-01`, `MIS-01`, `MIS-02`, `SQD-01`,
-  `JRN-01`, `RPT-01`, and `SYS-01` for the main flow;
+- `APP-00`, `SEL-01`, `OPR-01`, `DOS-01`, `MIS-01`, `SQD-01`, `JRN-01`,
+  `RPT-01`, and `SYS-01` for the shell and primary flow;
+- `DOS-02`, `DOS-03`, `DOS-04`, `MIS-02`, `SQD-02`, and `RPT-02` for all
+  contextual records;
 - Dossier variants for complete, partial, no career, missing, truncated,
   unsupported, unreadable, query error, authoritative zeroes, unknown service
-  and status, 150% scale, and keyboard focus order; and
-- `DOS-02`, `DOS-03`, and `DOS-04` for the Dossier's contextual records.
+  and status, 150% scale, and keyboard focus order.
+
+Every future rendered audit must pin the Site deployment identifier and archive
+a new sanitized, hashed evidence set. Removing a primary or contextual screen
+cannot make the audit pass; absence is a coverage failure unless this normative
+inventory is explicitly revised and approved first.
 
 ## Future-gated modules
 

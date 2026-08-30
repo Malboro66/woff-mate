@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import ast
+import hashlib
 import importlib
 import re
 import sys
@@ -1327,6 +1328,9 @@ def test_ui_v2_reference_contract() -> None:
     visual_system_path = ui_root / "ui-v2-visual-system.md"
     walkthrough_path = ui_root / "ui-v2-walkthrough.md"
     rendered_audit_path = ui_root / "ui-v2-rendered-audit.md"
+    evidence_root = ui_root / "evidence" / "ui-v2-site-2026-08-29"
+    evidence_readme_path = evidence_root / "README.md"
+    evidence_checksums_path = evidence_root / "SHA256SUMS"
     quality_gates_path = REPOSITORY_ROOT / "docs" / "engineering" / "quality-gates.md"
     evals_path = REPOSITORY_ROOT / "docs" / "engineering" / "evals.md"
     for path in (
@@ -1334,6 +1338,8 @@ def test_ui_v2_reference_contract() -> None:
         visual_system_path,
         walkthrough_path,
         rendered_audit_path,
+        evidence_readme_path,
+        evidence_checksums_path,
     ):
         assert path.is_file()
     assert quality_gates_path.is_file()
@@ -1355,6 +1361,10 @@ def test_ui_v2_reference_contract() -> None:
     assert "active rendered source and replaces Figma" in reference
     assert "Figma is not current acceptance evidence" in reference
     assert "published-site audit" in reference
+    required_coverage = reference.split("## Required rendered coverage", 1)[1].split(
+        "## Future-gated modules",
+        1,
+    )[0]
     for screen_id in (
         "APP-00",
         "SEL-01",
@@ -1373,6 +1383,7 @@ def test_ui_v2_reference_contract() -> None:
         "SYS-01",
     ):
         assert f"`{screen_id}`" in reference
+        assert f"`{screen_id}`" in required_coverage
     assert "stable `career_id`" in reference
     assert re.search(
         r"Two careers with the same display\s+name remain separate",
@@ -1464,6 +1475,13 @@ def test_ui_v2_reference_contract() -> None:
     assert "Selecting career `RAF-41B-22C1`" in rendered_audit
     assert '<main class="workspace" tabindex="-1">' in rendered_audit
     assert "`EVAL-UI-DESIGN-001` remains `planned`" in rendered_audit
+    deployment_id = "69c0abd6-d843-4646-b141-f76723098421"
+    evidence_set_digest = (
+        "ef028e0f8a49663c1a5b7d835b61f4c5128b238a7dde0df0e0f8633d0892b161"
+    )
+    assert deployment_id in rendered_audit
+    assert evidence_set_digest in rendered_audit
+    assert "immutable deployment identifier" in rendered_audit
     for screen_id in (
         "OPR-01",
         "DOS-01",
@@ -1484,6 +1502,25 @@ def test_ui_v2_reference_contract() -> None:
         "2.73:1",
     ):
         assert ratio in rendered_audit
+
+    evidence_readme = evidence_readme_path.read_text(encoding="utf-8")
+    assert "Evidence revision: `UIV2-SITE-2026-08-29-AUDIT-1`" in evidence_readme
+    assert deployment_id in evidence_readme
+    assert evidence_set_digest in evidence_readme
+    assert "synthetic fixture data" in evidence_readme
+    checksum_lines = evidence_checksums_path.read_text(encoding="ascii").splitlines()
+    checksum_entries = []
+    for line in checksum_lines:
+        digest, filename = line.split("  ", 1)
+        evidence_path = evidence_root / filename
+        assert evidence_path.is_file()
+        assert hashlib.sha256(evidence_path.read_bytes()).hexdigest() == digest
+        checksum_entries.append(f"{digest}  {filename}\n")
+    assert len(checksum_entries) == 13
+    assert (
+        hashlib.sha256("".join(checksum_entries).encode("ascii")).hexdigest()
+        == evidence_set_digest
+    )
 
     quality_gates = quality_gates_path.read_text(encoding="utf-8")
     assert re.search(r"Issue #79 is in\s+progress", quality_gates)

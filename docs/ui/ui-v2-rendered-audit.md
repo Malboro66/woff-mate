@@ -23,11 +23,17 @@ replace the toolkit-independent contracts in
 
 ## Capture record
 
+- Evidence revision: [`UIV2-SITE-2026-08-29-AUDIT-1`](evidence/ui-v2-site-2026-08-29/README.md).
+- Published deployment: `69c0abd6-d843-4646-b141-f76723098421`, obtained
+  from `__artifactCompatibility.deploymentVersion` while the audited revision
+  remained published.
+- Evidence-set SHA-256:
+  `ef028e0f8a49663c1a5b7d835b61f4c5128b238a7dde0df0e0f8633d0892b161`.
 - Browser viewport: 1363 by 936 CSS pixels at device-pixel ratio 1.
 - Fixture profile displayed by the Site: `Desktop 100%`.
-- Captures: full-page PNG for the seven persistent-navigation destinations,
-  plus the Career Selector, Mission Report, Aircrew Profile, Report Viewer, and
-  Desktop Fixture Matrix.
+- Captures: versioned full-page JPEG evidence for the seven
+  persistent-navigation destinations, plus the Career Selector, Mission Report,
+  Aircrew Profile, Report Viewer, and Desktop Fixture Matrix.
 - Data: the Site's synthetic/sanitized fixture only.
 - Source states exercised: `Complete` for the recorded contrast table, a
   same-name career change, primary navigation, and contextual entry/return
@@ -41,11 +47,13 @@ also exposed fourteen semantic states and four desktop scale profiles.
 
 For every visible text run, the audit recorded the computed foreground,
 cumulative opacity, font size and weight, bounding rectangle, and nearest
-rendered surface. A lossless full-page capture supplied the actual textured
+rendered surface. The versioned full-page capture supplied the actual textured
 backdrop. The reported rendered ratio uses the WCAG relative-luminance formula
 against the median of the adjacent four-pixel background ring. This avoids
 counting anti-aliased glyph pixels as background while retaining the paper,
-wood, felt, gradient, and opacity composition visible beside the glyphs.
+wood, felt, gradient, and opacity composition visible beside the glyphs. The
+computed base pairs also fail for every representative row, so the result does
+not depend on the capture encoding.
 
 The table records one representative failure per destination. All examples are
 normal text and therefore require at least 4.5:1. Because even the local median
@@ -116,9 +124,11 @@ The audit may pass only after a new published revision records:
 
 - at least 4.5:1 for every normal-text role and 3:1 for large text and
   essential non-text boundaries on the rendered pixels;
-- all required screen/state/scale coverage or an approved reduction of scope;
-- no previous-career content after a `career_id` change; and
-- the specified focus and navigation behavior.
+- all required screen/state/scale coverage, including `MIS-02`, `SQD-02`, and
+  `RPT-02`, or an approved reduction of scope;
+- no previous-career content after a `career_id` change;
+- the specified focus and navigation behavior; and
+- a new immutable deployment identifier and sanitized, hashed evidence set.
 
 Flat token calculations and an archived Figma export remain supporting design
 data only; neither substitutes for a passing audit of the published Site.
