@@ -166,7 +166,7 @@ CI success alone does not close #50 or release 3.3.0.
 
 ## Q6-CYCLE-3.4.0: parser, roster, presentation, and RPG integrity
 
-Cycle 3.4.0 is active. Issues #41, #75, and #97 are complete. Issue #79 is in
+Cycle 3.4.0 is active. Issues #28, #41, #75, and #97 are complete. Issue #79 is in
 progress: its repository design contract is recorded, but the published UI V2
 Site currently fails rendered WCAG AA contrast, stable-career isolation,
 destination focus, navigation conformance, and required visual coverage. The
