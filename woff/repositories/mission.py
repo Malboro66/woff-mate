@@ -196,8 +196,10 @@ def _is_legacy_unknown_victory_replay(
 ) -> bool:
     """Identify the narrow replay affected by the historical OOC fallback."""
     incoming_type = str(incoming.victoryType or "").strip()
+    incoming_source_key = str(incoming.source_record_key or "").strip()
     return (
-        str(stored.get("victoryType") or "").strip()
+        _SOURCE_RECORD_KEY.fullmatch(incoming_source_key) is not None
+        and str(stored.get("victoryType") or "").strip()
         == _LEGACY_UNKNOWN_VICTORY_TYPE
         and bool(incoming_type)
         and incoming_type != _LEGACY_UNKNOWN_VICTORY_TYPE

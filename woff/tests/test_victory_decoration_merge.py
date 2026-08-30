@@ -462,6 +462,48 @@ def test_legacy_ooc_is_not_rewritten_by_a_known_victory_type(tmp_path):
         database.close()
 
 
+def test_legacy_ooc_is_not_rewritten_without_a_stable_source_key(tmp_path):
+    database = DatabaseManager(str(tmp_path / "legacy-ooc-key-gate.sqlite"))
+    try:
+        pilot = _persist_pilot(database)
+        legacy = WoFFVictory(
+            id="victory-legitimate-ooc",
+            pilotId=pilot.id,
+            date="1917-04-06",
+            time="10:35",
+            enemyType="Albatros D.III",
+            victoryType="Out of Control (OOC)",
+            source_file="Pilot1Claims.txt",
+        )
+        untraceable = WoFFVictory(
+            id="victory-without-source-key",
+            pilotId=pilot.id,
+            date=legacy.date,
+            time=legacy.time,
+            enemyType=legacy.enemyType,
+            victoryType="Engine exploded",
+            source_file=legacy.source_file,
+        )
+
+        assert database.merge_and_write(None, [], [legacy], []) == pilot.id
+        assert database.merge_and_write(
+            None, [], [untraceable], []
+        ) == pilot.id
+
+        assert database._get_conn().execute(
+            "SELECT id, victoryType FROM victories WHERE pilotId=? ORDER BY id",
+            (pilot.id,),
+        ).fetchall() == [
+            ("victory-legitimate-ooc", "Out of Control (OOC)"),
+            ("victory-without-source-key", "Engine exploded"),
+        ]
+        assert database._get_conn().execute(
+            "SELECT COUNT(*) FROM victory_source_records"
+        ).fetchone() == (0,)
+    finally:
+        database.close()
+
+
 def test_aliased_replay_without_mission_preserves_stored_relationship(
     tmp_path,
     caplog,
