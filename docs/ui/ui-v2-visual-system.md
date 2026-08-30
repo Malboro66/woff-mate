@@ -1,6 +1,6 @@
 # UI V2 visual system
 
-Status: Approved design specification
+Status: Approved design specification; published Site conformance pending
 
 Date: 2026-08-29
 
@@ -13,8 +13,8 @@ desktop workspace with restrained First World War aviation references. Modern
 interaction, readable typography, and honest state communication take priority
 over decoration.
 
-This inventory is toolkit-independent. Token names describe Figma and future
-presentation intent; they are not a CSS, Qt, or runtime API.
+This inventory is toolkit-independent. Token names describe the published UI V2
+Site and future presentation intent; they are not a CSS, Qt, or runtime API.
 
 ## Color tokens
 
@@ -40,9 +40,9 @@ presentation intent; they are not a CSS, Qt, or runtime API.
 | `color.focus.inner` | `#7D5A18` | Inner focus edge on paper surfaces. |
 
 Text does not use `color.accent.brass` as its only contrast-bearing color.
-Status never relies on hue alone. Figma contrast checks must use the rendered
-surface, including any texture, and meet WCAG AA: at least 4.5:1 for normal
-text and 3:1 for large text and essential non-text boundaries.
+Status never relies on hue alone. Contrast checks must use the published Site's
+rendered surface, including any texture and opacity, and meet WCAG AA: at least
+4.5:1 for normal text and 3:1 for large text and essential non-text boundaries.
 
 Flat-token contrast was calculated with the WCAG relative-luminance formula:
 
@@ -58,8 +58,10 @@ Flat-token contrast was calculated with the WCAG relative-luminance formula:
 | Error / aviation shell | 5.30:1 |
 
 These ratios pass the normal-text target for their listed pair. Each rendered
-Figma frame must still be checked after texture, opacity, focus, and state
-composition are applied.
+Site view must still be checked after texture, opacity, focus, and state
+composition are applied. The current
+[published-site audit](ui-v2-rendered-audit.md) fails this check and therefore
+overrides no requirement in this specification.
 
 ## Material tokens
 
@@ -94,8 +96,8 @@ grunge, coffee marks, heavy distress, and skeuomorphic controls are prohibited.
 Historical headings use a restrained serif such as Source Serif 4 with Georgia
 as a prototype fallback. Controls, data, and long-form text use a highly legible
 sans-serif such as Inter or Segoe UI. No essential wording is embedded in an
-image. All type follows Windows scaling; Figma uses logical sizes rather than
-rasterized text.
+image. All type follows Windows scaling; the published Site and future toolkit
+implementations use logical sizes rather than rasterized text.
 
 ## Spacing, shape, border, and elevation
 

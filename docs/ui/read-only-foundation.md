@@ -3,18 +3,23 @@
 ## Status and reference boundary
 
 Issue #56 captured the original Figma file and established this future
-read-only presentation boundary. Issue #79 now defines the approved
+read-only presentation boundary. The published
+[WoFF Mate UI V2 Site](https://woff-mate-ui-v2.pilotohans.chatgpt.site/) now
+replaces Figma as the active rendered source, while Issue #79 defines the
+approved
 [UI V2 reference](ui-v2-reference.md), its
 [visual system](ui-v2-visual-system.md), and its recorded
 [design walkthrough](ui-v2-walkthrough.md). The V1 frames remain archived in
-the same Figma file; V2 is the current implementation handoff.
+Figma; the Site and repository contracts form the current V2 handoff. Current
+Site conformance failures are recorded in the
+[published-site audit](ui-v2-rendered-audit.md).
 
 V2 navigation is **Operations, Pilot Dossier, Missions, Squadron, War Diary,
 and Reports**, with **Data & System Status** separated at the navigation footer.
 Visuals are design intent, not evidence of implemented services or production
 behavior.
 
-In particular, Figma indicators such as **watchdog running**, **database
+In particular, prototype indicators such as **watchdog running**, **database
 connected**, and **last sync** are aspirational and fixture-backed until their
 application-service contracts are approved. A mock must label them as fixture
 data; production presentation must render them unavailable rather than infer
@@ -109,8 +114,9 @@ The approved follow-up work is now tracked explicitly:
 
 - #79 records the repository UI V2 screen map, visual system, component and
   state inventory, focus order, and Windows scaling notes without production UI
-  code; it remains in progress until all six approved Figma frames have recorded
-  rendered WCAG AA evidence after texture and opacity are applied.
+  code; it remains in progress until the published Site passes the recorded
+  rendered contrast, stable-career isolation, destination focus, navigation,
+  and visual coverage audit.
 - #80 defines the shared state matrix and deterministic sanitized fixtures used
   by designs, contract tests, and the toolkit spike.
 - #81 defines immutable read-only view models and application query-service

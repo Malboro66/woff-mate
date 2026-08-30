@@ -1,6 +1,6 @@
 # UI V2 reference
 
-Status: Approved design reference
+Status: Approved repository design reference; published Site conformance pending
 
 Date: 2026-08-29
 
@@ -9,15 +9,24 @@ Tracks: Issue #79
 ## Authority and boundary
 
 UI V2 is the current design reference for WoFF Mate's future Windows desktop
-companion. It supersedes the V1 information architecture, while the existing
+companion. The published
+[WoFF Mate UI V2 Site](https://woff-mate-ui-v2.pilotohans.chatgpt.site/) is the
+active rendered source and replaces Figma for current visual review. The
+existing
 [Figma file](https://www.figma.com/design/Lc6VXJdI6L6w17bY4EjBvb/WoFF-Mate-UI-Prototype?node-id=0-1)
-remains the design origin and retains the archived V1 frames.
+is retained only as the design origin and V1 archive.
 
 This document, the [visual system](ui-v2-visual-system.md), and the recorded
 [walkthrough](ui-v2-walkthrough.md) are the normative repository handoff for
 V2. They describe design intent only. They do not prove a production UI, accept
 the proposed toolkit ADR, or authorize a GUI dependency, SQLite access, direct
 WoFF-file reads, writes, launcher control, or live-session behavior.
+
+The published Site is subordinate to these toolkit-independent contracts. Its
+current conformance failures are recorded in the
+[published-site audit](ui-v2-rendered-audit.md); a visible prototype difference
+does not silently rewrite identity, accessibility, privacy, or navigation
+requirements.
 
 The architectural boundary in [Read-only UI foundation](read-only-foundation.md)
 continues to apply.
@@ -218,9 +227,24 @@ the label map is extended; it does not silently replace the value with
 These terms are design vocabulary for Issue #79. Issue #80 owns their formal
 fixture matrix and deterministic fixture payloads.
 
-## Figma organization
+## Published Site organization
 
-The existing Figma file uses this target organization without being replaced:
+The Site's Desktop Fixture Matrix currently exposes ten rendered screen IDs:
+
+- `OPR-01`, `DOS-01`, `MIS-01`, `MIS-02`, `SQD-01`, `SQD-02`, `JRN-01`,
+  `RPT-01`, `RPT-02`, and `SYS-01`;
+- fourteen semantic states from Complete through Not available; and
+- Desktop profiles labelled 100%, 125%, 150%, and 200%.
+
+The Career Selector is reachable from the persistent context control. The
+fixture matrix does not yet expose standalone `APP-00`, `SEL-01`, `DOS-02`,
+`DOS-03`, or `DOS-04` records, so the Site remains incomplete as the sole visual
+coverage source. The repository screen inventory remains normative until that
+gap is corrected or explicitly rescoped.
+
+## Archived Figma organization
+
+The archived Figma file preserves this historical target organization:
 
 | Page | Contents |
 |---|---|
@@ -234,16 +258,19 @@ The existing Figma file uses this target organization without being replaced:
 | `90 — Future Gates` | Session Control and Headquarters, clearly unavailable in this phase. |
 | `99 — Archive` | Preserved V1 frames, excluded from the current flow. |
 
-Frames use `V2 / <screen-id> / <state> / <viewport>`, for example:
+Archived frames used `V2 / <screen-id> / <state> / <viewport>`, for example:
 
 - `V2 / DOS-01 / Complete / Desktop`
 - `V2 / DOS-01 / Partial / Desktop`
 - `V2 / DOS-01 / No career / Desktop`
 - `V2 / DOS-01 / Complete / 150% scale`
 
-## Required frame coverage
+Figma is not current acceptance evidence and does not replace a rendered check
+of the published Site.
 
-The reference set covers:
+## Required rendered coverage
+
+The normative reference set covers:
 
 - `APP-00`, `SEL-01`, `OPR-01`, `DOS-01`, `MIS-01`, `MIS-02`, `SQD-01`,
   `JRN-01`, `RPT-01`, and `SYS-01` for the main flow;

@@ -593,7 +593,7 @@ evals:
   EVAL-UI-DESIGN-001:
     work_items: [issue-79]
     status: planned
-    evidence: All six approved UI V2 Figma frames must record passing rendered WCAG AA checks after texture, opacity, focus, and state composition before the repository design walkthrough passes.
+    evidence: The published UI V2 Site is the active rendered source. Its 2026-08-29 audit fails contrast, stable-career isolation, destination focus, navigation conformance, and required visual coverage; a corrected published revision must pass before the repository design walkthrough passes.
   EVAL-UI-STATES-001:
     work_items: [issue-80]
     status: planned

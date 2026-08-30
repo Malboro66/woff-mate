@@ -1326,18 +1326,35 @@ def test_ui_v2_reference_contract() -> None:
     reference_path = ui_root / "ui-v2-reference.md"
     visual_system_path = ui_root / "ui-v2-visual-system.md"
     walkthrough_path = ui_root / "ui-v2-walkthrough.md"
+    rendered_audit_path = ui_root / "ui-v2-rendered-audit.md"
     quality_gates_path = REPOSITORY_ROOT / "docs" / "engineering" / "quality-gates.md"
     evals_path = REPOSITORY_ROOT / "docs" / "engineering" / "evals.md"
-    for path in (reference_path, visual_system_path, walkthrough_path):
+    for path in (
+        reference_path,
+        visual_system_path,
+        walkthrough_path,
+        rendered_audit_path,
+    ):
         assert path.is_file()
     assert quality_gates_path.is_file()
     assert evals_path.is_file()
 
     readme = (REPOSITORY_ROOT / "README.md").read_text(encoding="utf-8")
-    for path in (reference_path, visual_system_path, walkthrough_path):
+    for path in (
+        reference_path,
+        visual_system_path,
+        walkthrough_path,
+        rendered_audit_path,
+    ):
         assert path.relative_to(REPOSITORY_ROOT).as_posix() in readme
+    site_url = "https://woff-mate-ui-v2.pilotohans.chatgpt.site/"
+    assert site_url in readme
 
     reference = reference_path.read_text(encoding="utf-8")
+    assert site_url in reference
+    assert "active rendered source and replaces Figma" in reference
+    assert "Figma is not current acceptance evidence" in reference
+    assert "published-site audit" in reference
     for screen_id in (
         "APP-00",
         "SEL-01",
@@ -1404,6 +1421,8 @@ def test_ui_v2_reference_contract() -> None:
         assert f"`{token}`" in visual_system
     assert "All beige cards use `material.paper.subtle`" in visual_system
     assert "WCAG AA" in visual_system
+    assert "published Site conformance pending" in visual_system
+    assert "published-site audit" in visual_system
     for scale in ("100%", "125%", "150%", "200%"):
         assert scale in visual_system
     assert "## Keyboard model" in visual_system
@@ -1416,32 +1435,66 @@ def test_ui_v2_reference_contract() -> None:
         assert f"`{status}`" in visual_system
 
     walkthrough = walkthrough_path.read_text(encoding="utf-8")
-    assert "Status: Pending rendered contrast verification" in walkthrough
+    assert "Status: Pending published Site conformance" in walkthrough
     assert "Eval: `EVAL-UI-DESIGN-001`" in walkthrough
     assert "There is no dead end" in walkthrough
-    assert "Result: Pending rendered contrast verification." in walkthrough
-    assert "Issue #80 owns the formal deterministic fixture matrix" in walkthrough
+    assert "Result: Pending published Site conformance." in walkthrough
+    assert re.search(
+        r"Issue #80 owns the formal\s+deterministic fixture matrix",
+        walkthrough,
+    )
     assert "opens `SYS-01` without a career" in walkthrough
     assert "the heading is not part of the sequential `Tab` order" in walkthrough
-    assert "Rendered frame contrast evidence is pending" in walkthrough
+    assert "### Published Site contrast evidence" in walkthrough
+    assert "Published Site result: Fail" in walkthrough
+    assert "stable-career isolation" in walkthrough
+    assert site_url in walkthrough
     assert "Page heading or contextual back route" not in walkthrough
-    assert re.search(r"\| Text and controls .* \| Pending \|", walkthrough)
-    for node_id in ("15:2", "21:2", "21:184", "21:366", "21:548", "21:730"):
-        assert f"`{node_id}`" in walkthrough
+    assert re.search(r"\| Text and controls .* \| Fail \|", walkthrough)
+    assert "`EVAL-UI-DESIGN-001` remains `planned`" in walkthrough
+    assert "Issue #79 remains `in_progress`" in walkthrough
+    assert "`EVAL-UI-DESIGN-001` passes" not in walkthrough
     for status in normalized_statuses:
         assert f"`{status}`" in walkthrough
 
+    rendered_audit = rendered_audit_path.read_text(encoding="utf-8")
+    assert "Status: Failed — corrections required" in rendered_audit
+    assert site_url in rendered_audit
+    assert "1363 by 936 CSS pixels" in rendered_audit
+    assert "Selecting career `RAF-41B-22C1`" in rendered_audit
+    assert '<main class="workspace" tabindex="-1">' in rendered_audit
+    assert "`EVAL-UI-DESIGN-001` remains `planned`" in rendered_audit
+    for screen_id in (
+        "OPR-01",
+        "DOS-01",
+        "MIS-01",
+        "JRN-01",
+        "RPT-01",
+        "SQD-01",
+        "SYS-01",
+    ):
+        assert f"`{screen_id}`" in rendered_audit
+    for ratio in (
+        "2.17:1",
+        "2.07:1",
+        "2.96:1",
+        "1.14:1",
+        "1.15:1",
+        "3.20:1",
+        "2.73:1",
+    ):
+        assert ratio in rendered_audit
+
     quality_gates = quality_gates_path.read_text(encoding="utf-8")
     assert re.search(r"Issue #79 is in\s+progress", quality_gates)
-    assert re.search(
-        r"rendered WCAG AA\s+checks for all six approved V2 Figma frames "
-        r"remain pending",
-        quality_gates,
-    )
+    assert "published UI V2" in quality_gates
+    assert "Site currently fails rendered WCAG AA contrast" in quality_gates
 
     eval_catalog = evals_path.read_text(encoding="utf-8")
     assert "Issue #79 remains in progress" in eval_catalog
     assert "`EVAL-UI-DESIGN-001` becomes implemented only after" in eval_catalog
+    assert site_url in eval_catalog
+    assert "published UI V2 Site" in eval_catalog
 
     pyproject = _load_pyproject()
     project = pyproject["project"]
@@ -1465,4 +1518,6 @@ def test_ui_v2_reference_contract() -> None:
     }
     ui_eval = evals["EVAL-UI-DESIGN-001"]
     assert ui_eval["status"] == "planned"
+    assert "published UI V2 Site" in ui_eval["evidence"]
+    assert "fails contrast" in ui_eval["evidence"]
     assert "enforced_by" not in ui_eval

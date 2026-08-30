@@ -167,9 +167,11 @@ CI success alone does not close #50 or release 3.3.0.
 ## Q6-CYCLE-3.4.0: parser, roster, presentation, and RPG integrity
 
 Cycle 3.4.0 is active. Issues #41, #75, and #97 are complete. Issue #79 is in
-progress: its repository design contract is recorded, but rendered WCAG AA
-checks for all six approved V2 Figma frames remain pending. The aggregate gate
-remains pending until every member and `EVAL-CYCLE-340-001` pass.
+progress: its repository design contract is recorded, but the published UI V2
+Site currently fails rendered WCAG AA contrast, stable-career isolation,
+destination focus, navigation conformance, and required visual coverage. The
+aggregate gate remains pending until every member and `EVAL-CYCLE-340-001`
+pass.
 
 Cycle 3.4.0 is approved only when all conditions below pass:
 

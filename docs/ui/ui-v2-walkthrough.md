@@ -1,6 +1,6 @@
 # UI V2 design walkthrough
 
-Status: Pending rendered contrast verification
+Status: Pending published Site conformance
 
 Date: 2026-08-29
 
@@ -15,9 +15,12 @@ This walkthrough validates the approved UI V2 design handoff in
 [UI V2 visual system](ui-v2-visual-system.md). It verifies navigation,
 terminology, states, focus order, scaling, and privacy at the design level.
 
-It does not claim that a Figma frame, Site prototype, Qt widget, query service,
-or live integration is production code. It uses synthetic scenario labels only;
-Issue #80 owns the formal deterministic fixture matrix.
+The published
+[WoFF Mate UI V2 Site](https://woff-mate-ui-v2.pilotohans.chatgpt.site/) is the
+current rendered source; Figma is archival only. Neither the Site prototype, a
+Qt widget, a query service, nor a live integration is production code. This
+walkthrough uses synthetic scenario labels only; Issue #80 owns the formal
+deterministic fixture matrix.
 
 ## Controlled scenario
 
@@ -118,7 +121,10 @@ and is never made generally tabbable. Primary navigation uses the same
 programmatic heading target. A contextual back control, when present, remains
 an ordinary interactive `Tab` stop. Dynamic status does not steal focus.
 
-Result: Pass.
+Contract result: Pass. Published Site result: Fail. Primary navigation to Pilot
+Dossier leaves focus on `<main class="workspace" tabindex="-1">`; the `h1` is
+not the active element and has no programmatic-focus target. The Site must move
+one-time destination focus to the heading before this part of the eval passes.
 
 ## Scaling walkthrough
 
@@ -141,27 +147,43 @@ an accessible, visible way to obtain its label.
 | Felt/canvas | Texture is limited to broad, low-density surfaces and carries no state meaning. | Pass |
 | Wood | Grain is restricted to a narrow structural accent rather than every card. | Pass |
 | Brass | Used sparingly and never as the sole focus, selection, status, or text contrast. | Pass |
-| Text and controls | Flat token pairs pass at 5.30:1 or higher, but flat-token calculations do not establish rendered contrast after texture and opacity. | Pending |
+| Text and controls | Flat token pairs pass at 5.30:1 or higher, but the published Site has representative rendered text between 1.14:1 and 3.20:1 across all seven primary destinations. | Fail |
 
-### Rendered frame contrast evidence
+### Published Site contrast evidence
 
-Rendered frame contrast evidence is pending for every approved V2 composition:
+The active rendered source was captured and measured as recorded in the
+[published-site audit](ui-v2-rendered-audit.md):
 
-| Figma node | Approved frame | Rendered WCAG AA result |
-|---|---|---|
-| `15:2` | Operations Room / V2 Field Briefing | Pending |
-| `21:2` | V2 / Pilot | Pending |
-| `21:184` | V2 / Missions | Pending |
-| `21:366` | V2 / Diary | Pending |
-| `21:548` | V2 / Squadron | Pending |
-| `21:730` | V2 / Settings | Pending |
+| Site view | Representative rendered ratio | Required | Result |
+|---|---:|---:|---|
+| `OPR-01` Operations Board | 2.17:1 | 4.5:1 | Fail |
+| `DOS-01` Pilot Dossier | 2.07:1 | 4.5:1 | Fail |
+| `MIS-01` Mission Log | 2.96:1 | 4.5:1 | Fail |
+| `JRN-01` War Diary | 1.14:1 | 4.5:1 | Fail |
+| `RPT-01` Reports Library | 1.15:1 | 4.5:1 | Fail |
+| `SQD-01` Squadron Roster | 3.20:1 | 4.5:1 | Fail |
+| `SYS-01` System Status | 2.73:1 | 4.5:1 | Fail |
 
-To pass, each frame must be exported at its native 1440 by 1024 size and checked
-on the rendered pixels after texture, opacity, focus, and state composition.
-Normal text must reach 4.5:1; large text and essential non-text boundaries must
-reach 3:1. The evidence record must identify the frame, tested foreground and
-background, measured ratio, and outcome. Flat-token ratios are supporting data,
-not a substitute for this rendered check.
+The audit used the Site's `Desktop 100%` profile in a 1363 by 936 CSS-pixel
+browser viewport at device-pixel ratio 1 and captured full-page lossless PNGs.
+It combined each computed foreground and opacity with the textured local
+backdrop sampled from the render. Normal text must reach 4.5:1; large text and
+essential non-text boundaries must reach 3:1. Flat-token ratios and archived
+Figma exports are supporting data, not substitutes for this rendered check.
+
+### Published Site interaction evidence
+
+The Site reaches `MIS-02`, `SQD-02`, `RPT-02`, Career Selector, and System Status
+without a dead end, but two normative behaviors fail:
+
+- selecting same-name career `RAF-41B-22C1` from `MIS-02` updates the context to
+  `41 Squadron RAF` while retaining the previous `14 Squadron RFC` mission
+  report; and
+- visible navigation uses `Dashboard`, `Pilot`, `Missions`, `Diary`, `Reports`,
+  `Squadron`, which does not match the normative labels and order.
+
+The fixture matrix also omits standalone visual records for `APP-00`, `SEL-01`,
+`DOS-02`, `DOS-03`, and `DOS-04`.
 
 ## Privacy and scope review
 
@@ -173,7 +195,7 @@ not a substitute for this rendered check.
 - No PySide, PyQt, React, web runtime, or other GUI dependency is introduced.
 - No Product Gate, toolkit ADR, or aggregate cycle is approved by this review.
 
-Result: Pending rendered contrast verification.
+Result: Pending published Site conformance.
 
 ## Traceability
 
@@ -185,12 +207,16 @@ Result: Pending rendered contrast verification.
 | Keyboard and Windows scaling | `ui-v2-visual-system.md` — Keyboard model and Windows scaling behavior |
 | Synthetic/unavailable operational labels | Both specifications and the controlled scenario above |
 | No-dead-end flow | Main-flow walkthrough above |
+| Published render, interaction, and coverage failures | `ui-v2-rendered-audit.md` |
 | Governance and automated structure checks | `project-graph.yaml` and `test_architecture_contracts.py` |
 
 ## Review result and follow-up ownership
 
-`EVAL-UI-DESIGN-001` passes for the repository design reference. Issue #79 can
-close when the pull request containing this record is merged.
+`EVAL-UI-DESIGN-001` remains `planned` and Issue #79 remains `in_progress`.
+The repository design contract is reviewable, but the current published Site
+fails rendered contrast, stable-career isolation, destination focus, navigation
+conformance, and required visual coverage. A new published revision must pass
+the recorded rerun rule before either governance state can advance.
 
 The following remain intentionally unresolved here:
 
