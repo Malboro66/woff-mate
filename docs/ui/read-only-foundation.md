@@ -2,12 +2,24 @@
 
 ## Status and reference boundary
 
-This contract maps the current Figma reference captured by Issue #56 into a
-future read-only presentation surface. The Figma navigation is **Dashboard,
-Pilot, Missions, Diary, Squadron, and Settings**. Visuals are design intent,
-not evidence of implemented services or production behavior.
+Issue #56 captured the original Figma file and established this future
+read-only presentation boundary. The published
+[WoFF Mate UI V2 Site](https://woff-mate-ui-v2.pilotohans.chatgpt.site/) now
+replaces Figma as the active rendered source, while Issue #79 defines the
+approved
+[UI V2 reference](ui-v2-reference.md), its
+[visual system](ui-v2-visual-system.md), and its recorded
+[design walkthrough](ui-v2-walkthrough.md). The V1 frames remain archived in
+Figma; the Site and repository contracts form the current V2 handoff. Current
+Site conformance failures are recorded in the
+[published-site audit](ui-v2-rendered-audit.md).
 
-In particular, Figma indicators such as **watchdog running**, **database
+V2 navigation is **Operations, Pilot Dossier, Missions, Squadron, War Diary,
+and Reports**, with **Data & System Status** separated at the navigation footer.
+Visuals are design intent, not evidence of implemented services or production
+behavior.
+
+In particular, prototype indicators such as **watchdog running**, **database
 connected**, and **last sync** are aspirational and fixture-backed until their
 application-service contracts are approved. A mock must label them as fixture
 data; production presentation must render them unavailable rather than infer
@@ -61,12 +73,13 @@ unavailable and carry warnings.
 
 | Screen | Responsibility | Immutable view-model inputs |
 |---|---|---|
-| Dashboard | Read-only campaign overview and entry points. | Selected pilot summary, campaign summary cards, recent-mission summaries, freshness/warnings, and explicitly unavailable operational-indicator fixtures. |
-| Pilot | Read-only identity, service record, and derived status. | Pilot identity snapshot, authoritative field provenance, service/stat summaries, availability map, freshness, and warnings. |
-| Missions | Read-only mission history and selection. | Stable mission IDs, ordered mission-summary tuple, selected mission details, order-policy identifier, provenance, freshness, and warnings. |
-| Diary | Read-only narrative entries associated with stable mission IDs. **Diary is strictly read-only** and exposes no create, edit, delete, save, or regeneration commands. | Ordered immutable diary-entry summaries, narrative provenance/contract version, unavailable reasons, freshness, and warnings. |
-| Squadron | Read-only current roster and documented historical context. | Squadron identity, roster snapshot, transfer-status value when authoritative, provenance, freshness, and warnings. |
-| Settings | Read-only effective-configuration and diagnostic visibility for this phase; it cannot mutate, save, auto-detect, browse for, or reset configuration. | Redacted effective-configuration snapshot, validation status, capability/diagnostic values, provenance, freshness, warnings, and unavailable fields. |
+| Operations (`OPR-01`) | Read-only career overview and entry points. | Selected career summary, campaign summary cards, recent-mission summaries, freshness/warnings, and explicitly unavailable operational-indicator fixtures. |
+| Pilot Dossier (`DOS-01`) | Read-only identity, service record, and derived status for one stable career ID. | Pilot identity snapshot, authoritative field provenance, service/stat summaries, availability map, freshness, and warnings. |
+| Missions (`MIS-01/02`) | Read-only mission history, selection, and mission detail. | Stable mission IDs, ordered mission-summary tuple, selected mission details, order-policy identifier, provenance, freshness, and warnings. |
+| Squadron (`SQD-01/02`) | Read-only current roster and documented historical context. | Squadron identity, roster snapshot, transfer-status value when authoritative, provenance, freshness, and warnings. |
+| War Diary (`JRN-01`) | Read-only narrative entries associated with stable mission IDs. **War Diary is strictly read-only** and exposes no create, edit, delete, save, or regeneration commands. | Ordered immutable diary-entry summaries, narrative provenance/contract version, unavailable reasons, freshness, and warnings. |
+| Reports (`RPT-01/02`) | Read-only report library and safe report content. | Stable report identities, availability, safe content, provenance, freshness, and warnings. |
+| Data & System Status (`SYS-01`) | Read-only effective-configuration and diagnostic visibility for this phase; it cannot mutate, save, auto-detect, browse for, or reset configuration. | Redacted effective-configuration snapshot, validation status, capability/diagnostic values, provenance, freshness, warnings, and unavailable fields. |
 
 ## Unstable data contracts
 
@@ -95,12 +108,15 @@ synthetic. They cover every shared state, field-level unavailability, stale
 timestamps, multiple warnings, and source-authority conflicts without accessing
 WoFF files or SQLite.
 
-## Planned work and dependency order
+## Delivery and dependency order
 
 The approved follow-up work is now tracked explicitly:
 
-- #79 completes the six-screen Figma flow, tokens, components, focus order, and
-  Windows scaling notes without production UI code.
+- #79 records the repository UI V2 screen map, visual system, component and
+  state inventory, focus order, and Windows scaling notes without production UI
+  code; it remains in progress until the published Site passes the recorded
+  rendered contrast, stable-career isolation, destination focus, navigation,
+  and visual coverage audit.
 - #80 defines the shared state matrix and deterministic sanitized fixtures used
   by designs, contract tests, and the toolkit spike.
 - #81 defines immutable read-only view models and application query-service
@@ -109,8 +125,9 @@ The approved follow-up work is now tracked explicitly:
   supported Python and Windows versions, PyInstaller packaging, startup,
   memory, scaling, keyboard use, accessibility, plugins, and licensing.
 
-Issues #79 and #80 may proceed without a GUI runtime dependency. Issues #81
-and #82 remain blocked by #80. A retained production shell still requires ADR
-acceptance, applicable Product Gate A and Product Gate B decisions, an approved
-optional-dependency policy, clean Windows packaging evidence, and explicit
-maintainer approval. None of these planning items claims those decisions.
+Issue #80 may proceed without a GUI runtime dependency. Issues #81 and #82
+remain blocked by #80; completion of #79 does not satisfy either dependency. A
+retained production shell still requires ADR acceptance, applicable Product
+Gate A and Product Gate B decisions, an approved optional-dependency policy,
+clean Windows packaging evidence, and explicit maintainer approval. None of
+these design or planning items claims those decisions.

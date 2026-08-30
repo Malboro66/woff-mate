@@ -1,5 +1,5 @@
 version: 1
-updated: 2026-08-28
+updated: 2026-08-29
 
 project:
   repository: Malboro66/woff-mate
@@ -594,7 +594,7 @@ evals:
   EVAL-UI-DESIGN-001:
     work_items: [issue-79]
     status: planned
-    evidence: The approved six-screen Figma flow, tokens, components, focus order, scaling behavior, and synthetic-state labels pass a recorded human walkthrough.
+    evidence: The published UI V2 Site is the active rendered source. Its 2026-08-29 audit fails contrast, stable-career isolation, destination focus, navigation conformance, and required visual coverage; a corrected published revision must pass before the repository design walkthrough passes.
   EVAL-UI-STATES-001:
     work_items: [issue-80]
     status: planned
@@ -926,9 +926,9 @@ work_items:
     gates: [Q0, Q1, Q2]
     depends_on: []
   issue-79:
-    title: Complete the approved Figma V1 flow and visual system
+    title: Consolidate the approved UI V2 reference and visual system
     module: presentation
-    state: backlog
+    state: in_progress
     evals: [EVAL-UI-DESIGN-001]
     gates: [Q0, Q1, Q6-CYCLE-3.4.0]
     depends_on:

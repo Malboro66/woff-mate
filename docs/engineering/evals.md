@@ -122,20 +122,34 @@ claim Q5 or approval of Product Gate A or Gate B.
 |---|---|---|---|
 | `EVAL-UI-FOUNDATION-001` | #56 | Proposed toolkit and read-only presentation boundaries are documented, linked, dependency-free, and structurally enforced | `woff/tests/test_architecture_contracts.py` |
 
-## Planned read-only UI work
+## Read-only UI work
 
-| Eval | Work item | Required evidence |
-|---|---|---|
-| `EVAL-UI-DESIGN-001` | #79 | The approved six-screen Figma flow, visual system, focus order, scaling notes, and synthetic-state labels pass a recorded walkthrough |
-| `EVAL-UI-STATES-001` | #80 | Deterministic synthetic fixtures cover every shared state and privacy constraint without production dependencies |
-| `EVAL-UI-CONTRACTS-001` | #81 | Immutable toolkit-independent view models and query protocols preserve stable identity, state, freshness, warnings, and sanitized failures |
-| `EVAL-UI-SPIKE-001` | #82 | One PySide6 line passes the supported Python and Windows packaging and measured resource matrix |
-| `EVAL-UI-SPIKE-002` | #82 | Scaling, keyboard use, accessibility, plugin behavior, and licensing evidence support a Go, Conditional Go, or No-go recommendation |
+| Eval | Work item | Status | Evidence or required evidence | Enforcement |
+|---|---|---|---|---|
+| `EVAL-UI-DESIGN-001` | #79 | Planned | The approved V2 screen map, visual tokens and materials, component/state inventory, focus order, Windows scaling behavior, and synthetic labels pass the recorded repository design walkthrough and the published UI V2 Site passes its rendered contrast and interaction audit | — |
+| `EVAL-UI-STATES-001` | #80 | Planned | Deterministic synthetic fixtures cover every shared state and privacy constraint without production dependencies | — |
+| `EVAL-UI-CONTRACTS-001` | #81 | Planned | Immutable toolkit-independent view models and query protocols preserve stable identity, state, freshness, warnings, and sanitized failures | — |
+| `EVAL-UI-SPIKE-001` | #82 | Planned | One PySide6 line passes the supported Python and Windows packaging and measured resource matrix | — |
+| `EVAL-UI-SPIKE-002` | #82 | Planned | Scaling, keyboard use, accessibility, plugin behavior, and licensing evidence support a Go, Conditional Go, or No-go recommendation | — |
 
-Issues #79 and #80 are unblocked planning work. Issue #81 waits for the shared
-state and fixture vocabulary from #80. Issue #82 is an isolated feasibility
-spike that also waits for #80. None of these items adopts Qt, creates a
-production UI, or approves Product Gate A or Product Gate B.
+Issue #79 remains in progress. Its repository design artifacts are
+`docs/ui/ui-v2-reference.md`, `docs/ui/ui-v2-visual-system.md`, and
+`docs/ui/ui-v2-walkthrough.md`. The architecture contract verifies the required
+screen IDs, stable-career boundary, data-honesty vocabulary, material rules,
+focus/scaling coverage, synthetic labeling, repository links, and pending
+governance state. It also preserves the absence of GUI runtime dependencies.
+The published
+[WoFF Mate UI V2 Site](https://woff-mate-ui-v2.pilotohans.chatgpt.site/)
+replaces Figma as the active rendered source. Its
+[recorded audit](../ui/ui-v2-rendered-audit.md) currently fails contrast,
+stable-career isolation, destination focus, navigation conformance, and visual
+coverage. `EVAL-UI-DESIGN-001` becomes implemented only after a new published
+revision passes that audit.
+
+Issue #80 remains unblocked planning work. Issue #81 waits for the shared state
+and fixture vocabulary from #80. Issue #82 is an isolated feasibility spike
+that also waits for #80. None of these items adopts Qt, creates a production UI,
+or approves Product Gate A or Product Gate B.
 
 ### Implemented scheduler evals
 
@@ -494,9 +508,11 @@ for the broader roster-generation and truncated-input policy.
 | #80 | `EVAL-UI-STATES-001` |
 | #81 | `EVAL-UI-CONTRACTS-001` |
 
-Cycle 3.4.0 is `active`. Issues #28, #41, #75, and #97 are complete. Issue #38
-is the next dependency-ordered implementation item. Issue #35 remains blocked
-by #38, #37 remains blocked by #35, and #101 remains blocked by #37 and #96.
+Cycle 3.4.0 is `active`. Issues #28, #41, #75, and #97 are complete. Issue #79
+remains in progress pending a passing audit of the published UI V2 Site. Issue
+#38 is the next dependency-ordered implementation item. Issue #35 remains
+blocked by #38, #37 remains blocked by #35, and #101 remains blocked by #37 and
+#96.
 `EVAL-CYCLE-340-001` aggregates all sixteen members and remains planned until
 every member acceptance criterion, applicable eval, and `Q6-CYCLE-3.4.0`
 condition passes.

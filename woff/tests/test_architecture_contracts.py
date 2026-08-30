@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import ast
+import hashlib
 import importlib
 import re
 import sys
@@ -1319,3 +1320,241 @@ def test_ui_read_only_foundation_contract() -> None:
     for cycle in cycles.values():
         assert isinstance(cycle, dict)
         assert "issue-56" not in cycle.get("members", [])
+
+
+def test_ui_v2_reference_contract() -> None:
+    ui_root = REPOSITORY_ROOT / "docs" / "ui"
+    reference_path = ui_root / "ui-v2-reference.md"
+    visual_system_path = ui_root / "ui-v2-visual-system.md"
+    walkthrough_path = ui_root / "ui-v2-walkthrough.md"
+    rendered_audit_path = ui_root / "ui-v2-rendered-audit.md"
+    evidence_root = ui_root / "evidence" / "ui-v2-site-2026-08-29"
+    evidence_readme_path = evidence_root / "README.md"
+    evidence_checksums_path = evidence_root / "SHA256SUMS"
+    quality_gates_path = REPOSITORY_ROOT / "docs" / "engineering" / "quality-gates.md"
+    evals_path = REPOSITORY_ROOT / "docs" / "engineering" / "evals.md"
+    for path in (
+        reference_path,
+        visual_system_path,
+        walkthrough_path,
+        rendered_audit_path,
+        evidence_readme_path,
+        evidence_checksums_path,
+    ):
+        assert path.is_file()
+    assert quality_gates_path.is_file()
+    assert evals_path.is_file()
+
+    readme = (REPOSITORY_ROOT / "README.md").read_text(encoding="utf-8")
+    for path in (
+        reference_path,
+        visual_system_path,
+        walkthrough_path,
+        rendered_audit_path,
+    ):
+        assert path.relative_to(REPOSITORY_ROOT).as_posix() in readme
+    site_url = "https://woff-mate-ui-v2.pilotohans.chatgpt.site/"
+    assert site_url in readme
+
+    reference = reference_path.read_text(encoding="utf-8")
+    assert site_url in reference
+    assert "active rendered source and replaces Figma" in reference
+    assert "Figma is not current acceptance evidence" in reference
+    assert "published-site audit" in reference
+    required_coverage = reference.split("## Required rendered coverage", 1)[1].split(
+        "## Future-gated modules",
+        1,
+    )[0]
+    for screen_id in (
+        "APP-00",
+        "SEL-01",
+        "OPR-01",
+        "DOS-01",
+        "DOS-02",
+        "DOS-03",
+        "DOS-04",
+        "MIS-01",
+        "MIS-02",
+        "SQD-01",
+        "SQD-02",
+        "JRN-01",
+        "RPT-01",
+        "RPT-02",
+        "SYS-01",
+    ):
+        assert f"`{screen_id}`" in reference
+        assert f"`{screen_id}`" in required_coverage
+    assert "stable `career_id`" in reference
+    assert re.search(
+        r"Two careers with the same display\s+name remain separate",
+        reference,
+    )
+    assert "RFC, RNAS, and RAF remain distinct" in reference
+    assert "Missing status does not become" in reference
+    assert "`SYS-01` remains available when no career is selected" in reference
+    normalized_statuses = (
+        "Active",
+        "KIA",
+        "PoW",
+        "MIA",
+        "Invalided Out",
+        "Survived War",
+        "Lightly Wounded",
+        "Seriously Wounded",
+    )
+    for status in normalized_statuses:
+        assert f"`{status}`" in reference
+    assert "displays that value verbatim" in reference
+    for state in (
+        "Authoritative zero",
+        "Unknown",
+        "Not available",
+        "None recorded",
+        "Partial record",
+        "Missing",
+        "Truncated",
+        "Unsupported",
+        "Unreadable",
+        "Error",
+    ):
+        assert state in reference
+
+    visual_system = visual_system_path.read_text(encoding="utf-8")
+    for token in (
+        "color.shell.graphite",
+        "color.surface.paper",
+        "material.paper.subtle",
+        "material.felt.matte",
+        "material.canvas.quiet",
+        "material.wood.restrained",
+        "material.brass.aged",
+    ):
+        assert f"`{token}`" in visual_system
+    assert "All beige cards use `material.paper.subtle`" in visual_system
+    assert "WCAG AA" in visual_system
+    assert "published Site conformance pending" in visual_system
+    assert "published-site audit" in visual_system
+    for scale in ("100%", "125%", "150%", "200%"):
+        assert scale in visual_system
+    assert "## Keyboard model" in visual_system
+    assert "no horizontal scrollbar" in visual_system
+    assert "Synthetic`, `Fixture-backed`, or `Unavailable`" in visual_system
+    assert "Page headings are programmatic focus targets" in visual_system
+    assert "never made generally tabbable" in visual_system
+    assert "Page heading or back route" not in visual_system
+    for status in normalized_statuses:
+        assert f"`{status}`" in visual_system
+
+    walkthrough = walkthrough_path.read_text(encoding="utf-8")
+    assert "Status: Pending published Site conformance" in walkthrough
+    assert "Eval: `EVAL-UI-DESIGN-001`" in walkthrough
+    assert "There is no dead end" in walkthrough
+    assert "Result: Pending published Site conformance." in walkthrough
+    assert re.search(
+        r"Issue #80 owns the formal\s+deterministic fixture matrix",
+        walkthrough,
+    )
+    assert "opens `SYS-01` without a career" in walkthrough
+    assert "the heading is not part of the sequential `Tab` order" in walkthrough
+    assert "### Published Site contrast evidence" in walkthrough
+    assert "Published Site result: Fail" in walkthrough
+    assert "stable-career isolation" in walkthrough
+    assert site_url in walkthrough
+    assert "Page heading or contextual back route" not in walkthrough
+    assert re.search(r"\| Text and controls .* \| Fail \|", walkthrough)
+    assert "`EVAL-UI-DESIGN-001` remains `planned`" in walkthrough
+    assert "Issue #79 remains `in_progress`" in walkthrough
+    assert "`EVAL-UI-DESIGN-001` passes" not in walkthrough
+    for status in normalized_statuses:
+        assert f"`{status}`" in walkthrough
+
+    rendered_audit = rendered_audit_path.read_text(encoding="utf-8")
+    assert "Status: Failed — corrections required" in rendered_audit
+    assert site_url in rendered_audit
+    assert "1363 by 936 CSS pixels" in rendered_audit
+    assert "Selecting career `RAF-41B-22C1`" in rendered_audit
+    assert '<main class="workspace" tabindex="-1">' in rendered_audit
+    assert "`EVAL-UI-DESIGN-001` remains `planned`" in rendered_audit
+    deployment_id = "69c0abd6-d843-4646-b141-f76723098421"
+    evidence_set_digest = (
+        "ef028e0f8a49663c1a5b7d835b61f4c5128b238a7dde0df0e0f8633d0892b161"
+    )
+    assert deployment_id in rendered_audit
+    assert evidence_set_digest in rendered_audit
+    assert "immutable deployment identifier" in rendered_audit
+    for screen_id in (
+        "OPR-01",
+        "DOS-01",
+        "MIS-01",
+        "JRN-01",
+        "RPT-01",
+        "SQD-01",
+        "SYS-01",
+    ):
+        assert f"`{screen_id}`" in rendered_audit
+    for ratio in (
+        "2.17:1",
+        "2.07:1",
+        "2.96:1",
+        "1.14:1",
+        "1.15:1",
+        "3.20:1",
+        "2.73:1",
+    ):
+        assert ratio in rendered_audit
+
+    evidence_readme = evidence_readme_path.read_text(encoding="utf-8")
+    assert "Evidence revision: `UIV2-SITE-2026-08-29-AUDIT-1`" in evidence_readme
+    assert deployment_id in evidence_readme
+    assert evidence_set_digest in evidence_readme
+    assert "synthetic fixture data" in evidence_readme
+    checksum_lines = evidence_checksums_path.read_text(encoding="ascii").splitlines()
+    checksum_entries = []
+    for line in checksum_lines:
+        digest, filename = line.split("  ", 1)
+        evidence_path = evidence_root / filename
+        assert evidence_path.is_file()
+        assert hashlib.sha256(evidence_path.read_bytes()).hexdigest() == digest
+        checksum_entries.append(f"{digest}  {filename}\n")
+    assert len(checksum_entries) == 13
+    assert (
+        hashlib.sha256("".join(checksum_entries).encode("ascii")).hexdigest()
+        == evidence_set_digest
+    )
+
+    quality_gates = quality_gates_path.read_text(encoding="utf-8")
+    assert re.search(r"Issue #79 is in\s+progress", quality_gates)
+    assert "published UI V2" in quality_gates
+    assert "Site currently fails rendered WCAG AA contrast" in quality_gates
+
+    eval_catalog = evals_path.read_text(encoding="utf-8")
+    assert "Issue #79 remains in progress" in eval_catalog
+    assert "`EVAL-UI-DESIGN-001` becomes implemented only after" in eval_catalog
+    assert site_url in eval_catalog
+    assert "published UI V2 Site" in eval_catalog
+
+    pyproject = _load_pyproject()
+    project = pyproject["project"]
+    assert isinstance(project, dict)
+    dependencies = project.get("dependencies", [])
+    assert isinstance(dependencies, list)
+    runtime_names = {_requirement_name(dependency) for dependency in dependencies}
+    assert runtime_names.isdisjoint({"pyside2", "pyside6", "pyqt5", "pyqt6"})
+
+    graph = _graph()
+    work_items = graph["work_items"]
+    evals = graph["evals"]
+    assert isinstance(work_items, dict) and isinstance(evals, dict)
+    assert work_items["issue-79"] == {
+        "title": "Consolidate the approved UI V2 reference and visual system",
+        "module": "presentation",
+        "state": "in_progress",
+        "evals": ["EVAL-UI-DESIGN-001"],
+        "gates": ["Q0", "Q1", "Q6-CYCLE-3.4.0"],
+        "depends_on": [{"id": "issue-56", "status": "satisfied"}],
+    }
+    ui_eval = evals["EVAL-UI-DESIGN-001"]
+    assert ui_eval["status"] == "planned"
+    assert "published UI V2 Site" in ui_eval["evidence"]
+    assert "fails contrast" in ui_eval["evidence"]
+    assert "enforced_by" not in ui_eval
