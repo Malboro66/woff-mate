@@ -427,9 +427,23 @@ for the broader roster-generation and truncated-input policy.
   output, journal export, editor launch, backup, or database mutation. The
   editor resolves once and passes that explicit ID through export and import,
   preserving the ownership and verified-backup contract delivered by #26.
-  Issue #28 still owns the complete unknown-pilot and valid-empty-output
-  behavior across formats, while #75 owns the broader exit-code and stream
-  contract for every command failure.
+  Issue #28 completes the unknown-pilot and valid-empty-output matrix across
+  formats, while #75 owns the broader exit-code and stream contract for every
+  command failure.
+
+### Implemented query pilot-validation eval
+
+- `EVAL-CLI-001` is enforced by `woff/tests/test_woff_query.py`. An unknown
+  persistent pilot ID returns status `2` before output in table, JSON, CSV, and
+  Markdown, keeps stdout empty, and writes the diagnostic to stderr. A valid
+  pilot with no missions, diary entries, or wingmen returns status `0`; JSON,
+  CSV, and Markdown remain valid empty documents without a rendered profile,
+  while table output retains its human-readable profile and empty-result
+  message.
+- The shared career resolver delivered by #93 performs the existence lookup
+  before format selection. The command contract delivered by #75 supplies the
+  stable exit code and stream separation. Issue #28 adds the dedicated
+  cross-format regression matrix without changing production code or schema.
 
 ### Implemented command-entry-point evals
 
@@ -445,7 +459,8 @@ for the broader roster-generation and truncated-input policy.
   report generation preserves zero instead of labelling it missing, and report
   publication plus the optional pre-processing SQLite snapshot are atomic.
   Backup failure preserves the previous verified snapshot. Issue #75 changes no
-  schema and does not implement Issue #28's unknown-pilot matrix.
+  schema. Issue #28's unknown-pilot matrix is enforced separately by
+  `woff/tests/test_woff_query.py`.
 
 ### Implemented retained diary-block eval
 
@@ -479,9 +494,9 @@ for the broader roster-generation and truncated-input policy.
 | #80 | `EVAL-UI-STATES-001` |
 | #81 | `EVAL-UI-CONTRACTS-001` |
 
-Cycle 3.4.0 is `active`. Issues #41, #75, and #97 are complete. Issue #38 is
-the next dependency-ordered implementation item. Issue #35 remains blocked by
-#38, #37 remains blocked by #35, and #101 remains blocked by #37 and #96.
+Cycle 3.4.0 is `active`. Issues #28, #41, #75, and #97 are complete. Issue #38
+is the next dependency-ordered implementation item. Issue #35 remains blocked
+by #38, #37 remains blocked by #35, and #101 remains blocked by #37 and #96.
 `EVAL-CYCLE-340-001` aggregates all sixteen members and remains planned until
 every member acceptance criterion, applicable eval, and `Q6-CYCLE-3.4.0`
 condition passes.

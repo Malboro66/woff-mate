@@ -507,8 +507,9 @@ evals:
     evidence: Narrative generation handles zero, one, or several associated victories.
   EVAL-CLI-001:
     work_items: [issue-28]
-    status: planned
+    status: implemented
     evidence: An unknown pilot returns the same failure contract in table, JSON, CSV, and Markdown.
+    enforced_by: [woff/tests/test_woff_query.py]
   EVAL-CLI-CONTRACT-001:
     work_items: [issue-75]
     status: implemented
@@ -684,7 +685,7 @@ work_items:
   issue-28:
     title: Validate pilots in every woff_query output format
     module: presentation
-    state: backlog
+    state: done
     evals: [EVAL-CLI-001]
     gates: [Q0, Q1, Q6-CYCLE-3.4.0]
     depends_on: []
