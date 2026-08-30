@@ -60,6 +60,7 @@ class TestNormalization(unittest.TestCase):
             ("Balloon", "Balloon Busting"),
             ("Escort", "Escort Duty"),
             ("Ground Attack", "Ground Attack / Strafing"),
+            ("Strafing", "Ground Attack / Strafing"),
         )
 
         for raw, expected in cases:

@@ -322,6 +322,146 @@ def test_richer_victory_preserves_id_and_stable_mission_relationship(
         database.close()
 
 
+def test_replay_reconciles_legacy_unknown_victory_without_duplicate(
+    tmp_path,
+):
+    database = DatabaseManager(str(tmp_path / "legacy-unknown-victory.sqlite"))
+    try:
+        pilot = _persist_pilot(database)
+        legacy = WoFFVictory(
+            id="victory-legacy-ooc",
+            pilotId=pilot.id,
+            date="1917-04-06",
+            time="10:35",
+            enemyType="Albatros D.III",
+            victoryType="Out of Control (OOC)",
+            source_file="Pilot1Claims.txt",
+        )
+        assert database.merge_and_write(None, [], [legacy], []) == pilot.id
+        assert database._get_conn().execute(
+            "SELECT COUNT(*) FROM victory_source_records"
+        ).fetchone() == (0,)
+
+        replay = WoFFVictory(
+            id="victory-corrected-replay",
+            pilotId=pilot.id,
+            date=legacy.date,
+            time=legacy.time,
+            enemyType=legacy.enemyType,
+            victoryType="Engine exploded",
+            source_file=legacy.source_file,
+            source_record_key=stable_source_record_key(
+                "victory", legacy.source_file, 2
+            ),
+        )
+        assert database.merge_and_write(None, [], [replay], []) == pilot.id
+
+        assert database._get_conn().execute(
+            "SELECT id, victoryType FROM victories WHERE pilotId=?",
+            (pilot.id,),
+        ).fetchall() == [("victory-legacy-ooc", "Engine exploded")]
+        assert database._get_conn().execute(
+            """
+            SELECT victoryId FROM victory_source_records
+            WHERE pilotId=? AND source_record_key=?
+            """,
+            (pilot.id, replay.source_record_key),
+        ).fetchall() == [("victory-legacy-ooc",)]
+    finally:
+        database.close()
+
+
+def test_legacy_ooc_is_not_rewritten_from_a_different_source(tmp_path):
+    database = DatabaseManager(str(tmp_path / "legacy-ooc-source-gate.sqlite"))
+    try:
+        pilot = _persist_pilot(database)
+        legacy = WoFFVictory(
+            id="victory-legitimate-ooc",
+            pilotId=pilot.id,
+            date="1917-04-06",
+            time="10:35",
+            enemyType="Albatros D.III",
+            victoryType="Out of Control (OOC)",
+            source_file="Pilot1Claims.txt",
+        )
+        replay = WoFFVictory(
+            id="victory-other-source",
+            pilotId=pilot.id,
+            date=legacy.date,
+            time=legacy.time,
+            enemyType=legacy.enemyType,
+            victoryType="Engine exploded",
+            source_file="Pilot2Claims.txt",
+            source_record_key=stable_source_record_key(
+                "victory", "Pilot2Claims.txt", 2
+            ),
+        )
+
+        assert database.merge_and_write(None, [], [legacy], []) == pilot.id
+        assert database.merge_and_write(None, [], [replay], []) == pilot.id
+
+        assert database._get_conn().execute(
+            """
+            SELECT id, victoryType, source_file FROM victories
+            WHERE pilotId=? ORDER BY id
+            """,
+            (pilot.id,),
+        ).fetchall() == [
+            (
+                "victory-legitimate-ooc",
+                "Out of Control (OOC)",
+                "Pilot1Claims.txt",
+            ),
+            (
+                "victory-other-source",
+                "Engine exploded",
+                "Pilot2Claims.txt",
+            ),
+        ]
+    finally:
+        database.close()
+
+
+def test_legacy_ooc_is_not_rewritten_by_a_known_victory_type(tmp_path):
+    database = DatabaseManager(str(tmp_path / "legacy-ooc-type-gate.sqlite"))
+    try:
+        pilot = _persist_pilot(database)
+        legacy = WoFFVictory(
+            id="victory-legitimate-ooc",
+            pilotId=pilot.id,
+            date="1917-04-06",
+            time="10:35",
+            enemyType="Albatros D.III",
+            victoryType="Out of Control (OOC)",
+            source_file="Pilot1Claims.txt",
+        )
+        known_type = WoFFVictory(
+            id="victory-known-type",
+            pilotId=pilot.id,
+            date=legacy.date,
+            time=legacy.time,
+            enemyType=legacy.enemyType,
+            victoryType="Destroyed — In Flames",
+            source_file=legacy.source_file,
+            source_record_key=stable_source_record_key(
+                "victory", legacy.source_file, 2
+            ),
+        )
+
+        assert database.merge_and_write(None, [], [legacy], []) == pilot.id
+        assert database.merge_and_write(None, [], [known_type], []) == pilot.id
+
+        assert database._get_conn().execute(
+            "SELECT id, victoryType FROM victories WHERE pilotId=? ORDER BY id",
+            (pilot.id,),
+        ).fetchall() == [
+            ("victory-known-type", "Destroyed — In Flames"),
+            ("victory-legitimate-ooc", "Out of Control (OOC)"),
+        ]
+    finally:
+        database.close()
+
+
 def test_aliased_replay_without_mission_preserves_stored_relationship(
     tmp_path,
     caplog,

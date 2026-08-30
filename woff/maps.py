@@ -41,6 +41,7 @@ MISSION_TYPE_MAP = {
     "balloon": "Balloon Busting",
     "escort": "Escort Duty",
     "ground attack": "Ground Attack / Strafing", "straf": "Ground Attack / Strafing",
+    "strafing": "Ground Attack / Strafing",
 }
 
 # ──────────────────────────────────────────────────────────────

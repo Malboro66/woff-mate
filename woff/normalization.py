@@ -86,9 +86,17 @@ def normalize_status(
     return None
 
 
+def resolve_victory_alias(raw: str) -> Optional[str]:
+    """Return the canonical victory type for an explicit known alias."""
+    value = raw.strip() if raw else ""
+    if not value:
+        return None
+    return _match_token_alias(value, VICTORY_TYPE_MAP)
+
+
 def normalize_victory_type(raw: str) -> str:
     value = raw.strip() if raw else ""
-    return _match_token_alias(value, VICTORY_TYPE_MAP) or value
+    return resolve_victory_alias(value) or value
 
 
 def _calendar_date(year: str | int, month: str | int, day: str | int) -> str:

@@ -81,6 +81,83 @@ def test_reimport_updates_result_without_replacing_stable_mission_id(mission_db)
     ]
 
 
+@pytest.mark.parametrize("corrected_type", ["Troop Support", "Cooperation Flight"])
+def test_replay_reconciles_legacy_false_op_without_duplicate(
+    mission_db,
+    corrected_type,
+):
+    pilot = _persist_pilot(mission_db)
+    legacy = _mission(
+        pilot,
+        "mission-legacy-op",
+        "Pilot1Log.txt",
+        missionType="Offensive Patrol (OP)",
+        result="Completed",
+    )
+    assert mission_db.merge_and_write(None, [legacy], [], []) == pilot.id
+    assert mission_db.save_diary_entry(
+        pilot.id, legacy.id, legacy.date, "Existing diary"
+    )
+
+    replay = _mission(
+        pilot,
+        "mission-corrected-replay",
+        "Pilot1Log.txt",
+        missionType=corrected_type,
+        result="Force-Landed (Friendly Lines)",
+    )
+    assert mission_db.merge_and_write(None, [replay], [], []) == pilot.id
+
+    assert mission_db._get_conn().execute(
+        "SELECT id, missionType, result FROM missions WHERE pilotId=?",
+        (pilot.id,),
+    ).fetchall() == [
+        ("mission-legacy-op", corrected_type, "Force-Landed (Friendly Lines)")
+    ]
+    assert mission_db._get_conn().execute(
+        "SELECT missionId FROM diary_entries WHERE pilotId=?",
+        (pilot.id,),
+    ).fetchall() == [("mission-legacy-op",)]
+
+
+def test_legacy_false_op_is_not_rewritten_from_a_different_source(
+    mission_db,
+):
+    pilot = _persist_pilot(mission_db)
+    legitimate_op = _mission(
+        pilot,
+        "mission-legitimate-op",
+        "mission.log",
+        missionType="Offensive Patrol (OP)",
+    )
+    assert mission_db.merge_and_write(None, [legitimate_op], [], []) == pilot.id
+
+    different_source = _mission(
+        pilot,
+        "mission-different-source",
+        "Pilot1Log.txt",
+        missionType="Troop Support",
+    )
+    assert mission_db.merge_and_write(
+        None, [different_source], [], []
+    ) == pilot.id
+
+    assert mission_db._get_conn().execute(
+        """
+        SELECT id, missionType, source_file FROM missions
+        WHERE pilotId=? ORDER BY id
+        """,
+        (pilot.id,),
+    ).fetchall() == [
+        ("mission-different-source", "Troop Support", "Pilot1Log.txt"),
+        (
+            "mission-legitimate-op",
+            "Offensive Patrol (OP)",
+            "mission.log",
+        ),
+    ]
+
+
 def test_poorer_defaults_never_erase_richer_stored_values(mission_db, caplog):
     pilot = _persist_pilot(mission_db)
     authoritative = _mission(
