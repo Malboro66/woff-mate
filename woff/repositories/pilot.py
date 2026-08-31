@@ -194,8 +194,8 @@ class PilotRepository(BaseRepository):
                 source_file, last_updated
             ) VALUES (
                 ?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,
-                COALESCE(?, 0), COALESCE(?, 0), COALESCE(?, 0),
-                COALESCE(?, 0), COALESCE(?, 0), COALESCE(?, 0),
+                ?,?,?,
+                ?,?,?,
                 ?,?
             )
             """,

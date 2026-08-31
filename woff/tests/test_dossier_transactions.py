@@ -10,8 +10,9 @@ from ..campaign_engine import CampaignEngine
 from ..database import DatabaseManager
 from ..handler import FileProcessor
 from ..identity import PilotIdentityEvidence, PilotIdentityKind
+from ..ingestion.outcome import ProcessingReason, ProcessingStatus
 from ..parsers.dossier_parser import WoFFDossierParser
-from .test_dossier_parser import _encode_dossier
+from .test_dossier_parser import _dossier_fixture, _encode_dossier
 
 
 def _wingman(
@@ -165,6 +166,29 @@ def _changed_dossier() -> bytes:
             _wingman("Robert", "Baker"),
         ),
     )
+
+
+def test_identityless_dossier_never_reaches_merge_and_write(dossier_runtime):
+    database, processor, dossier_path = dossier_runtime
+    dossier_path.write_bytes(
+        _encode_dossier(
+            _dossier_fixture("long_corrupt_sanitized.txt"),
+            dossier_path.name,
+        )
+    )
+
+    with patch.object(
+        database,
+        "merge_and_write",
+        wraps=database.merge_and_write,
+    ) as merge_and_write:
+        outcome = processor.process(str(dossier_path), "initial")
+
+    assert outcome.status is ProcessingStatus.PERMANENT_REJECTION
+    assert outcome.reason is ProcessingReason.PARSER_REJECTED
+    merge_and_write.assert_not_called()
+    state = _stored_state(database)
+    assert all(not rows for rows in state.values())
 
 
 @pytest.mark.parametrize("event_type", ["initial", "modified"])

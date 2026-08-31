@@ -35,6 +35,39 @@ strings and are not guessed as a nation. All parser paths use the alias tables
 in `woff/maps.py`; new aliases require a sanitized representative sample or an
 existing regression fixture that establishes the value.
 
+## Dossier layout validation
+
+WoFF Mate names the existing fixed-index contract `fixed-index-v1`. This name
+documents the parser behavior already covered by sanitized regression data. It
+does not identify a WoFF build and does not claim compatibility with another
+layout.
+
+The supported layout requires a nonempty first name at decoded index 4 and a
+nonempty surname at decoded index 5. Both fields must contain alphabetic text
+and only name-compatible separators. The parser validates these identity
+fields before reading optional statistics or constructing a pilot.
+
+Decoded input receives one structural classification:
+
+| Classification | Policy |
+| --- | --- |
+| `supported-full` | Required identity is valid and every fixed field through index 100 is addressable. |
+| `supported-partial` | Required identity is valid, but one or more later fixed fields are unavailable. Present optional fields are parsed independently. |
+| `truncated` | Input ends before the required identity positions are complete. It is rejected. |
+| `unsupported-layout` | Required positions exist, but identity fields are missing or semantically invalid. It is rejected. |
+| `decryption-failed` | No decoded fields are produced or required fields contain evidence of the wrong key or invalid decoded text. It is rejected. |
+
+Missing optional numeric values remain unknown. A new partial Dossier stores
+them as SQL `NULL`, and a later partial update does not replace an existing
+authoritative value. Explicit zero remains distinct and writable.
+
+Dossier acceptance and structural-rejection diagnostics contain only the
+source basename, classification, layout name, and decoded record count.
+Numeric-field diagnostics add the field name and sanitized failure reason.
+Neither form logs pilot identity or campaign fields. Future layout variants
+require separate identifiers and sanitized representative evidence. Fixed
+indexes must not shift silently.
+
 ## Reporting a compatibility problem safely
 
 Include only the minimum technical context needed to reproduce the problem:
