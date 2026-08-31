@@ -459,20 +459,39 @@ evals:
       - woff/tests/test_pilot_data_parser.py
   EVAL-NATION-001:
     work_items: [issue-38]
-    status: planned
+    status: implemented
     evidence: An unknown nation value never defaults to RFC.
+    enforced_by:
+      - woff/tests/test_normalization.py
+      - woff/tests/test_xml_parser.py
+      - woff/tests/test_mission_log_parser.py
   EVAL-NATION-002:
     work_items: [issue-38]
-    status: planned
+    status: implemented
     evidence: A short alias never matches another nation by substring.
+    enforced_by:
+      - woff/tests/test_normalization.py
+      - woff/tests/test_dossier_parser.py
+      - woff/tests/test_xml_parser.py
+      - woff/tests/test_mission_log_parser.py
   EVAL-NORM-MISSION-001:
     work_items: [issue-38]
-    status: planned
+    status: implemented
     evidence: Unknown mission aliases remain unknown instead of becoming a known normalized value.
+    enforced_by:
+      - woff/tests/test_normalization.py
+      - woff/tests/test_pilot_data_parser.py
+      - woff/tests/test_xml_parser.py
+      - woff/tests/test_mission_upsert.py
   EVAL-NORM-VICTORY-001:
     work_items: [issue-38]
-    status: planned
+    status: implemented
     evidence: Unknown victory aliases remain unknown and exact aliases never match by substring.
+    enforced_by:
+      - woff/tests/test_normalization.py
+      - woff/tests/test_pilot_data_parser.py
+      - woff/tests/test_xml_parser.py
+      - woff/tests/test_victory_decoration_merge.py
   EVAL-DOSSIER-001:
     work_items: [issue-35]
     status: planned
@@ -715,12 +734,12 @@ work_items:
   issue-35:
     title: Replace the Dossier line-count gate with field-level validation
     module: ingestion
-    state: blocked
+    state: backlog
     evals: [EVAL-DOSSIER-001, EVAL-DOSSIER-002]
     gates: [Q0, Q1, Q3, Q6-CYCLE-3.4.0]
     depends_on:
       - {id: issue-41, status: satisfied}
-      - {id: issue-38, status: unsatisfied}
+      - {id: issue-38, status: satisfied}
   issue-36:
     title: Bound and coalesce filesystem event scheduling
     module: application
@@ -741,7 +760,7 @@ work_items:
   issue-38:
     title: Use exact aliases and stop fabricating unknown normalized values
     module: domain
-    state: backlog
+    state: done
     evals: [EVAL-NATION-001, EVAL-NATION-002, EVAL-NORM-MISSION-001, EVAL-NORM-VICTORY-001]
     gates: [Q0, Q1, Q6-CYCLE-3.4.0]
     depends_on: []

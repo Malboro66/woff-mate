@@ -508,14 +508,38 @@ for the broader roster-generation and truncated-input policy.
 | #80 | `EVAL-UI-STATES-001` |
 | #81 | `EVAL-UI-CONTRACTS-001` |
 
-Cycle 3.4.0 is `active`. Issues #28, #41, #75, and #97 are complete. Issue #79
-remains in progress pending a passing audit of the published UI V2 Site. Issue
-#38 is the next dependency-ordered implementation item. Issue #35 remains
-blocked by #38, #37 remains blocked by #35, and #101 remains blocked by #37 and
-#96.
+Cycle 3.4.0 is `active`. Issues #28, #38, #41, #75, and #97 are complete. Issue
+#79 remains in progress pending a passing audit of the published UI V2 Site.
+Issue #35 is the next dependency-ordered implementation item, #37 remains
+blocked by #35, and #101 remains blocked by #37 and #96.
 `EVAL-CYCLE-340-001` aggregates all sixteen members and remains planned until
 every member acceptance criterion, applicable eval, and `Q6-CYCLE-3.4.0`
 condition passes.
+
+### Implemented exact normalization evals
+
+- `EVAL-NATION-001` and `EVAL-NATION-002` are enforced by
+  `woff/tests/test_normalization.py`, `woff/tests/test_dossier_parser.py`,
+  `woff/tests/test_xml_parser.py`, and
+  `woff/tests/test_mission_log_parser.py`. Known nation aliases use exact
+  case-insensitive lookup, unknown explicit values remain unchanged, empty
+  values remain empty, and short aliases such as `US` never match inside
+  unrelated names such as `Austria` or `Russia`.
+- `EVAL-NORM-MISSION-001` is enforced by
+  `woff/tests/test_normalization.py`, `woff/tests/test_pilot_data_parser.py`,
+  `woff/tests/test_xml_parser.py`, and `woff/tests/test_mission_upsert.py`.
+  Mission aliases require token boundaries, the complete `Strafing` alias
+  remains supported, and unknown mission text survives PilotLog and XML
+  parsing. Replays reproduce every historical substring transition only for
+  one canonical same-source row, preserving the stable mission ID and diary
+  relationship without a schema change.
+- `EVAL-NORM-VICTORY-001` is enforced by
+  `woff/tests/test_normalization.py`, `woff/tests/test_pilot_data_parser.py`,
+  `woff/tests/test_xml_parser.py`, and
+  `woff/tests/test_victory_decoration_merge.py`. Exact victory aliases remain
+  canonical while unknown text survives parsing. Legacy OOC replay is limited
+  to one compatible same-source row with a validated stable source key, so the
+  stable victory identity is preserved without rewriting unrelated records.
 
 ### Implemented numeric parsing evals
 
