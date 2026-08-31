@@ -58,6 +58,18 @@ def normalize_mission_type(raw: str) -> str:
     return _match_token_alias(value, MISSION_TYPE_MAP) or value
 
 
+def resolve_legacy_mission_substring_alias(raw: str) -> Optional[str]:
+    """Return the category produced by the pre-boundary mission matcher."""
+    normalized = raw.strip().lower() if raw else ""
+    if not normalized:
+        return None
+    for keys, value in MISSION_TYPE_MAP.items():
+        aliases = keys if isinstance(keys, tuple) else (keys,)
+        if any(alias in normalized for alias in aliases):
+            return value
+    return None
+
+
 def normalize_status(
     raw: Optional[str], root: Optional[ET.Element] = None
 ) -> Optional[str]:

@@ -265,10 +265,11 @@ class WoFFXMLParser:
         m.date = canonical_date
         m.time = canonical_time
 
-        m.missionType   = normalize_mission_type(
+        m.rawMissionType = (
             elem.get("type") or elem.get("Type") or
             self._find(elem, "Type","MissionType","OrderType","Auftrag") or ""
-        )
+        ).strip()
+        m.missionType   = normalize_mission_type(m.rawMissionType)
         m.aircraft      = self._find(elem, "Aircraft","Plane","AircraftType","Flugzeug") or ""
         m.duration      = explicit_duration or duration_fallback
         m.altitude      = self._find(elem, "Altitude","Height","MaxAltitude","Hoehe") or ""

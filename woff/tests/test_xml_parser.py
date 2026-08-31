@@ -211,6 +211,26 @@ class TestWoFFXMLParser(unittest.TestCase):
             ["Troop Support", "Cooperation Flight"],
         )
 
+    def test_xml_preserves_raw_mission_type_for_legacy_replay(self):
+        xml = """<?xml version="1.0" encoding="UTF-8"?>
+<Campaign>
+  <Pilot><PilotName>Mission Alias Pilot</PilotName></Pilot>
+  <Missions>
+    <Mission>
+      <Date>1917-04-06</Date>
+      <Type>Troop Support Escort</Type>
+    </Mission>
+  </Missions>
+</Campaign>
+"""
+
+        self.assertTrue(self._write_and_parse(xml))
+        self.assertEqual(self.parser.missions[0].missionType, "Escort Duty")
+        self.assertEqual(
+            self.parser.missions[0].rawMissionType,
+            "Troop Support Escort",
+        )
+
     def test_invalid_xml_counts_reject_only_the_affected_mission(self):
         fields = (
             ("EnemyContacts", "enemyContacts"),

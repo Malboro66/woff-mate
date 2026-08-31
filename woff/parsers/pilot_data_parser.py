@@ -262,7 +262,8 @@ class WoFFPilotDataParser:
                     m.time = mission_time
                     m.sector = parts[5]
                     m.aircraft = parts[8]
-                    m.missionType = normalize_mission_type(parts[7])
+                    m.rawMissionType = parts[7]
+                    m.missionType = normalize_mission_type(m.rawMissionType)
                     m.duration = parts[10]
                     m.squadron = parts[13]
                     m.damageReceived = False

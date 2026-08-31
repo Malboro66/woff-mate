@@ -13,7 +13,12 @@ import logging
 import xml.etree.ElementTree as ET
 from typing import Optional, List, Dict, Any
 from ..models import WoFFMission, WoFFPilot
-from ..normalization import normalize_date, normalize_time, normalize_coordinates
+from ..normalization import (
+    normalize_coordinates,
+    normalize_date,
+    normalize_nation,
+    normalize_time,
+)
 
 log = logging.getLogger("WoFFWatch")
 
@@ -109,7 +114,9 @@ class WoFFMissionLogParser:
             # Se encontramos a unidade do jogador nesta formação
             if player_unit is not None:
                 self.pilot = WoFFPilot()
-                self.pilot.nation = formation.get("Country", "")
+                self.pilot.nation = normalize_nation(
+                    formation.get("Country", "")
+                )
                 self.pilot.squadron = formation.get("SquadName", "")
                 
                 if self.mission:

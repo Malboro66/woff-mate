@@ -23,6 +23,7 @@ from ..normalization import (
     canonical_mission_order_key,
     normalize_date,
     normalize_time,
+    resolve_legacy_mission_substring_alias,
     resolve_victory_alias,
 )
 
@@ -300,10 +301,6 @@ _DEFAULT_TEXT_VALUES = {
     "weather": frozenset({"unknown"}),
     "result": frozenset({"uneventful"}),
 }
-_LEGACY_FALSE_OP_CORRECTIONS = frozenset(
-    {"Troop Support", "Cooperation Flight"}
-)
-_LEGACY_FALSE_OP_TYPE = "Offensive Patrol (OP)"
 
 
 def mission_source_priority(source_file: object) -> int:
@@ -464,19 +461,22 @@ def stored_mission_identity_index(
     return {identity: choice[1] for identity, choice in choices.items()}
 
 
-def _legacy_false_op_candidate(
+def _legacy_mission_alias_candidate(
     cursor: sqlite3.Cursor,
     pilot_id: str,
     incoming_identity: MissionIdentityKey,
+    incoming_raw_type: object,
     incoming_source: object,
 ) -> Optional[str]:
-    """Resolve one same-source row affected by the historical OP fallback."""
-    if incoming_identity[2] not in _LEGACY_FALSE_OP_CORRECTIONS:
+    """Resolve one same-source row changed by the historical matcher."""
+    raw_type = str(incoming_raw_type or "").strip() or incoming_identity[2]
+    legacy_type = resolve_legacy_mission_substring_alias(raw_type)
+    if legacy_type is None or legacy_type == incoming_identity[2]:
         return None
     legacy_identity = (
         incoming_identity[0],
         incoming_identity[1],
-        _LEGACY_FALSE_OP_TYPE,
+        legacy_type,
         incoming_identity[3],
     )
     candidates: List[str] = []
@@ -486,7 +486,7 @@ def _legacy_false_op_candidate(
         FROM missions
         WHERE pilotId=? AND missionType=? AND aircraft=?
         """,
-        (pilot_id, _LEGACY_FALSE_OP_TYPE, incoming_identity[3]),
+        (pilot_id, legacy_type, incoming_identity[3]),
     ).fetchall():
         if mission_identity_key(row[1], row[2], row[3], row[4]) != legacy_identity:
             continue
@@ -1023,10 +1023,11 @@ class MissionRepository(BaseRepository):
                 else:
                     unchanged_m += 1
                 continue
-            legacy_mission_id = _legacy_false_op_candidate(
+            legacy_mission_id = _legacy_mission_alias_candidate(
                 cursor,
                 pilot_id,
                 identity,
+                m.rawMissionType,
                 m.source_file,
             )
             if legacy_mission_id is not None:

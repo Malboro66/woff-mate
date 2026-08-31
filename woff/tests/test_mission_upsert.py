@@ -5,6 +5,7 @@ import pytest
 
 from ..database import DatabaseManager
 from ..models import WoFFMission, WoFFPilot
+from ..parsers.pilot_data_parser import WoFFPilotDataParser
 from .identity_support import dossier_evidence
 
 
@@ -81,17 +82,29 @@ def test_reimport_updates_result_without_replacing_stable_mission_id(mission_db)
     ]
 
 
-@pytest.mark.parametrize("corrected_type", ["Troop Support", "Cooperation Flight"])
-def test_replay_reconciles_legacy_false_op_without_duplicate(
+@pytest.mark.parametrize(
+    ("legacy_type", "corrected_type", "source_file"),
+    [
+        ("Offensive Patrol (OP)", "Troop Support", "Pilot1Log.txt"),
+        ("Offensive Patrol (OP)", "Cooperation Flight", "career.xml"),
+        ("Bombing Raid (Tactical)", "Bombardment", "Pilot1Log.txt"),
+        ("Close Air Support (CAS)", "Casualty Evacuation", "career.xml"),
+        ("Ground Attack / Strafing", "Strafed Target", "Pilot1Log.txt"),
+        ("Balloon Busting", "Ballooning Patrol", "career.xml"),
+    ],
+)
+def test_replay_reconciles_every_legacy_substring_alias_without_duplicate(
     mission_db,
+    legacy_type,
     corrected_type,
+    source_file,
 ):
     pilot = _persist_pilot(mission_db)
     legacy = _mission(
         pilot,
-        "mission-legacy-op",
-        "Pilot1Log.txt",
-        missionType="Offensive Patrol (OP)",
+        "mission-legacy-alias",
+        source_file,
+        missionType=legacy_type,
         result="Completed",
     )
     assert mission_db.merge_and_write(None, [legacy], [], []) == pilot.id
@@ -102,7 +115,7 @@ def test_replay_reconciles_legacy_false_op_without_duplicate(
     replay = _mission(
         pilot,
         "mission-corrected-replay",
-        "Pilot1Log.txt",
+        source_file,
         missionType=corrected_type,
         result="Force-Landed (Friendly Lines)",
     )
@@ -112,12 +125,59 @@ def test_replay_reconciles_legacy_false_op_without_duplicate(
         "SELECT id, missionType, result FROM missions WHERE pilotId=?",
         (pilot.id,),
     ).fetchall() == [
-        ("mission-legacy-op", corrected_type, "Force-Landed (Friendly Lines)")
+        (
+            "mission-legacy-alias",
+            corrected_type,
+            "Force-Landed (Friendly Lines)",
+        )
     ]
     assert mission_db._get_conn().execute(
         "SELECT missionId FROM diary_entries WHERE pilotId=?",
         (pilot.id,),
-    ).fetchall() == [("mission-legacy-op",)]
+    ).fetchall() == [("mission-legacy-alias",)]
+
+
+def test_pilotlog_replay_uses_raw_type_to_reconcile_legacy_alias_collision(
+    mission_db,
+):
+    pilot = _persist_pilot(mission_db)
+    legacy = _mission(
+        pilot,
+        "mission-legacy-overlap",
+        "Pilot1Log.txt",
+        missionType="Offensive Patrol (OP)",
+        result="Completed",
+    )
+    assert mission_db.merge_and_write(None, [legacy], [], []) == pilot.id
+    assert mission_db.save_diary_entry(
+        pilot.id, legacy.id, legacy.date, "Existing diary"
+    )
+
+    parser = WoFFPilotDataParser()
+    assert parser.parse_bytes(
+        (
+            "1\n"
+            "6;4;1917;10;30;Arras;Filescamp;Troop Support Escort;"
+            "Sopwith Camel;;45;100;Sopwith Camel;No. 56 Sqn;troops;"
+            "Target;N50;E2;;Mission completed.\n"
+        ),
+        "Pilot1Log.txt",
+    )
+    assert len(parser.missions) == 1
+    replay = parser.missions[0]
+    assert replay.missionType == "Escort Duty"
+    replay.pilotId = pilot.id
+
+    assert mission_db.merge_and_write(None, [replay], [], []) == pilot.id
+
+    assert mission_db._get_conn().execute(
+        "SELECT id, missionType FROM missions WHERE pilotId=?",
+        (pilot.id,),
+    ).fetchall() == [("mission-legacy-overlap", "Escort Duty")]
+    assert mission_db._get_conn().execute(
+        "SELECT missionId FROM diary_entries WHERE pilotId=?",
+        (pilot.id,),
+    ).fetchall() == [("mission-legacy-overlap",)]
 
 
 def test_legacy_false_op_is_not_rewritten_from_a_different_source(

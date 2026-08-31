@@ -46,6 +46,23 @@ class TestWoFFPilotDataParser(unittest.TestCase):
             [mission.missionType for mission in parser.missions],
             ["Troop Support", "Cooperation Flight"],
         )
+
+    def test_pilotlog_preserves_raw_mission_type_for_legacy_replay(self):
+        mock_content = (
+            "1\n"
+            "6;4;1917;10;30;Arras;Filescamp;Troop Support Escort;SE.5a;;"
+            "45;100;SE.5a;No. 56 Sqn;troops;Target;N50;E2;;"
+            "Mission completed.\n"
+        )
+
+        parser = WoFFPilotDataParser()
+        self.assertTrue(parser.parse_bytes(mock_content, "Pilot1Log.txt"))
+
+        self.assertEqual(parser.missions[0].missionType, "Escort Duty")
+        self.assertEqual(
+            parser.missions[0].rawMissionType,
+            "Troop Support Escort",
+        )
     
 
     def test_parse_log_extended_looking_fields_use_verified_layout(self):
