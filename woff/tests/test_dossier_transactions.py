@@ -191,6 +191,34 @@ def test_identityless_dossier_never_reaches_merge_and_write(dossier_runtime):
     assert all(not rows for rows in state.values())
 
 
+def test_partial_null_rank_preserves_stored_rank_and_diary(dossier_runtime):
+    database, processor, dossier_path = dossier_runtime
+    assert _process(
+        processor,
+        dossier_path,
+        _dossier_bytes(rank="Captain"),
+        "initial",
+    ) is not None
+    diary_before = _stored_state(database)["diary"]
+    partial = _encode_dossier(
+        ["Null", "Britain", "Null", "Null", "James", "Hartley"],
+        dossier_path.name,
+    )
+
+    assert _process(
+        processor,
+        dossier_path,
+        partial,
+        "modified",
+    ) is not None
+
+    stored_rank = database._get_conn().execute(
+        "SELECT rank FROM pilots"
+    ).fetchone()
+    assert stored_rank == ("Captain",)
+    assert _stored_state(database)["diary"] == diary_before
+
+
 @pytest.mark.parametrize("event_type", ["initial", "modified"])
 def test_diary_rejection_rolls_back_pilot_decorations_and_roster(
     dossier_runtime, monkeypatch, event_type

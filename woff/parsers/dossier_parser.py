@@ -182,13 +182,22 @@ class WoFFDossierParser:
                 len(player_data),
             )
 
+        if any(
+            "\ufffd" in value
+            or not all(character.isprintable() for character in value)
+            for value in player_data
+        ):
+            return self._reject(
+                DossierValidationStatus.DECRYPTION_FAILED,
+                fname,
+                len(player_data),
+            )
+
         if len(player_data) > _DOSSIER_REQUIRED_LAST_INDEX:
             first_name = player_data[4].strip()
             last_name = player_data[5].strip()
             if any(
-                not value.isprintable()
-                or "\ufffd" in value
-                or not all(
+                not all(
                     character.isalpha()
                     or character.isdigit()
                     or character in _DOSSIER_NAME_SEPARATORS
@@ -223,7 +232,14 @@ class WoFFDossierParser:
             self.pilot.last_updated = datetime.now().isoformat()
             
             def safe_get(idx):
-                return player_data[idx] if len(player_data) > idx and player_data[idx] else ""
+                value = (
+                    player_data[idx]
+                    if len(player_data) > idx and player_data[idx]
+                    else ""
+                )
+                if value.casefold() in _DOSSIER_MISSING_TOKENS:
+                    return ""
+                return value
 
             def parse_pilot_integer(
                 idx: int, field: str, policy: IntegerPolicy

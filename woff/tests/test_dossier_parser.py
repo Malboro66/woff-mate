@@ -460,6 +460,49 @@ class TestWoFFDossierParser(unittest.TestCase):
             " ".join(captured.output),
         )
 
+    def test_short_dossier_encoded_for_another_slot_is_rejected(self):
+        encoded = _encode_dossier(
+            _dossier_fixture("short_valid_sanitized.txt"),
+            "Pilot1Dossier.txt",
+        )
+
+        self.assertFalse(
+            self.parser.parse_bytes(encoded, "Pilot11Dossier.txt")
+        )
+
+        self.assertIsNone(self.parser.pilot)
+        self.assertEqual(
+            _validation_status_value(self.parser),
+            "decryption-failed",
+        )
+
+    def test_partial_dossier_normalizes_missing_optional_strings(self):
+        lines = ["Null"] * 93
+        lines[1] = "France"
+        lines[4] = "Sample"
+        lines[5] = "Pilot"
+
+        self.assertTrue(
+            self.parser.parse_bytes(
+                _encode_dossier(lines, self.filename),
+                self.filename,
+            )
+        )
+
+        self.assertIsNotNone(self.parser.pilot)
+        assert self.parser.pilot is not None
+        self.assertEqual(
+            (
+                self.parser.pilot.rank,
+                self.parser.pilot.squadron,
+                self.parser.pilot.aircraft,
+                self.parser.pilot.aerodrome,
+                self.parser.pilot.sector,
+                self.parser.pilot.birthPlace,
+            ),
+            ("", "", "", "", "", ""),
+        )
+
     def test_bytes_without_decoded_fields_are_decryption_failure(self):
         with self.assertLogs("WoFFWatch", level="WARNING") as captured:
             self.assertFalse(
