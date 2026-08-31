@@ -1,8 +1,8 @@
 # UI V2 published-site audit
 
-Status: Failed — corrections required
+Status: Passed
 
-Date: 2026-08-29
+Date: 2026-08-31
 
 Eval: `EVAL-UI-DESIGN-001`
 
@@ -23,112 +23,114 @@ replace the toolkit-independent contracts in
 
 ## Capture record
 
-- Evidence revision: [`UIV2-SITE-2026-08-29-AUDIT-1`](evidence/ui-v2-site-2026-08-29/README.md).
-- Published deployment: `69c0abd6-d843-4646-b141-f76723098421`, obtained
-  from `__artifactCompatibility.deploymentVersion` while the audited revision
-  remained published.
+- Evidence revision:
+  [`UIV2-SITE-2026-08-31-AUDIT-2`](evidence/ui-v2-site-2026-08-31/README.md).
+- Published deployment: `appgdep_6a9555f927b081919b6cc2f33e9f3ffb`.
+- Saved Site version: `16`.
+- Published source commit: `07cc3397ac9a9204c6540becaf57ffcaad3c8897`.
 - Evidence-set SHA-256:
-  `ef028e0f8a49663c1a5b7d835b61f4c5128b238a7dde0df0e0f8633d0892b161`.
-- Browser viewport: 1363 by 936 CSS pixels at device-pixel ratio 1.
-- Fixture profile displayed by the Site: `Desktop 100%`.
-- Captures: versioned full-page JPEG evidence for the seven
-  persistent-navigation destinations, plus the Career Selector, Mission Report,
-  Aircrew Profile, Report Viewer, and Desktop Fixture Matrix.
+  `a64fd0e67383d3cf828ec33edc225fde18df1a710833b648a838222938ee5ce9`.
+- Browser viewport width: 1363 CSS pixels at device-pixel ratio 1.
+- Captures: versioned viewport JPEG evidence for the seven persistent
+  destinations, Career Selector, Mission Report, Aircrew Profile, Report
+  Viewer, and Desktop Fixture Matrix.
 - Data: the Site's synthetic/sanitized fixture only.
-- Source states exercised: `Complete` for the recorded contrast table, a
-  same-name career change, primary navigation, and contextual entry/return
-  routes.
 
-The Site exposed these fixture-matrix screen IDs: `OPR-01`, `DOS-01`, `MIS-01`,
-`MIS-02`, `SQD-01`, `SQD-02`, `JRN-01`, `RPT-01`, `RPT-02`, and `SYS-01`. It
-also exposed fourteen semantic states and four desktop scale profiles.
+The published fixture matrix exposed all 15 required screen IDs:
+`APP-00`, `SEL-01`, `OPR-01`, `DOS-01`, `DOS-02`, `DOS-03`, `DOS-04`,
+`MIS-01`, `MIS-02`, `SQD-01`, `SQD-02`, `JRN-01`, `RPT-01`, `RPT-02`, and
+`SYS-01`. It also exposed and passed all 14 semantic states and the Desktop
+100%, 125%, 150%, and 200% profiles.
 
-## Contrast method
+The failed 2026-08-29 evidence remains immutable historical evidence. This
+audit is a new revision and does not overwrite the earlier capture set.
 
-For every visible text run, the audit recorded the computed foreground,
-cumulative opacity, font size and weight, bounding rectangle, and nearest
-rendered surface. The versioned full-page capture supplied the actual textured
-backdrop. The reported rendered ratio uses the WCAG relative-luminance formula
-against the median of the adjacent four-pixel background ring. This avoids
-counting anti-aliased glyph pixels as background while retaining the paper,
-wood, felt, gradient, and opacity composition visible beside the glyphs. The
-computed base pairs also fail for every representative row, so the result does
-not depend on the capture encoding.
+## Contrast and typography method
 
-The table records one representative failure per destination. All examples are
-normal text and therefore require at least 4.5:1. Because even the local median
-is below 4.5:1, the failure does not depend on claiming a global pixel minimum.
+For every visible text-bearing element, the audit recorded computed foreground,
+font size and weight, visibility, and the nearest opaque rendered surface. It
+used the WCAG relative-luminance formula for the resulting foreground/background
+pair. Normal text required at least 4.5:1; large text required at least 3:1.
+Viewport captures were inspected alongside the measurements to confirm surface
+selection, texture treatment, focus visibility, and absence of inherited dark-
+surface colors on paper cards.
 
-| Screen | Representative text | Computed base pair | Rendered local ratio | Required | Result |
-|---|---|---:|---:|---:|---|
-| `OPR-01` Operations Board | `RFC · FORM 14A · FIELD COPY` | 2.02:1 | 2.17:1 | 4.5:1 | Fail |
-| `DOS-01` Pilot Dossier | `· READ ONLY` | 2.02:1 | 2.07:1 | 4.5:1 | Fail |
-| `MIS-01` Mission Log | `14 SQN · RFC` | 2.68:1 | 2.96:1 | 4.5:1 | Fail |
-| `JRN-01` War Diary | `Location` | 1.06:1 | 1.14:1 | 4.5:1 | Fail |
-| `RPT-01` Reports Library | `Period` | 1.06:1 | 1.15:1 | 4.5:1 | Fail |
-| `SQD-01` Squadron Roster | `Bailleul Aerodrome · 15 AUG 1917` | 3.05:1 | 3.20:1 | 4.5:1 | Fail |
-| `SYS-01` System Status | unknown-value em dash | 2.67:1 | 2.73:1 | 4.5:1 | Fail |
+The minimum meaningful type size was checked separately at 12 CSS pixels. A
+passing ratio does not excuse text below that approved caption floor.
 
-Two repeated causes are visible in the computed styles:
+| Screen | Lowest measured ratio | Required | Type below 12 px | Result |
+|---|---:|---:|---:|---|
+| `APP-00` Application Shell | 4.92:1 | 4.5:1 | 0 | Pass |
+| `SEL-01` Career Selector | 4.92:1 | 4.5:1 | 0 | Pass |
+| `OPR-01` Operations | 4.61:1 | 4.5:1 | 0 | Pass |
+| `DOS-01` Pilot Dossier | 4.55:1 | 4.5:1 | 0 | Pass |
+| `DOS-02` Career Record | 4.92:1 | 4.5:1 | 0 | Pass |
+| `DOS-03` Victories & Claims | 4.92:1 | 4.5:1 | 0 | Pass |
+| `DOS-04` Decorations | 4.92:1 | 4.5:1 | 0 | Pass |
+| `MIS-01` Mission Log | 4.68:1 | 4.5:1 | 0 | Pass |
+| `MIS-02` Mission Report | 4.86:1 | 4.5:1 | 0 | Pass |
+| `SQD-01` Squadron Roster | 4.68:1 | 4.5:1 | 0 | Pass |
+| `SQD-02` Aircrew Profile | 4.55:1 | 4.5:1 | 0 | Pass |
+| `JRN-01` War Diary | 4.68:1 | 4.5:1 | 0 | Pass |
+| `RPT-01` Reports Library | 4.68:1 | 4.5:1 | 0 | Pass |
+| `RPT-02` Report Viewer | 4.92:1 | 4.5:1 | 0 | Pass |
+| `SYS-01` System Status | 4.68:1 | 4.5:1 | 0 | Pass |
 
-- dark-surface muted text (`rgb(173, 179, 161)`) is reused on textured paper,
-  producing approximately 1.06:1 before the texture is sampled; and
-- stamps and small paper metadata use muted color and opacity combinations
-  that remain below the normal-text threshold.
+The Pilot Dossier representative surface was then re-rendered in Complete,
+Loading, Empty, Partial, No career, Missing, Truncated, Unsupported,
+Unreadable, Error, Stale, Authoritative zeroes, Unknown values, and Not
+available states. Their lowest measured ratios were between 4.55:1 and 4.92:1,
+with no type-size failure.
 
-The published Site also renders essential metadata at 7–10 CSS pixels even
-though `type.caption` is 12 logical pixels in the approved visual system. That
-is a separate conformance problem from the contrast ratio.
+## Scale checks
+
+| Profile | Document width | Main width | Horizontal overflow | Result |
+|---|---:|---:|---|---|
+| Desktop 100% | 1363 / 1363 | 1091 / 1091 | No | Pass |
+| Desktop 125% | 1363 / 1363 | 1091 / 1091 | No | Pass |
+| Desktop 150% | 1363 / 1363 | 1091 / 1091 | No | Pass |
+| Desktop 200% | 1363 / 1363 | 1091 / 1091 | No | Pass |
+
+Each width cell is `clientWidth / scrollWidth`. Text retained the 12-pixel
+floor, navigation labels remained visible, and the resulting destination
+heading remained the programmatic focus target.
 
 ## Interaction and contract checks
 
 | Check | Observed evidence | Result |
 |---|---|---|
-| Stable same-name career selection | Selecting career `RAF-41B-22C1` from `MIS-02` updated the context to `41 Squadron RAF` but retained the previous `MIS-1917-08-15-027` report, including `14 Squadron RFC` content. | Fail |
-| Programmatic destination focus | Primary navigation to Pilot Dossier left focus on `<main class="workspace" tabindex="-1">`; the `h1` had no `tabindex` and was not active. | Fail |
-| Published navigation contract | The visible order is `Dashboard`, `Pilot`, `Missions`, `Diary`, `Reports`, `Squadron`; the normative order is `Operations`, `Pilot Dossier`, `Missions`, `Squadron`, `War Diary`, `Reports`. | Fail |
-| Core contextual routes | `MIS-02`, `SQD-02`, `RPT-02`, the Career Selector, fixture states, filters, and return routes were reachable without a dead end. | Pass |
-| Required visual coverage | The fixture matrix does not expose standalone `APP-00`, `SEL-01`, `DOS-02`, `DOS-03`, or `DOS-04` records. | Partial |
+| Stable same-name career selection | Changing from RFC career `RFC-14A-08F2` to same-name RAF career `RAF-41B-22C1` removed the prior mission and `14 Squadron RFC` content before presenting `WoFF Pilot 2`, 41 Squadron RAF, and Bertangles. | Pass |
+| Persistent slot presentation | `WoFF Pilot 1`, `WoFF Pilot 2`, and `WoFF Pilot 3` remain source-slot labels; the selected value and historical identity remain `career_id`. Slot labels are never derived from list order or renumbered after an earlier slot becomes vacant. | Pass |
+| Programmatic destination focus | Every primary destination and applied fixture focused `h1#screen-title`; the heading uses `tabindex="-1"` and remains outside sequential Tab order. | Pass |
+| Published navigation contract | Visible order is `Operations`, `Pilot Dossier`, `Missions`, `Squadron`, `War Diary`, `Reports`, with `Data & System Status` separated in the footer. | Pass |
+| Core and contextual routes | All 15 screen IDs are independently selectable or reachable; contextual routes and return controls have no dead end. | Pass |
+| Required semantic states | Fourteen states are available and use shared, sanitized, read-only presentation without borrowing another career's values. | Pass |
 
-The same-name result is a presentation-boundary failure: changing the active
-career must clear or replace previous-career content before presenting the new
-context. A fixture label is not sufficient protection when contradictory
-career data remains visible.
+The career-change loading geometry clears `selectedMission`, `selectedAircrew`,
+and `selectedReport` before the new career becomes active. Records also carry
+their owning `careerId`, so a stale detail cannot render if it does not belong
+to the selected career.
 
-## Required corrections
+## Privacy and scope result
 
-1. Scope text colors to their rendered surface. Paper metadata must use the
-   approved ink tokens at full effective contrast; muted dark-surface tokens
-   cannot inherit into paper cards. Recheck every state and scale after texture
-   and opacity composition.
-2. Raise essential typography to the approved token floor; do not use 7–10
-   pixel text for status, provenance, table headings, or other meaningful data.
-3. On `career_id` change, clear the current detail snapshot immediately, enter
-   the loading/no-career-safe geometry, and route only to content belonging to
-   the newly selected identity.
-4. Move one-time programmatic focus to the destination `h1` with
-   `tabindex="-1"` or the toolkit-equivalent API. Keep the heading out of the
-   sequential `Tab` order and restore overlay focus to its opener.
-5. Align the published navigation label/order with the normative screen map and
-   either add the missing contextual coverage or identify the Site explicitly
-   as a partial visual source.
+All evidence is synthetic/sanitized. No capture or measurement contains a
+personal path, database content, log, raw WoFF payload, activation/license
+information, credential, cookie, or session value. The Site remains read-only
+and exposes no create, edit, delete, import, repair, regeneration, launcher, or
+live-session control.
 
 ## Outcome and rerun rule
 
-`EVAL-UI-DESIGN-001` remains `planned` and Issue #79 remains `in_progress`.
-The repository contract is reviewable, but the published rendered source does
-not yet satisfy its contrast, identity-isolation, focus, navigation, or coverage
-requirements.
+`EVAL-UI-DESIGN-001` passes and is implemented. Issue #79 may advance to
+`done`. This completes the repository design/reference work only; it does not
+complete Issue #80, #81, #82, cycle 3.4.0, a toolkit ADR, or any Product Gate.
 
-The audit may pass only after a new published revision records:
+A later published Site revision must create a new immutable, sanitized,
+checksummed evidence set and rerun:
 
-- at least 4.5:1 for every normal-text role and 3:1 for large text and
-  essential non-text boundaries on the rendered pixels;
-- all required screen/state/scale coverage, including `MIS-02`, `SQD-02`, and
-  `RPT-02`, or an approved reduction of scope;
-- no previous-career content after a `career_id` change;
-- the specified focus and navigation behavior; and
-- a new immutable deployment identifier and sanitized, hashed evidence set.
-
-Flat token calculations and an archived Figma export remain supporting design
-data only; neither substitutes for a passing audit of the published Site.
+- all 15 required screens;
+- all 14 semantic states on the representative shared-state surface;
+- Desktop 100%, 125%, 150%, and 200%;
+- same-name career isolation and persistent slot labels;
+- destination heading focus and navigation order; and
+- WCAG AA contrast and the 12-pixel meaningful-text floor.

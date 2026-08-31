@@ -3,6 +3,7 @@ from __future__ import annotations
 import ast
 import hashlib
 import importlib
+import json
 import re
 import sys
 from copy import deepcopy
@@ -1328,9 +1329,13 @@ def test_ui_v2_reference_contract() -> None:
     visual_system_path = ui_root / "ui-v2-visual-system.md"
     walkthrough_path = ui_root / "ui-v2-walkthrough.md"
     rendered_audit_path = ui_root / "ui-v2-rendered-audit.md"
-    evidence_root = ui_root / "evidence" / "ui-v2-site-2026-08-29"
+    evidence_root = ui_root / "evidence" / "ui-v2-site-2026-08-31"
     evidence_readme_path = evidence_root / "README.md"
     evidence_checksums_path = evidence_root / "SHA256SUMS"
+    evidence_measurements_path = evidence_root / "contrast-measurements.json"
+    legacy_evidence_root = ui_root / "evidence" / "ui-v2-site-2026-08-29"
+    legacy_evidence_readme_path = legacy_evidence_root / "README.md"
+    legacy_evidence_checksums_path = legacy_evidence_root / "SHA256SUMS"
     quality_gates_path = REPOSITORY_ROOT / "docs" / "engineering" / "quality-gates.md"
     evals_path = REPOSITORY_ROOT / "docs" / "engineering" / "evals.md"
     for path in (
@@ -1340,6 +1345,9 @@ def test_ui_v2_reference_contract() -> None:
         rendered_audit_path,
         evidence_readme_path,
         evidence_checksums_path,
+        evidence_measurements_path,
+        legacy_evidence_readme_path,
+        legacy_evidence_checksums_path,
     ):
         assert path.is_file()
     assert quality_gates_path.is_file()
@@ -1385,6 +1393,9 @@ def test_ui_v2_reference_contract() -> None:
         assert f"`{screen_id}`" in reference
         assert f"`{screen_id}`" in required_coverage
     assert "stable `career_id`" in reference
+    assert "`PilotN` is a persistent simulator slot label" in reference
+    assert "Slots may be sparse" in reference
+    assert "new `career_id`" in reference
     assert re.search(
         r"Two careers with the same display\s+name remain separate",
         reference,
@@ -1432,7 +1443,7 @@ def test_ui_v2_reference_contract() -> None:
         assert f"`{token}`" in visual_system
     assert "All beige cards use `material.paper.subtle`" in visual_system
     assert "WCAG AA" in visual_system
-    assert "published Site conformance pending" in visual_system
+    assert "published Site conformance verified" in visual_system
     assert "published-site audit" in visual_system
     for scale in ("100%", "125%", "150%", "200%"):
         assert scale in visual_system
@@ -1446,68 +1457,80 @@ def test_ui_v2_reference_contract() -> None:
         assert f"`{status}`" in visual_system
 
     walkthrough = walkthrough_path.read_text(encoding="utf-8")
-    assert "Status: Pending published Site conformance" in walkthrough
+    assert "Status: Passed" in walkthrough
     assert "Eval: `EVAL-UI-DESIGN-001`" in walkthrough
-    assert "There is no dead end" in walkthrough
-    assert "Result: Pending published Site conformance." in walkthrough
-    assert re.search(
-        r"Issue #80 owns the formal\s+deterministic fixture matrix",
-        walkthrough,
-    )
-    assert "opens `SYS-01` without a career" in walkthrough
-    assert "the heading is not part of the sequential `Tab` order" in walkthrough
-    assert "### Published Site contrast evidence" in walkthrough
-    assert "Published Site result: Fail" in walkthrough
-    assert "stable-career isolation" in walkthrough
+    assert "without a dead end" in walkthrough
+    assert "Result: Passed." in walkthrough
+    assert "Issue #80: formal deterministic state fixtures" in walkthrough
+    assert "`h1#screen-title`" in walkthrough
+    assert re.search(r"not a sequential Tab\s+stop", walkthrough)
+    assert "## Published Site interaction evidence" in walkthrough
+    assert "Published Site result: Pass" in walkthrough
+    assert re.search(r"same-name career isolation", walkthrough, re.IGNORECASE)
     assert site_url in walkthrough
     assert "Page heading or contextual back route" not in walkthrough
-    assert re.search(r"\| Text and controls .* \| Fail \|", walkthrough)
-    assert "`EVAL-UI-DESIGN-001` remains `planned`" in walkthrough
-    assert "Issue #79 remains `in_progress`" in walkthrough
-    assert "`EVAL-UI-DESIGN-001` passes" not in walkthrough
+    assert re.search(r"\| Text and controls .* \| Pass \|", walkthrough)
+    assert "`EVAL-UI-DESIGN-001` passes and is `implemented`" in walkthrough
+    assert "Issue #79 is `done`" in walkthrough
+    assert (
+        "Deleting `Pilot1` would leave `Pilot2` and `Pilot3` unchanged"
+        in walkthrough
+    )
     for status in normalized_statuses:
         assert f"`{status}`" in walkthrough
 
     rendered_audit = rendered_audit_path.read_text(encoding="utf-8")
-    assert "Status: Failed — corrections required" in rendered_audit
+    assert "Status: Passed" in rendered_audit
     assert site_url in rendered_audit
-    assert "1363 by 936 CSS pixels" in rendered_audit
-    assert "Selecting career `RAF-41B-22C1`" in rendered_audit
-    assert '<main class="workspace" tabindex="-1">' in rendered_audit
-    assert "`EVAL-UI-DESIGN-001` remains `planned`" in rendered_audit
-    deployment_id = "69c0abd6-d843-4646-b141-f76723098421"
+    assert "Browser viewport width: 1363 CSS pixels" in rendered_audit
+    assert "Changing from RFC career `RFC-14A-08F2`" in rendered_audit
+    assert '`h1#screen-title`' in rendered_audit
+    assert '`EVAL-UI-DESIGN-001` passes and is implemented' in rendered_audit
+    deployment_id = "appgdep_6a9555f927b081919b6cc2f33e9f3ffb"
+    source_commit = "07cc3397ac9a9204c6540becaf57ffcaad3c8897"
     evidence_set_digest = (
-        "ef028e0f8a49663c1a5b7d835b61f4c5128b238a7dde0df0e0f8633d0892b161"
+        "a64fd0e67383d3cf828ec33edc225fde18df1a710833b648a838222938ee5ce9"
     )
     assert deployment_id in rendered_audit
+    assert source_commit in rendered_audit
     assert evidence_set_digest in rendered_audit
-    assert "immutable deployment identifier" in rendered_audit
+    assert "immutable historical evidence" in rendered_audit
     for screen_id in (
+        "APP-00",
+        "SEL-01",
         "OPR-01",
         "DOS-01",
+        "DOS-02",
+        "DOS-03",
+        "DOS-04",
         "MIS-01",
+        "MIS-02",
+        "SQD-01",
+        "SQD-02",
         "JRN-01",
         "RPT-01",
-        "SQD-01",
+        "RPT-02",
         "SYS-01",
     ):
         assert f"`{screen_id}`" in rendered_audit
     for ratio in (
-        "2.17:1",
-        "2.07:1",
-        "2.96:1",
-        "1.14:1",
-        "1.15:1",
-        "3.20:1",
-        "2.73:1",
+        "4.55:1",
+        "4.61:1",
+        "4.68:1",
+        "4.86:1",
+        "4.92:1",
     ):
         assert ratio in rendered_audit
+    for scale in ("100%", "125%", "150%", "200%"):
+        assert f"Desktop {scale}" in rendered_audit
 
     evidence_readme = evidence_readme_path.read_text(encoding="utf-8")
-    assert "Evidence revision: `UIV2-SITE-2026-08-29-AUDIT-1`" in evidence_readme
+    assert "Evidence revision: `UIV2-SITE-2026-08-31-AUDIT-2`" in evidence_readme
     assert deployment_id in evidence_readme
+    assert source_commit in evidence_readme
     assert evidence_set_digest in evidence_readme
     assert "synthetic fixture data" in evidence_readme
+    assert "`PilotN` remains a persistent simulator slot label" in evidence_readme
     checksum_lines = evidence_checksums_path.read_text(encoding="ascii").splitlines()
     checksum_entries = []
     for line in checksum_lines:
@@ -1522,14 +1545,68 @@ def test_ui_v2_reference_contract() -> None:
         == evidence_set_digest
     )
 
+    measurements = json.loads(evidence_measurements_path.read_text(encoding="utf-8"))
+    assert measurements["evidenceRevision"] == "UIV2-SITE-2026-08-31-AUDIT-2"
+    assert measurements["deployment"] == {
+        "id": deployment_id,
+        "savedVersion": 16,
+        "sourceCommit": source_commit,
+        "url": "https://woff-mate-ui-v2.pilotohans.chatgpt.site",
+    }
+    assert measurements["summary"] == {
+        "requiredScreenCount": 15,
+        "semanticStateCount": 14,
+        "desktopScaleCount": 4,
+        "lowestMeasuredNormalTextRatio": 4.55,
+        "contrastFailures": 0,
+        "fontSizeFailures": 0,
+        "horizontalOverflowFailures": 0,
+    }
+    assert measurements["interaction"]["destinationFocus"] == "H1#screen-title"
+    assert measurements["interaction"]["destinationHeadingTabIndex"] == -1
+    career_switch = measurements["interaction"]["sameNameCareerSwitch"]
+    assert career_switch["toSlotLabel"] == "WoFF Pilot 2"
+    assert career_switch["previousMissionVisibleAfterSelection"] is False
+    assert career_switch["previousSquadronVisibleAfterSelection"] is False
+
+    legacy_deployment_id = "69c0abd6-d843-4646-b141-f76723098421"
+    legacy_evidence_set_digest = (
+        "ef028e0f8a49663c1a5b7d835b61f4c5128b238a7dde0df0e0f8633d0892b161"
+    )
+    legacy_evidence_readme = legacy_evidence_readme_path.read_text(encoding="utf-8")
+    assert "Evidence revision: `UIV2-SITE-2026-08-29-AUDIT-1`" in (
+        legacy_evidence_readme
+    )
+    assert legacy_deployment_id in legacy_evidence_readme
+    assert legacy_evidence_set_digest in legacy_evidence_readme
+    legacy_checksum_entries = []
+    for line in legacy_evidence_checksums_path.read_text(
+        encoding="ascii"
+    ).splitlines():
+        digest, filename = line.split("  ", 1)
+        evidence_path = legacy_evidence_root / filename
+        assert evidence_path.is_file()
+        assert hashlib.sha256(evidence_path.read_bytes()).hexdigest() == digest
+        legacy_checksum_entries.append(f"{digest}  {filename}\n")
+    assert len(legacy_checksum_entries) == 13
+    assert (
+        hashlib.sha256("".join(legacy_checksum_entries).encode("ascii")).hexdigest()
+        == legacy_evidence_set_digest
+    )
+
     quality_gates = quality_gates_path.read_text(encoding="utf-8")
-    assert re.search(r"Issue #79 is in\s+progress", quality_gates)
+    assert (
+        "Issues #28, #38, #41, #75, #79, and #97 are complete"
+        in quality_gates
+    )
     assert "published UI V2" in quality_gates
-    assert "Site currently fails rendered WCAG AA contrast" in quality_gates
+    assert "pass the recorded" in quality_gates
+    assert "rendered WCAG AA contrast" in quality_gates
 
     eval_catalog = evals_path.read_text(encoding="utf-8")
-    assert "Issue #79 remains in progress" in eval_catalog
-    assert "`EVAL-UI-DESIGN-001` becomes implemented only after" in eval_catalog
+    assert "Issue #79 is complete" in eval_catalog
+    assert "`EVAL-UI-DESIGN-001` is implemented" in eval_catalog
+    assert "UIV2-SITE-2026-08-31-AUDIT-2" in eval_catalog
     assert site_url in eval_catalog
     assert "published UI V2 Site" in eval_catalog
 
@@ -1548,13 +1625,14 @@ def test_ui_v2_reference_contract() -> None:
     assert work_items["issue-79"] == {
         "title": "Consolidate the approved UI V2 reference and visual system",
         "module": "presentation",
-        "state": "in_progress",
+        "state": "done",
         "evals": ["EVAL-UI-DESIGN-001"],
         "gates": ["Q0", "Q1", "Q6-CYCLE-3.4.0"],
         "depends_on": [{"id": "issue-56", "status": "satisfied"}],
     }
     ui_eval = evals["EVAL-UI-DESIGN-001"]
-    assert ui_eval["status"] == "planned"
-    assert "published UI V2 Site" in ui_eval["evidence"]
-    assert "fails contrast" in ui_eval["evidence"]
-    assert "enforced_by" not in ui_eval
+    assert ui_eval["status"] == "implemented"
+    assert re.search(r"published UI V2 Site", ui_eval["evidence"], re.IGNORECASE)
+    assert "pass all 15 screen IDs" in ui_eval["evidence"]
+    assert "persistent sparse PilotN slot presentation" in ui_eval["evidence"]
+    assert ui_eval["enforced_by"] == ["woff/tests/test_architecture_contracts.py"]

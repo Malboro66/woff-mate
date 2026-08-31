@@ -612,8 +612,9 @@ evals:
     enforced_by: [woff/tests/test_architecture_contracts.py]
   EVAL-UI-DESIGN-001:
     work_items: [issue-79]
-    status: planned
-    evidence: The published UI V2 Site is the active rendered source. Its 2026-08-29 audit fails contrast, stable-career isolation, destination focus, navigation conformance, and required visual coverage; a corrected published revision must pass before the repository design walkthrough passes.
+    status: implemented
+    evidence: Published UI V2 Site version 16 and deployment appgdep_6a9555f927b081919b6cc2f33e9f3ffb pass all 15 screen IDs, 14 shared states, four desktop scales, rendered WCAG AA contrast, destination focus, navigation conformance, same-name career isolation, and persistent sparse PilotN slot presentation; immutable revision UIV2-SITE-2026-08-31-AUDIT-2 pins the evidence.
+    enforced_by: [woff/tests/test_architecture_contracts.py]
   EVAL-UI-STATES-001:
     work_items: [issue-80]
     status: planned
@@ -947,7 +948,7 @@ work_items:
   issue-79:
     title: Consolidate the approved UI V2 reference and visual system
     module: presentation
-    state: in_progress
+    state: done
     evals: [EVAL-UI-DESIGN-001]
     gates: [Q0, Q1, Q6-CYCLE-3.4.0]
     depends_on:

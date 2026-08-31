@@ -10,8 +10,8 @@ approved
 [UI V2 reference](ui-v2-reference.md), its
 [visual system](ui-v2-visual-system.md), and its recorded
 [design walkthrough](ui-v2-walkthrough.md). The V1 frames remain archived in
-Figma; the Site and repository contracts form the current V2 handoff. Current
-Site conformance failures are recorded in the
+Figma; the Site and repository contracts form the current V2 handoff. Passing
+Site conformance evidence is recorded in the
 [published-site audit](ui-v2-rendered-audit.md).
 
 V2 navigation is **Operations, Pilot Dossier, Missions, Squadron, War Diary,
@@ -51,6 +51,12 @@ live collections. Every snapshot records:
 No view triggers ingestion, refresh writes, diary edits, configuration changes,
 or other commands. Refresh means requesting a new snapshot from an approved
 query service, not reading storage itself.
+
+The presentation may show `WoFF Pilot N` as a safe reference to the current
+simulator source slot, but selection and historical ownership use `career_id`.
+Slots may be sparse and are never renumbered from visible list position. A
+later reuse of the same slot label represents a new career identity and cannot
+inherit the prior career's snapshot.
 
 ## Shared view states
 
@@ -113,10 +119,9 @@ WoFF files or SQLite.
 The approved follow-up work is now tracked explicitly:
 
 - #79 records the repository UI V2 screen map, visual system, component and
-  state inventory, focus order, and Windows scaling notes without production UI
-  code; it remains in progress until the published Site passes the recorded
-  rendered contrast, stable-career isolation, destination focus, navigation,
-  and visual coverage audit.
+  state inventory, focus order, Windows scaling notes, persistent-slot rule,
+  and passing published-Site conformance evidence without production UI code;
+  it is complete.
 - #80 defines the shared state matrix and deterministic sanitized fixtures used
   by designs, contract tests, and the toolkit spike.
 - #81 defines immutable read-only view models and application query-service
