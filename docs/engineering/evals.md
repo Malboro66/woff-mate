@@ -147,7 +147,7 @@ shared semantic states, Desktop 100%, 125%, 150%, and 200%, rendered WCAG AA
 contrast, same-name career isolation, persistent slot presentation,
 destination focus, navigation conformance, and required visual coverage.
 `EVAL-UI-DESIGN-001` is implemented by the immutable
-`UIV2-SITE-2026-08-31-AUDIT-2` evidence revision and the architecture contract.
+`UIV2-SITE-2026-08-31-AUDIT-3` evidence revision and the architecture contract.
 
 Issue #80 remains unblocked planning work. Issue #81 waits for the shared state
 and fixture vocabulary from #80. Issue #82 is an isolated feasibility spike

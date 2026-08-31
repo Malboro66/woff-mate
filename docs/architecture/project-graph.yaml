@@ -613,7 +613,7 @@ evals:
   EVAL-UI-DESIGN-001:
     work_items: [issue-79]
     status: implemented
-    evidence: Published UI V2 Site version 16 and deployment appgdep_6a9555f927b081919b6cc2f33e9f3ffb pass all 15 screen IDs, 14 shared states, four desktop scales, rendered WCAG AA contrast, destination focus, navigation conformance, same-name career isolation, and persistent sparse PilotN slot presentation; immutable revision UIV2-SITE-2026-08-31-AUDIT-2 pins the evidence.
+    evidence: Published UI V2 Site version 17 and deployment appgdep_6a95ebac3afc8191a3913a988ad16ac3 pass all 15 screen IDs, 14 shared states, four desktop scales, rendered WCAG AA text and non-text contrast, full keyboard and focus behavior, mission-aircrew-report career isolation, and an actual sparse Pilot2/Pilot3 list; immutable revision UIV2-SITE-2026-08-31-AUDIT-3 pins the evidence.
     enforced_by: [woff/tests/test_architecture_contracts.py]
   EVAL-UI-STATES-001:
     work_items: [issue-80]

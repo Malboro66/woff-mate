@@ -1329,10 +1329,13 @@ def test_ui_v2_reference_contract() -> None:
     visual_system_path = ui_root / "ui-v2-visual-system.md"
     walkthrough_path = ui_root / "ui-v2-walkthrough.md"
     rendered_audit_path = ui_root / "ui-v2-rendered-audit.md"
-    evidence_root = ui_root / "evidence" / "ui-v2-site-2026-08-31"
+    evidence_root = ui_root / "evidence" / "ui-v2-site-2026-08-31-audit-3"
     evidence_readme_path = evidence_root / "README.md"
     evidence_checksums_path = evidence_root / "SHA256SUMS"
-    evidence_measurements_path = evidence_root / "contrast-measurements.json"
+    evidence_measurements_path = evidence_root / "conformance-measurements.json"
+    predecessor_evidence_root = ui_root / "evidence" / "ui-v2-site-2026-08-31"
+    predecessor_evidence_readme_path = predecessor_evidence_root / "README.md"
+    predecessor_evidence_checksums_path = predecessor_evidence_root / "SHA256SUMS"
     legacy_evidence_root = ui_root / "evidence" / "ui-v2-site-2026-08-29"
     legacy_evidence_readme_path = legacy_evidence_root / "README.md"
     legacy_evidence_checksums_path = legacy_evidence_root / "SHA256SUMS"
@@ -1346,6 +1349,8 @@ def test_ui_v2_reference_contract() -> None:
         evidence_readme_path,
         evidence_checksums_path,
         evidence_measurements_path,
+        predecessor_evidence_readme_path,
+        predecessor_evidence_checksums_path,
         legacy_evidence_readme_path,
         legacy_evidence_checksums_path,
     ):
@@ -1486,15 +1491,15 @@ def test_ui_v2_reference_contract() -> None:
     assert "Changing from RFC career `RFC-14A-08F2`" in rendered_audit
     assert '`h1#screen-title`' in rendered_audit
     assert '`EVAL-UI-DESIGN-001` passes and is implemented' in rendered_audit
-    deployment_id = "appgdep_6a9555f927b081919b6cc2f33e9f3ffb"
-    source_commit = "07cc3397ac9a9204c6540becaf57ffcaad3c8897"
+    deployment_id = "appgdep_6a95ebac3afc8191a3913a988ad16ac3"
+    source_commit = "d96fb6da3e5240919d9dc95fca68f9060c3e9434"
     evidence_set_digest = (
-        "a64fd0e67383d3cf828ec33edc225fde18df1a710833b648a838222938ee5ce9"
+        "5ff88aa30e908c3af4049ecd5adf0bae37bf8cbfa34c27516c0ccbace273bfac"
     )
     assert deployment_id in rendered_audit
     assert source_commit in rendered_audit
     assert evidence_set_digest in rendered_audit
-    assert "immutable historical evidence" in rendered_audit
+    assert re.search(r"immutable\s+historical evidence", rendered_audit)
     for screen_id in (
         "APP-00",
         "SEL-01",
@@ -1514,23 +1519,26 @@ def test_ui_v2_reference_contract() -> None:
     ):
         assert f"`{screen_id}`" in rendered_audit
     for ratio in (
+        "3.34:1",
         "4.55:1",
+        "4.59:1",
         "4.61:1",
         "4.68:1",
-        "4.86:1",
-        "4.92:1",
+        "5.39:1",
+        "5.54:1",
+        "5.62:1",
     ):
         assert ratio in rendered_audit
     for scale in ("100%", "125%", "150%", "200%"):
         assert f"Desktop {scale}" in rendered_audit
 
     evidence_readme = evidence_readme_path.read_text(encoding="utf-8")
-    assert "Evidence revision: `UIV2-SITE-2026-08-31-AUDIT-2`" in evidence_readme
+    assert "Evidence revision: `UIV2-SITE-2026-08-31-AUDIT-3`" in evidence_readme
     assert deployment_id in evidence_readme
     assert source_commit in evidence_readme
     assert evidence_set_digest in evidence_readme
     assert "synthetic fixture data" in evidence_readme
-    assert "`PilotN` remains a persistent simulator slot label" in evidence_readme
+    assert "`sparse-slots-2-3` fixture has no `Pilot1` option" in evidence_readme
     checksum_lines = evidence_checksums_path.read_text(encoding="ascii").splitlines()
     checksum_entries = []
     for line in checksum_lines:
@@ -1539,17 +1547,21 @@ def test_ui_v2_reference_contract() -> None:
         assert evidence_path.is_file()
         assert hashlib.sha256(evidence_path.read_bytes()).hexdigest() == digest
         checksum_entries.append(f"{digest}  {filename}\n")
-    assert len(checksum_entries) == 13
+    assert len(checksum_entries) == 1
     assert (
         hashlib.sha256("".join(checksum_entries).encode("ascii")).hexdigest()
         == evidence_set_digest
     )
 
     measurements = json.loads(evidence_measurements_path.read_text(encoding="utf-8"))
-    assert measurements["evidenceRevision"] == "UIV2-SITE-2026-08-31-AUDIT-2"
+    assert measurements["evidenceRevision"] == "UIV2-SITE-2026-08-31-AUDIT-3"
     assert measurements["deployment"] == {
         "id": deployment_id,
-        "savedVersion": 16,
+        "savedVersion": 17,
+        "savedVersionId": (
+            "appgprj_6a8baac178c88191acc54dde62e1870d~"
+            "appgver_6b91e8fab2f481919c054576804969cf"
+        ),
         "sourceCommit": source_commit,
         "url": "https://woff-mate-ui-v2.pilotohans.chatgpt.site",
     }
@@ -1558,16 +1570,151 @@ def test_ui_v2_reference_contract() -> None:
         "semanticStateCount": 14,
         "desktopScaleCount": 4,
         "lowestMeasuredNormalTextRatio": 4.55,
+        "lowestMeasuredNonTextRatio": 3.34,
         "contrastFailures": 0,
+        "nonTextContrastFailures": 0,
         "fontSizeFailures": 0,
         "horizontalOverflowFailures": 0,
+        "destinationFocusFailures": 0,
+        "keyboardInteractionFailures": 0,
+        "careerIsolationFailures": 0,
+        "sparseSlotFailures": 0,
     }
-    assert measurements["interaction"]["destinationFocus"] == "H1#screen-title"
-    assert measurements["interaction"]["destinationHeadingTabIndex"] == -1
+    required_screen_ids = {
+        "APP-00",
+        "SEL-01",
+        "OPR-01",
+        "DOS-01",
+        "DOS-02",
+        "DOS-03",
+        "DOS-04",
+        "MIS-01",
+        "MIS-02",
+        "SQD-01",
+        "SQD-02",
+        "JRN-01",
+        "RPT-01",
+        "RPT-02",
+        "SYS-01",
+    }
+    assert {screen["id"] for screen in measurements["screens"]} == required_screen_ids
+    assert len(measurements["states"]) == 14
+    assert len(measurements["scales"]) == 4
+    for collection in (
+        measurements["screens"],
+        measurements["states"],
+        measurements["scales"],
+    ):
+        for result in collection:
+            assert result["minimumRatio"] >= 4.5
+            assert result["contrastFailures"] == 0
+            assert result["fontSizeFailures"] == 0
+            assert result["headingFocused"] is True
+    assert all(not screen["horizontalOverflow"] for screen in measurements["screens"])
+    assert all(not state["horizontalOverflow"] for state in measurements["states"])
+    for scale in measurements["scales"]:
+        assert scale["viewportWidth"] == scale["documentScrollWidth"]
+        assert scale["mainClientWidth"] == scale["mainScrollWidth"]
+
+    non_text = measurements["nonTextContrast"]
+    assert non_text["threshold"] == 3.0
+    assert non_text["lowestMeasuredRatio"] == 3.34
+    assert non_text["failures"] == 0
+    assert non_text["focusTreatment"]["ratio"] == 5.62
+    assert non_text["focusTreatment"]["minimumThicknessCssPx"] >= 3
+    assert all(boundary["ratio"] >= 3.0 for boundary in non_text["boundaries"])
+
+    interaction = measurements["interaction"]
+    assert interaction["destinationFocus"] == {
+        "target": "H1#screen-title",
+        "tag": "H1",
+        "id": "screen-title",
+        "tabIndex": -1,
+        "sequentialTabStop": False,
+    }
+    sequential_focus = interaction["sequentialFocus"]
+    assert [stop["label"] for stop in sequential_focus] == [
+        "Skip to main content",
+        "Change active career",
+        "Operations",
+        "Pilot Dossier",
+        "Missions",
+        "Squadron",
+        "War Diary",
+        "Reports",
+        "Data & System Status",
+        "Fixture matrix",
+    ]
+    assert all(stop["visibleFocus"] is True for stop in sequential_focus)
+    selector_keyboard = interaction["careerSelectorKeyboard"]
+    assert selector_keyboard == {
+        "enterOpens": True,
+        "arrowDownMovesFocusTo": "WoFF Pilot 2 · RAF-41B-22C1",
+        "escapeCloses": True,
+        "escapeRestoresFocusTo": "Change active career",
+        "spaceOpens": True,
+        "spaceActivatesOption": True,
+        "activationRestoresFocusTo": "Change active career",
+    }
+    dialog_keyboard = interaction["fixtureDialogKeyboard"]
+    assert dialog_keyboard["shiftTabWrapsTo"] == "Apply desktop preview"
+    assert dialog_keyboard["tabWrapsTo"] == "APP-00 Application Shell"
+    assert dialog_keyboard["escapeCloses"] is True
+    assert dialog_keyboard["escapeRestoresFocusTo"] == "Fixture matrix"
+
+    sparse_slots = interaction["sparseSlots"]
+    assert sparse_slots == {
+        "fixture": "sparse-slots-2-3",
+        "pilot1Present": False,
+        "options": [
+            {
+                "listIndex": 0,
+                "slotLabel": "WoFF Pilot 2",
+                "careerId": "RAF-41B-22C1",
+            },
+            {
+                "listIndex": 1,
+                "slotLabel": "WoFF Pilot 3",
+                "careerId": "CAREER-14B8",
+            },
+        ],
+    }
     career_switch = measurements["interaction"]["sameNameCareerSwitch"]
     assert career_switch["toSlotLabel"] == "WoFF Pilot 2"
-    assert career_switch["previousMissionVisibleAfterSelection"] is False
-    assert career_switch["previousSquadronVisibleAfterSelection"] is False
+    assert set(career_switch["contexts"]) == {"mission", "aircrew", "report"}
+    for detail in career_switch["contexts"].values():
+        assert detail["visibleBeforeSelection"] is True
+        assert detail["visibleAfterSelection"] is False
+    assert career_switch["newCareerReferenceVisible"] is True
+    assert career_switch["newSquadronVisible"] is True
+    assert career_switch["newAerodromeVisible"] is True
+
+    predecessor_deployment_id = "appgdep_6a9555f927b081919b6cc2f33e9f3ffb"
+    predecessor_evidence_set_digest = (
+        "a64fd0e67383d3cf828ec33edc225fde18df1a710833b648a838222938ee5ce9"
+    )
+    predecessor_evidence_readme = predecessor_evidence_readme_path.read_text(
+        encoding="utf-8"
+    )
+    assert "Evidence revision: `UIV2-SITE-2026-08-31-AUDIT-2`" in (
+        predecessor_evidence_readme
+    )
+    assert predecessor_deployment_id in predecessor_evidence_readme
+    assert predecessor_evidence_set_digest in predecessor_evidence_readme
+    predecessor_checksum_entries = []
+    for line in predecessor_evidence_checksums_path.read_text(
+        encoding="ascii"
+    ).splitlines():
+        digest, filename = line.split("  ", 1)
+        evidence_path = predecessor_evidence_root / filename
+        assert evidence_path.is_file()
+        assert hashlib.sha256(evidence_path.read_bytes()).hexdigest() == digest
+        predecessor_checksum_entries.append(f"{digest}  {filename}\n")
+    assert len(predecessor_checksum_entries) == 13
+    assert (
+        hashlib.sha256("".join(predecessor_checksum_entries).encode("ascii")).hexdigest()
+        == predecessor_evidence_set_digest
+    )
 
     legacy_deployment_id = "69c0abd6-d843-4646-b141-f76723098421"
     legacy_evidence_set_digest = (
@@ -1606,7 +1753,7 @@ def test_ui_v2_reference_contract() -> None:
     eval_catalog = evals_path.read_text(encoding="utf-8")
     assert "Issue #79 is complete" in eval_catalog
     assert "`EVAL-UI-DESIGN-001` is implemented" in eval_catalog
-    assert "UIV2-SITE-2026-08-31-AUDIT-2" in eval_catalog
+    assert "UIV2-SITE-2026-08-31-AUDIT-3" in eval_catalog
     assert site_url in eval_catalog
     assert "published UI V2 Site" in eval_catalog
 
@@ -1634,5 +1781,8 @@ def test_ui_v2_reference_contract() -> None:
     assert ui_eval["status"] == "implemented"
     assert re.search(r"published UI V2 Site", ui_eval["evidence"], re.IGNORECASE)
     assert "pass all 15 screen IDs" in ui_eval["evidence"]
-    assert "persistent sparse PilotN slot presentation" in ui_eval["evidence"]
+    assert "WCAG AA text and non-text contrast" in ui_eval["evidence"]
+    assert "full keyboard and focus behavior" in ui_eval["evidence"]
+    assert "mission-aircrew-report career isolation" in ui_eval["evidence"]
+    assert "actual sparse Pilot2/Pilot3 list" in ui_eval["evidence"]
     assert ui_eval["enforced_by"] == ["woff/tests/test_architecture_contracts.py"]

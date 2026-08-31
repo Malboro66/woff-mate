@@ -132,7 +132,7 @@ meaningful text fell below 12 CSS pixels.
 | Text and controls | Every required screen meets the 4.5:1 normal-text or 3:1 large-text threshold. | Pass |
 | Meaningful metadata | No audited text is below the 12-pixel caption floor. | Pass |
 
-The recorded minima span 4.55:1 to 4.92:1 across the 15 required screen IDs.
+The recorded minima span 4.55:1 to 5.54:1 across the 15 required screen IDs.
 Exact per-screen, per-state, and per-scale values are in the
 [published-site audit](ui-v2-rendered-audit.md) and its immutable evidence.
 
@@ -145,9 +145,13 @@ Exact per-screen, per-state, and per-scale values are in the
   `DOS-02`, `DOS-03`, `DOS-04`, `MIS-01`, `MIS-02`, `SQD-01`,
   `SQD-02`, `JRN-01`, `RPT-01`, `RPT-02`, and `SYS-01`.
 - Selecting `RAF-41B-22C1` after opening RFC mission
-  `MIS-1917-08-15-027` removes that mission and `14 Squadron RFC` before
-  presenting the RAF career's `WoFF Pilot 2`, 41 Squadron, S.E.5a missions,
-  and Bertangles station.
+  `MIS-1917-08-15-027`, aircrew `RFC-14-A-002`, or report
+  `RPT-RFC14A-19170815-CAREER` removes every selected RFC detail before
+  presenting the RAF career's `WoFF Pilot 2`, 41 Squadron, and Bertangles.
+- The `sparse-slots-2-3` fixture renders no `Pilot1`; its first two list items
+  remain `WoFF Pilot 2` and `WoFF Pilot 3` instead of being renumbered.
+- Sequential Tab order, visible focus, Enter, Space, ArrowDown, Escape, modal
+  wrapping, and trigger focus restoration pass the recorded keyboard sequence.
 - Primary navigation and the completed career transition focus
   `h1#screen-title`.
 
@@ -170,8 +174,8 @@ Result: Passed.
 | Screen IDs, entries, exits, future gates, and persistent slots | `ui-v2-reference.md` |
 | Tokens, materials, components, and shared states | `ui-v2-visual-system.md` |
 | Keyboard, focus, and Windows scaling | This walkthrough and the published-site audit |
-| Same-name career isolation | Published-site interaction evidence and `contrast-measurements.json` |
-| Sanitized captures and measurements | `evidence/ui-v2-site-2026-08-31/` |
+| Same-name career isolation | Published-site interaction evidence and `conformance-measurements.json` |
+| Sanitized captures and measurements | `evidence/ui-v2-site-2026-08-31-audit-3/` |
 | Governance and automated structure checks | `project-graph.yaml` and `test_architecture_contracts.py` |
 
 ## Review result and follow-up ownership

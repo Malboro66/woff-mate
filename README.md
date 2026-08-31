@@ -167,7 +167,7 @@ Current work and planned features are tracked in the [WoFF Mate Development Proj
 - [UI V2 visual system](docs/ui/ui-v2-visual-system.md)
 - [UI V2 design walkthrough](docs/ui/ui-v2-walkthrough.md)
 - [UI V2 published-site audit](docs/ui/ui-v2-rendered-audit.md)
-- [UI V2 passing conformance evidence](docs/ui/evidence/ui-v2-site-2026-08-31/README.md)
+- [UI V2 passing conformance evidence](docs/ui/evidence/ui-v2-site-2026-08-31-audit-3/README.md)
 - [Compatibility and safe reporting](docs/compatibility.md)
 - [Database migrations and recovery](docs/database-migrations.md)
 - [Command-line contracts](docs/command-line-contracts.md)
