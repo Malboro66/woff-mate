@@ -28,28 +28,46 @@ from .maps import (
 log = logging.getLogger("WoFFWatch")
 
 
-def _map(raw: str, mapping: dict, fallback: str = "") -> str:
-    """Função genérica para procurar texto em dicionários de mapeamento."""
-    if not raw:
-        return fallback
-    raw_l = raw.strip().lower()
+def _match_token_alias(raw: str, mapping: dict) -> Optional[str]:
+    """Return a mapped value only for an explicit token or phrase alias."""
+    normalized = raw.casefold()
     for keys, value in mapping.items():
-        if isinstance(keys, tuple):
-            if any(k in raw_l for k in keys):
+        aliases = keys if isinstance(keys, tuple) else (keys,)
+        for alias in aliases:
+            pattern = rf"(?<!\w){re.escape(alias.casefold())}(?!\w)"
+            if re.search(pattern, normalized):
                 return value
-        elif keys in raw_l:
-            return value
-    # Corrigido: Retorna o fallback em vez de raw.strip()
-    return fallback
+    return None
+
+
+def resolve_nation_alias(raw: str) -> Optional[str]:
+    """Return the canonical nation for an exact known alias."""
+    value = raw.strip() if raw else ""
+    if not value:
+        return None
+    return NATION_MAP.get(value.casefold())
 
 
 def normalize_nation(raw: str) -> str:
-    return _map(raw, NATION_MAP, "RFC")
+    value = raw.strip() if raw else ""
+    return resolve_nation_alias(value) or value
 
 
 def normalize_mission_type(raw: str) -> str:
-    # Corrigido: Passa o texto original limpo como fallback
-    return _map(raw, MISSION_TYPE_MAP, raw.strip() if raw else "")
+    value = raw.strip() if raw else ""
+    return _match_token_alias(value, MISSION_TYPE_MAP) or value
+
+
+def resolve_legacy_mission_substring_alias(raw: str) -> Optional[str]:
+    """Return the category produced by the pre-boundary mission matcher."""
+    normalized = raw.strip().lower() if raw else ""
+    if not normalized:
+        return None
+    for keys, value in MISSION_TYPE_MAP.items():
+        aliases = keys if isinstance(keys, tuple) else (keys,)
+        if any(alias in normalized for alias in aliases):
+            return value
+    return None
 
 
 def normalize_status(
@@ -80,8 +98,17 @@ def normalize_status(
     return None
 
 
+def resolve_victory_alias(raw: str) -> Optional[str]:
+    """Return the canonical victory type for an explicit known alias."""
+    value = raw.strip() if raw else ""
+    if not value:
+        return None
+    return _match_token_alias(value, VICTORY_TYPE_MAP)
+
+
 def normalize_victory_type(raw: str) -> str:
-    return _map(raw, VICTORY_TYPE_MAP, "Out of Control (OOC)")
+    value = raw.strip() if raw else ""
+    return resolve_victory_alias(value) or value
 
 
 def _calendar_date(year: str | int, month: str | int, day: str | int) -> str:

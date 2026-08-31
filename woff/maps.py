@@ -15,7 +15,8 @@ import re
 # ──────────────────────────────────────────────────────────────
 
 NATION_MAP = {
-    "rfc": "RFC", "royal flying corps": "RFC", "british": "RFC", "uk": "RFC",
+    "rfc": "RFC", "royal flying corps": "RFC", "britain": "RFC",
+    "british": "RFC", "uk": "RFC",
     "rnas": "RNAS", "royal naval air service": "RNAS", "naval": "RNAS",
     "raf": "RAF", "royal air force": "RAF",
     "french": "French", "france": "French", "aeronautique": "French", "fr": "French",
@@ -40,6 +41,7 @@ MISSION_TYPE_MAP = {
     "balloon": "Balloon Busting",
     "escort": "Escort Duty",
     "ground attack": "Ground Attack / Strafing", "straf": "Ground Attack / Strafing",
+    "strafing": "Ground Attack / Strafing",
 }
 
 # ──────────────────────────────────────────────────────────────
@@ -65,7 +67,7 @@ SEVERE_RE = re.compile(r"\b(serious|severe|critical|heavy|grave)\b", re.I)
 # ──────────────────────────────────────────────────────────────
 
 VICTORY_TYPE_MAP = {
-    ("flame", "fire", "burned", "flamme"):           "Destroyed — In Flames",
+    ("flame", "flames", "fire", "burned", "flamme"): "Destroyed — In Flames",
     ("structural", "break", "broke apart", "broke"): "Destroyed — Structural Failure",
     ("ooc", "out of control", "spin"):               "Out of Control (OOC)",
     ("forced to land", "force land", "landed"):      "Forced to Land",

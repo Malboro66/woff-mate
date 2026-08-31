@@ -17,6 +17,24 @@ Automatic CI coverage is not a statement that Linux is a supported end-user plat
 
 WOFF BH&H II support is limited to formats confirmed by sanitized samples and regression fixtures. Do not infer compatibility with a new or altered format solely from the game name. Because the exact WoFF build is unconfirmed, reports about an unknown format help establish compatibility without making an unsupported build claim.
 
+## Categorical normalization
+
+Nation aliases match complete, case-insensitive values. Short aliases such as
+`us`, `fr`, and `de` never match inside another word. RFC, RNAS, and RAF remain
+separate canonical services.
+
+Mission and victory aliases match only explicit tokens or phrases. They never
+match arbitrary substrings inside unrelated words. A missing categorical value
+remains empty. An unrecognized value from an explicit XML or PilotLog field is
+trimmed and preserved verbatim instead of becoming a known category.
+
+The Dossier format has no confirmed field marker for nation values, so its
+scanner assigns a nation only when the complete decoded value is a supported
+exact alias. Unrecognized decoded values remain available in the parser's raw
+strings and are not guessed as a nation. All parser paths use the alias tables
+in `woff/maps.py`; new aliases require a sanitized representative sample or an
+existing regression fixture that establishes the value.
+
 ## Reporting a compatibility problem safely
 
 Include only the minimum technical context needed to reproduce the problem:

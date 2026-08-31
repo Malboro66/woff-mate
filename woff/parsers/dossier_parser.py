@@ -20,7 +20,7 @@ from datetime import datetime
 from typing import Optional, List
 from ..models import WoFFPilot, WoFFWingman, WoFFDecoration
 # FIX: Importa as funções de normalização para aplicar aos dados do Dossier.
-from ..normalization import normalize_nation, normalize_date
+from ..normalization import normalize_date, resolve_nation_alias
 from .numeric import (
     SIGNED_SQLITE_INTEGER,
     UNSIGNED_SQLITE_INTEGER,
@@ -204,9 +204,9 @@ class WoFFDossierParser:
                 if not s_clean:
                     continue
                 
-                # FIX: Aplica normalize_nation() para converter "Britain" -> "RFC", etc.
-                if not self.pilot.nation and s_clean in ("France", "Britain", "Germany", "USA", "Belgium"):
-                    self.pilot.nation = normalize_nation(s_clean)
+                canonical_nation = resolve_nation_alias(s_clean)
+                if not self.pilot.nation and canonical_nation is not None:
+                    self.pilot.nation = canonical_nation
                     continue
                 if self.pilot.status is None and s_clean in (
                     "Active", "In Service", "Wounded", "KIA", "Leave",

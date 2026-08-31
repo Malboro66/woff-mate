@@ -13,6 +13,17 @@ def _mission_log(date: str, time: str | None = None) -> bytes:
     ).encode("utf-8")
 
 
+def _mission_log_with_country(country: str) -> bytes:
+    return (
+        "<Mission>"
+        '<Params Date="9/20/1915" Time="9:30" Weather="Clear" />'
+        f'<AirFormation Country="{country}" SquadName="No. 56 Sqn">'
+        '<Unit IsPlayer="y" Type="SE.5a" />'
+        "</AirFormation>"
+        "</Mission>"
+    ).encode("utf-8")
+
+
 class TestMissionLogTemporalContract(unittest.TestCase):
     def test_valid_date_and_unpadded_time_are_canonical(self):
         parser = WoFFMissionLogParser()
@@ -64,6 +75,20 @@ class TestMissionLogTemporalContract(unittest.TestCase):
             )
         )
         self.assertIsNone(parser.mission)
+
+    def test_country_uses_shared_exact_nation_contract(self):
+        for raw, expected in (("britain", "RFC"), ("Austria", "Austria")):
+            with self.subTest(raw=raw):
+                parser = WoFFMissionLogParser()
+
+                self.assertTrue(
+                    parser.parse_bytes(
+                        _mission_log_with_country(raw), "mission.log"
+                    )
+                )
+                self.assertIsNotNone(parser.pilot)
+                assert parser.pilot is not None
+                self.assertEqual(parser.pilot.nation, expected)
 
 
 if __name__ == "__main__":

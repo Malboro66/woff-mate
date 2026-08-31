@@ -23,6 +23,8 @@ from ..normalization import (
     canonical_mission_order_key,
     normalize_date,
     normalize_time,
+    resolve_legacy_mission_substring_alias,
+    resolve_victory_alias,
 )
 
 from .base import BaseRepository
@@ -90,6 +92,7 @@ _VICTORY_MATCH_FIELDS = (
 _SOURCE_RECORD_KEY = re.compile(
     r"source-v1:([0-9a-f]{64}):[0-9a-f]{64}\Z"
 )
+_LEGACY_UNKNOWN_VICTORY_TYPE = "Out of Control (OOC)"
 
 
 def record_source_priority(source_file: object) -> int:
@@ -142,7 +145,10 @@ def _victory_row(cursor: sqlite3.Cursor, victory_id: str) -> Optional[Dict[str, 
 
 
 def _victory_match_score(
-    stored: Dict[str, Any], incoming: WoFFVictory
+    stored: Dict[str, Any],
+    incoming: WoFFVictory,
+    *,
+    allow_legacy_victory_type: bool = False,
 ) -> Optional[int]:
     """Return enrichment confidence, or ``None`` for distinct evidence."""
     stored_identity = _victory_identity_key(
@@ -174,11 +180,34 @@ def _victory_match_score(
         if not stored_value or not incoming_value:
             continue
         if stored_value != incoming_value:
+            if field == "victoryType" and allow_legacy_victory_type:
+                continue
             return None
         score += 1
     if bool(stored.get("confirmed")) and incoming.confirmed:
         score += 1
     return score if score > 0 else None
+
+
+def _is_legacy_unknown_victory_replay(
+    stored: Dict[str, Any],
+    incoming: WoFFVictory,
+    *,
+    has_source_records: bool,
+) -> bool:
+    """Identify the narrow replay affected by the historical OOC fallback."""
+    incoming_type = str(incoming.victoryType or "").strip()
+    incoming_source_key = str(incoming.source_record_key or "").strip()
+    return (
+        _SOURCE_RECORD_KEY.fullmatch(incoming_source_key) is not None
+        and str(stored.get("victoryType") or "").strip()
+        == _LEGACY_UNKNOWN_VICTORY_TYPE
+        and bool(incoming_type)
+        and incoming_type != _LEGACY_UNKNOWN_VICTORY_TYPE
+        and resolve_victory_alias(incoming_type) is None
+        and _same_source(stored.get("source_file"), incoming.source_file)
+        and not has_source_records
+    )
 
 
 def _victory_merge_updates(
@@ -432,6 +461,41 @@ def stored_mission_identity_index(
     return {identity: choice[1] for identity, choice in choices.items()}
 
 
+def _legacy_mission_alias_candidate(
+    cursor: sqlite3.Cursor,
+    pilot_id: str,
+    incoming_identity: MissionIdentityKey,
+    incoming_raw_type: object,
+    incoming_source: object,
+) -> Optional[str]:
+    """Resolve one same-source row changed by the historical matcher."""
+    raw_type = str(incoming_raw_type or "").strip() or incoming_identity[2]
+    legacy_type = resolve_legacy_mission_substring_alias(raw_type)
+    if legacy_type is None or legacy_type == incoming_identity[2]:
+        return None
+    legacy_identity = (
+        incoming_identity[0],
+        incoming_identity[1],
+        legacy_type,
+        incoming_identity[3],
+    )
+    candidates: List[str] = []
+    for row in cursor.execute(
+        """
+        SELECT id, date, time, missionType, aircraft, source_file
+        FROM missions
+        WHERE pilotId=? AND missionType=? AND aircraft=?
+        """,
+        (pilot_id, legacy_type, incoming_identity[3]),
+    ).fetchall():
+        if mission_identity_key(row[1], row[2], row[3], row[4]) != legacy_identity:
+            continue
+        if not _same_source(row[5], incoming_source):
+            continue
+        candidates.append(str(row[0]))
+    return candidates[0] if len(candidates) == 1 else None
+
+
 def mission_mapping_order_key(mission: Dict[str, Any]) -> Optional[MissionOrderKey]:
     """Return the shared deterministic order for a persisted mission mapping."""
     return canonical_mission_order_key(
@@ -563,15 +627,16 @@ class MissionRepository(BaseRepository):
             incoming_source_identity = _source_identity_from_record_key(
                 incoming.source_record_key
             )
+            source_record_rows = cursor.execute(
+                """
+                SELECT source_record_key FROM victory_source_records
+                WHERE victoryId=?
+                """,
+                (str(stored["id"]),),
+            ).fetchall()
             stored_source_identities = {
                 _source_identity_from_record_key(row[0])
-                for row in cursor.execute(
-                    """
-                    SELECT source_record_key FROM victory_source_records
-                    WHERE victoryId=?
-                    """,
-                    (str(stored["id"]),),
-                ).fetchall()
+                for row in source_record_rows
             }
             if (
                 incoming_source_identity
@@ -580,7 +645,15 @@ class MissionRepository(BaseRepository):
                 # A new verified position in the same source is a distinct
                 # occurrence even when every visible field is identical.
                 continue
-            score = _victory_match_score(stored, incoming)
+            score = _victory_match_score(
+                stored,
+                incoming,
+                allow_legacy_victory_type=_is_legacy_unknown_victory_replay(
+                    stored,
+                    incoming,
+                    has_source_records=bool(source_record_rows),
+                ),
+            )
             if score is not None:
                 compatible.append((score, str(stored["id"])))
         if not compatible:
@@ -949,6 +1022,26 @@ class MissionRepository(BaseRepository):
                     updated_mission_ids.add(stored_mission_id)
                 else:
                     unchanged_m += 1
+                continue
+            legacy_mission_id = _legacy_mission_alias_candidate(
+                cursor,
+                pilot_id,
+                identity,
+                m.rawMissionType,
+                m.source_file,
+            )
+            if legacy_mission_id is not None:
+                if m.id and m.id != legacy_mission_id:
+                    mission_id_remap[m.id] = legacy_mission_id
+                cursor.execute(
+                    "UPDATE missions SET missionType=? WHERE id=?",
+                    (identity[2], legacy_mission_id),
+                )
+                _merge_existing_mission(cursor, legacy_mission_id, m)
+                updated_m += 1
+                changed_mission_ids.add(legacy_mission_id)
+                updated_mission_ids.add(legacy_mission_id)
+                identity_index = stored_mission_identity_index(cursor, pilot_id)
                 continue
             if m.id and cursor.execute(
                 "SELECT 1 FROM missions WHERE id = ?", (m.id,)

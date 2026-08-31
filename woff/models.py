@@ -93,6 +93,9 @@ class WoFFMission:
     woundsReceived: bool = False
     notes:          str  = ""
     source_file:    str  = ""
+    # Transient source text used to reconcile identities produced by older
+    # normalizers. It is intentionally not part of the database schema.
+    rawMissionType: str  = ""
 
 @dataclass
 class WoFFVictory:
