@@ -651,7 +651,7 @@ evals:
   EVAL-UI-STATES-001:
     work_items: [issue-80]
     status: implemented
-    evidence: Twenty closed-vocabulary synthetic fixtures cover all six shared states, field reasons, source conflicts, unknown freshness, stale timestamps, safe failures, redacted settings and sparse same-name career identities. The matrix maps all 15 V2 screens and archived visual aliases. Mutation tests and an isolated standard-library process enforce privacy and absence of SQLite, WoFF, network, Qt and application access.
+    evidence: Twenty-seven closed-vocabulary synthetic fixtures cover all six shared states, explicit subject selection, retained career context, consistent identity, field reasons, source conflicts, unknown freshness, stale timestamps, safe failures, redacted settings and sparse same-name career identities. The matrix maps all 15 V2 screens and archived visual aliases. Mutation tests and an isolated standard-library process enforce privacy and absence of SQLite, WoFF, network, Qt and application access.
     enforced_by: [scripts/validate_ui_fixtures.py, tests/test_ui_state_fixtures.py, woff/tests/test_architecture_contracts.py]
   EVAL-UI-CONTRACTS-001:
     work_items: [issue-81]

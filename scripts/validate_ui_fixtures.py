@@ -21,7 +21,7 @@ FIXTURES = ROOT / "woff" / "tests" / "fixtures" / "ui_states"
 # Pin the entire reviewed README, not just its heading or selected sections.
 # read_text normalizes newlines. Update only after reviewing all invented text;
 # candidate fixture files must never supply their own expected digest.
-APPROVED_INVENTORY_SHA256 = "f721fff35dbaf056c76d9780789163756fc7a3a7f5b9749f748f925807f9d4e0"
+APPROVED_INVENTORY_SHA256 = "02df1ceddac3b6291249ea1831544549ab6dd906973ef126c36bc70748f25b2a"
 VERSION = "synthetic-ui-v1"
 REFERENCE_TIME = "2026-01-01T12:00:00Z"
 MAX_AGE_SECONDS = 60
@@ -30,12 +30,16 @@ SCREENS = (
     "APP-00", "SEL-01", "OPR-01", "DOS-01", "DOS-02", "DOS-03", "DOS-04",
     "MIS-01", "MIS-02", "SQD-01", "SQD-02", "JRN-01", "RPT-01", "RPT-02", "SYS-01",
 )
+GLOBAL_SCREENS = {"APP-00", "SEL-01", "SYS-01"}
 CASE_IDS = frozenset({
     "careers-ready", "diary-ready", "empty-global", "empty-records", "error-query",
-    "loading", "missing-career", "missing-source", "missions-ready",
+    "error-query-selected", "loading", "loading-selected", "missing-career",
+    "missing-source", "missing-source-selected", "missions-ready",
     "pilot-partial-conflict", "pilot-ready", "pilot-stale", "pilot-unknown-freshness",
     "reports-ready", "settings-ready", "source-truncated", "source-unreadable",
-    "source-unsupported", "squadron-ready", "unavailable-source",
+    "source-truncated-selected", "source-unreadable-selected",
+    "source-unsupported", "source-unsupported-selected", "squadron-ready",
+    "unavailable-source", "unavailable-source-selected",
 })
 AUTHORITIES = {"synthetic-records", "synthetic-derived", "synthetic-settings", "synthetic-query", "unresolved"}
 FIELD_REASONS = {"unknown", "not_supplied", "source_conflict", "redacted", "unsupported", "unreadable", "truncated"}
@@ -175,6 +179,8 @@ def payload(case: dict[str, Any]) -> set[str]:
         ids.append(record["id"])
         keys.append((event_time, record["id"]))
     require(len(ids) == len(set(ids)) and keys == sorted(keys), "deterministic record order")
+    if any(screen in DETAIL_COLLECTIONS for screen in case["screens"]):
+        require(case["subject_id"] in ids, "selected subject is not in payload")
     if case["state"] == "empty":
         require(collection is not None and not records, "empty means successful zero-item collection")
     elif collection is not None:
@@ -187,7 +193,7 @@ def payload(case: dict[str, Any]) -> set[str]:
 def validate_case(raw: Any) -> None:
     case = shape(raw, {
         "id", "screens", "synthetic", "label", "contract_version", "state", "reason",
-        "career_id", "source_authority", "observed_at", "freshness", "warnings", "data",
+        "career_id", "subject_id", "source_authority", "observed_at", "freshness", "warnings", "data",
     }, "envelope shape")
     choice(case["id"], CASE_IDS, "fixture identity")
     screens = case["screens"]
@@ -220,6 +226,17 @@ def validate_case(raw: Any) -> None:
         codes.append(warning["code"])
     require(codes == sorted(set(codes)), "deterministic warning order")
     state, reason, data = case["state"], case["reason"], case["data"]
+    subject = case["subject_id"]
+    if state == "missing" and reason == "career_not_selected":
+        require(subject is None, "unselected career cannot carry a subject")
+    elif any(screen not in GLOBAL_SCREENS for screen in screens):
+        require(case["career_id"] is not None, "selected-career context identity")
+    detail_kinds = {DETAIL_COLLECTIONS[screen] for screen in screens if screen in DETAIL_COLLECTIONS}
+    if subject is not None:
+        require(len(detail_kinds) == 1, "subject requires one detail kind")
+        identifier(subject, ID_PREFIX[next(iter(detail_kinds))])
+    elif detail_kinds and state != "missing":
+        raise FixtureError("selected detail subject required")
     field_reasons: set[str] = set()
     if state in {"ready", "empty"}:
         require(reason is None and data is not None and freshness != "stale", "successful snapshot state")
@@ -251,8 +268,6 @@ def validate_case(raw: Any) -> None:
     if data is not None:
         if age is not None and age > MAX_AGE_SECONDS:
             require(freshness == "stale", "expired retained freshness")
-        if any(screen not in {"APP-00", "SEL-01", "SYS-01"} for screen in screens):
-            require(case["career_id"] is not None, "selected-career snapshot identity")
         if freshness == "unknown":
             require("freshness_unknown" in codes, "unknown freshness warning")
         if freshness == "stale":
@@ -280,6 +295,14 @@ def validate_case(raw: Any) -> None:
     require(set(codes) == expected_warnings, "warnings must match snapshot evidence")
 
 
+def validate_career_fields(actual: dict[str, Any], career_id: Any, careers: dict[str, Any]) -> None:
+    for name in REQUIRED_RECORD_FIELDS["careers"]:
+        field = actual.get(name)
+        if field and field["value"] is not None:
+            rule = "snapshot slot identity" if name == "source_slot" else "career identity fields must match selector"
+            require(career_id in careers and field == careers[career_id]["fields"][name], rule)
+
+
 def validate_catalog(raw: Any) -> None:
     catalog = shape(raw, {"catalog_version", "reference_time", "fixtures"}, "catalog shape")
     require(type(catalog["catalog_version"]) is int and catalog["catalog_version"] == 1, "catalog version")
@@ -292,26 +315,40 @@ def validate_catalog(raw: Any) -> None:
     require({case["state"] for case in cases} == set(STATES), "shared state coverage")
     require({screen for case in cases for screen in case["screens"]} == set(SCREENS), "screen coverage")
     require(any(len(case["warnings"]) >= 2 for case in cases), "multiple warnings coverage")
-    # Relations use stable IDs, including same-name careers in sparse slots.
-    careers = {}
+    # Named reference cases establish identity; a later retained scenario must
+    # not overwrite the selector or make a foreign subject appear local.
+    by_id = {case["id"]: case for case in cases}
+    selector = by_id["careers-ready"]["data"]
+    if selector is None or selector["collection"] != "careers":
+        raise FixtureError("career identity anchor")
+    careers = {record["id"]: record for record in selector["records"]}
     missions = {}
-    for case in cases:
-        data = case["data"]
-        if data and data["collection"] == "careers":
-            careers.update({record["id"]: record for record in data["records"]})
-        if data and data["collection"] == "missions":
-            missions.update({record["id"]: record["career_id"] for record in data["records"]})
+    subjects = {}
+    for name, collection in (("missions-ready", "missions"), ("squadron-ready", "roster"), ("reports-ready", "reports")):
+        anchor = by_id[name]["data"]
+        if anchor is None or anchor["collection"] != collection:
+            raise FixtureError("subject identity anchor")
+        owners = {record["id"]: record["career_id"] for record in anchor["records"]}
+        subjects.update(owners)
+        if collection == "missions":
+            missions.update(owners)
     require(set(careers) == {"synthetic-career-02", "synthetic-career-03"}, "distinct career identities")
     require([careers[key]["fields"]["source_slot"]["value"] for key in sorted(careers)] == [2, 3], "sparse slot preservation")
     require(len({record["fields"]["display_name"]["value"] for record in careers.values()}) == 1, "same-name career coverage")
     for case in cases:
         require(case["career_id"] is None or case["career_id"] in careers, "known career identity")
+        subject = case["subject_id"]
+        if subject is not None:
+            require(subject in subjects and subjects[subject] == case["career_id"], "selected subject ownership")
         data = case["data"]
         if data:
-            slot = data["fields"].get("source_slot")
-            if slot and slot["value"] is not None:
-                require(case["career_id"] in careers and slot == careers[case["career_id"]]["fields"]["source_slot"], "snapshot slot identity")
+            validate_career_fields(data["fields"], case["career_id"], careers)
             for record in data["records"]:
+                if data["collection"] == "careers":
+                    require(record["id"] in careers, "known career identity")
+                    validate_career_fields(record["fields"], record["id"], careers)
+                elif data["collection"] in DETAIL_COLLECTIONS.values():
+                    require(record["id"] in subjects and subjects[record["id"]] == record["career_id"], "record subject ownership")
                 link = record["fields"].get("mission_id")
                 if link and link["value"] is not None:
                     require(link["value"] in missions and missions[link["value"]] == record["career_id"], "diary mission ownership")
