@@ -1331,7 +1331,7 @@ def test_ui_read_only_foundation_contract() -> None:
 def test_ui_state_fixture_gate_and_followup_dependencies() -> None:
     from scripts.validate_ui_fixtures import load_catalog
 
-    assert len(load_catalog()["fixtures"]) == 27
+    assert len(load_catalog()["fixtures"]) == 30
     matrix = REPOSITORY_ROOT / "docs" / "ui" / "screen-state-matrix.md"
     assert matrix.is_file()
     for document in ("README.md", "docs/ui/read-only-foundation.md", "docs/engineering/evals.md"):

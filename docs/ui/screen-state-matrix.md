@@ -4,7 +4,7 @@ Issue #80 · `EVAL-UI-STATES-001` · test contract `synthetic-ui-v1`
 
 This document formalizes the [read-only foundation](read-only-foundation.md).
 The [fixture inventory](../../woff/tests/fixtures/ui_states/README.md) maps
-27 small UTF-8 examples to their intended screens and states. Its catalog is
+30 small UTF-8 examples to their intended screens and states. Its catalog is
 isolated test data, not a production query service or the view-model API owned
 by #81. It imports no SQLite, WoFF file reader, parser, repository, watchdog,
 GUI toolkit or launcher, and performs no network access.
@@ -68,8 +68,8 @@ and warning. `empty` must never conceal that the observation is old.
 | `synthetic`, `label` | Exactly `true` and `Synthetic` on every envelope, including no-data states. A copied fixture keeps both. |
 | `contract_version` | `synthetic-ui-v1`, the demonstration selection/shape contract. Version changes require review; this is not a WoFF format version. |
 | `state`, `reason` | One shared state and its stable reason above. Successful snapshots have a null envelope reason. |
-| `career_id` | Stable synthetic career identity, or null for a global/unselected scope. Every selected-career screen requires an ID, including loading, error and unavailable states; `missing/career_not_selected` is the exception. Names and visible list positions never select a career. |
-| `subject_id` | Explicit selected mission, member or report ID for one detail kind. It must belong to `career_id` and, when a payload exists, resolve to one of its records. Required on detail screens except `missing`; null outside a detail scope or when no career is selected. |
+| `career_id` | Stable synthetic career identity; null on every global screen in every state. Every selected-career screen requires an ID, including loading, error and unavailable states; `missing/career_not_selected` is the exception. Names and visible list positions never select a career. |
+| `subject_id` | Explicit selected mission, member or report ID for one detail kind. It must belong to `career_id` and, when a payload exists, resolve to one of its records. Required on detail screens except `missing`; null outside a detail scope or when no career is selected. An envelope with a subject targets detail screens only. |
 | `source_authority` | `synthetic-records`, `synthetic-derived`, `synthetic-settings`, `synthetic-query`, or `unresolved`. Indicates the origin of the demo snapshot, never authority over real campaign data. Successful/retained payloads require a records, derived or settings authority. |
 | `observed_at` | Strict UTC `YYYY-MM-DDTHH:MM:SSZ` observation time, or null when unknown. Never substitute a mission date, file mtime, render time or current wall clock. |
 | `freshness` | `current`, `stale`, or `unknown`; always displayed with its evidence. Unknown is not current. |
@@ -93,10 +93,15 @@ Changing career also clears its selected subject; a subject owned by another
 career is rejected even when the new request has no payload yet.
 
 Global loading, error, missing-source and source-rejection examples target only
-`APP-00`, `SEL-01` and `SYS-01`. Their `-selected` variants retain the selected
-career across the same outcomes. A null payload never erases request identity.
+`APP-00`, `SEL-01` and `SYS-01`, with a null `career_id`. Their `-selected`
+variants retain the selected career across the same outcomes. Each target
+screen must accept the entire envelope independently; global and selected
+scopes cannot be mixed except when no career is selected (`missing-career`).
+A null payload never erases request identity.
 Detail transition tests retain both IDs while clearing data and observation
 time; a missing subject uses `missing`, never an arbitrary candidate record.
+The mission, roster and report lists have separate ready fixtures with null
+subjects. Their detail fixtures select an explicit record from the same data.
 
 Each scalar field is `{value, unavailable_reason}` and inherits the snapshot's
 source authority and contract. A known value has a null reason; an unavailable
@@ -130,6 +135,13 @@ must agree; unknown or conflicting fields remain null with their field reasons
 and warnings. A retained selector cannot overwrite this reference. The named
 mission, roster and report cases similarly anchor subject ownership. These
 constraints describe invented relationships, not production source precedence.
+
+Owner identity fields (`display_name`, `source_slot`, `service`, `squadron`)
+belong in payload fields or `careers` records. All other record collections
+reject those fields, even if a value matches the owner or is unavailable.
+A `roster` record's `display_name` is the sole exception: it identifies the
+member and may differ from the owning pilot. This placement rule also applies
+to retained records and avoids ambiguous duplicate owner identities.
 
 The v1 catalog selects mission, member and report subjects by `subject_id` in
 nonempty `missions`, `roster` and `reports` collections respectively. A payload

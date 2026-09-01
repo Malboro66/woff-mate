@@ -3,6 +3,53 @@
   "reference_time": "2026-01-01T12:00:00Z",
   "fixtures": [
     {
+      "id": "aircrew-detail-ready",
+      "screens": [
+        "SQD-02"
+      ],
+      "synthetic": true,
+      "label": "Synthetic",
+      "contract_version": "synthetic-ui-v1",
+      "state": "ready",
+      "reason": null,
+      "career_id": "synthetic-career-02",
+      "subject_id": "synthetic-wingman-02",
+      "source_authority": "synthetic-records",
+      "observed_at": "2026-01-01T11:59:30Z",
+      "freshness": "current",
+      "warnings": [
+        {"code": "partial_record", "message": "Some fields are unavailable; known values remain visible."}
+      ],
+      "data": {
+        "collection": "roster",
+        "fields": {
+          "squadron": {"value": "Synthetic Squadron Cedar", "unavailable_reason": null}
+        },
+        "records": [
+          {
+            "id": "synthetic-wingman-01",
+            "career_id": "synthetic-career-02",
+            "occurred_at": "1917-04-01T06:00:00Z",
+            "fields": {
+              "display_name": {"value": "Synthetic Pilot Aster", "unavailable_reason": null},
+              "role": {"value": "Synthetic flight leader", "unavailable_reason": null},
+              "transfer_status": {"value": "Confirmed", "unavailable_reason": null}
+            }
+          },
+          {
+            "id": "synthetic-wingman-02",
+            "career_id": "synthetic-career-02",
+            "occurred_at": "1917-04-01T06:00:00Z",
+            "fields": {
+              "display_name": {"value": "Synthetic Pilot Birch", "unavailable_reason": null},
+              "role": {"value": "Synthetic wingman", "unavailable_reason": null},
+              "transfer_status": {"value": null, "unavailable_reason": "unknown"}
+            }
+          }
+        ]
+      }
+    },
+    {
       "id": "careers-ready",
       "screens": [
         "APP-00",
@@ -322,9 +369,8 @@
       "data": null
     },
     {
-      "id": "missions-ready",
+      "id": "mission-detail-ready",
       "screens": [
-        "MIS-01",
         "MIS-02"
       ],
       "synthetic": true,
@@ -334,6 +380,51 @@
       "reason": null,
       "career_id": "synthetic-career-02",
       "subject_id": "synthetic-mission-02",
+      "source_authority": "synthetic-records",
+      "observed_at": "2026-01-01T11:59:30Z",
+      "freshness": "current",
+      "warnings": [],
+      "data": {
+        "collection": "missions",
+        "fields": {},
+        "records": [
+          {
+            "id": "synthetic-mission-01",
+            "career_id": "synthetic-career-02",
+            "occurred_at": "1917-04-01T06:00:00Z",
+            "fields": {
+              "title": {"value": "Synthetic dawn patrol", "unavailable_reason": null},
+              "result": {"value": "Returned", "unavailable_reason": null},
+              "claims": {"value": 1, "unavailable_reason": null},
+              "confirmed_victories": {"value": 0, "unavailable_reason": null}
+            }
+          },
+          {
+            "id": "synthetic-mission-02",
+            "career_id": "synthetic-career-02",
+            "occurred_at": "1917-04-01T06:00:00Z",
+            "fields": {
+              "title": {"value": "Synthetic dawn patrol", "unavailable_reason": null},
+              "result": {"value": "Returned", "unavailable_reason": null},
+              "claims": {"value": 0, "unavailable_reason": null},
+              "confirmed_victories": {"value": 0, "unavailable_reason": null}
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "missions-ready",
+      "screens": [
+        "MIS-01"
+      ],
+      "synthetic": true,
+      "label": "Synthetic",
+      "contract_version": "synthetic-ui-v1",
+      "state": "ready",
+      "reason": null,
+      "career_id": "synthetic-career-02",
+      "subject_id": null,
       "source_authority": "synthetic-records",
       "observed_at": "2026-01-01T11:59:30Z",
       "freshness": "current",
@@ -515,9 +606,8 @@
       }
     },
     {
-      "id": "reports-ready",
+      "id": "report-detail-ready",
       "screens": [
-        "RPT-01",
         "RPT-02"
       ],
       "synthetic": true,
@@ -527,6 +617,38 @@
       "reason": null,
       "career_id": "synthetic-career-02",
       "subject_id": "synthetic-report-01",
+      "source_authority": "synthetic-derived",
+      "observed_at": "2026-01-01T11:59:30Z",
+      "freshness": "current",
+      "warnings": [],
+      "data": {
+        "collection": "reports",
+        "fields": {},
+        "records": [
+          {
+            "id": "synthetic-report-01",
+            "career_id": "synthetic-career-02",
+            "occurred_at": "1917-04-01T06:00:00Z",
+            "fields": {
+              "title": {"value": "Synthetic career report", "unavailable_reason": null},
+              "narrative": {"value": "Synthetic report: this text describes an invented career only.", "unavailable_reason": null}
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "reports-ready",
+      "screens": [
+        "RPT-01"
+      ],
+      "synthetic": true,
+      "label": "Synthetic",
+      "contract_version": "synthetic-ui-v1",
+      "state": "ready",
+      "reason": null,
+      "career_id": "synthetic-career-02",
+      "subject_id": null,
       "source_authority": "synthetic-derived",
       "observed_at": "2026-01-01T11:59:30Z",
       "freshness": "current",
@@ -742,8 +864,7 @@
     {
       "id": "squadron-ready",
       "screens": [
-        "SQD-01",
-        "SQD-02"
+        "SQD-01"
       ],
       "synthetic": true,
       "label": "Synthetic",
@@ -751,7 +872,7 @@
       "state": "ready",
       "reason": null,
       "career_id": "synthetic-career-02",
-      "subject_id": "synthetic-wingman-02",
+      "subject_id": null,
       "source_authority": "synthetic-records",
       "observed_at": "2026-01-01T11:59:30Z",
       "freshness": "current",

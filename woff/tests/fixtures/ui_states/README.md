@@ -17,6 +17,7 @@ The mission and diary examples deliberately share safe stable references.
 
 | Fixture ID | Intended screens | Shared state | Coverage |
 |---|---|---|---|
+| `aircrew-detail-ready` | `SQD-02` | `ready` | Select synthetic-wingman-02 by ID; the member name is distinct from the career owner's name. |
 | `careers-ready` | `APP-00`, `SEL-01` | `ready` | Homonyms have different career IDs and persistent slots 2 and 3. |
 | `diary-ready` | `JRN-01` | `ready` | Two invented narratives link to supplied stable mission IDs. |
 | `empty-global` | `APP-00`, `SEL-01`, `SYS-01` | `empty` | A successful global collection contains no entries; no career is required. |
@@ -28,12 +29,14 @@ The mission and diary examples deliberately share safe stable references.
 | `missing-career` | `APP-00`, `SEL-01`, `OPR-01`, `DOS-01`, `DOS-02`, `DOS-03`, `DOS-04`, `MIS-01`, `MIS-02`, `SQD-01`, `SQD-02`, `JRN-01`, `RPT-01`, `RPT-02` | `missing` | Required selection is absent; global system status remains reachable. |
 | `missing-source` | `APP-00`, `SEL-01`, `SYS-01` | `missing` | A required global source is absent; no career is required. |
 | `missing-source-selected` | `OPR-01`, `DOS-01`, `DOS-02`, `DOS-03`, `DOS-04`, `MIS-01`, `MIS-02`, `SQD-01`, `SQD-02`, `JRN-01`, `RPT-01`, `RPT-02` | `missing` | Preserve the career when a required source or detail subject has not been established. |
-| `missions-ready` | `MIS-01`, `MIS-02` | `ready` | Select synthetic-mission-02 by ID among equal timestamps; list position never selects. |
+| `mission-detail-ready` | `MIS-02` | `ready` | Select synthetic-mission-02 by ID among equal timestamps; list position never selects. |
+| `missions-ready` | `MIS-01` | `ready` | List stable mission IDs in deterministic order without selecting a detail subject. |
 | `pilot-partial-conflict` | `OPR-01`, `DOS-01` | `ready` | Known values, unknown status, missing flight time, conflicting service, two warnings. |
 | `pilot-ready` | `OPR-01`, `DOS-01` | `ready` | Confirmed victories are explicitly zero; other known values remain distinct. |
 | `pilot-stale` | `OPR-01`, `DOS-01` | `stale/unavailable` | Retain the safe older observation and a persistent warning. |
 | `pilot-unknown-freshness` | `OPR-01`, `DOS-01` | `ready` | Usable data has no observation time and is never called current. |
-| `reports-ready` | `RPT-01`, `RPT-02` | `ready` | Select synthetic-report-01 by ID; its content is invented and safe. |
+| `report-detail-ready` | `RPT-02` | `ready` | Select synthetic-report-01 by ID; its content is invented and safe. |
+| `reports-ready` | `RPT-01` | `ready` | List safe report summaries without selecting a detail subject. |
 | `settings-ready` | `SYS-01` | `ready` | Redacted paths, inert example URI, unknown operational indicators and safe diagnostics. |
 | `source-truncated` | `APP-00`, `SEL-01`, `SYS-01` | `stale/unavailable` | An incomplete global source supplies no unvalidated values. |
 | `source-truncated-selected` | `OPR-01`, `DOS-01`, `DOS-02`, `DOS-03`, `DOS-04`, `MIS-01`, `SQD-01`, `JRN-01`, `RPT-01` | `stale/unavailable` | Preserve the career when an incomplete source supplies no validated payload. |
@@ -41,19 +44,22 @@ The mission and diary examples deliberately share safe stable references.
 | `source-unreadable-selected` | `OPR-01`, `DOS-01`, `DOS-02`, `DOS-03`, `DOS-04`, `MIS-01`, `SQD-01`, `JRN-01`, `RPT-01` | `stale/unavailable` | Preserve the career after a source read failure; no raw exception or payload. |
 | `source-unsupported` | `APP-00`, `SEL-01`, `SYS-01` | `stale/unavailable` | An unsupported global source supplies no replacement values. |
 | `source-unsupported-selected` | `OPR-01`, `DOS-01`, `DOS-02`, `DOS-03`, `DOS-04`, `MIS-01`, `SQD-01`, `JRN-01`, `RPT-01` | `stale/unavailable` | Preserve the career when a source format is unsupported; no replacement values. |
-| `squadron-ready` | `SQD-01`, `SQD-02` | `ready` | Select synthetic-wingman-02 by ID; unknown transfer status never implies departure. |
+| `squadron-ready` | `SQD-01` | `ready` | List members without selecting a detail subject; unknown transfer status never implies departure. |
 | `unavailable-source` | `APP-00`, `SEL-01`, `SYS-01` | `stale/unavailable` | A global service cannot answer; there is no retained snapshot. |
 | `unavailable-source-selected` | `OPR-01`, `DOS-01`, `DOS-02`, `DOS-03`, `DOS-04`, `MIS-01`, `SQD-01`, `JRN-01`, `RPT-01` | `stale/unavailable` | Preserve the career when its source cannot answer; there is no retained snapshot. |
 
 The detail screens `MIS-02`, `SQD-02` and `RPT-02` select `subject_id` from
 `missions`, `roster` and `reports` records respectively. The selected ID must
 have the right kind, belong to the selected career and resolve in any supplied
-payload.
+payload. Each detail has a separate fixture from its parent list, whose
+`subject_id` stays null. Every intended screen must accept the entire envelope;
+adding a detail screen cannot permit a subject on a primary screen.
 The v1 catalog has no subject-specific empty child collections; `empty-records`
 must not target these screens. Retained detail payloads keep the selected ID.
 
 Global transient/source scenarios have no selected career and target the shell,
-selector and system status. Their `-selected` variants preserve career context
+selector and system status. All global screens require a null `career_id` in
+every state. Their `-selected` variants preserve career context
 on primary screens; `missing-source-selected` also covers absent detail IDs.
 Contract tests exercise detail loading, error and unavailable transitions with
 both career and subject IDs retained and no borrowed payload. `missing-career`
@@ -70,8 +76,10 @@ clears both IDs and keeps system status reachable.
 - The named ready cases anchor career identity and subject ownership. Known
   owner display names, slots, services and squadrons agree with the selector;
   unavailable or conflicting fields remain null with reasons and warnings.
-  Roster member names belong to the member, not to the owning pilot. Retained
-  examples cannot overwrite these reference identities.
+  These owner fields belong in payload fields or career records; other records
+  reject them even when null or consistent. The one exception is a roster
+  record's display name, which belongs to the member. Retained examples cannot
+  overwrite these reference identities.
 - The validator accepts only the two declared UTF-8 files. Database copies,
   binaries, raw game files, logs, screenshots, subdirectories and symlinks are
   rejected. No personal source was used to create this catalog.

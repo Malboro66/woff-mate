@@ -27,13 +27,18 @@ ROOT = Path(__file__).resolve().parents[1]
 FIXTURES = ROOT / "woff" / "tests" / "fixtures" / "ui_states"
 SHARED_STATES = {"loading", "ready", "empty", "missing", "stale/unavailable", "error"}
 DETAIL_CASES = (
-    ("missions-ready", "MIS-02", "synthetic-mission-02"),
-    ("squadron-ready", "SQD-02", "synthetic-wingman-02"),
-    ("reports-ready", "RPT-02", "synthetic-report-01"),
+    ("mission-detail-ready", "MIS-02", "synthetic-mission-02"),
+    ("aircrew-detail-ready", "SQD-02", "synthetic-wingman-02"),
+    ("report-detail-ready", "RPT-02", "synthetic-report-01"),
 )
 NO_PAYLOAD_CASES = (
     "loading", "error-query", "missing-source", "source-truncated",
     "source-unreadable", "source-unsupported", "unavailable-source",
+)
+LIST_CASES = (
+    ("missions-ready", "MIS-01", "synthetic-mission-02"),
+    ("squadron-ready", "SQD-01", "synthetic-wingman-02"),
+    ("reports-ready", "RPT-01", "synthetic-report-01"),
 )
 
 
@@ -169,19 +174,18 @@ def test_generic_empty_fixture_does_not_target_subject_detail_screens(catalog: d
     assert not {"MIS-02", "SQD-02", "RPT-02"}.intersection(case(catalog, "empty-records")["screens"])
 
 
-@pytest.mark.parametrize(("name", "screen"), (
-    ("missions-ready", "MIS-02"),
-    ("squadron-ready", "SQD-02"),
-    ("reports-ready", "RPT-02"),
-))
-def test_detail_can_retain_matching_subject_records(catalog: dict[str, Any], name: str, screen: str) -> None:
-    retained = deepcopy(case(catalog, "pilot-stale"))
+@pytest.mark.parametrize(("name", "screen", "subject_id"), DETAIL_CASES)
+def test_retained_detail_preserves_subject_and_owner_field_scope(catalog: dict[str, Any], name: str, screen: str, subject_id: str) -> None:
+    retained = case(catalog, "pilot-stale")
     retained["screens"] = [screen]
     retained["data"] = deepcopy(case(catalog, name)["data"])
-    retained["subject_id"] = case(catalog, name)["subject_id"]
-    if name == "squadron-ready":
+    retained["subject_id"] = subject_id
+    if name == "aircrew-detail-ready":
         retained["warnings"].insert(0, warning("partial_record"))
-    validate_case(retained)
+    validate_catalog(catalog)
+    retained["data"]["records"][0]["fields"]["service"] = {"value": "RAF", "unavailable_reason": None}
+    with pytest.raises(FixtureError, match="owner identity fields belong to payload"):
+        validate_catalog(catalog)
 
 
 @pytest.mark.parametrize(("name", "screen", "subject_id"), DETAIL_CASES)
@@ -226,6 +230,68 @@ def test_global_and_selected_transients_have_distinct_context(catalog: dict[str,
     assert not {"APP-00", "SEL-01", "SYS-01"}.intersection(selected["screens"])
 
 
+@pytest.mark.parametrize("name", NO_PAYLOAD_CASES + ("careers-ready", "empty-global", "settings-ready"))
+def test_global_screens_reject_selected_career(catalog: dict[str, Any], name: str) -> None:
+    case(catalog, name)["career_id"] = "synthetic-career-02"
+    with pytest.raises(FixtureError, match="global screen requires no selected career"):
+        validate_catalog(catalog)
+
+
+@pytest.mark.parametrize("screen", ("APP-00", "SEL-01", "SYS-01"))
+def test_selected_snapshots_cannot_also_target_global_screens(catalog: dict[str, Any], screen: str) -> None:
+    selected = case(catalog, "pilot-ready")
+    selected["screens"] = [target for target in SCREENS if target in selected["screens"] or target == screen]
+    with pytest.raises(FixtureError, match="global screen requires no selected career"):
+        validate_catalog(catalog)
+
+
+@pytest.mark.parametrize(("name", "screen", "subject_id"), LIST_CASES)
+@pytest.mark.parametrize("include_detail", (False, True))
+def test_primary_screens_reject_detail_subject(catalog: dict[str, Any], name: str, screen: str, subject_id: str, include_detail: bool) -> None:
+    listing = deepcopy(case(catalog, name))
+    listing["screens"] = [screen, screen.replace("01", "02")] if include_detail else [screen]
+    listing["subject_id"] = subject_id
+    with pytest.raises(FixtureError, match="subject requires"):
+        validate_case(listing)
+
+
+@pytest.mark.parametrize(("name", "screen", "subject_id"), LIST_CASES)
+def test_lists_and_details_have_separate_selection_context(catalog: dict[str, Any], name: str, screen: str, subject_id: str) -> None:
+    listing = case(catalog, name)
+    assert listing["screens"] == [screen] and listing["subject_id"] is None
+    detail_name = next(name for name, _, subject in DETAIL_CASES if subject == subject_id)
+    detail = case(catalog, detail_name)
+    assert detail["screens"] == [screen.replace("01", "02")]
+    assert detail["subject_id"] == subject_id
+    assert detail["career_id"] == listing["career_id"]
+    assert detail["data"] == listing["data"]
+
+
+def test_each_fixture_applies_to_each_intended_screen(catalog: dict[str, Any]) -> None:
+    for fixture in catalog["fixtures"]:
+        for screen in fixture["screens"]:
+            applied = deepcopy(fixture)
+            applied["screens"] = [screen]
+            validate_case(applied)
+
+
+@pytest.mark.parametrize("name", ("missions-ready", "squadron-ready", "reports-ready", "diary-ready", "settings-ready"))
+@pytest.mark.parametrize(("field", "value"), (
+    ("service", "RAF"), ("source_slot", 3), ("squadron", "Synthetic Squadron Cedar"),
+))
+def test_nested_records_reject_owner_identity_fields(catalog: dict[str, Any], name: str, field: str, value: Any) -> None:
+    case(catalog, name)["data"]["records"][0]["fields"][field] = {"value": value, "unavailable_reason": None}
+    with pytest.raises(FixtureError, match="owner identity fields belong to payload"):
+        validate_catalog(catalog)
+
+
+@pytest.mark.parametrize("name", ("missions-ready", "reports-ready", "diary-ready", "settings-ready"))
+def test_non_roster_records_reject_nested_owner_name(catalog: dict[str, Any], name: str) -> None:
+    case(catalog, name)["data"]["records"][0]["fields"]["display_name"] = {"value": "Synthetic Pilot Birch", "unavailable_reason": None}
+    with pytest.raises(FixtureError, match="owner identity fields belong to payload"):
+        validate_catalog(catalog)
+
+
 @pytest.mark.parametrize(("name", "screen", "subject_id"), DETAIL_CASES)
 @pytest.mark.parametrize("phase", ("loading", "error-query", "unavailable-source"))
 def test_detail_transitions_preserve_selected_subject(catalog: dict[str, Any], name: str, screen: str, subject_id: str, phase: str) -> None:
@@ -252,7 +318,7 @@ def test_transient_subject_must_be_known_and_have_the_right_kind(catalog: dict[s
 def test_record_selection_cannot_escape_its_detail_scope(catalog: dict[str, Any]) -> None:
     pilot = deepcopy(case(catalog, "pilot-ready"))
     pilot["subject_id"] = "synthetic-mission-02"
-    with pytest.raises(FixtureError, match="subject requires one detail kind"):
+    with pytest.raises(FixtureError, match="subject requires detail-only screens"):
         validate_case(pilot)
     missing = deepcopy(case(catalog, "missing-career"))
     missing["screens"] = ["MIS-02"]
@@ -500,7 +566,7 @@ runpy.run_path(script, run_name='__main__')
 '''
     result = subprocess.run([sys.executable, "-I", "-S", "-c", driver, str(ROOT / "scripts" / "validate_ui_fixtures.py")], capture_output=True, text=True, cwd=ROOT, check=False)
     assert result.returncode == 0, result.stderr
-    assert "27 synthetic cases, 6 shared states" in result.stdout
+    assert "30 synthetic cases, 6 shared states" in result.stdout
 
 
 def table(text: str, marker: str) -> list[list[str]]:

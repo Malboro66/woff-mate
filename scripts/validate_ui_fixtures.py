@@ -21,7 +21,7 @@ FIXTURES = ROOT / "woff" / "tests" / "fixtures" / "ui_states"
 # Pin the entire reviewed README, not just its heading or selected sections.
 # read_text normalizes newlines. Update only after reviewing all invented text;
 # candidate fixture files must never supply their own expected digest.
-APPROVED_INVENTORY_SHA256 = "02df1ceddac3b6291249ea1831544549ab6dd906973ef126c36bc70748f25b2a"
+APPROVED_INVENTORY_SHA256 = "f3db21e38d834b981085f41dc37a6f9f89718da8dcd90f22aaa4e74717f83bb0"
 VERSION = "synthetic-ui-v1"
 REFERENCE_TIME = "2026-01-01T12:00:00Z"
 MAX_AGE_SECONDS = 60
@@ -32,11 +32,11 @@ SCREENS = (
 )
 GLOBAL_SCREENS = {"APP-00", "SEL-01", "SYS-01"}
 CASE_IDS = frozenset({
-    "careers-ready", "diary-ready", "empty-global", "empty-records", "error-query",
+    "aircrew-detail-ready", "careers-ready", "diary-ready", "empty-global", "empty-records", "error-query",
     "error-query-selected", "loading", "loading-selected", "missing-career",
-    "missing-source", "missing-source-selected", "missions-ready",
+    "missing-source", "missing-source-selected", "mission-detail-ready", "missions-ready",
     "pilot-partial-conflict", "pilot-ready", "pilot-stale", "pilot-unknown-freshness",
-    "reports-ready", "settings-ready", "source-truncated", "source-unreadable",
+    "report-detail-ready", "reports-ready", "settings-ready", "source-truncated", "source-unreadable",
     "source-truncated-selected", "source-unreadable-selected",
     "source-unsupported", "source-unsupported-selected", "squadron-ready",
     "unavailable-source", "unavailable-source-selected",
@@ -176,6 +176,11 @@ def payload(case: dict[str, Any]) -> set[str]:
             require(record["career_id"] == case["career_id"], "cross-career record")
         reasons.update(fields(record["fields"]))
         require(REQUIRED_RECORD_FIELDS[collection] <= set(record["fields"]), "required record fields")
+        if collection != "careers":
+            # Owner identity belongs to the payload. A roster display name is
+            # the member's own identity, not the career owner's display name.
+            identity_fields = set(record["fields"]) & REQUIRED_RECORD_FIELDS["careers"]
+            require(identity_fields <= ({"display_name"} if collection == "roster" else set()), "owner identity fields belong to payload")
         ids.append(record["id"])
         keys.append((event_time, record["id"]))
     require(len(ids) == len(set(ids)) and keys == sorted(keys), "deterministic record order")
@@ -229,10 +234,15 @@ def validate_case(raw: Any) -> None:
     subject = case["subject_id"]
     if state == "missing" and reason == "career_not_selected":
         require(subject is None, "unselected career cannot carry a subject")
-    elif any(screen not in GLOBAL_SCREENS for screen in screens):
-        require(case["career_id"] is not None, "selected-career context identity")
+    else:
+        for screen in screens:
+            if screen in GLOBAL_SCREENS:
+                require(case["career_id"] is None, "global screen requires no selected career")
+            else:
+                require(case["career_id"] is not None, "selected-career context identity")
     detail_kinds = {DETAIL_COLLECTIONS[screen] for screen in screens if screen in DETAIL_COLLECTIONS}
     if subject is not None:
+        require(all(screen in DETAIL_COLLECTIONS for screen in screens), "subject requires detail-only screens")
         require(len(detail_kinds) == 1, "subject requires one detail kind")
         identifier(subject, ID_PREFIX[next(iter(detail_kinds))])
     elif detail_kinds and state != "missing":
