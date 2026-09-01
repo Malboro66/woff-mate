@@ -517,13 +517,30 @@ for the broader roster-generation and truncated-input policy.
 | #80 | `EVAL-UI-STATES-001` |
 | #81 | `EVAL-UI-CONTRACTS-001` |
 
-Cycle 3.4.0 is `active`. Issues #28, #38, #41, #75, and #97 are complete. Issue
-#79 remains in progress pending a passing audit of the published UI V2 Site.
-Issue #35 is the next dependency-ordered implementation item, #37 remains
-blocked by #35, and #101 remains blocked by #37 and #96.
+Cycle 3.4.0 is `active`. Issues #28, #35, #38, #41, #75, and #97 are complete.
+Issue #79 remains in progress pending a passing audit of the published UI V2
+Site. Issue #37 is now unblocked and is the next dependency-ordered
+implementation item. Issue #101 remains blocked by #37 and #96.
 `EVAL-CYCLE-340-001` aggregates all sixteen members and remains planned until
 every member acceptance criterion, applicable eval, and `Q6-CYCLE-3.4.0`
 condition passes.
+
+### Implemented Dossier field-validation evals
+
+- `EVAL-DOSSIER-001` is enforced by
+  `woff/tests/test_dossier_parser.py` and
+  `woff/tests/test_dossier_transactions.py`. Required identity fields replace
+  the former line-count gate, invalid or absent identity cannot reach
+  persistence, and partial input that is structurally valid under multiple
+  filename-derived keys fails closed before a pilot or slot binding is
+  created.
+- `EVAL-DOSSIER-002` is enforced by
+  `woff/tests/test_dossier_parser.py`,
+  `woff/tests/test_dossier_transactions.py`, and
+  `woff/tests/test_pilot_stat_merge.py`. Sanitized fixtures cover 50, 51, and
+  105 records; supported partial, truncated, unsupported-layout, and
+  decryption-failed outcomes remain distinct; missing optional statistics
+  persist as SQL `NULL` and cannot erase authoritative values.
 
 ### Implemented exact normalization evals
 

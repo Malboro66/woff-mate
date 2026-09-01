@@ -13,10 +13,11 @@ O WoFF ofusca este ficheiro com:
 ══════════════════════════════════════════════════════════════════
 """
 
-import os
+import ntpath
 import logging
 from dataclasses import replace
 from datetime import datetime
+from enum import Enum
 from typing import Optional, List
 from ..models import WoFFPilot, WoFFWingman, WoFFDecoration
 # FIX: Importa as funções de normalização para aplicar aos dados do Dossier.
@@ -32,6 +33,10 @@ from .numeric import (
 log = logging.getLogger("WoFFWatch")
 
 _DOSSIER_MISSING_TOKENS = frozenset({"null"})
+_DOSSIER_LAYOUT = "fixed-index-v1"
+_DOSSIER_REQUIRED_LAST_INDEX = 5
+_DOSSIER_CURRENT_FIXED_LAST_INDEX = 100
+_DOSSIER_NAME_SEPARATORS = frozenset({" ", "-", "'", "’", "."})
 # Sanitized evidence confirms only reputation as signed-capable. Counts,
 # flight minutes, skill, and morale remain nonnegative until new samples prove
 # a broader domain.
@@ -45,70 +50,89 @@ _DOSSIER_UNSIGNED_INTEGER = replace(
 )
 
 
+class DossierValidationStatus(str, Enum):
+    UNPARSED = "unparsed"
+    SUPPORTED_FULL = "supported-full"
+    SUPPORTED_PARTIAL = "supported-partial"
+    TRUNCATED = "truncated"
+    UNSUPPORTED_LAYOUT = "unsupported-layout"
+    DECRYPTION_FAILED = "decryption-failed"
+
+
 class WoFFDossierParser:
     def __init__(self):
         self.pilot: Optional[WoFFPilot] = None
         self.raw_strings: List[str] = []
         self.wingmen: List[WoFFWingman] = []
         self.decorations: List[WoFFDecoration] = []
+        self.validation_status = DossierValidationStatus.UNPARSED
 
-    def _create_key(self, pName: str) -> str:
-        """Gera a chave de cifra exatamente como o jogo faz (createkey)."""
+    def _reset_parse_state(self) -> None:
+        self.pilot = None
+        self.raw_strings = []
+        self.wingmen = []
+        self.decorations = []
+        self.validation_status = DossierValidationStatus.UNPARSED
+
+    def _reject(
+        self,
+        status: DossierValidationStatus,
+        source_name: str,
+        record_count: int,
+    ) -> bool:
+        self.validation_status = status
+        log.warning(
+            "[BIN] Dossier rejected: source=%s category=%s "
+            "layout=%s records=%d",
+            source_name,
+            status.value,
+            _DOSSIER_LAYOUT,
+            record_count,
+        )
+        return False
+
+    def _create_key_from_sum(self, sum_val: int) -> str:
         plainkey = "78CrztPRVzYQpYu90MnyW"
-        
-        soucet = sum(ord(c) for c in pName)
-        sum_val = soucet % 128
-        
+
         pos = sum_val % 10
         if pos == 0: pos = 9
-        
+
         length = sum_val % 12
         if length == 0: length = 4
-        
+
         prekey = ""
         ind = pos
         for _ in range(length):
             prekey += plainkey[ind - 1]
             ind += 1
-            
+
         postkey = ""
         in_val = pos
         lengt = length
         for _ in range(in_val):
             postkey += plainkey[lengt - 1]
             lengt += 1
-            
+
         sp = chr(sum_val)
         return prekey + sp + plainkey + postkey
 
-    def parse(self, path: str) -> bool:
-        log.info(f"[BIN] Analisando Dossier: {os.path.basename(path)}")
-        try:
-            with open(path, "rb") as f:
-                data = f.read()
-        except Exception as e:
-            log.error(f"  Falha ao ler {path}: {e}")
-            return False
-        return self.parse_bytes(data, os.path.basename(path))
+    def _create_key(self, pName: str) -> str:
+        """Gera a chave de cifra exatamente como o jogo faz (createkey)."""
+        return self._create_key_from_sum(sum(ord(c) for c in pName) % 128)
 
-    def parse_bytes(self, data: bytes, source_name: str) -> bool:
-        """Decode verified bytes, retaining the filename-derived cipher key."""
-        raw_lines = data.splitlines(keepends=True)
-        fname = os.path.basename(source_name)
-        pName = fname.replace(".txt", "")
-        current_key = self._create_key(pName)
-        
-        player_data = []
+    def _decode_lines(self, raw_lines: List[bytes], key: str) -> List[str]:
+        current_key = key
+        player_data: List[str] = []
 
         for raw_line in raw_lines:
             line = raw_line.decode("cp1252", errors="replace").strip()
             if not line:
                 continue
-                
+
             decoded_line = ""
             hex_buffer = ""
             key_index = 0
-            
+
             for char in line:
                 code = ord(char)
                 if code > 71:  # Byte de contador/separador
@@ -122,24 +146,138 @@ class WoFFDossierParser:
                             decoded_line += chr(fin_val)
                         except ValueError:
                             pass
-                        
+
                         key_index += 1
                         if key_index == len(current_key):
                             key_index = 0
                         hex_buffer = ""
                 elif code != 32:
                     hex_buffer += char
-                    
-            current_key = current_key[::-1]
-            player_data.append(decoded_line.strip())
 
-        if len(player_data) > 50:
+            current_key = current_key[::-1]
+            player_data.append(decoded_line)
+
+        return player_data
+
+    @staticmethod
+    def _has_valid_decoded_text(player_data: List[str]) -> bool:
+        return any(value.strip() for value in player_data) and not any(
+            "\ufffd" in value
+            or not all(character.isprintable() for character in value)
+            for value in player_data
+        )
+
+    @staticmethod
+    def _has_supported_identity(player_data: List[str]) -> bool:
+        if len(player_data) <= _DOSSIER_REQUIRED_LAST_INDEX:
+            return False
+        return all(
+            value
+            and value.casefold() not in _DOSSIER_MISSING_TOKENS
+            and any(character.isalpha() for character in value)
+            and all(
+                character.isalpha()
+                or character in _DOSSIER_NAME_SEPARATORS
+                for character in value
+            )
+            for value in (player_data[4], player_data[5])
+        )
+
+    def _partial_key_is_ambiguous(
+        self,
+        raw_lines: List[bytes],
+        selected_key: str,
+    ) -> bool:
+        for sum_val in range(128):
+            candidate_key = self._create_key_from_sum(sum_val)
+            if candidate_key == selected_key:
+                continue
+
+            candidate_data = self._decode_lines(raw_lines, candidate_key)
+            if not self._has_valid_decoded_text(candidate_data):
+                continue
+            candidate_data = [value.strip() for value in candidate_data]
+            if self._has_supported_identity(candidate_data):
+                return True
+
+        return False
+
+    def parse(self, path: str) -> bool:
+        self._reset_parse_state()
+        source_name = ntpath.basename(path)
+        log.info(f"[BIN] Analisando Dossier: {source_name}")
+        try:
+            with open(path, "rb") as f:
+                data = f.read()
+        except Exception as e:
+            log.error(f"  Falha ao ler {path}: {e}")
+            return False
+        return self.parse_bytes(data, source_name)
+
+    def parse_bytes(self, data: bytes, source_name: str) -> bool:
+        """Decode verified bytes, retaining the filename-derived cipher key."""
+        self._reset_parse_state()
+        raw_lines = data.splitlines(keepends=True)
+        fname = ntpath.basename(source_name)
+        pName = fname.replace(".txt", "")
+        selected_key = self._create_key(pName)
+        player_data = self._decode_lines(raw_lines, selected_key)
+
+        if not self._has_valid_decoded_text(player_data):
+            return self._reject(
+                DossierValidationStatus.DECRYPTION_FAILED,
+                fname,
+                len(player_data),
+            )
+
+        player_data = [value.strip() for value in player_data]
+        if len(player_data) > _DOSSIER_REQUIRED_LAST_INDEX:
+            first_name = player_data[4].strip()
+            last_name = player_data[5].strip()
+            if any(
+                not all(
+                    character.isalpha()
+                    or character.isdigit()
+                    or character in _DOSSIER_NAME_SEPARATORS
+                    for character in value
+                )
+                for value in (first_name, last_name)
+            ):
+                return self._reject(
+                    DossierValidationStatus.DECRYPTION_FAILED,
+                    fname,
+                    len(player_data),
+                )
+            if not self._has_supported_identity(player_data):
+                return self._reject(
+                    DossierValidationStatus.UNSUPPORTED_LAYOUT,
+                    fname,
+                    len(player_data),
+                )
+
+            if (
+                len(player_data) <= _DOSSIER_CURRENT_FIXED_LAST_INDEX
+                and self._partial_key_is_ambiguous(raw_lines, selected_key)
+            ):
+                return self._reject(
+                    DossierValidationStatus.DECRYPTION_FAILED,
+                    fname,
+                    len(player_data),
+                )
+
             self.pilot = WoFFPilot()
             self.pilot.source_file = fname
             self.pilot.last_updated = datetime.now().isoformat()
             
             def safe_get(idx):
-                return player_data[idx] if len(player_data) > idx and player_data[idx] else ""
+                value = (
+                    player_data[idx]
+                    if len(player_data) > idx and player_data[idx]
+                    else ""
+                )
+                if value.casefold() in _DOSSIER_MISSING_TOKENS:
+                    return ""
+                return value
 
             def parse_pilot_integer(
                 idx: int, field: str, policy: IntegerPolicy
@@ -156,8 +294,8 @@ class WoFFDossierParser:
                     return None
             
             # 1. Índices fixos para estatísticas (confirmados no Java)
-            self.pilot.fName = safe_get(4)
-            self.pilot.sName = safe_get(5)
+            self.pilot.fName = first_name
+            self.pilot.sName = last_name
             self.pilot.name = f"{self.pilot.fName} {self.pilot.sName}".strip()
             self.pilot.rank = safe_get(3)
             self.pilot.squadron = safe_get(83)
@@ -310,8 +448,23 @@ class WoFFDossierParser:
                         d.source_file = fname
                         self.decorations.append(d)
             
-            log.info(f"  ✓ Dossier Decifrado! Piloto: {self.pilot.name} ({self.pilot.squadron}) | Wingmen: {len(self.wingmen)} | Medalhas: {len(self.decorations)}")
+            self.validation_status = (
+                DossierValidationStatus.SUPPORTED_FULL
+                if len(player_data) > _DOSSIER_CURRENT_FIXED_LAST_INDEX
+                else DossierValidationStatus.SUPPORTED_PARTIAL
+            )
+            log.info(
+                "[BIN] Dossier accepted: source=%s category=%s "
+                "layout=%s records=%d",
+                fname,
+                self.validation_status.value,
+                _DOSSIER_LAYOUT,
+                len(player_data),
+            )
             return True
             
-        log.warning("  Dossier decifrado, mas sem dados suficientes.")
-        return False
+        return self._reject(
+            DossierValidationStatus.TRUNCATED,
+            fname,
+            len(player_data),
+        )

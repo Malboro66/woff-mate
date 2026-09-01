@@ -15,7 +15,7 @@ from ..identity import (
 from ..parsers.dossier_parser import WoFFDossierParser
 from ..parsers.pilot_data_parser import WoFFPilotDataParser
 from ..parsers.xml_parser import WoFFXMLParser
-from .test_dossier_parser import _encode_dossier
+from .test_dossier_parser import _dossier_fixture, _encode_dossier
 from .identity_support import (
     TEST_CAMPAIGN_NAMESPACE,
     dependent_evidence,
@@ -176,6 +176,64 @@ class TestPilotStatisticMerge(unittest.TestCase):
             )
         finally:
             conn.close()
+
+    def test_new_partial_dossier_persists_missing_statistics_as_null(self):
+        parser = WoFFDossierParser()
+        lines = _dossier_fixture("short_valid_sanitized.txt")
+        lines[4] = "James"
+        lines[5] = "Hartley"
+        self.assertTrue(
+            parser.parse_bytes(
+                _encode_dossier(
+                    lines,
+                    "Pilot1Dossier.txt",
+                ),
+                "Pilot1Dossier.txt",
+            )
+        )
+        self.assertIsNotNone(parser.pilot)
+        assert parser.pilot is not None
+        self.assertTrue(
+            all(getattr(parser.pilot, field) is None for field in STAT_FIELDS)
+        )
+
+        pilot_id = self.db.merge_and_write(
+            parser.pilot,
+            [],
+            [],
+            [],
+            identity=dossier_evidence(1, "partial"),
+        )
+
+        self.assertIsNotNone(pilot_id)
+        self.assertEqual(self._pilot_row()[:6], (None,) * 6)
+
+    def test_partial_dossier_preserves_existing_authoritative_statistics(self):
+        self._persist_dossier()
+        parser = WoFFDossierParser()
+        lines = _dossier_fixture("short_valid_sanitized.txt")
+        lines[4] = "James"
+        lines[5] = "Hartley"
+        self.assertTrue(
+            parser.parse_bytes(
+                _encode_dossier(lines, "Pilot1Dossier.txt"),
+                "Pilot1Dossier.txt",
+            )
+        )
+        self.assertIsNotNone(parser.pilot)
+        assert parser.pilot is not None
+
+        self.assertIsNotNone(
+            self.db.merge_and_write(
+                parser.pilot,
+                [],
+                [],
+                [],
+                identity=dossier_evidence(1, "partial-update"),
+            )
+        )
+
+        self.assertEqual(self._pilot_row()[:6], AUTHORITATIVE_STATS)
 
     def test_partial_xml_is_rejected_without_changing_dossier_state(self):
         self._persist_dossier()
