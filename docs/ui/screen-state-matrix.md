@@ -116,6 +116,12 @@ event time and safe fields. Diary references resolve to a supplied mission of
 the same career. RFC, RNAS and RAF are distinct literals. The selector includes
 same-name careers in slots 2 and 3; it does not create Pilot1 or renumber Pilot2.
 
+The v1 catalog supplies mission, member and report subjects through nonempty
+`missions`, `roster` and `reports` collections respectively. A payload targeting
+`MIS-02`, `SQD-02` or `RPT-02` must carry records of the matching kind, including
+when retained as stale. This bounded catalog has no subject-specific empty
+child collections; its generic `empty-records` fixture excludes these screens.
+
 ## Visible guidance for every approved screen
 
 Each cell supplies user guidance, in addition to the common timestamp,
@@ -124,24 +130,27 @@ it never ingests, repairs, edits configuration, or triggers a launcher.
 For singleton detail views, `empty` applies only to a successfully queried
 child collection with an established subject; a missing subject is `missing`.
 `SYS-01` remains reachable with no career selected and never demands one.
+For `career_not_selected`, every targeted screen prompts selection of a career.
+For `source_missing`, use the screen's missing identity/source guidance; do not
+send an unselected user to source diagnostics as a substitute for selection.
 
 <!-- state-matrix:start -->
 | Screen | `loading` | `ready` | `empty` | `missing` | `stale/unavailable` | `error` |
 |---|---|---|---|---|---|---|
-| `APP-00` | Loading career context; keep navigation. | Show selected career and destinations. | No careers recorded; open data status. | Select a career; data status remains available. | Career context unavailable; show safe prior time if retained. | Context could not load; retry or open data status. |
-| `SEL-01` | Loading career list. | Show separate stable-ID options, including homonyms. | No careers recorded. | Career source missing; open data status. | Career list not current; show its observation time. | Career list failed; retry or open data status. |
+| `APP-00` | Loading career context; keep navigation. | Show selected career and destinations. | No careers recorded; open data status. | Select a career if none is selected; open data status for a missing context source. | Career context unavailable; show safe prior time if retained. | Context could not load; retry or open data status. |
+| `SEL-01` | Loading career list. | Show separate stable-ID options, including homonyms. | No careers recorded. | `career_not_selected`: select a career. `source_missing`: open data status for the missing career source. | Career list not current; show its observation time. | Career list failed; retry or open data status. |
 | `OPR-01` | Loading operations overview. | Show known summaries and all warnings. | No activity recorded for this established career. | Select a career or inspect missing overview source. | Overview not current; retain safe time and offer retry. | Overview failed; retry or open data status. |
-| `DOS-01` | Loading pilot dossier. | Show known identity, statistics and unavailable field reasons. | No service records for this established pilot; keep known identity. | Pilot identity/source missing; select career or open data status. | Dossier unavailable or old; identify source reason and retained time. | Dossier failed; retry or open data status. |
-| `DOS-02` | Loading career record. | Show confirmed service events. | No service events recorded. | Career/source missing; return to Dossier. | Service record not current; show reason and retained time. | Career record failed; retry or return to Dossier. |
-| `DOS-03` | Loading victories and claims. | Distinguish claims from confirmed victories. | No claims or victories recorded; do not infer other counts. | Required career/source missing; return to Dossier. | Claims source unavailable or old; show reason and time. | Claims view failed; retry or open data status. |
-| `DOS-04` | Loading decorations. | Show supplied confirmed decorations. | No decorations recorded. | Required career/source missing; return to Dossier. | Decorations unavailable or old; show reason and time. | Decorations failed; retry or return to Dossier. |
-| `MIS-01` | Loading mission history. | Show supplied stable IDs in documented order. | No missions recorded in this query. | Required career/source missing; select career or open data status. | Mission history not current; show warning and retained time. | Mission history failed; retry or open data status. |
-| `MIS-02` | Loading selected mission. | Show supplied mission details and field reasons. | No related events for this established mission. | Mission ID not established; return to Mission Log. | Mission detail unavailable or old; show reason and time. | Mission detail failed; retry or return to Mission Log. |
-| `SQD-01` | Loading squadron roster. | Show known roster and unknown transfer reasons. | No members recorded in this roster query. | Squadron identity/source missing; open data status. | Roster not current; never infer a member departure. | Roster failed; retry or open data status. |
-| `SQD-02` | Loading aircrew profile. | Show supplied profile without changing career selection. | No service events for this established member. | Member ID missing; return to Squadron. | Profile unavailable or old; retain safe timestamp. | Profile failed; retry or return to Squadron. |
-| `JRN-01` | Loading war diary. | Show supplied narratives and stable mission associations. | No diary entries recorded. | Career/narrative source missing; open data status. | Diary not current; show warning and retained time. | Diary failed; retry or open data status. |
-| `RPT-01` | Loading report library. | Show supplied report IDs and safe summaries. | No reports recorded. | Career/report source missing; open data status. | Report library not current; show warning and time. | Report library failed; retry or open data status. |
-| `RPT-02` | Loading selected report. | Show supplied safe report content. | No sections for this established report. | Report ID missing; return to Reports. | Report unavailable or old; show reason and time. | Report failed; retry or return to Reports. |
+| `DOS-01` | Loading pilot dossier. | Show known identity, statistics and unavailable field reasons. | No service records for this established pilot; keep known identity. | Select a career if none is selected; open data status for a missing pilot identity/source. | Dossier unavailable or old; identify source reason and retained time. | Dossier failed; retry or open data status. |
+| `DOS-02` | Loading career record. | Show confirmed service events. | No service events recorded. | Select a career if none is selected; return to Dossier for a missing service source. | Service record not current; show reason and retained time. | Career record failed; retry or return to Dossier. |
+| `DOS-03` | Loading victories and claims. | Distinguish claims from confirmed victories. | No claims or victories recorded; do not infer other counts. | Select a career if none is selected; return to Dossier for a missing claims source. | Claims source unavailable or old; show reason and time. | Claims view failed; retry or open data status. |
+| `DOS-04` | Loading decorations. | Show supplied confirmed decorations. | No decorations recorded. | Select a career if none is selected; return to Dossier for a missing decorations source. | Decorations unavailable or old; show reason and time. | Decorations failed; retry or return to Dossier. |
+| `MIS-01` | Loading mission history. | Show supplied stable IDs in documented order. | No missions recorded in this query. | Select a career if none is selected; open data status for a missing mission source. | Mission history not current; show warning and retained time. | Mission history failed; retry or open data status. |
+| `MIS-02` | Loading selected mission. | Show supplied mission details and field reasons. | No related events for this established mission. | Select a career if none is selected; return to Mission Log for a missing mission ID/source. | Mission detail unavailable or old; show reason and time. | Mission detail failed; retry or return to Mission Log. |
+| `SQD-01` | Loading squadron roster. | Show known roster and unknown transfer reasons. | No members recorded in this roster query. | Select a career if none is selected; open data status for a missing squadron identity/source. | Roster not current; never infer a member departure. | Roster failed; retry or open data status. |
+| `SQD-02` | Loading aircrew profile. | Show supplied profile without changing career selection. | No service events for this established member. | Select a career if none is selected; return to Squadron for a missing member ID/source. | Profile unavailable or old; retain safe timestamp. | Profile failed; retry or return to Squadron. |
+| `JRN-01` | Loading war diary. | Show supplied narratives and stable mission associations. | No diary entries recorded. | Select a career if none is selected; open data status for a missing narrative source. | Diary not current; show warning and retained time. | Diary failed; retry or open data status. |
+| `RPT-01` | Loading report library. | Show supplied report IDs and safe summaries. | No reports recorded. | Select a career if none is selected; open data status for a missing report source. | Report library not current; show warning and time. | Report library failed; retry or open data status. |
+| `RPT-02` | Loading selected report. | Show supplied safe report content. | No sections for this established report. | Select a career if none is selected; return to Reports for a missing report ID/source. | Report unavailable or old; show reason and time. | Report failed; retry or return to Reports. |
 | `SYS-01` | Loading effective settings and data status. | Show redacted settings, known diagnostics and unknown indicators. | No diagnostic observations recorded; never infer healthy status. | Required configuration/status source missing; explain without editing. | Status unavailable or old; no live-service claim. | Status query failed; show safe diagnostic and retry. |
 <!-- state-matrix:end -->
 
@@ -189,6 +198,8 @@ paths, activation/license fields or values, raw game payloads, database
 copies, logs, screenshots, binary files, unknown fields, duplicate JSON keys,
 non-finite numbers and symlinks. Prefixing unapproved text with `Synthetic`
 does not make it pass. Rejection output never echoes the rejected value.
+The entire inventory README must match a reviewed SHA-256 after newline
+normalization, so preserving its heading cannot admit unapproved text elsewhere.
 
 Catalog extensions require review of the new invented text. Automated checks
 enforce this closed catalog; they do not establish that arbitrary uploaded

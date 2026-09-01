@@ -20,7 +20,7 @@ The mission and diary examples deliberately share safe stable references.
 | `careers-ready` | `APP-00`, `SEL-01` | `ready` | Homonyms have different career IDs and persistent slots 2 and 3. |
 | `diary-ready` | `JRN-01` | `ready` | Two invented narratives link to supplied stable mission IDs. |
 | `empty-global` | `APP-00`, `SEL-01`, `SYS-01` | `empty` | A successful global collection contains no entries; no career is required. |
-| `empty-records` | `OPR-01`, `DOS-01`, `DOS-02`, `DOS-03`, `DOS-04`, `MIS-01`, `MIS-02`, `SQD-01`, `SQD-02`, `JRN-01`, `RPT-01`, `RPT-02` | `empty` | A successful selected-career collection contains no entries. |
+| `empty-records` | `OPR-01`, `DOS-01`, `DOS-02`, `DOS-03`, `DOS-04`, `MIS-01`, `SQD-01`, `JRN-01`, `RPT-01` | `empty` | A successful selected-career collection contains no entries; it establishes no mission, member or report subject. |
 | `error-query` | `APP-00`, `SEL-01`, `OPR-01`, `DOS-01`, `DOS-02`, `DOS-03`, `DOS-04`, `MIS-01`, `MIS-02`, `SQD-01`, `SQD-02`, `JRN-01`, `RPT-01`, `RPT-02`, `SYS-01` | `error` | A failed query exposes only the fixed safe diagnostic. |
 | `loading` | `APP-00`, `SEL-01`, `OPR-01`, `DOS-01`, `DOS-02`, `DOS-03`, `DOS-04`, `MIS-01`, `MIS-02`, `SQD-01`, `SQD-02`, `JRN-01`, `RPT-01`, `RPT-02`, `SYS-01` | `loading` | A pending request contains no old payload. |
 | `missing-career` | `APP-00`, `SEL-01`, `OPR-01`, `DOS-01`, `DOS-02`, `DOS-03`, `DOS-04`, `MIS-01`, `MIS-02`, `SQD-01`, `SQD-02`, `JRN-01`, `RPT-01`, `RPT-02` | `missing` | Required selection is absent; global system status remains reachable. |
@@ -38,6 +38,11 @@ The mission and diary examples deliberately share safe stable references.
 | `squadron-ready` | `SQD-01`, `SQD-02` | `ready` | An unknown transfer status stays unknown; no departure is inferred. |
 | `unavailable-source` | `APP-00`, `SEL-01`, `OPR-01`, `DOS-01`, `DOS-02`, `DOS-03`, `DOS-04`, `MIS-01`, `MIS-02`, `SQD-01`, `SQD-02`, `JRN-01`, `RPT-01`, `RPT-02`, `SYS-01` | `stale/unavailable` | The service cannot answer and there is no retained snapshot. |
 
+The detail screens `MIS-02`, `SQD-02` and `RPT-02` use stable subjects from
+`missions`, `roster` and `reports` records respectively. The v1 catalog has no
+subject-specific empty child collections; `empty-records` must not target
+these screens. The validator also rejects incompatible retained payloads.
+
 ## Determinism and privacy
 
 - The reference clock is fixed at `2026-01-01T12:00:00Z`; it never uses the
@@ -49,6 +54,10 @@ The mission and diary examples deliberately share safe stable references.
 - The validator accepts only the two declared UTF-8 files. Database copies,
   binaries, raw game files, logs, screenshots, subdirectories and symlinks are
   rejected. No personal source was used to create this catalog.
+- The complete inventory text must match its approved SHA-256 in the
+  validator after newline normalization. Added, replaced or removed text is
+  rejected, including text after the heading. Review every inventory change
+  before updating that digest; do not derive approval from candidate files.
 - Exact object keys and approved display-text/diagnostic vocabularies reject
   arbitrary names, narratives, installation paths, credentials and raw payloads,
   including values prefixed with `Synthetic`. IDs occupy numeric synthetic

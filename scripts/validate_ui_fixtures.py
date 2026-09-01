@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import argparse
 from datetime import datetime, timezone
+import hashlib
 import json
 from pathlib import Path
 import re
@@ -17,6 +18,10 @@ from typing import Any
 
 ROOT = Path(__file__).resolve().parents[1]
 FIXTURES = ROOT / "woff" / "tests" / "fixtures" / "ui_states"
+# Pin the entire reviewed README, not just its heading or selected sections.
+# read_text normalizes newlines. Update only after reviewing all invented text;
+# candidate fixture files must never supply their own expected digest.
+APPROVED_INVENTORY_SHA256 = "f721fff35dbaf056c76d9780789163756fc7a3a7f5b9749f748f925807f9d4e0"
 VERSION = "synthetic-ui-v1"
 REFERENCE_TIME = "2026-01-01T12:00:00Z"
 MAX_AGE_SECONDS = 60
@@ -70,6 +75,7 @@ NUMBER_FIELDS = {"missions", "flight_minutes", "claims", "confirmed_victories", 
 UNAVAILABLE_ONLY = {"installation_path", "database_path", "watchdog_running", "database_connected", "last_sync"}
 COLLECTIONS = {"careers", "missions", "diary", "roster", "reports", "diagnostics", "records"}
 ID_PREFIX = {"careers": "career", "missions": "mission", "diary": "diary", "roster": "wingman", "reports": "report", "diagnostics": "diagnostic"}
+DETAIL_COLLECTIONS = {"MIS-02": "missions", "SQD-02": "roster", "RPT-02": "reports"}
 REQUIRED_RECORD_FIELDS = {
     "careers": {"display_name", "source_slot", "service", "squadron"},
     "missions": {"title", "result", "claims", "confirmed_victories"},
@@ -145,6 +151,11 @@ def payload(case: dict[str, Any]) -> set[str]:
     require(isinstance(records, list) and len(records) <= 8, "small record collection")
     require(collection is not None or not records, "singleton cannot carry records")
     require(collection != "records" or not records, "generic empty collection")
+    # v1 supplies detail subjects through typed records, not child collections.
+    # A career ID alone cannot establish a mission, member, or report identity.
+    for screen in case["screens"]:
+        if screen in DETAIL_COLLECTIONS:
+            require(collection == DETAIL_COLLECTIONS[screen] and bool(records), "detail screen requires an established subject")
     reasons = fields(data["fields"])
     keys = []
     ids = []
@@ -328,7 +339,7 @@ def load_catalog(directory: Path = FIXTURES) -> dict[str, Any]:
         inventory = inventory_path.read_text(encoding="utf-8")
     except UnicodeError:
         raise FixtureError("valid UTF-8 inventory required") from None
-    require(inventory.startswith("# Synthetic UI fixture inventory\n") and "\x00" not in inventory, "fixture inventory text")
+    require(hashlib.sha256(inventory.encode("utf-8")).hexdigest() == APPROVED_INVENTORY_SHA256, "approved fixture inventory text required")
     path = directory / "catalog.json"
     require(path.stat().st_size <= 65536, "small UTF-8 catalog")
     try:

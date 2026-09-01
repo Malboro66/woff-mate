@@ -19,6 +19,7 @@ from scripts.validate_ui_fixtures import (
     load_catalog,
     main,
     validate_catalog,
+    validate_case,
 )
 
 
@@ -141,6 +142,35 @@ def test_expired_empty_collection_remains_stale(catalog: dict[str, Any]) -> None
     retained["reason"] = None
     with pytest.raises(FixtureError, match="successful snapshot state"):
         validate_catalog(catalog)
+
+
+@pytest.mark.parametrize("screen", ("MIS-02", "SQD-02", "RPT-02"))
+@pytest.mark.parametrize("name", ("empty-records", "pilot-stale", "pilot-ready", "diary-ready"))
+def test_detail_payload_requires_matching_subject_records(catalog: dict[str, Any], screen: str, name: str) -> None:
+    detail = deepcopy(case(catalog, name))
+    detail["screens"] = [screen]
+    if name == "pilot-stale":
+        detail["data"] = deepcopy(case(catalog, "empty-records")["data"])
+    with pytest.raises(FixtureError, match="detail screen requires an established subject"):
+        validate_case(detail)
+
+
+def test_generic_empty_fixture_does_not_target_subject_detail_screens(catalog: dict[str, Any]) -> None:
+    assert not {"MIS-02", "SQD-02", "RPT-02"}.intersection(case(catalog, "empty-records")["screens"])
+
+
+@pytest.mark.parametrize(("name", "screen"), (
+    ("missions-ready", "MIS-02"),
+    ("squadron-ready", "SQD-02"),
+    ("reports-ready", "RPT-02"),
+))
+def test_detail_can_retain_matching_subject_records(catalog: dict[str, Any], name: str, screen: str) -> None:
+    retained = deepcopy(case(catalog, "pilot-stale"))
+    retained["screens"] = [screen]
+    retained["data"] = deepcopy(case(catalog, name)["data"])
+    if name == "squadron-ready":
+        retained["warnings"].insert(0, warning("partial_record"))
+    validate_case(retained)
 
 
 def test_unavailable_source_can_retain_safe_time_but_never_claim_current(catalog: dict[str, Any]) -> None:
@@ -280,6 +310,48 @@ def test_inventory_must_be_utf8_text_not_a_renamed_binary(fixture_copy: Path, co
         load_catalog(fixture_copy)
 
 
+@pytest.mark.parametrize(("change", "rejected"), (
+    ("append", "Unapproved Example Person"),
+    ("append", r"C:\Users\Example\WoFF"),
+    ("insert", "DEMO-ONLY-NOT-A-LICENSE"),
+    ("insert", "<!-- SYNTHETIC UNREVIEWED RAW PAYLOAD -->"),
+    ("replace", "Synthetic Unapproved Example Person"),
+))
+def test_entire_inventory_rejects_unapproved_text(fixture_copy: Path, capsys: pytest.CaptureFixture[str], change: str, rejected: str) -> None:
+    path = fixture_copy / "README.md"
+    approved = path.read_text(encoding="utf-8")
+    if change == "append":
+        candidate = approved + "\n" + rejected + "\n"
+    elif change == "insert":
+        heading, body = approved.split("\n", 1)
+        candidate = heading + "\n" + rejected + "\n" + body
+    else:
+        candidate = approved.replace("Every envelope", rejected, 1)
+    path.write_text(candidate, encoding="utf-8")
+    with pytest.raises(FixtureError, match="inventory"):
+        load_catalog(fixture_copy)
+    assert main([str(fixture_copy)]) == 1
+    output = capsys.readouterr()
+    assert "inventory" in output.err
+    assert rejected not in output.err + output.out
+    assert str(fixture_copy) not in output.err + output.out
+
+
+def test_inventory_cannot_omit_approved_privacy_guidance(fixture_copy: Path) -> None:
+    path = fixture_copy / "README.md"
+    approved = path.read_text(encoding="utf-8")
+    path.write_text(approved.split("## Determinism and privacy", 1)[0], encoding="utf-8")
+    with pytest.raises(FixtureError, match="inventory"):
+        load_catalog(fixture_copy)
+
+
+def test_inventory_accepts_windows_newlines(fixture_copy: Path, catalog: dict[str, Any]) -> None:
+    path = fixture_copy / "README.md"
+    approved = path.read_text(encoding="utf-8")
+    path.write_bytes(approved.replace("\n", "\r\n").encode("utf-8"))
+    assert load_catalog(fixture_copy) == catalog
+
+
 def test_rejection_does_not_echo_paths_or_raw_diagnostics(catalog: dict[str, Any], fixture_copy: Path, capsys: pytest.CaptureFixture[str]) -> None:
     rejected = "SYNTHETIC REJECTED VALUE C:\\Users\\Example\\WoFF"
     case(catalog, "error-query")["warnings"][0]["message"] = rejected
@@ -318,6 +390,16 @@ runpy.run_path(script, run_name='__main__')
 def table(text: str, marker: str) -> list[list[str]]:
     section = text.split(f"<!-- {marker}:start -->", 1)[1].split(f"<!-- {marker}:end -->", 1)[0]
     return [[cell.strip().strip('`') for cell in line.strip().strip('|').split('|')] for line in section.splitlines() if line.startswith('|')][2:]
+
+
+def test_missing_career_guidance_covers_every_target_screen(catalog: dict[str, Any]) -> None:
+    document = (ROOT / "docs" / "ui" / "screen-state-matrix.md").read_text(encoding="utf-8")
+    missing = {row[0]: row[4] for row in table(document, "state-matrix")}
+    for screen in case(catalog, "missing-career")["screens"]:
+        assert "select a career" in missing[screen].lower(), screen
+    assert "career_not_selected" in missing["SEL-01"]
+    assert "source_missing" in missing["SEL-01"]
+    assert "open data status" in missing["SEL-01"].lower()
 
 
 def test_documented_matrix_inventory_and_archived_visual_aliases(catalog: dict[str, Any]) -> None:

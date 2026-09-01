@@ -119,12 +119,9 @@
         "DOS-03",
         "DOS-04",
         "MIS-01",
-        "MIS-02",
         "SQD-01",
-        "SQD-02",
         "JRN-01",
-        "RPT-01",
-        "RPT-02"
+        "RPT-01"
       ],
       "synthetic": true,
       "label": "Synthetic",
