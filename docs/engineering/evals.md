@@ -423,9 +423,8 @@ schema and uses neither `Active` nor an empty string as an absence sentinel.
   `woff/tests/test_stable_snapshot.py`. Retry after rollback reaches the same
   final state as first-attempt success, a completed Dossier digest performs no
   second merge, and both startup and live routing call the same application
-  service. The latest non-empty roster is recorded in existing `meta` storage
-  inside the same transaction, so a squadron transfer emits neither false
-  missing nor mass-arrival events while historical `squad_members`, personality,
+  service. The trusted roster generation is recorded in existing `meta` storage
+  inside the same transaction, while historical `squad_members`, personality,
   and memory rows remain untouched.
 
 PR #83 introduced an outer transaction around the then-current handler path and
@@ -433,8 +432,8 @@ therefore partially reduced the original Issue #72 failure window. It still
 loaded some prior state before that transaction, ignored Boolean derived-write
 rejections, and split orchestration across handler and campaign methods. Issue
 #72 is limited to those remaining gaps. It changes no SQLite schema and leaves
-mission-end behavior from Issue #34 unchanged. Issue #37 remains responsible
-for the broader roster-generation and truncated-input policy.
+mission-end behavior from Issue #34 unchanged. Issue #37 supplies the completed
+roster-generation, transfer-baseline, and incomplete-input policy.
 
 ### Implemented stable career-selection evals
 
@@ -517,10 +516,10 @@ for the broader roster-generation and truncated-input policy.
 | #80 | `EVAL-UI-STATES-001` |
 | #81 | `EVAL-UI-CONTRACTS-001` |
 
-Cycle 3.4.0 is `active`. Issues #28, #35, #38, #41, #75, and #97 are complete.
+Cycle 3.4.0 is `active`. Issues #28, #35, #37, #38, #41, #75, and #97 are complete.
 Issue #79 remains in progress pending a passing audit of the published UI V2
-Site. Issue #37 is now unblocked and is the next dependency-ordered
-implementation item. Issue #101 remains blocked by #37 and #96.
+Site. Issue #101 remains blocked by #96 after #37 satisfied its roster-lifecycle
+dependency.
 `EVAL-CYCLE-340-001` aggregates all sixteen members and remains planned until
 every member acceptance criterion, applicable eval, and `Q6-CYCLE-3.4.0`
 condition passes.
@@ -541,6 +540,27 @@ condition passes.
   105 records; supported partial, truncated, unsupported-layout, and
   decryption-failed outcomes remain distinct; missing optional statistics
   persist as SQL `NULL` and cannot erase authoritative values.
+
+### Implemented roster lifecycle evals
+
+- `EVAL-ROSTER-001` is enforced by
+  `woff/tests/test_dossier_transactions.py`. A squadron change suppresses the
+  complete old-roster disappearance and new-roster arrival diff. If the
+  transferred Dossier has no trusted roster, the persisted generation enters a
+  pending-baseline state; the first non-empty roster in the new squadron becomes
+  the baseline without narrative spam. Transfer classification uses the
+  squadron attached to the trusted roster snapshot, so an interleaved
+  `Pilot1Squads.txt` update cannot conceal the transfer. Legacy snapshots with
+  no squadron provenance are rebaselined silently.
+- `EVAL-ROSTER-002` is enforced by the same module. Stable and repeated Dossier
+  generations create no duplicate diary rows. Empty same-squadron input leaves
+  the last trusted comparison state intact. Any non-empty roster with an absent
+  trusted name is staged as a candidate and emits its disappearance only after
+  a later, matching non-empty Dossier generation confirms it; arrival and status
+  events remain immediate when no trusted name is absent. The versioned `meta`
+  payload reads the legacy list format and keeps historical wingman personality,
+  memory, and foreign-key relationships intact. Candidate persistence shares
+  the Dossier transaction. The correction changes no SQLite schema.
 
 ### Implemented exact normalization evals
 

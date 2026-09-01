@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from hashlib import sha256
 from unittest.mock import patch
 
@@ -521,7 +522,475 @@ def test_squadron_transfer_emits_no_false_roster_events_and_replay_is_idempotent
     ).fetchone() == (0,)
 
 
-def test_same_squadron_roster_diff_commits_each_supported_event_once(
+def test_transfer_without_roster_uses_next_roster_as_silent_baseline(
+    dossier_runtime,
+):
+    database, processor, dossier_path = dossier_runtime
+    old_dossier = _dossier_bytes(
+        squadron="No. 56 Squadron",
+        wingmen=(
+            _wingman("Arthur", "Able"),
+            _wingman("Robert", "Baker"),
+        ),
+    )
+    transfer_without_roster = _dossier_bytes(
+        squadron="No. 60 Squadron",
+        wingmen=(),
+    )
+    first_new_roster = _dossier_bytes(
+        squadron="No. 60 Squadron",
+        wingmen=(
+            _wingman("Charles", "Clark"),
+            _wingman("David", "Dover"),
+        ),
+    )
+
+    assert _process(processor, dossier_path, old_dossier, "initial") is not None
+    assert _process(
+        processor, dossier_path, transfer_without_roster, "modified"
+    ) is not None
+
+    with database.transaction():
+        pending_state = database.load_dossier_state(
+            "James Hartley",
+            campaign_namespace_for_root(str(dossier_path.parent)),
+            1,
+        )
+    assert pending_state is not None
+    assert pending_state.roster_squadron == "No. 60 Squadron"
+    assert pending_state.roster_baseline_pending
+    assert pending_state.wingmen == ()
+
+    assert _process(
+        processor, dossier_path, first_new_roster, "modified"
+    ) is not None
+
+    assert database._get_conn().execute(
+        "SELECT COUNT(*) FROM diary_entries"
+    ).fetchone() == (0,)
+
+    with database.transaction():
+        baseline_state = database.load_dossier_state(
+            "James Hartley",
+            campaign_namespace_for_root(str(dossier_path.parent)),
+            1,
+        )
+    assert baseline_state is not None
+    assert baseline_state.roster_squadron == "No. 60 Squadron"
+    assert not baseline_state.roster_baseline_pending
+    assert {
+        (wingman.first_name, wingman.last_name)
+        for wingman in baseline_state.wingmen
+    } == {("Charles", "Clark"), ("David", "Dover")}
+
+
+def test_transfer_uses_roster_snapshot_when_squads_source_updates_pilot_first(
+    dossier_runtime,
+):
+    database, processor, dossier_path = dossier_runtime
+    old_dossier = _dossier_bytes(
+        squadron="No. 56 Squadron",
+        wingmen=(
+            _wingman("Arthur", "Able"),
+            _wingman("Robert", "Baker"),
+        ),
+    )
+    transferred = _dossier_bytes(
+        squadron="No. 60 Squadron",
+        wingmen=(
+            _wingman("Charles", "Clark"),
+            _wingman("David", "Dover"),
+        ),
+    )
+    squads_path = dossier_path.with_name("Pilot1Squads.txt")
+    squads_data = (
+        "7;4;1917;10;30;Flanders;New Base;No. 60 Squadron;Sopwith Camel;"
+        "Camel;Transferred, rank: Lieutenant.;No. 60 Squadron\n"
+    ).encode("cp1252")
+
+    assert _process(processor, dossier_path, old_dossier, "initial") is not None
+    assert _process(processor, squads_path, squads_data, "initial") is not None
+    assert database._get_conn().execute(
+        "SELECT squadron FROM pilots"
+    ).fetchone() == ("No. 60 Squadron",)
+
+    assert _process(processor, dossier_path, transferred, "modified") is not None
+
+    assert database._get_conn().execute(
+        "SELECT COUNT(*) FROM diary_entries"
+    ).fetchone() == (0,)
+    with database.transaction():
+        state = database.load_dossier_state(
+            "James Hartley",
+            campaign_namespace_for_root(str(dossier_path.parent)),
+            1,
+        )
+    assert state is not None
+    assert state.roster_squadron == "No. 60 Squadron"
+    assert {
+        (wingman.first_name, wingman.last_name) for wingman in state.wingmen
+    } == {("Charles", "Clark"), ("David", "Dover")}
+
+
+def test_nonempty_shrunk_roster_requires_confirmation_before_missing(
+    dossier_runtime,
+):
+    database, processor, dossier_path = dossier_runtime
+    initial = _dossier_bytes(
+        wingmen=(
+            _wingman("Arthur", "Able"),
+            _wingman("Robert", "Baker"),
+        ),
+    )
+    suspected_truncation = _dossier_bytes(
+        decorations=(
+            "Military Cross;1917-04-01",
+            "Distinguished Service Order;1917-05-01",
+        ),
+        wingmen=(_wingman("Arthur", "Able"),),
+    )
+    confirmed_disappearance = _dossier_bytes(
+        decorations=(
+            "Military Cross;1917-04-01",
+            "Distinguished Service Order;1917-05-01",
+            "Distinguished Flying Cross;1917-06-01",
+        ),
+        wingmen=(_wingman("Arthur", "Able"),),
+    )
+
+    assert _process(processor, dossier_path, initial, "initial") is not None
+    assert _process(
+        processor, dossier_path, suspected_truncation, "modified"
+    ) is not None
+    assert database._get_conn().execute(
+        "SELECT COUNT(*) FROM diary_entries"
+    ).fetchone() == (0,)
+    with database.transaction():
+        pending = database.load_dossier_state(
+            "James Hartley",
+            campaign_namespace_for_root(str(dossier_path.parent)),
+            1,
+        )
+    assert pending is not None
+    assert {
+        (wingman.first_name, wingman.last_name) for wingman in pending.wingmen
+    } == {("Arthur", "Able"), ("Robert", "Baker")}
+    assert pending.roster_candidate is not None
+    assert [
+        (wingman.first_name, wingman.last_name)
+        for wingman in pending.roster_candidate.wingmen
+    ] == [("Arthur", "Able")]
+    with patch.object(
+        database, "merge_and_write", wraps=database.merge_and_write
+    ) as merge_and_write:
+        assert _process(
+            processor, dossier_path, suspected_truncation, "modified"
+        ) is not None
+    merge_and_write.assert_not_called()
+    assert database._get_conn().execute(
+        "SELECT COUNT(*) FROM diary_entries"
+    ).fetchone() == (0,)
+
+    assert _process(
+        processor, dossier_path, confirmed_disappearance, "modified"
+    ) is not None
+    narratives = database._get_conn().execute(
+        "SELECT narrative FROM diary_entries"
+    ).fetchall()
+    assert len(narratives) == 1
+    assert "Robert Baker" in narratives[0][0]
+    assert "Perdi o contacto" in narratives[0][0]
+    with database.transaction():
+        confirmed = database.load_dossier_state(
+            "James Hartley",
+            campaign_namespace_for_root(str(dossier_path.parent)),
+            1,
+        )
+    assert confirmed is not None
+    assert confirmed.roster_candidate is None
+    assert [
+        (wingman.first_name, wingman.last_name)
+        for wingman in confirmed.wingmen
+    ] == [("Arthur", "Able")]
+
+    assert _process(
+        processor, dossier_path, confirmed_disappearance, "modified"
+    ) is not None
+    assert database._get_conn().execute(
+        "SELECT COUNT(*) FROM diary_entries"
+    ).fetchone() == (1,)
+
+
+def test_equal_size_replacement_requires_confirmation_before_roster_events(
+    dossier_runtime,
+):
+    database, processor, dossier_path = dossier_runtime
+    initial = _dossier_bytes(
+        wingmen=(
+            _wingman("Arthur", "Able"),
+            _wingman("Robert", "Baker"),
+        ),
+    )
+    suspected_partial = _dossier_bytes(
+        decorations=(
+            "Military Cross;1917-04-01",
+            "Distinguished Service Order;1917-05-01",
+        ),
+        wingmen=(
+            _wingman("Arthur", "Able"),
+            _wingman("Charles", "Clark"),
+        ),
+    )
+    confirmed_replacement = _dossier_bytes(
+        decorations=(
+            "Military Cross;1917-04-01",
+            "Distinguished Service Order;1917-05-01",
+            "Distinguished Flying Cross;1917-06-01",
+        ),
+        wingmen=(
+            _wingman("Arthur", "Able"),
+            _wingman("Charles", "Clark"),
+        ),
+    )
+
+    assert _process(processor, dossier_path, initial, "initial") is not None
+    assert _process(
+        processor, dossier_path, suspected_partial, "modified"
+    ) is not None
+    assert database._get_conn().execute(
+        "SELECT COUNT(*) FROM diary_entries"
+    ).fetchone() == (0,)
+
+    assert _process(
+        processor, dossier_path, confirmed_replacement, "modified"
+    ) is not None
+    narratives = [
+        row[0]
+        for row in database._get_conn().execute(
+            "SELECT narrative FROM diary_entries ORDER BY narrative"
+        ).fetchall()
+    ]
+    assert len(narratives) == 2
+    assert any(
+        "Robert Baker" in narrative and "Perdi o contacto" in narrative
+        for narrative in narratives
+    )
+    assert any(
+        "Charles Clark" in narrative and "novo elemento" in narrative
+        for narrative in narratives
+    )
+
+
+def test_roster_candidate_failure_rolls_back_the_dossier_generation(
+    dossier_runtime,
+    monkeypatch,
+):
+    database, processor, dossier_path = dossier_runtime
+    initial = _dossier_bytes(
+        wingmen=(
+            _wingman("Arthur", "Able"),
+            _wingman("Robert", "Baker"),
+        ),
+    )
+    suspected_truncation = _dossier_bytes(
+        decorations=(
+            "Military Cross;1917-04-01",
+            "Distinguished Service Order;1917-05-01",
+        ),
+        wingmen=(_wingman("Arthur", "Able"),),
+    )
+
+    assert _process(processor, dossier_path, initial, "initial") is not None
+    before = _stored_state(database)
+    save_candidate = database.save_dossier_roster_candidate
+
+    def fail_after_write(*args, **kwargs):
+        save_candidate(*args, **kwargs)
+        raise RuntimeError("forced roster candidate failure")
+
+    monkeypatch.setattr(
+        database,
+        "save_dossier_roster_candidate",
+        fail_after_write,
+    )
+
+    assert _process(
+        processor, dossier_path, suspected_truncation, "modified"
+    ) is None
+    assert _stored_state(database) == before
+
+
+def test_same_squadron_empty_roster_keeps_last_trusted_comparison_state(
+    dossier_runtime,
+):
+    database, processor, dossier_path = dossier_runtime
+    initial = _dossier_bytes(
+        wingmen=(
+            _wingman("Arthur", "Able"),
+            _wingman("Robert", "Baker"),
+        ),
+    )
+    empty_roster = _dossier_bytes(wingmen=())
+    later_roster = _dossier_bytes(
+        decorations=(
+            "Military Cross;1917-04-01",
+            "Distinguished Service Order;1917-05-01",
+        ),
+        wingmen=(_wingman("Arthur", "Able"),),
+    )
+    confirmed_roster = _dossier_bytes(
+        decorations=(
+            "Military Cross;1917-04-01",
+            "Distinguished Service Order;1917-05-01",
+            "Distinguished Flying Cross;1917-06-01",
+        ),
+        wingmen=(_wingman("Arthur", "Able"),),
+    )
+
+    assert _process(processor, dossier_path, initial, "initial") is not None
+    assert _process(processor, dossier_path, empty_roster, "modified") is not None
+    assert database._get_conn().execute(
+        "SELECT COUNT(*) FROM diary_entries"
+    ).fetchone() == (0,)
+
+    assert _process(processor, dossier_path, later_roster, "modified") is not None
+    assert database._get_conn().execute(
+        "SELECT COUNT(*) FROM diary_entries"
+    ).fetchone() == (0,)
+
+    assert _process(
+        processor, dossier_path, confirmed_roster, "modified"
+    ) is not None
+    narratives = database._get_conn().execute(
+        "SELECT narrative FROM diary_entries"
+    ).fetchall()
+    assert len(narratives) == 1
+    assert "Robert Baker" in narratives[0][0]
+    assert "Perdi o contacto" in narratives[0][0]
+
+
+def test_transfer_preserves_historical_wingman_personality_and_memory(
+    dossier_runtime,
+):
+    database, processor, dossier_path = dossier_runtime
+    initial = _dossier_bytes(
+        squadron="No. 56 Squadron",
+        wingmen=(_wingman("Arthur", "Able"),),
+    )
+    transferred = _dossier_bytes(
+        squadron="No. 60 Squadron",
+        wingmen=(_wingman("Charles", "Clark"),),
+    )
+
+    assert _process(processor, dossier_path, initial, "initial") is not None
+    wingman_id, pilot_id = database._get_conn().execute(
+        """
+        SELECT id, pilotId FROM squad_members
+        WHERE fName = 'Arthur' AND sName = 'Able'
+        """
+    ).fetchone()
+    assert database.save_wingman_personality(
+        wingman_id,
+        pilot_id,
+        {"aggression": 73, "personality_trait": "Resolute"},
+    )
+    assert database.save_wingman_memory(
+        wingman_id,
+        "mission",
+        "1917-04-06",
+        "Returned safely from patrol.",
+    )
+
+    assert _process(processor, dossier_path, transferred, "modified") is not None
+
+    connection = database._get_conn()
+    assert connection.execute(
+        "SELECT aggression, personality_trait FROM wingmen_personalities "
+        "WHERE wingmanId = ?",
+        (wingman_id,),
+    ).fetchone() == (73, "Resolute")
+    assert connection.execute(
+        "SELECT event_type, event_date, description FROM wingmen_memory "
+        "WHERE wingmanId = ?",
+        (wingman_id,),
+    ).fetchone() == (
+        "mission",
+        "1917-04-06",
+        "Returned safely from patrol.",
+    )
+    assert connection.execute("PRAGMA foreign_key_check").fetchall() == []
+
+
+def test_legacy_roster_snapshot_is_readable_and_rebaselined_safely(
+    dossier_runtime,
+):
+    database, processor, dossier_path = dossier_runtime
+    assert _process(
+        processor,
+        dossier_path,
+        _dossier_bytes(wingmen=(_wingman("Arthur", "Able"),)),
+        "initial",
+    ) is not None
+    connection = database._get_conn()
+    pilot_id = connection.execute("SELECT id FROM pilots").fetchone()[0]
+    legacy_roster = [["Arthur", "Able", "In Service"]]
+    connection.execute(
+        "UPDATE meta SET value = ? WHERE key = ?",
+        (
+            json.dumps(legacy_roster, separators=(",", ":")),
+            f"dossier_roster:{pilot_id}",
+        ),
+    )
+    connection.commit()
+
+    with database.transaction():
+        state = database.load_dossier_state(
+            "James Hartley",
+            campaign_namespace_for_root(str(dossier_path.parent)),
+            1,
+        )
+
+    assert state is not None
+    assert state.roster_squadron == ""
+    assert state.roster_baseline_pending
+    assert state.roster_candidate is None
+    assert [
+        (wingman.first_name, wingman.last_name, wingman.status)
+        for wingman in state.wingmen
+    ] == [("Arthur", "Able", "In Service")]
+
+    squads_path = dossier_path.with_name("Pilot1Squads.txt")
+    squads_data = (
+        "7;4;1917;10;30;Flanders;New Base;No. 60 Squadron;Sopwith Camel;"
+        "Camel;Transferred, rank: Lieutenant.;No. 60 Squadron\n"
+    ).encode("cp1252")
+    transferred = _dossier_bytes(
+        squadron="No. 60 Squadron",
+        wingmen=(_wingman("Charles", "Clark"),),
+    )
+
+    assert _process(processor, squads_path, squads_data, "initial") is not None
+    assert _process(processor, dossier_path, transferred, "modified") is not None
+    assert connection.execute(
+        "SELECT COUNT(*) FROM diary_entries"
+    ).fetchone() == (0,)
+
+    with database.transaction():
+        rebaselined = database.load_dossier_state(
+            "James Hartley",
+            campaign_namespace_for_root(str(dossier_path.parent)),
+            1,
+        )
+    assert rebaselined is not None
+    assert rebaselined.roster_squadron == "No. 60 Squadron"
+    assert not rebaselined.roster_baseline_pending
+    assert [
+        (wingman.first_name, wingman.last_name)
+        for wingman in rebaselined.wingmen
+    ] == [("Charles", "Clark")]
+
+
+def test_confirmed_same_squadron_roster_diff_commits_each_event_once(
     dossier_runtime
 ):
     database, processor, dossier_path = dossier_runtime
@@ -539,9 +1008,24 @@ def test_same_squadron_roster_diff_commits_each_supported_event_once(
             _wingman("David", "Dover"),
         )
     )
+    confirmed = _dossier_bytes(
+        decorations=(
+            "Military Cross;1917-04-01",
+            "Distinguished Service Order;1917-05-01",
+        ),
+        wingmen=(
+            _wingman("Arthur", "Able", status="KIA"),
+            _wingman("Charles", "Clark", status="Wounded"),
+            _wingman("David", "Dover"),
+        ),
+    )
 
     assert _process(processor, dossier_path, initial, "initial") is not None
     assert _process(processor, dossier_path, changed, "modified") is not None
+    assert database._get_conn().execute(
+        "SELECT COUNT(*) FROM diary_entries"
+    ).fetchone() == (0,)
+    assert _process(processor, dossier_path, confirmed, "modified") is not None
 
     narratives = [
         row[0]
@@ -567,7 +1051,7 @@ def test_same_squadron_roster_diff_commits_each_supported_event_once(
         for narrative in narratives
     )
 
-    assert _process(processor, dossier_path, changed, "modified") is not None
+    assert _process(processor, dossier_path, confirmed, "modified") is not None
     assert database._get_conn().execute(
         "SELECT COUNT(*) FROM diary_entries"
     ).fetchone() == (4,)

@@ -89,8 +89,9 @@ The shell must not conceal or locally compensate for these current dependencies:
   the Dossier field-validation work (#35) and related normalization contracts.
 - **Missions/order:** canonical dates, deterministic ordering, stable identity,
   and non-destructive enrichment depend on #40 and #39.
-- **Squadron transfer:** transfer versus missing-wingman semantics depend on #37
-  and its Dossier prerequisites.
+- **Squadron transfer:** #37 provides transfer versus missing-wingman and
+  incomplete-roster semantics. Occurrence-aware wingman identity remains
+  pending in #96.
 - **Narratives:** association and narrative inputs depend on #43 and the mission
   contracts it references. Diary rendering cannot create or repair narratives.
 

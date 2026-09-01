@@ -97,18 +97,30 @@ def _set_issue_34_incomplete_state(
     assert isinstance(issue_34, dict)
     issue_34["state"] = state
 
-    for dependent in work_items.values():
-        assert isinstance(dependent, dict)
-        dependencies = dependent["depends_on"]
-        assert isinstance(dependencies, list)
-        for dependency in dependencies:
-            if (
-                isinstance(dependency, dict)
-                and dependency.get("id") == "issue-34"
-            ):
-                dependency["status"] = "unsatisfied"
-                if dependent.get("state") in {"ready", "in_progress", "done"}:
-                    dependent["state"] = "blocked"
+    changed = True
+    while changed:
+        changed = False
+        for dependent in work_items.values():
+            assert isinstance(dependent, dict)
+            dependencies = dependent["depends_on"]
+            assert isinstance(dependencies, list)
+            for dependency in dependencies:
+                assert isinstance(dependency, dict)
+                dependency_id = dependency.get("id")
+                prerequisite = work_items.get(dependency_id)
+                assert isinstance(prerequisite, dict)
+                if (
+                    prerequisite.get("state") != "done"
+                    and dependency.get("status") == "satisfied"
+                ):
+                    dependency["status"] = "unsatisfied"
+                    if dependent.get("state") in {
+                        "ready",
+                        "in_progress",
+                        "done",
+                    }:
+                        dependent["state"] = "blocked"
+                    changed = True
 
 
 def test_project_graph_is_valid() -> None:
