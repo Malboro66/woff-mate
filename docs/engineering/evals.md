@@ -40,7 +40,7 @@ public 3.2.1 release unless release evidence is recorded separately.
 
 ## Active cycle 3.3.0
 
-Issue #50 is the official tracker. The sixteen work items remain separate
+Issue #50 is the official tracker. The seventeen work items remain separate
 issues and pull requests.
 
 | Work item | Eval IDs | Required evidence |
@@ -61,12 +61,13 @@ issues and pull requests.
 | #95 | `EVAL-PERSIST-RETRY-001` through `EVAL-PERSIST-RETRY-004` | Exactly-once persistence, same-mission derived-state correction, a stable retry bound across late notifications, and complete startup recovery coverage |
 | #73 | `EVAL-VICTORY-MERGE-001`, `EVAL-DECORATION-MERGE-001` | Lossless same-minute victories and non-destructive enrichment of stable rows |
 | #27 | `EVAL-DEFER-001`, `EVAL-DEFER-002` | Deferred reprocessing without loss or unbounded retention |
+| #122 | `EVAL-PILOT-VACANCY-001`, `EVAL-PILOT-SPARSE-001`, `EVAL-PILOT-VACANCY-STABILITY-001`, `EVAL-PILOT-VACANCY-RESTART-001`, `EVAL-PILOT-VACANCY-REUSE-001`, `EVAL-PILOT-VACANCY-ISOLATION-001` | Exact namespaced vacancy, sparse-slot preservation, bounded false-vacancy protection, safe startup repair, new career identity on reuse, and cross-root idempotence |
 
 ### EVAL-CYCLE-330-001
 
 The aggregate eval passes only when:
 
-- all sixteen member issues satisfy their acceptance criteria
+- all seventeen member issues satisfy their acceptance criteria
 - every applicable member eval is implemented and passing
 - dependency relations in the graph are satisfied
 - focused tests, related tests, the full suite, and Pyright pass
@@ -77,16 +78,24 @@ The aggregate eval passes only when:
 Green CI alone does not pass this aggregate eval.
 
 Issue #27 and its two deferred-ingestion evals reached `main` through PR #115.
-Issue #87 remains the only unresolved cycle member. Its sanitized-evidence gap
-does not weaken or reopen the guarantees already verified by #70. The aggregate
-gate remains pending until #87 records either sufficient longitudinal evidence
-or the structural limitation defined by its acceptance criteria.
+Issue #122 is the new implementable cycle member for confirmed pilot-slot
+vacancy after Dossier deletion or move-away. Issue #87 remains independently
+blocked on privacy-safe longitudinal evidence; its gap does not weaken or reopen
+the guarantees already verified by #70. The aggregate gate remains pending
+until #122 is implemented and #87 records either sufficient longitudinal
+evidence or the structural limitation defined by its acceptance criteria.
 
 ## Newly registered data-integrity evals
 
 | Eval | Work item | Required evidence |
 |---|---|---|
 | `EVAL-CAREER-REUSE-EVIDENCE-001` | #87 | Sanitized longitudinal fixtures distinguish replay from a same-slot, same-name replacement career, or prove that available Dossier structure cannot support the distinction safely |
+| `EVAL-PILOT-VACANCY-001` | #122 | Confirmed Dossier absence vacates only the exact namespaced slot; dependent sources cannot keep it occupied and historical data is preserved |
+| `EVAL-PILOT-SPARSE-001` | #122 | Surviving sparse slots retain their original Pilot numbers and career bindings |
+| `EVAL-PILOT-VACANCY-STABILITY-001` | #122 | Transient replacement, sharing failures, unavailable roots, and incomplete scans do not create false vacancy |
+| `EVAL-PILOT-VACANCY-RESTART-001` | #122 | Startup repairs stale bindings only after a complete successful namespaced Dossier inventory |
+| `EVAL-PILOT-VACANCY-REUSE-001` | #122 | Reuse after confirmed vacancy creates a new career identity without inheriting prior history, including same-name reuse |
+| `EVAL-PILOT-VACANCY-ISOLATION-001` | #122 | Reconciliation, rollback, replay, and reuse remain idempotent and isolated across campaign namespaces |
 | `EVAL-CAREER-SELECT-001` | #93 | Same-name careers stay separate in every query and editor flow selected by stable pilot ID |
 | `EVAL-CAREER-SELECT-002` | #93 | Ambiguous names fail before export or mutation with a deterministic candidate contract |
 | `EVAL-ROOT-BINDING-001` | #94 | Equal slots in distinct watched roots keep independent bindings and persistent career IDs, even after another root retires a same-name career, with correct dependent-file routing |
