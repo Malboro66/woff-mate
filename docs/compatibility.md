@@ -54,6 +54,15 @@ decode the input safely. This is a structural guard, not a cryptographic
 integrity check; the confirmed format provides no authenticated marker or
 checksum.
 
+Partial input is accepted only when the filename-derived key is structurally
+unambiguous. The parser checks all 128 key variants produced by the format's
+modulo-128 filename sum. If another distinct key also produces printable
+records with a valid required identity, the input fails closed as
+`decryption-failed` before persistence. Two filenames that produce the same
+complete key remain indistinguishable from the file alone; resolving an exact
+key collision requires external evidence that the confirmed format does not
+provide.
+
 Decoded input receives one structural classification:
 
 | Classification | Policy |
@@ -62,7 +71,7 @@ Decoded input receives one structural classification:
 | `supported-partial` | Required identity is valid, but one or more later fixed fields are unavailable. Present optional fields are parsed independently. |
 | `truncated` | Input ends before the required identity positions are complete. It is rejected. |
 | `unsupported-layout` | Required positions exist, but identity fields are missing or semantically invalid. It is rejected. |
-| `decryption-failed` | No decoded fields are produced, or any decoded record contains evidence of the wrong key or invalid decoded text. It is rejected. |
+| `decryption-failed` | No decoded fields are produced, any decoded record contains evidence of the wrong key or invalid decoded text, or a partial input is valid under more than one distinct key. It is rejected. |
 
 Missing optional string sentinels are normalized to absent values before a
 pilot is constructed. Missing optional numeric values remain unknown. A new

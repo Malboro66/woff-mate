@@ -494,12 +494,19 @@ evals:
       - woff/tests/test_victory_decoration_merge.py
   EVAL-DOSSIER-001:
     work_items: [issue-35]
-    status: planned
+    status: implemented
     evidence: Required identity is validated by fields instead of line count.
+    enforced_by:
+      - woff/tests/test_dossier_parser.py
+      - woff/tests/test_dossier_transactions.py
   EVAL-DOSSIER-002:
     work_items: [issue-35]
-    status: planned
+    status: implemented
     evidence: Useful partial data is distinguished from truncation and decoding failure.
+    enforced_by:
+      - woff/tests/test_dossier_parser.py
+      - woff/tests/test_dossier_transactions.py
+      - woff/tests/test_pilot_stat_merge.py
   EVAL-ROSTER-001:
     work_items: [issue-37]
     status: planned
@@ -734,7 +741,7 @@ work_items:
   issue-35:
     title: Replace the Dossier line-count gate with field-level validation
     module: ingestion
-    state: backlog
+    state: done
     evals: [EVAL-DOSSIER-001, EVAL-DOSSIER-002]
     gates: [Q0, Q1, Q3, Q6-CYCLE-3.4.0]
     depends_on:
@@ -751,12 +758,12 @@ work_items:
   issue-37:
     title: Distinguish squadron transfers from missing wingmen
     module: application
-    state: blocked
+    state: backlog
     evals: [EVAL-ROSTER-001, EVAL-ROSTER-002]
     gates: [Q0, Q1, Q2, Q6-CYCLE-3.4.0]
     depends_on:
       - {id: issue-34, status: satisfied}
-      - {id: issue-35, status: unsatisfied}
+      - {id: issue-35, status: satisfied}
   issue-38:
     title: Use exact aliases and stop fabricating unknown normalized values
     module: domain

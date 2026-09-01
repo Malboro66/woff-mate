@@ -91,34 +91,116 @@ class WoFFDossierParser:
         )
         return False
 
-    def _create_key(self, pName: str) -> str:
-        """Gera a chave de cifra exatamente como o jogo faz (createkey)."""
+    def _create_key_from_sum(self, sum_val: int) -> str:
         plainkey = "78CrztPRVzYQpYu90MnyW"
-        
-        soucet = sum(ord(c) for c in pName)
-        sum_val = soucet % 128
-        
+
         pos = sum_val % 10
         if pos == 0: pos = 9
-        
+
         length = sum_val % 12
         if length == 0: length = 4
-        
+
         prekey = ""
         ind = pos
         for _ in range(length):
             prekey += plainkey[ind - 1]
             ind += 1
-            
+
         postkey = ""
         in_val = pos
         lengt = length
         for _ in range(in_val):
             postkey += plainkey[lengt - 1]
             lengt += 1
-            
+
         sp = chr(sum_val)
         return prekey + sp + plainkey + postkey
+
+    def _create_key(self, pName: str) -> str:
+        """Gera a chave de cifra exatamente como o jogo faz (createkey)."""
+        return self._create_key_from_sum(sum(ord(c) for c in pName) % 128)
+
+    def _decode_lines(self, raw_lines: List[bytes], key: str) -> List[str]:
+        current_key = key
+        player_data: List[str] = []
+
+        for raw_line in raw_lines:
+            line = raw_line.decode("cp1252", errors="replace").strip()
+            if not line:
+                continue
+
+            decoded_line = ""
+            hex_buffer = ""
+            key_index = 0
+
+            for char in line:
+                code = ord(char)
+                if code > 71:  # Byte de contador/separador
+                    if hex_buffer:
+                        if len(hex_buffer) < 2:
+                            hex_buffer = "0" + hex_buffer
+                        try:
+                            val = int(hex_buffer, 16)
+                            key_char = ord(current_key[key_index])
+                            fin_val = val ^ key_char  # Cifra XOR
+                            decoded_line += chr(fin_val)
+                        except ValueError:
+                            pass
+
+                        key_index += 1
+                        if key_index == len(current_key):
+                            key_index = 0
+                        hex_buffer = ""
+                elif code != 32:
+                    hex_buffer += char
+
+            current_key = current_key[::-1]
+            player_data.append(decoded_line)
+
+        return player_data
+
+    @staticmethod
+    def _has_valid_decoded_text(player_data: List[str]) -> bool:
+        return any(value.strip() for value in player_data) and not any(
+            "\ufffd" in value
+            or not all(character.isprintable() for character in value)
+            for value in player_data
+        )
+
+    @staticmethod
+    def _has_supported_identity(player_data: List[str]) -> bool:
+        if len(player_data) <= _DOSSIER_REQUIRED_LAST_INDEX:
+            return False
+        return all(
+            value
+            and value.casefold() not in _DOSSIER_MISSING_TOKENS
+            and any(character.isalpha() for character in value)
+            and all(
+                character.isalpha()
+                or character in _DOSSIER_NAME_SEPARATORS
+                for character in value
+            )
+            for value in (player_data[4], player_data[5])
+        )
+
+    def _partial_key_is_ambiguous(
+        self,
+        raw_lines: List[bytes],
+        selected_key: str,
+    ) -> bool:
+        for sum_val in range(128):
+            candidate_key = self._create_key_from_sum(sum_val)
+            if candidate_key == selected_key:
+                continue
+
+            candidate_data = self._decode_lines(raw_lines, candidate_key)
+            if not self._has_valid_decoded_text(candidate_data):
+                continue
+            candidate_data = [value.strip() for value in candidate_data]
+            if self._has_supported_identity(candidate_data):
+                return True
+
+        return False
 
     def parse(self, path: str) -> bool:
         self._reset_parse_state()
@@ -138,48 +220,10 @@ class WoFFDossierParser:
         raw_lines = data.splitlines(keepends=True)
         fname = ntpath.basename(source_name)
         pName = fname.replace(".txt", "")
-        current_key = self._create_key(pName)
-        
-        player_data = []
+        selected_key = self._create_key(pName)
+        player_data = self._decode_lines(raw_lines, selected_key)
 
-        for raw_line in raw_lines:
-            line = raw_line.decode("cp1252", errors="replace").strip()
-            if not line:
-                continue
-                
-            decoded_line = ""
-            hex_buffer = ""
-            key_index = 0
-            
-            for char in line:
-                code = ord(char)
-                if code > 71:  # Byte de contador/separador
-                    if hex_buffer:
-                        if len(hex_buffer) < 2:
-                            hex_buffer = "0" + hex_buffer
-                        try:
-                            val = int(hex_buffer, 16)
-                            key_char = ord(current_key[key_index])
-                            fin_val = val ^ key_char  # Cifra XOR
-                            decoded_line += chr(fin_val)
-                        except ValueError:
-                            pass
-                        
-                        key_index += 1
-                        if key_index == len(current_key):
-                            key_index = 0
-                        hex_buffer = ""
-                elif code != 32:
-                    hex_buffer += char
-                    
-            current_key = current_key[::-1]
-            player_data.append(decoded_line)
-
-        if any(
-            "\ufffd" in value
-            or not all(character.isprintable() for character in value)
-            for value in player_data
-        ):
+        if not self._has_valid_decoded_text(player_data):
             return self._reject(
                 DossierValidationStatus.DECRYPTION_FAILED,
                 fname,
@@ -187,13 +231,6 @@ class WoFFDossierParser:
             )
 
         player_data = [value.strip() for value in player_data]
-        if not any(player_data):
-            return self._reject(
-                DossierValidationStatus.DECRYPTION_FAILED,
-                fname,
-                len(player_data),
-            )
-
         if len(player_data) > _DOSSIER_REQUIRED_LAST_INDEX:
             first_name = player_data[4].strip()
             last_name = player_data[5].strip()
@@ -211,19 +248,19 @@ class WoFFDossierParser:
                     fname,
                     len(player_data),
                 )
-            if any(
-                not value
-                or value.casefold() in _DOSSIER_MISSING_TOKENS
-                or not any(character.isalpha() for character in value)
-                or not all(
-                    character.isalpha()
-                    or character in _DOSSIER_NAME_SEPARATORS
-                    for character in value
-                )
-                for value in (first_name, last_name)
-            ):
+            if not self._has_supported_identity(player_data):
                 return self._reject(
                     DossierValidationStatus.UNSUPPORTED_LAYOUT,
+                    fname,
+                    len(player_data),
+                )
+
+            if (
+                len(player_data) <= _DOSSIER_CURRENT_FIXED_LAST_INDEX
+                and self._partial_key_is_ambiguous(raw_lines, selected_key)
+            ):
+                return self._reject(
+                    DossierValidationStatus.DECRYPTION_FAILED,
                     fname,
                     len(player_data),
                 )

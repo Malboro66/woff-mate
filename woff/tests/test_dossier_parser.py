@@ -476,6 +476,23 @@ class TestWoFFDossierParser(unittest.TestCase):
             "decryption-failed",
         )
 
+    def test_partial_dossier_with_ambiguous_key_is_rejected_fail_closed(self):
+        encoded = _encode_dossier(
+            _dossier_fixture("short_ambiguous_sanitized.txt"),
+            "Pilot1Dossier.txt",
+        )
+
+        for source_name in ("Pilot1Dossier.txt", "Pilot49Dossier.txt"):
+            with self.subTest(source_name=source_name):
+                parser = WoFFDossierParser()
+
+                self.assertFalse(parser.parse_bytes(encoded, source_name))
+                self.assertIsNone(parser.pilot)
+                self.assertEqual(
+                    _validation_status_value(parser),
+                    "decryption-failed",
+                )
+
     def test_decoded_controls_at_record_edges_are_rejected_before_trimming(self):
         for first_name in ("\tSample", "Sample\t"):
             with self.subTest(first_name=repr(first_name)):
@@ -496,8 +513,10 @@ class TestWoFFDossierParser(unittest.TestCase):
                 )
 
     def test_partial_dossier_normalizes_missing_optional_strings(self):
-        lines = ["Null"] * 93
+        lines = _dossier_fixture("short_valid_sanitized.txt")
+        lines.extend(["Null"] * (93 - len(lines)))
         lines[1] = "France"
+        lines[3] = "Null"
         lines[4] = "Sample"
         lines[5] = "Pilot"
 
