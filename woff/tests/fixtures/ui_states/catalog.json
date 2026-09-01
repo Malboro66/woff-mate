@@ -1,0 +1,713 @@
+{
+  "catalog_version": 1,
+  "reference_time": "2026-01-01T12:00:00Z",
+  "fixtures": [
+    {
+      "id": "careers-ready",
+      "screens": [
+        "APP-00",
+        "SEL-01"
+      ],
+      "synthetic": true,
+      "label": "Synthetic",
+      "contract_version": "synthetic-ui-v1",
+      "state": "ready",
+      "reason": null,
+      "career_id": null,
+      "source_authority": "synthetic-records",
+      "observed_at": "2026-01-01T11:59:30Z",
+      "freshness": "current",
+      "warnings": [],
+      "data": {
+        "collection": "careers",
+        "fields": {},
+        "records": [
+          {
+            "id": "synthetic-career-02",
+            "career_id": "synthetic-career-02",
+            "occurred_at": "1917-04-01T06:00:00Z",
+            "fields": {
+              "display_name": {"value": "Synthetic Pilot Aster", "unavailable_reason": null},
+              "source_slot": {"value": 2, "unavailable_reason": null},
+              "service": {"value": "RFC", "unavailable_reason": null},
+              "squadron": {"value": "Synthetic Squadron Cedar", "unavailable_reason": null}
+            }
+          },
+          {
+            "id": "synthetic-career-03",
+            "career_id": "synthetic-career-03",
+            "occurred_at": "1917-04-01T06:00:00Z",
+            "fields": {
+              "display_name": {"value": "Synthetic Pilot Aster", "unavailable_reason": null},
+              "source_slot": {"value": 3, "unavailable_reason": null},
+              "service": {"value": "RAF", "unavailable_reason": null},
+              "squadron": {"value": "Synthetic Squadron Cedar", "unavailable_reason": null}
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "diary-ready",
+      "screens": [
+        "JRN-01"
+      ],
+      "synthetic": true,
+      "label": "Synthetic",
+      "contract_version": "synthetic-ui-v1",
+      "state": "ready",
+      "reason": null,
+      "career_id": "synthetic-career-02",
+      "source_authority": "synthetic-derived",
+      "observed_at": "2026-01-01T11:59:30Z",
+      "freshness": "current",
+      "warnings": [],
+      "data": {
+        "collection": "diary",
+        "fields": {},
+        "records": [
+          {
+            "id": "synthetic-diary-01",
+            "career_id": "synthetic-career-02",
+            "occurred_at": "1917-04-01T06:30:00Z",
+            "fields": {
+              "mission_id": {"value": "synthetic-mission-01", "unavailable_reason": null},
+              "narrative": {"value": "Synthetic diary: the demonstration patrol returned safely.", "unavailable_reason": null}
+            }
+          },
+          {
+            "id": "synthetic-diary-02",
+            "career_id": "synthetic-career-02",
+            "occurred_at": "1917-04-01T06:30:00Z",
+            "fields": {
+              "mission_id": {"value": "synthetic-mission-02", "unavailable_reason": null},
+              "narrative": {"value": "Synthetic diary: a second invented patrol ended without incident.", "unavailable_reason": null}
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "empty-global",
+      "screens": [
+        "APP-00",
+        "SEL-01",
+        "SYS-01"
+      ],
+      "synthetic": true,
+      "label": "Synthetic",
+      "contract_version": "synthetic-ui-v1",
+      "state": "empty",
+      "reason": null,
+      "career_id": null,
+      "source_authority": "synthetic-records",
+      "observed_at": "2026-01-01T11:59:30Z",
+      "freshness": "current",
+      "warnings": [],
+      "data": {
+        "collection": "records",
+        "fields": {},
+        "records": []
+      }
+    },
+    {
+      "id": "empty-records",
+      "screens": [
+        "OPR-01",
+        "DOS-01",
+        "DOS-02",
+        "DOS-03",
+        "DOS-04",
+        "MIS-01",
+        "MIS-02",
+        "SQD-01",
+        "SQD-02",
+        "JRN-01",
+        "RPT-01",
+        "RPT-02"
+      ],
+      "synthetic": true,
+      "label": "Synthetic",
+      "contract_version": "synthetic-ui-v1",
+      "state": "empty",
+      "reason": null,
+      "career_id": "synthetic-career-02",
+      "source_authority": "synthetic-records",
+      "observed_at": "2026-01-01T11:59:30Z",
+      "freshness": "current",
+      "warnings": [],
+      "data": {
+        "collection": "records",
+        "fields": {
+          "display_name": {"value": "Synthetic Pilot Aster", "unavailable_reason": null}
+        },
+        "records": []
+      }
+    },
+    {
+      "id": "error-query",
+      "screens": [
+        "APP-00",
+        "SEL-01",
+        "OPR-01",
+        "DOS-01",
+        "DOS-02",
+        "DOS-03",
+        "DOS-04",
+        "MIS-01",
+        "MIS-02",
+        "SQD-01",
+        "SQD-02",
+        "JRN-01",
+        "RPT-01",
+        "RPT-02",
+        "SYS-01"
+      ],
+      "synthetic": true,
+      "label": "Synthetic",
+      "contract_version": "synthetic-ui-v1",
+      "state": "error",
+      "reason": "query_failed",
+      "career_id": null,
+      "source_authority": "synthetic-query",
+      "observed_at": null,
+      "freshness": "unknown",
+      "warnings": [
+        {"code": "query_failed", "message": "The view could not be loaded. Retry the view or open Data & System Status."}
+      ],
+      "data": null
+    },
+    {
+      "id": "loading",
+      "screens": [
+        "APP-00",
+        "SEL-01",
+        "OPR-01",
+        "DOS-01",
+        "DOS-02",
+        "DOS-03",
+        "DOS-04",
+        "MIS-01",
+        "MIS-02",
+        "SQD-01",
+        "SQD-02",
+        "JRN-01",
+        "RPT-01",
+        "RPT-02",
+        "SYS-01"
+      ],
+      "synthetic": true,
+      "label": "Synthetic",
+      "contract_version": "synthetic-ui-v1",
+      "state": "loading",
+      "reason": "request_pending",
+      "career_id": null,
+      "source_authority": "synthetic-query",
+      "observed_at": null,
+      "freshness": "unknown",
+      "warnings": [],
+      "data": null
+    },
+    {
+      "id": "missing-career",
+      "screens": [
+        "APP-00",
+        "SEL-01",
+        "OPR-01",
+        "DOS-01",
+        "DOS-02",
+        "DOS-03",
+        "DOS-04",
+        "MIS-01",
+        "MIS-02",
+        "SQD-01",
+        "SQD-02",
+        "JRN-01",
+        "RPT-01",
+        "RPT-02"
+      ],
+      "synthetic": true,
+      "label": "Synthetic",
+      "contract_version": "synthetic-ui-v1",
+      "state": "missing",
+      "reason": "career_not_selected",
+      "career_id": null,
+      "source_authority": "unresolved",
+      "observed_at": null,
+      "freshness": "unknown",
+      "warnings": [],
+      "data": null
+    },
+    {
+      "id": "missing-source",
+      "screens": [
+        "APP-00",
+        "SEL-01",
+        "OPR-01",
+        "DOS-01",
+        "DOS-02",
+        "DOS-03",
+        "DOS-04",
+        "MIS-01",
+        "MIS-02",
+        "SQD-01",
+        "SQD-02",
+        "JRN-01",
+        "RPT-01",
+        "RPT-02",
+        "SYS-01"
+      ],
+      "synthetic": true,
+      "label": "Synthetic",
+      "contract_version": "synthetic-ui-v1",
+      "state": "missing",
+      "reason": "source_missing",
+      "career_id": null,
+      "source_authority": "unresolved",
+      "observed_at": null,
+      "freshness": "unknown",
+      "warnings": [],
+      "data": null
+    },
+    {
+      "id": "missions-ready",
+      "screens": [
+        "MIS-01",
+        "MIS-02"
+      ],
+      "synthetic": true,
+      "label": "Synthetic",
+      "contract_version": "synthetic-ui-v1",
+      "state": "ready",
+      "reason": null,
+      "career_id": "synthetic-career-02",
+      "source_authority": "synthetic-records",
+      "observed_at": "2026-01-01T11:59:30Z",
+      "freshness": "current",
+      "warnings": [],
+      "data": {
+        "collection": "missions",
+        "fields": {},
+        "records": [
+          {
+            "id": "synthetic-mission-01",
+            "career_id": "synthetic-career-02",
+            "occurred_at": "1917-04-01T06:00:00Z",
+            "fields": {
+              "title": {"value": "Synthetic dawn patrol", "unavailable_reason": null},
+              "result": {"value": "Returned", "unavailable_reason": null},
+              "claims": {"value": 1, "unavailable_reason": null},
+              "confirmed_victories": {"value": 0, "unavailable_reason": null}
+            }
+          },
+          {
+            "id": "synthetic-mission-02",
+            "career_id": "synthetic-career-02",
+            "occurred_at": "1917-04-01T06:00:00Z",
+            "fields": {
+              "title": {"value": "Synthetic dawn patrol", "unavailable_reason": null},
+              "result": {"value": "Returned", "unavailable_reason": null},
+              "claims": {"value": 0, "unavailable_reason": null},
+              "confirmed_victories": {"value": 0, "unavailable_reason": null}
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "pilot-partial-conflict",
+      "screens": [
+        "OPR-01",
+        "DOS-01"
+      ],
+      "synthetic": true,
+      "label": "Synthetic",
+      "contract_version": "synthetic-ui-v1",
+      "state": "ready",
+      "reason": null,
+      "career_id": "synthetic-career-02",
+      "source_authority": "synthetic-records",
+      "observed_at": "2026-01-01T11:59:30Z",
+      "freshness": "current",
+      "warnings": [
+        {"code": "partial_record", "message": "Some fields are unavailable; known values remain visible."},
+        {"code": "source_conflict", "message": "Sources disagree. The affected value is unavailable; no winner is inferred."}
+      ],
+      "data": {
+        "collection": null,
+        "fields": {
+          "display_name": {"value": "Synthetic Pilot Aster", "unavailable_reason": null},
+          "source_slot": {"value": 2, "unavailable_reason": null},
+          "service": {"value": null, "unavailable_reason": "source_conflict"},
+          "squadron": {"value": "Synthetic Squadron Cedar", "unavailable_reason": null},
+          "status": {"value": null, "unavailable_reason": "unknown"},
+          "missions": {"value": 2, "unavailable_reason": null},
+          "flight_minutes": {"value": null, "unavailable_reason": "not_supplied"},
+          "claims": {"value": 1, "unavailable_reason": null},
+          "confirmed_victories": {"value": 0, "unavailable_reason": null},
+          "skill": {"value": 44, "unavailable_reason": null},
+          "reputation": {"value": 3, "unavailable_reason": null}
+        },
+        "records": []
+      }
+    },
+    {
+      "id": "pilot-ready",
+      "screens": [
+        "OPR-01",
+        "DOS-01"
+      ],
+      "synthetic": true,
+      "label": "Synthetic",
+      "contract_version": "synthetic-ui-v1",
+      "state": "ready",
+      "reason": null,
+      "career_id": "synthetic-career-02",
+      "source_authority": "synthetic-records",
+      "observed_at": "2026-01-01T11:59:30Z",
+      "freshness": "current",
+      "warnings": [],
+      "data": {
+        "collection": null,
+        "fields": {
+          "display_name": {"value": "Synthetic Pilot Aster", "unavailable_reason": null},
+          "source_slot": {"value": 2, "unavailable_reason": null},
+          "service": {"value": "RFC", "unavailable_reason": null},
+          "squadron": {"value": "Synthetic Squadron Cedar", "unavailable_reason": null},
+          "status": {"value": "Active", "unavailable_reason": null},
+          "missions": {"value": 2, "unavailable_reason": null},
+          "flight_minutes": {"value": 90, "unavailable_reason": null},
+          "claims": {"value": 1, "unavailable_reason": null},
+          "confirmed_victories": {"value": 0, "unavailable_reason": null},
+          "skill": {"value": 44, "unavailable_reason": null},
+          "reputation": {"value": 3, "unavailable_reason": null}
+        },
+        "records": []
+      }
+    },
+    {
+      "id": "pilot-stale",
+      "screens": [
+        "OPR-01",
+        "DOS-01"
+      ],
+      "synthetic": true,
+      "label": "Synthetic",
+      "contract_version": "synthetic-ui-v1",
+      "state": "stale/unavailable",
+      "reason": "snapshot_expired",
+      "career_id": "synthetic-career-02",
+      "source_authority": "synthetic-records",
+      "observed_at": "2025-12-31T12:00:00Z",
+      "freshness": "stale",
+      "warnings": [
+        {"code": "snapshot_expired", "message": "This snapshot is old. Its observation time is shown; it is not current."}
+      ],
+      "data": {
+        "collection": null,
+        "fields": {
+          "display_name": {"value": "Synthetic Pilot Aster", "unavailable_reason": null},
+          "source_slot": {"value": 2, "unavailable_reason": null},
+          "service": {"value": "RFC", "unavailable_reason": null},
+          "squadron": {"value": "Synthetic Squadron Cedar", "unavailable_reason": null},
+          "status": {"value": "Active", "unavailable_reason": null},
+          "missions": {"value": 2, "unavailable_reason": null},
+          "flight_minutes": {"value": 90, "unavailable_reason": null},
+          "claims": {"value": 1, "unavailable_reason": null},
+          "confirmed_victories": {"value": 0, "unavailable_reason": null},
+          "skill": {"value": 44, "unavailable_reason": null},
+          "reputation": {"value": 3, "unavailable_reason": null}
+        },
+        "records": []
+      }
+    },
+    {
+      "id": "pilot-unknown-freshness",
+      "screens": [
+        "OPR-01",
+        "DOS-01"
+      ],
+      "synthetic": true,
+      "label": "Synthetic",
+      "contract_version": "synthetic-ui-v1",
+      "state": "ready",
+      "reason": null,
+      "career_id": "synthetic-career-02",
+      "source_authority": "synthetic-records",
+      "observed_at": null,
+      "freshness": "unknown",
+      "warnings": [
+        {"code": "freshness_unknown", "message": "Observation freshness is unknown; do not describe this snapshot as current."}
+      ],
+      "data": {
+        "collection": null,
+        "fields": {
+          "display_name": {"value": "Synthetic Pilot Aster", "unavailable_reason": null},
+          "source_slot": {"value": 2, "unavailable_reason": null},
+          "service": {"value": "RFC", "unavailable_reason": null},
+          "squadron": {"value": "Synthetic Squadron Cedar", "unavailable_reason": null},
+          "status": {"value": "Active", "unavailable_reason": null},
+          "missions": {"value": 2, "unavailable_reason": null},
+          "flight_minutes": {"value": 90, "unavailable_reason": null},
+          "claims": {"value": 1, "unavailable_reason": null},
+          "confirmed_victories": {"value": 0, "unavailable_reason": null},
+          "skill": {"value": 44, "unavailable_reason": null},
+          "reputation": {"value": 3, "unavailable_reason": null}
+        },
+        "records": []
+      }
+    },
+    {
+      "id": "reports-ready",
+      "screens": [
+        "RPT-01",
+        "RPT-02"
+      ],
+      "synthetic": true,
+      "label": "Synthetic",
+      "contract_version": "synthetic-ui-v1",
+      "state": "ready",
+      "reason": null,
+      "career_id": "synthetic-career-02",
+      "source_authority": "synthetic-derived",
+      "observed_at": "2026-01-01T11:59:30Z",
+      "freshness": "current",
+      "warnings": [],
+      "data": {
+        "collection": "reports",
+        "fields": {},
+        "records": [
+          {
+            "id": "synthetic-report-01",
+            "career_id": "synthetic-career-02",
+            "occurred_at": "1917-04-01T06:00:00Z",
+            "fields": {
+              "title": {"value": "Synthetic career report", "unavailable_reason": null},
+              "narrative": {"value": "Synthetic report: this text describes an invented career only.", "unavailable_reason": null}
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "settings-ready",
+      "screens": [
+        "SYS-01"
+      ],
+      "synthetic": true,
+      "label": "Synthetic",
+      "contract_version": "synthetic-ui-v1",
+      "state": "ready",
+      "reason": null,
+      "career_id": null,
+      "source_authority": "synthetic-settings",
+      "observed_at": "2026-01-01T11:59:30Z",
+      "freshness": "current",
+      "warnings": [
+        {"code": "partial_record", "message": "Some fields are unavailable; known values remain visible."},
+        {"code": "redacted_fields", "message": "Installation details are hidden in this synthetic example."}
+      ],
+      "data": {
+        "collection": "diagnostics",
+        "fields": {
+          "profile": {"value": "Synthetic read-only profile", "unavailable_reason": null},
+          "example_path": {"value": "synthetic://installation", "unavailable_reason": null},
+          "installation_path": {"value": null, "unavailable_reason": "redacted"},
+          "database_path": {"value": null, "unavailable_reason": "redacted"},
+          "watchdog_running": {"value": null, "unavailable_reason": "not_supplied"},
+          "database_connected": {"value": null, "unavailable_reason": "not_supplied"},
+          "last_sync": {"value": null, "unavailable_reason": "not_supplied"}
+        },
+        "records": [
+          {
+            "id": "synthetic-diagnostic-01",
+            "career_id": null,
+            "occurred_at": "1917-04-01T06:00:00Z",
+            "fields": {
+              "diagnostic": {"value": "Synthetic diagnostic: no live service is connected.", "unavailable_reason": null}
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "source-truncated",
+      "screens": [
+        "APP-00",
+        "SEL-01",
+        "OPR-01",
+        "DOS-01",
+        "DOS-02",
+        "DOS-03",
+        "DOS-04",
+        "MIS-01",
+        "MIS-02",
+        "SQD-01",
+        "SQD-02",
+        "JRN-01",
+        "RPT-01",
+        "RPT-02",
+        "SYS-01"
+      ],
+      "synthetic": true,
+      "label": "Synthetic",
+      "contract_version": "synthetic-ui-v1",
+      "state": "stale/unavailable",
+      "reason": "source_truncated",
+      "career_id": null,
+      "source_authority": "synthetic-records",
+      "observed_at": null,
+      "freshness": "unknown",
+      "warnings": [
+        {"code": "source_truncated", "message": "The source is incomplete. Unvalidated values are hidden."}
+      ],
+      "data": null
+    },
+    {
+      "id": "source-unreadable",
+      "screens": [
+        "APP-00",
+        "SEL-01",
+        "OPR-01",
+        "DOS-01",
+        "DOS-02",
+        "DOS-03",
+        "DOS-04",
+        "MIS-01",
+        "MIS-02",
+        "SQD-01",
+        "SQD-02",
+        "JRN-01",
+        "RPT-01",
+        "RPT-02",
+        "SYS-01"
+      ],
+      "synthetic": true,
+      "label": "Synthetic",
+      "contract_version": "synthetic-ui-v1",
+      "state": "stale/unavailable",
+      "reason": "source_unreadable",
+      "career_id": null,
+      "source_authority": "synthetic-records",
+      "observed_at": null,
+      "freshness": "unknown",
+      "warnings": [
+        {"code": "source_unreadable", "message": "The source could not be read safely. No raw diagnostic is displayed."}
+      ],
+      "data": null
+    },
+    {
+      "id": "source-unsupported",
+      "screens": [
+        "APP-00",
+        "SEL-01",
+        "OPR-01",
+        "DOS-01",
+        "DOS-02",
+        "DOS-03",
+        "DOS-04",
+        "MIS-01",
+        "MIS-02",
+        "SQD-01",
+        "SQD-02",
+        "JRN-01",
+        "RPT-01",
+        "RPT-02",
+        "SYS-01"
+      ],
+      "synthetic": true,
+      "label": "Synthetic",
+      "contract_version": "synthetic-ui-v1",
+      "state": "stale/unavailable",
+      "reason": "source_unsupported",
+      "career_id": null,
+      "source_authority": "synthetic-records",
+      "observed_at": null,
+      "freshness": "unknown",
+      "warnings": [
+        {"code": "source_unsupported", "message": "The source format is unsupported by this example contract."}
+      ],
+      "data": null
+    },
+    {
+      "id": "squadron-ready",
+      "screens": [
+        "SQD-01",
+        "SQD-02"
+      ],
+      "synthetic": true,
+      "label": "Synthetic",
+      "contract_version": "synthetic-ui-v1",
+      "state": "ready",
+      "reason": null,
+      "career_id": "synthetic-career-02",
+      "source_authority": "synthetic-records",
+      "observed_at": "2026-01-01T11:59:30Z",
+      "freshness": "current",
+      "warnings": [
+        {"code": "partial_record", "message": "Some fields are unavailable; known values remain visible."}
+      ],
+      "data": {
+        "collection": "roster",
+        "fields": {
+          "squadron": {"value": "Synthetic Squadron Cedar", "unavailable_reason": null}
+        },
+        "records": [
+          {
+            "id": "synthetic-wingman-01",
+            "career_id": "synthetic-career-02",
+            "occurred_at": "1917-04-01T06:00:00Z",
+            "fields": {
+              "display_name": {"value": "Synthetic Pilot Aster", "unavailable_reason": null},
+              "role": {"value": "Synthetic flight leader", "unavailable_reason": null},
+              "transfer_status": {"value": "Confirmed", "unavailable_reason": null}
+            }
+          },
+          {
+            "id": "synthetic-wingman-02",
+            "career_id": "synthetic-career-02",
+            "occurred_at": "1917-04-01T06:00:00Z",
+            "fields": {
+              "display_name": {"value": "Synthetic Pilot Birch", "unavailable_reason": null},
+              "role": {"value": "Synthetic wingman", "unavailable_reason": null},
+              "transfer_status": {"value": null, "unavailable_reason": "unknown"}
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "unavailable-source",
+      "screens": [
+        "APP-00",
+        "SEL-01",
+        "OPR-01",
+        "DOS-01",
+        "DOS-02",
+        "DOS-03",
+        "DOS-04",
+        "MIS-01",
+        "MIS-02",
+        "SQD-01",
+        "SQD-02",
+        "JRN-01",
+        "RPT-01",
+        "RPT-02",
+        "SYS-01"
+      ],
+      "synthetic": true,
+      "label": "Synthetic",
+      "contract_version": "synthetic-ui-v1",
+      "state": "stale/unavailable",
+      "reason": "source_unavailable",
+      "career_id": null,
+      "source_authority": "synthetic-query",
+      "observed_at": null,
+      "freshness": "unknown",
+      "warnings": [
+        {"code": "source_unavailable", "message": "The source cannot answer now. No current value is inferred."}
+      ],
+      "data": null
+    }
+  ]
+}

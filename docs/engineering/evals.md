@@ -136,7 +136,7 @@ claim Q5 or approval of Product Gate A or Gate B.
 | Eval | Work item | Status | Evidence or required evidence | Enforcement |
 |---|---|---|---|---|
 | `EVAL-UI-DESIGN-001` | #79 | Implemented | The V2 reference and Site version 18 pass the bounded rendered audit: measured logical reflow, semantic states, lossless status labels, complete Tab sequences, per-control targets, read-only inventory, contrast and stable sparse-slot identity; CI replays immutable observations, not the live Site or Windows DPI | `woff/tests/test_architecture_contracts.py`, `woff/tests/test_ui_v2_evidence.py` |
-| `EVAL-UI-STATES-001` | #80 | Planned | Deterministic synthetic fixtures cover every shared state and privacy constraint without production dependencies | — |
+| `EVAL-UI-STATES-001` | #80 | Implemented | Twenty synthetic fixtures and the 15-screen matrix enforce six shared states, partial/conflicting fields, safe freshness, redacted settings, stable ownership, closed text and sanitized failures without production dependencies | `scripts/validate_ui_fixtures.py`, `tests/test_ui_state_fixtures.py`, `woff/tests/test_architecture_contracts.py` |
 | `EVAL-UI-CONTRACTS-001` | #81 | Planned | Immutable toolkit-independent view models and query protocols preserve stable identity, state, freshness, warnings, and sanitized failures | — |
 | `EVAL-UI-SPIKE-001` | #82 | Planned | One PySide6 line passes the supported Python and Windows packaging and measured resource matrix | — |
 | `EVAL-UI-SPIKE-002` | #82 | Planned | Scaling, keyboard use, accessibility, plugin behavior, and licensing evidence support a Go, Conditional Go, or No-go recommendation | — |
@@ -163,10 +163,13 @@ semantic replay/mutation tests. The pinned browser driver produces fresh
 observations; Python CI verifies archived content, geometry and source hashes,
 not the mutable public Site. Audit 1–3 remain immutable historical evidence.
 
-Issue #80 remains unblocked planning work. Issue #81 waits for the shared state
-and fixture vocabulary from #80. Issue #82 is an isolated feasibility spike
-that also waits for #80. None of these items adopts Qt, creates a production UI,
-or approves Product Gate A or Product Gate B.
+Issue #80 is complete. Its [state matrix](../ui/screen-state-matrix.md) and
+[fixture inventory](../../woff/tests/fixtures/ui_states/README.md) satisfy the
+fixture prerequisite for #81 and #82. Both remain unimplemented backlog work.
+The isolated fixture suite runs outside `woff/tests` to avoid its persistence
+setup; the validator also runs under `python -I -S` with integration imports
+and events blocked by a regression test. None of these items adopts Qt,
+creates a production UI, or approves Product Gate A or Product Gate B.
 
 ### Implemented scheduler evals
 
@@ -525,7 +528,7 @@ for the broader roster-generation and truncated-input policy.
 | #80 | `EVAL-UI-STATES-001` |
 | #81 | `EVAL-UI-CONTRACTS-001` |
 
-Cycle 3.4.0 is `active`. Issues #28, #35, #38, #41, #75, #79, and #97 are complete.
+Cycle 3.4.0 is `active`. Issues #28, #35, #38, #41, #75, #79, #80, and #97 are complete.
 Issue #37 is now unblocked and is the next dependency-ordered implementation
 item. Issue #101 remains blocked by #37 and #96.
 `EVAL-CYCLE-340-001` aggregates all sixteen members and remains planned until

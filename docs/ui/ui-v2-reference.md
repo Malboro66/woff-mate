@@ -233,8 +233,9 @@ the label map is extended; it does not silently replace the value with
 | Unreadable | The source could not be safely read. | Show a sanitized message with no path or raw exception. |
 | Error | The approved query failed. | Preserve safe context and expose `Retry view` plus `View data status`. |
 
-These terms are design vocabulary for Issue #79. Issue #80 owns their formal
-fixture matrix and deterministic fixture payloads.
+These terms are design vocabulary for Issue #79. Issue #80 formalizes their
+six-state envelope and aliases in the [screen-state matrix](screen-state-matrix.md)
+and [deterministic fixture inventory](../../woff/tests/fixtures/ui_states/README.md).
 
 ## Published Site organization
 
@@ -248,7 +249,7 @@ The Site's Desktop Fixture Matrix exposes all 15 rendered screen IDs:
 
 The Career Selector remains reachable from the persistent context control and
 also has a standalone `SEL-01` reference. The fixture matrix is a visual
-coverage surface; Issue #80 still owns the formal deterministic fixture set.
+coverage surface; Issue #80 supplies the separate formal deterministic fixture set.
 
 ## Archived Figma organization
 
