@@ -535,12 +535,14 @@ evals:
       - woff/tests/test_pilot_stat_merge.py
   EVAL-ROSTER-001:
     work_items: [issue-37]
-    status: planned
-    evidence: A transfer never reports the complete previous roster as missing.
+    status: implemented
+    evidence: A transfer never reports the complete previous roster as missing, even when a dependent source updates the mutable pilot squadron first.
+    enforced_by: [woff/tests/test_dossier_transactions.py]
   EVAL-ROSTER-002:
     work_items: [issue-37]
-    status: planned
-    evidence: Reprocessing an unchanged roster creates no duplicate events.
+    status: implemented
+    evidence: Reprocessing an unchanged roster creates no duplicate events, and every roster absence requires matching non-empty confirmation before missing events.
+    enforced_by: [woff/tests/test_dossier_transactions.py]
   EVAL-XML-001:
     work_items: [issue-44]
     status: planned
@@ -787,7 +789,7 @@ work_items:
   issue-37:
     title: Distinguish squadron transfers from missing wingmen
     module: application
-    state: backlog
+    state: done
     evals: [EVAL-ROSTER-001, EVAL-ROSTER-002]
     gates: [Q0, Q1, Q2, Q6-CYCLE-3.4.0]
     depends_on:
@@ -1081,7 +1083,7 @@ work_items:
     evals: [EVAL-WINGMAN-TRANSFER-001, EVAL-WINGMAN-TRANSFER-002, EVAL-WINGMAN-TRANSFER-003]
     gates: [Q0, Q1, Q2, Q6-CYCLE-3.4.0]
     depends_on:
-      - {id: issue-37, status: unsatisfied}
+      - {id: issue-37, status: satisfied}
       - {id: issue-96, status: unsatisfied}
   issue-122:
     title: Reconcile pilot-slot vacancy after campaign deletion and reuse

@@ -7,7 +7,7 @@ o NarrativeGenerator, e guarda os resultados.
 ══════════════════════════════════════════════════════════════════
 """
 import logging
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Literal, Optional, Tuple
 
 from .database import DatabaseManager, DossierState
 from .identity import PilotIdentityEvidence, PilotIdentityKind
@@ -17,6 +17,8 @@ from .models import WoFFDecoration, WoFFPilot, WoFFWingman
 from .normalization import normalize_date
 
 log = logging.getLogger("WoFFWatch")
+
+_RosterAction = Literal["keep", "baseline", "pending-baseline", "candidate"]
 
 
 class _DiaryWriteRejected(Exception):
@@ -132,16 +134,20 @@ class CampaignEngine:
         stored: DossierState,
         pilot: WoFFPilot,
         wingmen: List[WoFFWingman],
-    ) -> Tuple[List[Tuple[str, str]], bool]:
+    ) -> Tuple[List[Tuple[str, str]], bool, _RosterAction]:
         """Compute deterministic narratives before any Dossier write occurs."""
         effects: List[Tuple[str, str]] = []
         transfer = bool(
-            stored.squadron
+            stored.roster_squadron
             and pilot.squadron
-            and stored.squadron != pilot.squadron
+            and stored.roster_squadron != pilot.squadron
         )
+        roster_action: _RosterAction = "keep"
+        roster_events: List[Tuple[str, str]] = []
 
-        if wingmen and not transfer:
+        if transfer:
+            roster_action = "baseline" if wingmen else "pending-baseline"
+        elif wingmen:
             old_map = {
                 f"{wingman.first_name} {wingman.last_name}".strip(): wingman.status
                 for wingman in stored.wingmen
@@ -150,12 +156,50 @@ class CampaignEngine:
                 f"{wingman.fName} {wingman.sName}".strip(): wingman.status
                 for wingman in wingmen
             }
-            for event_type, name in self._wingman_events(old_map, new_map):
-                narrative = narrative_generator.generate_wingman_event(
-                    name, event_type
+            all_events = self._wingman_events(old_map, new_map)
+
+            if not pilot.squadron:
+                roster_action = "pending-baseline"
+                roster_events = [
+                    event
+                    for event in all_events
+                    if event[0] in {"wounded", "kia"}
+                ]
+            elif stored.roster_baseline_pending or not stored.roster_squadron:
+                roster_action = "baseline"
+                roster_events = [
+                    event
+                    for event in all_events
+                    if event[0] in {"wounded", "kia"}
+                ]
+            else:
+                candidate = stored.roster_candidate
+                candidate_map = (
+                    {
+                        f"{wingman.first_name} {wingman.last_name}".strip(): (
+                            wingman.status
+                        )
+                        for wingman in candidate.wingmen
+                    }
+                    if candidate is not None
+                    else {}
                 )
-                if narrative:
-                    effects.append((f"wingman:{event_type}", narrative))
+                candidate_matches = bool(
+                    candidate is not None
+                    and candidate.squadron == pilot.squadron
+                    and candidate_map == new_map
+                )
+                has_unconfirmed_absence = bool(old_map.keys() - new_map.keys())
+                if has_unconfirmed_absence and not candidate_matches:
+                    roster_action = "candidate"
+                else:
+                    roster_action = "baseline"
+                    roster_events = all_events
+
+        for event_type, name in roster_events:
+            narrative = narrative_generator.generate_wingman_event(name, event_type)
+            if narrative:
+                effects.append((f"wingman:{event_type}", narrative))
 
         status_changed = (
             pilot.status is not None
@@ -173,7 +217,7 @@ class CampaignEngine:
             )
             if narrative:
                 effects.append(("life", narrative))
-        return effects, transfer
+        return effects, transfer, roster_action
 
     def process_dossier_import(
         self,
@@ -193,6 +237,13 @@ class CampaignEngine:
         effects: List[Tuple[str, str]] = []
         transferred = False
         replayed = False
+        roster_action: _RosterAction = (
+            "baseline"
+            if pilot.squadron and wingmen
+            else "pending-baseline"
+            if pilot.squadron or wingmen
+            else "keep"
+        )
         real_pilot_id: Optional[str] = None
         try:
             with self.db_manager.transaction():
@@ -210,9 +261,11 @@ class CampaignEngine:
                 else:
                     event_date: Optional[str] = None
                     if stored is not None:
-                        effects, transferred = self._plan_dossier_diary_effects(
-                            stored, pilot, wingmen
-                        )
+                        (
+                            effects,
+                            transferred,
+                            roster_action,
+                        ) = self._plan_dossier_diary_effects(stored, pilot, wingmen)
                         event_date = self.db_manager.get_pilot_game_date(
                             stored.pilot_id
                         ) or normalize_date(pilot.startDate)
@@ -233,9 +286,27 @@ class CampaignEngine:
                         raise RuntimeError(
                             "Dossier identity changed inside one transaction"
                         )
-                    self.db_manager.save_dossier_roster_state(
-                        real_pilot_id, wingmen
-                    )
+                    if roster_action == "candidate":
+                        if stored is None:
+                            raise RuntimeError(
+                                "Roster candidate requires persisted trusted state"
+                            )
+                        self.db_manager.save_dossier_roster_candidate(
+                            real_pilot_id,
+                            stored.roster_squadron,
+                            stored.wingmen,
+                            pilot.squadron,
+                            wingmen,
+                        )
+                    elif roster_action in {"baseline", "pending-baseline"}:
+                        self.db_manager.save_dossier_roster_state(
+                            real_pilot_id,
+                            pilot.squadron,
+                            wingmen,
+                            baseline_pending=(
+                                roster_action == "pending-baseline"
+                            ),
+                        )
 
                     for _category, narrative in effects:
                         if not self.db_manager.save_diary_entry(

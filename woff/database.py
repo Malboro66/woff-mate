@@ -77,15 +77,26 @@ class DossierWingmanState:
 
 
 @dataclass(frozen=True)
+class DossierRosterCandidate:
+    """One roster with unconfirmed absences awaiting a matching observation."""
+
+    squadron: str
+    wingmen: Tuple[DossierWingmanState, ...]
+
+
+@dataclass(frozen=True)
 class DossierState:
-    """One consistent persisted view used by the Dossier application service."""
+    """Persisted pilot and roster-generation view for one Dossier import."""
 
     pilot_id: str
     status: Optional[str]
     rank: Optional[str]
     squadron: str
     dossier_digest: Optional[str]
+    roster_squadron: str
+    roster_baseline_pending: bool
     wingmen: Tuple[DossierWingmanState, ...]
+    roster_candidate: Optional[DossierRosterCandidate]
 
 
 @dataclass(frozen=True)
@@ -2332,6 +2343,10 @@ class DatabaseManager:
                 (f"{_DOSSIER_ROSTER_META_PREFIX}{pilot[0]}",),
             ).fetchone()
             if roster is None:
+                roster_squadron = ""
+                roster_baseline_pending = True
+                candidate_squadron: Optional[str] = None
+                candidate_wingmen: List[Tuple[str, str, str]] = []
                 wingmen = [
                     tuple(str(value or "") for value in row)
                     for row in connection.execute(
@@ -2347,15 +2362,59 @@ class DatabaseManager:
             else:
                 try:
                     decoded = json.loads(str(roster[0]))
-                    valid = isinstance(decoded, list) and all(
+                    if isinstance(decoded, list):
+                        roster_squadron = ""
+                        roster_baseline_pending = True
+                        decoded_wingmen = decoded
+                        decoded_candidate = None
+                    elif (
+                        isinstance(decoded, dict)
+                        and decoded.get("version") == 1
+                        and isinstance(decoded.get("squadron"), str)
+                        and isinstance(decoded.get("baseline_pending"), bool)
+                        and isinstance(decoded.get("wingmen"), list)
+                    ):
+                        roster_squadron = decoded["squadron"]
+                        roster_baseline_pending = decoded["baseline_pending"]
+                        decoded_wingmen = decoded["wingmen"]
+                        decoded_candidate = decoded.get("candidate")
+                    else:
+                        raise ValueError("invalid roster payload")
+                    valid = all(
                         isinstance(item, list)
                         and len(item) == 3
                         and all(isinstance(value, str) for value in item)
-                        for item in decoded
+                        for item in decoded_wingmen
                     )
                     if not valid:
                         raise ValueError("invalid roster payload")
-                    wingmen = [tuple(item) for item in decoded]
+                    wingmen = [tuple(item) for item in decoded_wingmen]
+                    candidate_squadron = None
+                    candidate_wingmen = []
+                    if decoded_candidate is not None:
+                        if not (
+                            isinstance(decoded_candidate, dict)
+                            and isinstance(
+                                decoded_candidate.get("squadron"), str
+                            )
+                            and isinstance(
+                                decoded_candidate.get("wingmen"), list
+                            )
+                        ):
+                            raise ValueError("invalid roster candidate")
+                        decoded_candidate_wingmen = decoded_candidate["wingmen"]
+                        valid_candidate = all(
+                            isinstance(item, list)
+                            and len(item) == 3
+                            and all(isinstance(value, str) for value in item)
+                            for item in decoded_candidate_wingmen
+                        )
+                        if not valid_candidate:
+                            raise ValueError("invalid roster candidate")
+                        candidate_squadron = decoded_candidate["squadron"]
+                        candidate_wingmen = [
+                            tuple(item) for item in decoded_candidate_wingmen
+                        ]
                 except (TypeError, ValueError, json.JSONDecodeError) as error:
                     raise sqlite3.DatabaseError(
                         "Invalid persisted Dossier roster state"
@@ -2368,6 +2427,8 @@ class DatabaseManager:
                 dossier_digest=(
                     str(pilot[4]) if pilot[4] is not None else None
                 ),
+                roster_squadron=roster_squadron,
+                roster_baseline_pending=roster_baseline_pending,
                 wingmen=tuple(
                     DossierWingmanState(
                         first_name=str(row[0] or ""),
@@ -2376,13 +2437,33 @@ class DatabaseManager:
                     )
                     for row in wingmen
                 ),
+                roster_candidate=(
+                    DossierRosterCandidate(
+                        squadron=candidate_squadron,
+                        wingmen=tuple(
+                            DossierWingmanState(
+                                first_name=str(row[0] or ""),
+                                last_name=str(row[1] or ""),
+                                status=str(row[2] or ""),
+                            )
+                            for row in candidate_wingmen
+                        ),
+                    )
+                    if candidate_squadron is not None
+                    else None
+                ),
             )
 
     def save_dossier_roster_state(
-        self, pilot_id: str, wingmen: List[WoFFWingman]
+        self,
+        pilot_id: str,
+        squadron: str,
+        wingmen: List[WoFFWingman],
+        *,
+        baseline_pending: bool = False,
     ) -> None:
-        """Record the current roster without retiring historical wingman rows."""
-        if not wingmen:
+        """Record a trusted roster or pending transfer baseline without deletion."""
+        if not wingmen and not baseline_pending:
             return
         with self._lock:
             connection = self._get_conn()
@@ -2398,7 +2479,69 @@ class DatabaseManager:
                 "INSERT OR REPLACE INTO meta (key, value) VALUES (?, ?)",
                 (
                     f"{_DOSSIER_ROSTER_META_PREFIX}{pilot_id}",
-                    json.dumps(roster, ensure_ascii=True, separators=(",", ":")),
+                    json.dumps(
+                        {
+                            "version": 1,
+                            "squadron": squadron,
+                            "baseline_pending": baseline_pending,
+                            "wingmen": roster,
+                            "candidate": None,
+                        },
+                        ensure_ascii=True,
+                        separators=(",", ":"),
+                    ),
+                ),
+            )
+
+    def save_dossier_roster_candidate(
+        self,
+        pilot_id: str,
+        trusted_squadron: str,
+        trusted_wingmen: Sequence[DossierWingmanState],
+        candidate_squadron: str,
+        candidate_wingmen: Sequence[WoFFWingman],
+    ) -> None:
+        """Keep the trusted roster while recording possible absences."""
+        if not trusted_squadron or not candidate_squadron or not candidate_wingmen:
+            raise ValueError("Dossier roster candidate requires complete context")
+        with self._lock:
+            connection = self._get_conn()
+            if not connection.in_transaction:
+                raise RuntimeError(
+                    "Dossier roster candidate requires a caller-owned transaction"
+                )
+            trusted = sorted(
+                [
+                    [wingman.first_name, wingman.last_name, wingman.status]
+                    for wingman in trusted_wingmen
+                ],
+                key=lambda item: (item[0].casefold(), item[1].casefold()),
+            )
+            candidate = sorted(
+                [
+                    [wingman.fName, wingman.sName, wingman.status]
+                    for wingman in candidate_wingmen
+                ],
+                key=lambda item: (item[0].casefold(), item[1].casefold()),
+            )
+            connection.execute(
+                "INSERT OR REPLACE INTO meta (key, value) VALUES (?, ?)",
+                (
+                    f"{_DOSSIER_ROSTER_META_PREFIX}{pilot_id}",
+                    json.dumps(
+                        {
+                            "version": 1,
+                            "squadron": trusted_squadron,
+                            "baseline_pending": False,
+                            "wingmen": trusted,
+                            "candidate": {
+                                "squadron": candidate_squadron,
+                                "wingmen": candidate,
+                            },
+                        },
+                        ensure_ascii=True,
+                        separators=(",", ":"),
+                    ),
                 ),
             )
 

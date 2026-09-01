@@ -103,18 +103,30 @@ def _set_issue_34_incomplete_state(
     assert isinstance(issue_34, dict)
     issue_34["state"] = state
 
-    for dependent in work_items.values():
-        assert isinstance(dependent, dict)
-        dependencies = dependent["depends_on"]
-        assert isinstance(dependencies, list)
-        for dependency in dependencies:
-            if (
-                isinstance(dependency, dict)
-                and dependency.get("id") == "issue-34"
-            ):
-                dependency["status"] = "unsatisfied"
-                if dependent.get("state") in {"ready", "in_progress", "done"}:
-                    dependent["state"] = "blocked"
+    changed = True
+    while changed:
+        changed = False
+        for dependent in work_items.values():
+            assert isinstance(dependent, dict)
+            dependencies = dependent["depends_on"]
+            assert isinstance(dependencies, list)
+            for dependency in dependencies:
+                assert isinstance(dependency, dict)
+                dependency_id = dependency.get("id")
+                prerequisite = work_items.get(dependency_id)
+                assert isinstance(prerequisite, dict)
+                if (
+                    prerequisite.get("state") != "done"
+                    and dependency.get("status") == "satisfied"
+                ):
+                    dependency["status"] = "unsatisfied"
+                    if dependent.get("state") in {
+                        "ready",
+                        "in_progress",
+                        "done",
+                    }:
+                        dependent["state"] = "blocked"
+                    changed = True
 
 
 def test_project_graph_is_valid() -> None:
@@ -1625,9 +1637,9 @@ def test_ui_v2_reference_contract() -> None:
     )
 
     quality_gates = quality_gates_path.read_text(encoding="utf-8")
-    assert (
-        "Issues #28, #35, #38, #41, #75, #79, #80, and #97 are complete"
-        in quality_gates
+    assert re.search(
+        r"Issues #28, #35, #37, #38, #41, #75, #79, #80, and #97 are\s+complete",
+        quality_gates,
     )
     assert "published UI V2" in quality_gates
     assert "pass the recorded" in quality_gates
