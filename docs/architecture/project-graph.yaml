@@ -185,7 +185,7 @@ gates:
   Q5:
     description: Product decision gates approve data reliability, launcher viability, social core, or public release.
   Q6-CYCLE-3.3.0:
-    description: All sixteen 3.3.0 work items, applicable evals, functional exit criteria, documentation, and CI are approved.
+    description: All seventeen 3.3.0 work items, applicable evals, functional exit criteria, documentation, and CI are approved.
   Q6-CYCLE-3.4.0:
     description: All sixteen 3.4.0 work items, applicable evals, functional exit criteria, documentation, and CI are approved.
 
@@ -321,6 +321,30 @@ evals:
     work_items: [issue-87]
     status: planned
     evidence: Sanitized longitudinal Dossier fixtures distinguish a replay from a same-name replacement career in the same pilot slot, or record that the available structure cannot do so safely.
+  EVAL-PILOT-VACANCY-001:
+    work_items: [issue-122]
+    status: planned
+    evidence: Confirmed Dossier absence vacates only the exact namespaced slot, dependent files cannot preserve occupancy, and the historical career and every related record remain unchanged.
+  EVAL-PILOT-SPARSE-001:
+    work_items: [issue-122]
+    status: planned
+    evidence: Sparse live slots retain their original Pilot numbers without renumbering or rebinding surviving careers.
+  EVAL-PILOT-VACANCY-STABILITY-001:
+    work_items: [issue-122]
+    status: planned
+    evidence: Atomic replacement, transient sharing failures, unavailable roots, and incomplete scans cannot create a false vacancy.
+  EVAL-PILOT-VACANCY-RESTART-001:
+    work_items: [issue-122]
+    status: planned
+    evidence: Startup reconciliation repairs stale bindings only after a complete successful Dossier inventory for the applicable campaign namespace.
+  EVAL-PILOT-VACANCY-REUSE-001:
+    work_items: [issue-122]
+    status: planned
+    evidence: A Dossier arriving after confirmed vacancy creates a new career identity for same-name or different-name slot reuse without inheriting historical data.
+  EVAL-PILOT-VACANCY-ISOLATION-001:
+    work_items: [issue-122]
+    status: planned
+    evidence: Vacancy, restart reconciliation, persistence rollback, and slot reuse are idempotent and isolated across campaign namespaces.
   EVAL-PILOT-STATUS-001:
     work_items: [issue-71]
     status: implemented
@@ -654,6 +678,7 @@ evals:
       - issue-95
       - issue-73
       - issue-27
+      - issue-122
     status: planned
     evidence: Every 3.3.0 member passes its acceptance criteria and applicable evals before the tracker closes.
   EVAL-CYCLE-340-001:
@@ -1047,6 +1072,23 @@ work_items:
     depends_on:
       - {id: issue-37, status: unsatisfied}
       - {id: issue-96, status: unsatisfied}
+  issue-122:
+    title: Reconcile pilot-slot vacancy after campaign deletion and reuse
+    module: ingestion
+    state: backlog
+    evals:
+      - EVAL-PILOT-VACANCY-001
+      - EVAL-PILOT-SPARSE-001
+      - EVAL-PILOT-VACANCY-STABILITY-001
+      - EVAL-PILOT-VACANCY-RESTART-001
+      - EVAL-PILOT-VACANCY-REUSE-001
+      - EVAL-PILOT-VACANCY-ISOLATION-001
+    gates: [Q0, Q1, Q2, Q3, Q4, Q6-CYCLE-3.3.0]
+    depends_on:
+      - {id: issue-70, status: satisfied}
+      - {id: issue-94, status: satisfied}
+      - {id: issue-42, status: satisfied}
+      - {id: issue-27, status: satisfied}
 
 cycles:
   cycle-3.2.1:
@@ -1076,6 +1118,7 @@ cycles:
       - issue-95
       - issue-73
       - issue-27
+      - issue-122
     aggregate_eval: EVAL-CYCLE-330-001
     gate: Q6-CYCLE-3.3.0
   cycle-3.4.0:
