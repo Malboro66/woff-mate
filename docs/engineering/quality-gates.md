@@ -143,7 +143,7 @@ Green CI without this evidence does not approve a public release.
 
 Issue #50 closes only when all conditions below pass:
 
-- #34, #57, #45, #36, #42, #40, #39, #70, #87, #71, #72, #93, #94, #95, #73, and #27 are complete
+- #34, #57, #45, #36, #42, #40, #39, #70, #87, #71, #72, #93, #94, #95, #73, #27, and #122 are complete
 - every dependency in `cycle-3.3.0` is satisfied
 - all member acceptance criteria are demonstrated
 - every applicable eval in `EVAL-CYCLE-330-001` passes
@@ -157,6 +157,9 @@ Issue #50 closes only when all conditions below pass:
 - equal pilot slots in distinct watched roots retain independent campaign bindings
 - transient SQLite contention retains admitted generations for bounded exactly-once retry
 - dependent pilot files are reprocessed without duplication or silent loss
+- confirmed Dossier absence vacates only the exact namespaced slot without deleting history or renumbering surviving slots
+- transient replacement, unavailable roots, and incomplete scans cannot create false vacancy
+- complete startup reconciliation repairs stale bindings, and later slot reuse creates a new career identity idempotently across roots
 - focused tests, related tests, full suite, and Pyright pass
 - applicable Windows checks pass
 - project graph, eval catalog, quality gates, and public documentation are current
