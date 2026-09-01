@@ -169,13 +169,17 @@ CI success alone does not close #50 or release 3.3.0.
 
 ## Q6-CYCLE-3.4.0: parser, roster, presentation, and RPG integrity
 
-Cycle 3.4.0 is active. Issues #28, #35, #37, #38, #41, #75, and #97 are complete.
-Issue #79 is in progress: its repository design contract is recorded, but the
-published UI V2 Site currently fails rendered WCAG AA contrast, stable-career
-isolation, destination focus, navigation conformance, and required visual
-coverage. Issue #101 remains blocked by #96 after #37 satisfied its roster
-lifecycle dependency. The aggregate gate remains pending until every member and
-`EVAL-CYCLE-340-001` pass.
+Cycle 3.4.0 is active. Issues #28, #35, #37, #38, #41, #75, #79, and #97 are
+complete.
+#79's repository design contract and published UI V2 Site pass the recorded
+rendered WCAG AA contrast thresholds within bounded Audit 4 coverage,
+stable-career isolation, persistent sparse-slot presentation, destination
+focus, complete Tab sequences, per-control targets/read-only inventories,
+semantic states, status labels and actual logical-canvas reflow. The executable
+driver and immutable source/capture are pinned; CI replay is not a live-Site
+or native Windows DPI certification. Issue #101 remains blocked by #96 after
+#37 satisfied its roster-lifecycle dependency. The aggregate gate remains
+pending until every member and `EVAL-CYCLE-340-001` pass.
 
 Cycle 3.4.0 is approved only when all conditions below pass:
 

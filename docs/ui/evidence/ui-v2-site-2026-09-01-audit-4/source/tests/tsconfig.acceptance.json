@@ -1,0 +1,5 @@
+{
+  "extends": "../tsconfig.json",
+  "include": ["../app/page.tsx", "../app/view-models.ts"],
+  "exclude": ["../node_modules", "../dist"]
+}

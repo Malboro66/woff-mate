@@ -1,8 +1,8 @@
 # UI V2 reference
 
-Status: Approved repository design reference; published Site conformance pending
+Status: Approved repository design reference; published Site conformance verified
 
-Date: 2026-08-29
+Date: 2026-08-31
 
 Tracks: Issue #79
 
@@ -23,9 +23,9 @@ the proposed toolkit ADR, or authorize a GUI dependency, SQLite access, direct
 WoFF-file reads, writes, launcher control, or live-session behavior.
 
 The published Site is subordinate to these toolkit-independent contracts. Its
-current conformance failures are recorded in the
+passing conformance evidence is recorded in the
 [published-site audit](ui-v2-rendered-audit.md); a visible prototype difference
-does not silently rewrite identity, accessibility, privacy, or navigation
+cannot silently rewrite identity, accessibility, privacy, or navigation
 requirements.
 
 The architectural boundary in [Read-only UI foundation](read-only-foundation.md)
@@ -37,7 +37,7 @@ V2 is centered on one active **pilot career**, not on a display name. The shell
 keeps that career in context while the user moves from an overview to records
 and technical status.
 
-The design follows six rules:
+The design follows seven rules:
 
 1. Selection and navigation use a stable `career_id`; names are labels only.
 2. Every current destination is read-only.
@@ -45,6 +45,8 @@ The design follows six rules:
 4. The UI never invents identity, status, service, nationality, dates, or zero.
 5. Overview precedes detail, with a clear route back to the originating view.
 6. Components display already-interpreted values and contain no domain rules.
+7. `PilotN` is a persistent simulator slot label, never the historical career
+   identity or the selected option's position.
 
 ## Navigation architecture
 
@@ -138,6 +140,13 @@ derive identity from a slot or local path, or expose a campaign root. When no
 career is selected, the shell preserves orientation and offers only `Select
 career` and `View data status`.
 
+`PilotN` remains a presentation-safe reference to the current WoFF source slot.
+Slots may be sparse: if `Pilot1` is deleted, `Pilot2` remains `Pilot2` and is
+never renumbered because it becomes the first visible row. Reusing `Pilot1`
+later creates a different career with a new `career_id`; it does not revive or
+inherit the deleted career. The selector may show `WoFF Pilot 2`, but list
+position and slot label never replace `career_id` as the selection value.
+
 ## Pilot Dossier reference
 
 `DOS-01` is the reference screen for the V2 hierarchy. It answers, in order:
@@ -229,18 +238,17 @@ fixture matrix and deterministic fixture payloads.
 
 ## Published Site organization
 
-The Site's Desktop Fixture Matrix currently exposes ten rendered screen IDs:
+The Site's Desktop Fixture Matrix exposes all 15 rendered screen IDs:
 
-- `OPR-01`, `DOS-01`, `MIS-01`, `MIS-02`, `SQD-01`, `SQD-02`, `JRN-01`,
-  `RPT-01`, `RPT-02`, and `SYS-01`;
+- `APP-00`, `SEL-01`, `OPR-01`, `DOS-01`, `DOS-02`, `DOS-03`, `DOS-04`,
+  `MIS-01`, `MIS-02`, `SQD-01`, `SQD-02`, `JRN-01`, `RPT-01`, `RPT-02`, and
+  `SYS-01`;
 - fourteen semantic states from Complete through Not available; and
 - Desktop profiles labelled 100%, 125%, 150%, and 200%.
 
-The Career Selector is reachable from the persistent context control. The
-fixture matrix does not yet expose standalone `APP-00`, `SEL-01`, `DOS-02`,
-`DOS-03`, or `DOS-04` records, so the Site remains incomplete as the sole visual
-coverage source. The repository screen inventory remains normative until that
-gap is corrected or explicitly rescoped.
+The Career Selector remains reachable from the persistent context control and
+also has a standalone `SEL-01` reference. The fixture matrix is a visual
+coverage surface; Issue #80 still owns the formal deterministic fixture set.
 
 ## Archived Figma organization
 

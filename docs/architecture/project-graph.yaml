@@ -134,9 +134,10 @@ modules:
     forbidden_dependencies: []
 
   governance:
-    responsibility: Executable repository policy and project graph validation.
+    responsibility: Executable repository policy, project graph and immutable evidence validation.
     paths:
       - scripts/validate_project_graph.py
+      - scripts/validate_ui_v2_evidence.py
     may_depend_on: []
     forbidden_dependencies:
       - foundation
@@ -645,8 +646,9 @@ evals:
     enforced_by: [woff/tests/test_architecture_contracts.py]
   EVAL-UI-DESIGN-001:
     work_items: [issue-79]
-    status: planned
-    evidence: The published UI V2 Site is the active rendered source. Its 2026-08-29 audit fails contrast, stable-career isolation, destination focus, navigation conformance, and required visual coverage; a corrected published revision must pass before the repository design walkthrough passes.
+    status: implemented
+    evidence: Published UI V2 Site version 18 and deployment appgdep_6a96d56b15608191b13155cbcb7f7204 pass all 15 screen IDs across four measured logical profiles, 14 representative Dossier states, 12 pilot-status inputs, 28 complete Tab sequences, per-control targets and read-only inventories, WCAG AA text and non-text contrast thresholds within recorded coverage, mission-aircrew-report career isolation, and an actual sparse Pilot2/Pilot3 list; immutable revision UIV2-SITE-2026-09-01-AUDIT-4 pins source and observations. CI replays this capture, not the mutable Site or native Windows DPI.
+    enforced_by: [woff/tests/test_architecture_contracts.py, woff/tests/test_ui_v2_evidence.py]
   EVAL-UI-STATES-001:
     work_items: [issue-80]
     status: planned
@@ -981,7 +983,7 @@ work_items:
   issue-79:
     title: Consolidate the approved UI V2 reference and visual system
     module: presentation
-    state: in_progress
+    state: done
     evals: [EVAL-UI-DESIGN-001]
     gates: [Q0, Q1, Q6-CYCLE-3.4.0]
     depends_on:

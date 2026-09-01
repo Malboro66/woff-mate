@@ -1,0 +1,83 @@
+{
+  "evidenceRevision": "UIV2-SITE-2026-08-31-AUDIT-2",
+  "deployment": {
+    "id": "appgdep_6a9555f927b081919b6cc2f33e9f3ffb",
+    "savedVersion": 16,
+    "sourceCommit": "07cc3397ac9a9204c6540becaf57ffcaad3c8897",
+    "url": "https://woff-mate-ui-v2.pilotohans.chatgpt.site"
+  },
+  "browser": {
+    "viewportWidthCssPx": 1363,
+    "devicePixelRatio": 1,
+    "fixtureProfile": "Desktop 100%"
+  },
+  "method": {
+    "textThreshold": 4.5,
+    "largeTextThreshold": 3.0,
+    "minimumMeaningfulFontSizeCssPx": 12,
+    "backgroundSelection": "nearest opaque rendered surface",
+    "formula": "WCAG relative luminance"
+  },
+  "summary": {
+    "requiredScreenCount": 15,
+    "semanticStateCount": 14,
+    "desktopScaleCount": 4,
+    "lowestMeasuredNormalTextRatio": 4.55,
+    "contrastFailures": 0,
+    "fontSizeFailures": 0,
+    "horizontalOverflowFailures": 0
+  },
+  "screens": [
+    {"id": "APP-00", "minimumRatio": 4.92, "contrastFailures": 0, "fontSizeFailures": 0},
+    {"id": "SEL-01", "minimumRatio": 4.92, "contrastFailures": 0, "fontSizeFailures": 0},
+    {"id": "OPR-01", "minimumRatio": 4.61, "contrastFailures": 0, "fontSizeFailures": 0},
+    {"id": "DOS-01", "minimumRatio": 4.55, "contrastFailures": 0, "fontSizeFailures": 0},
+    {"id": "DOS-02", "minimumRatio": 4.92, "contrastFailures": 0, "fontSizeFailures": 0},
+    {"id": "DOS-03", "minimumRatio": 4.92, "contrastFailures": 0, "fontSizeFailures": 0},
+    {"id": "DOS-04", "minimumRatio": 4.92, "contrastFailures": 0, "fontSizeFailures": 0},
+    {"id": "MIS-01", "minimumRatio": 4.68, "contrastFailures": 0, "fontSizeFailures": 0},
+    {"id": "MIS-02", "minimumRatio": 4.86, "contrastFailures": 0, "fontSizeFailures": 0},
+    {"id": "SQD-01", "minimumRatio": 4.68, "contrastFailures": 0, "fontSizeFailures": 0},
+    {"id": "SQD-02", "minimumRatio": 4.55, "contrastFailures": 0, "fontSizeFailures": 0},
+    {"id": "JRN-01", "minimumRatio": 4.68, "contrastFailures": 0, "fontSizeFailures": 0},
+    {"id": "RPT-01", "minimumRatio": 4.68, "contrastFailures": 0, "fontSizeFailures": 0},
+    {"id": "RPT-02", "minimumRatio": 4.92, "contrastFailures": 0, "fontSizeFailures": 0},
+    {"id": "SYS-01", "minimumRatio": 4.68, "contrastFailures": 0, "fontSizeFailures": 0}
+  ],
+  "states": [
+    {"label": "Complete", "minimumRatio": 4.55},
+    {"label": "Loading", "minimumRatio": 4.92},
+    {"label": "Empty", "minimumRatio": 4.55},
+    {"label": "Partial", "minimumRatio": 4.55},
+    {"label": "No career", "minimumRatio": 4.92},
+    {"label": "Missing", "minimumRatio": 4.92},
+    {"label": "Truncated", "minimumRatio": 4.92},
+    {"label": "Unsupported", "minimumRatio": 4.92},
+    {"label": "Unreadable", "minimumRatio": 4.92},
+    {"label": "Error", "minimumRatio": 4.92},
+    {"label": "Stale", "minimumRatio": 4.92},
+    {"label": "Authoritative zeroes", "minimumRatio": 4.55},
+    {"label": "Unknown values", "minimumRatio": 4.55},
+    {"label": "Not available", "minimumRatio": 4.92}
+  ],
+  "scales": [
+    {"label": "Desktop 100%", "profile": "desktop-100", "minimumRatio": 4.61, "viewportWidth": 1363, "documentScrollWidth": 1363, "mainClientWidth": 1091, "mainScrollWidth": 1091},
+    {"label": "Desktop 125%", "profile": "desktop-125", "minimumRatio": 4.61, "viewportWidth": 1363, "documentScrollWidth": 1363, "mainClientWidth": 1091, "mainScrollWidth": 1091},
+    {"label": "Desktop 150%", "profile": "desktop-150", "minimumRatio": 4.61, "viewportWidth": 1363, "documentScrollWidth": 1363, "mainClientWidth": 1091, "mainScrollWidth": 1091},
+    {"label": "Desktop 200%", "profile": "desktop-200", "minimumRatio": 4.61, "viewportWidth": 1363, "documentScrollWidth": 1363, "mainClientWidth": 1091, "mainScrollWidth": 1091}
+  ],
+  "interaction": {
+    "navigationOrder": ["Operations", "Pilot Dossier", "Missions", "Squadron", "War Diary", "Reports", "Data & System Status"],
+    "destinationFocus": "H1#screen-title",
+    "destinationHeadingTabIndex": -1,
+    "sameNameCareerSwitch": {
+      "fromCareer": "RFC-14A-08F2",
+      "toCareer": "RAF-41B-22C1",
+      "toSlotLabel": "WoFF Pilot 2",
+      "previousMissionVisibleAfterSelection": false,
+      "previousSquadronVisibleAfterSelection": false,
+      "newSquadronVisible": true,
+      "newAerodromeVisible": true
+    }
+  }
+}
