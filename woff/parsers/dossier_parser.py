@@ -173,20 +173,21 @@ class WoFFDossierParser:
                     hex_buffer += char
                     
             current_key = current_key[::-1]
-            player_data.append(decoded_line.strip())
-
-        if not any(player_data):
-            return self._reject(
-                DossierValidationStatus.DECRYPTION_FAILED,
-                fname,
-                len(player_data),
-            )
+            player_data.append(decoded_line)
 
         if any(
             "\ufffd" in value
             or not all(character.isprintable() for character in value)
             for value in player_data
         ):
+            return self._reject(
+                DossierValidationStatus.DECRYPTION_FAILED,
+                fname,
+                len(player_data),
+            )
+
+        player_data = [value.strip() for value in player_data]
+        if not any(player_data):
             return self._reject(
                 DossierValidationStatus.DECRYPTION_FAILED,
                 fname,

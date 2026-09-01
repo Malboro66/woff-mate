@@ -47,11 +47,12 @@ nonempty surname at decoded index 5. Both fields must contain alphabetic text
 and only name-compatible separators. The parser validates these identity
 fields before reading optional statistics or constructing a pilot.
 
-Every decoded record must also contain only printable text. A replacement
-character or embedded control character is treated as evidence that the
-filename-derived XOR key did not decode the input safely. This is a structural
-guard, not a cryptographic integrity check; the confirmed format provides no
-authenticated marker or checksum.
+Every decoded record is validated before surrounding whitespace is normalized
+and must contain only printable text. A replacement character or control
+character is treated as evidence that the filename-derived XOR key did not
+decode the input safely. This is a structural guard, not a cryptographic
+integrity check; the confirmed format provides no authenticated marker or
+checksum.
 
 Decoded input receives one structural classification:
 

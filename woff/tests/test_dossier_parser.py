@@ -476,6 +476,25 @@ class TestWoFFDossierParser(unittest.TestCase):
             "decryption-failed",
         )
 
+    def test_decoded_controls_at_record_edges_are_rejected_before_trimming(self):
+        for first_name in ("\tSample", "Sample\t"):
+            with self.subTest(first_name=repr(first_name)):
+                lines = _dossier_fixture("short_valid_sanitized.txt")
+                lines[4] = first_name
+                parser = WoFFDossierParser()
+
+                self.assertFalse(
+                    parser.parse_bytes(
+                        _encode_dossier(lines, self.filename),
+                        self.filename,
+                    )
+                )
+                self.assertIsNone(parser.pilot)
+                self.assertEqual(
+                    _validation_status_value(parser),
+                    "decryption-failed",
+                )
+
     def test_partial_dossier_normalizes_missing_optional_strings(self):
         lines = ["Null"] * 93
         lines[1] = "France"
