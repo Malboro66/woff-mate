@@ -1,8 +1,8 @@
 # UI V2 design walkthrough
 
-Status: Pending published Site conformance
+Status: Passed
 
-Date: 2026-08-29
+Date: 2026-09-01
 
 Eval: `EVAL-UI-DESIGN-001`
 
@@ -13,92 +13,81 @@ Tracks: Issue #79
 This walkthrough validates the approved UI V2 design handoff in
 [UI V2 reference](ui-v2-reference.md) and
 [UI V2 visual system](ui-v2-visual-system.md). It verifies navigation,
-terminology, states, focus order, scaling, and privacy at the design level.
+terminology, states, focus, scaling, privacy, stable career identity, and
+persistent simulator-slot presentation.
 
 The published
 [WoFF Mate UI V2 Site](https://woff-mate-ui-v2.pilotohans.chatgpt.site/) is the
-current rendered source; Figma is archival only. Neither the Site prototype, a
-Qt widget, a query service, nor a live integration is production code. This
-walkthrough uses synthetic scenario labels only; Issue #80 owns the formal
-deterministic fixture matrix.
+current rendered source; Figma is archival only. The Site is a sanitized,
+read-only prototype, not production UI or approval of a web runtime for the
+future Windows application.
 
 ## Controlled scenario
 
-The review uses two synthetic career labels with the same display name and
+The rendered review uses two synthetic careers with the same display name and
 different stable identities:
 
 | Safe label | Value |
 |---|---|
-| Display label | `Lt. Avery North` |
-| Career A | `career-demo-001` — service `RFC`, status `Unknown` |
-| Career B | `career-demo-002` — service `RAF`, status `Active` |
-| Selected career | `career-demo-001` |
-| Authoritative missions | `0` |
-| Confirmed victories | `Unknown` |
-| Decorations | `None recorded` |
-| Operational indicators | `Unavailable — design reference only` |
+| Display label | `Lt. Arthur Bennett` |
+| Career A | `rfc-14a-08f2` / `RFC-14A-08F2` / `WoFF Pilot 1` / RFC |
+| Career B | `raf-41b-22c1` / `RAF-41B-22C1` / `WoFF Pilot 2` / RAF |
+| Additional option | `career-14b8` / `CAREER-14B8` / `WoFF Pilot 3` |
+| Selection value | immutable `career_id` |
+| Slot rule | `PilotN` is a persistent source-slot label, not list position or historical identity |
+| Operational indicators | synthetic or fixture-backed; never live |
 
-The labels are invented and are not a repository fixture, WoFF record, local
-path, database row, log excerpt, or real person's asserted identity.
+Deleting `Pilot1` would leave `Pilot2` and `Pilot3` unchanged. A later new
+`Pilot1` would require a new `career_id`; the old career's records could not
+be inherited through the reused slot label.
 
 ## Main-flow walkthrough
 
 | Step | Action and expected result | Focus return / exit | Result |
 |---:|---|---|---|
-| 1 | Open `APP-00` with no career. The shell keeps its six historical destinations visible, presents no previous-career values, and keeps the separated `SYS-01` system entry available. | `Select career` opens `SEL-01`; `View data status` opens `SYS-01` without a career. | Pass |
-| 2 | Open `SEL-01`. The two `Lt. Avery North` entries remain distinct through their safe reference and metadata; selection value is `career_id`. | Choose `career-demo-001`; focus returns to the `OPR-01` heading. | Pass |
-| 3 | Review `OPR-01`. The active career is visible, `0` missions is a value, warnings are textual, and operational indicators say `Unavailable`. | Open Pilot Dossier or another primary destination. | Pass |
-| 4 | Open `DOS-01`. RFC is not changed to RAF, absent status is `Unknown`, `0` is not a placeholder, and unavailable victories are not treated as an empty collection. | Open `DOS-02`, `DOS-03`, or `DOS-04`; each returns to Dossier. | Pass |
-| 5 | Open `MIS-01`. The valid empty state says no missions are recorded rather than saying the source is missing or failed. | Normal navigation remains available; a populated state would open `MIS-02`. | Pass |
-| 6 | Review the `MIS-02` reference state. Mission identity is stable, claims remain separate from confirmed victories, and a related narrative can open `JRN-01`. | Return to Mission Log or open the related War Diary entry. | Pass |
-| 7 | Open `JRN-01`. Entries are read-only and expose no create, edit, delete, save, or regenerate command. | A mission-linked entry can return to `MIS-02`; primary navigation remains available. | Pass |
-| 8 | Open `SQD-01`, then `SQD-02`. The roster does not convert a member into the active career and does not infer transfer status. | Aircrew Profile returns to Squadron. | Pass |
-| 9 | Open `RPT-01`, then `RPT-02`. Unavailable report content is explicit and sanitized. | Report Viewer returns to Reports. | Pass |
-| 10 | Open `SYS-01` from the separated footer entry. Configuration and source coverage contain no personal path, SQL, raw payload, or live-status claim. | Return to the originating screen or any primary destination. | Pass |
-
-The flow reaches every required destination and provides an explicit return or
-next route. There is no dead end.
+| 1 | Open `APP-00`. The persistent shell shows six historical destinations and keeps `SYS-01` separate in the footer. | Any primary destination, `SEL-01`, or `SYS-01`. | Pass |
+| 2 | Open `SEL-01`, whose sparse list preserves `Pilot2`/`Pilot3`. The header selector distinguishes same-name RFC and RAF careers by `career_id`, reference and service. | Selecting a different career clears prior details and focuses the resulting `OPR-01` heading. | Pass |
+| 3 | Review `OPR-01`. Only the active career's missions, squadron, station, totals, and slot label are shown. | Open a primary or contextual read-only destination. | Pass |
+| 4 | Open `DOS-01`, then `DOS-02/03/04`. Status, claims, victories, decorations, identity, and source slot remain distinct concepts. | Each contextual record returns to Pilot Dossier. | Pass |
+| 5 | Open `MIS-01`, then `MIS-02`. The mission list and detail are filtered by their owning `careerId`. | Mission Report returns to Mission Log. | Pass |
+| 6 | Open `SQD-01`, then `SQD-02`. A roster entry never becomes the active career and a missing roster never borrows another career's unit. | Aircrew Profile returns to Squadron. | Pass |
+| 7 | Open `JRN-01`. Timeline entries remain read-only and career-scoped. | A linked entry can open its owned `MIS-02`. | Pass |
+| 8 | Open `RPT-01`, then `RPT-02`. Reports remain career-scoped and unavailable content is explicit. | Report Viewer returns to Reports. | Pass |
+| 9 | Open `SYS-01`. Configuration, coverage, freshness, and failure labels expose no private implementation data. | Any primary destination remains available. | Pass |
+| 10 | Apply every standalone screen from the fixture matrix. All 15 IDs render independently without a dead end. | Applying a fixture focuses its destination heading. | Pass |
 
 ## State walkthrough
 
 | Condition | Required distinction | Result |
 |---|---|---|
-| Authoritative zero | `0` uses the normal value style and remains distinct from unknown. | Pass |
-| Unknown scalar | Em dash and `Unknown` accessible text; no inferred fallback. | Pass |
-| Unavailable scalar | `Not available` plus an optional safe reason. | Pass |
-| Valid empty collection | `None recorded` with collection-specific wording. | Pass |
-| Partial record | Confirmed identity and known fields remain; a persistent notice explains gaps. | Pass |
-| Missing record | No fabricated content; the missing record or source is named safely. | Pass |
-| Truncated input | Unvalidated values are withheld and System Status is available. | Pass |
-| Unsupported format | The design does not imply the format was parsed successfully. | Pass |
-| Unreadable source | The message contains no local path, raw exception, or payload. | Pass |
-| Query error | Active-career context remains; `Retry view` and `View data status` are available. | Pass |
-| Loading after career change | Geometry remains stable and no prior-career values appear. | Pass |
+| Complete | Show all supplied regions. | Pass |
+| Loading | Preserve shell and geometry; reuse no previous-career value. | Pass |
+| Empty | Use a collection-specific valid-empty message. | Pass |
+| Partial | Keep confirmed identity and label unavailable fields. | Pass |
+| No career | Keep shell orientation without borrowing a career. | Pass |
+| Missing | Name the missing record safely and invent nothing. | Pass |
+| Truncated | Withhold unvalidated values. | Pass |
+| Unsupported | Do not imply the format was parsed successfully. | Pass |
+| Unreadable | Show no path, payload, or raw exception. | Pass |
+| Error | Preserve safe context and a sanitized reason; `Retry view` clears to loading and recovers the same career; `View data status` opens SYS-01. | Pass |
+| Stale | Keep the safe older snapshot with its 14 AUG timestamp and offer `Refresh snapshot`; never present it as current. | Pass |
+| Authoritative zeroes | Render `0` as a value, never a placeholder. | Pass |
+| Unknown values | Keep unknown distinct from zero and empty. | Pass |
+| Not available | State that the source contract does not provide the field or view. | Pass |
 
-### Authoritative status walkthrough
+Status rendering was also reviewed across `Active`, `KIA`, `PoW`, `MIA`,
+`Invalided Out`, `Survived War`, `Lightly Wounded`, and `Seriously Wounded`;
+each value retains the lossless wording defined by the reference contract.
 
-The status badge was checked against every value produced by the normalized
-pilot-status contract. Each value remains distinguishable in visible and
-accessible text:
-
-| Normalized value | Expected badge label | Result |
-|---|---|---|
-| `Active` | Active | Pass |
-| `KIA` | Killed in Action (KIA) | Pass |
-| `PoW` | Prisoner of War (PoW) | Pass |
-| `MIA` | Missing in Action (MIA) | Pass |
-| `Invalided Out` | Invalided Out | Pass |
-| `Survived War` | Survived War | Pass |
-| `Lightly Wounded` | Lightly Wounded | Pass |
-| `Seriously Wounded` | Seriously Wounded | Pass |
-| Missing or unavailable | Unknown | Pass |
-
-No prisoner, missing, invalided-out, survived-war, or wound-severity value is
-collapsed into a generic `Wounded` or `Unknown` badge.
+The Pilot Dossier representative surface passed all 14 rendered states with a
+conservative text-contrast lower bound of at least 5.18:1 and no measured
+meaningful text below 12 CSS pixels. Missing, blank and unavailable status
+inputs display `Unknown`; an unsupported future value remains verbatim with
+an explicit mapping notice. Both visible and accessible labels were captured.
 
 ## Keyboard walkthrough
 
-The reference order was reviewed as:
+The verified sequential order is:
 
 1. Skip to content
 2. Career selector
@@ -109,119 +98,110 @@ The reference order was reviewed as:
 7. War Diary
 8. Reports
 9. Data & System Status
-10. Contextual back control, when present
-11. Page-level read-only links
-12. Main content and contextual records in visual reading order
+10. Fixture matrix (prototype-only control)
+11. Contextual back control, when present
+12. Page-level read-only links, filters and record rows in visual reading order
+13. Exceptional-state actions, when present
 
-The visible focus token works on graphite, aviation green, felt/canvas, beige
-paper, and overlays. Opening and closing `SEL-01` or another overlay restores
-focus to its opener. Selecting a career sends focus to the resulting page
-heading programmatically; the heading is not part of the sequential `Tab` order
-and is never made generally tabbable. Primary navigation uses the same
-programmatic heading target. A contextual back control, when present, remains
-an ordinary interactive `Tab` stop. Dynamic status does not steal focus.
+Primary navigation and fixture application move one-time programmatic focus to
+`h1#screen-title`. The heading has `tabindex="-1"`, is not a sequential Tab
+stop. The 28 recorded Tab sequences continue through their final main control,
+including the error/stale actions. Every stop has visible focus. The fixture
+dialog's 36 controls, forward/reverse wrap and Escape restoration were exercised.
+The earlier selector Space/ArrowDown/Escape assertions are historical, not a
+fresh Audit 4 claim.
 
-Contract result: Pass. Published Site result: Fail. Primary navigation to Pilot
-Dossier leaves focus on `<main class="workspace" tabindex="-1">`; the `h1` is
-not the active element and has no programmatic-focus target. The Site must move
-one-time destination focus to the heading before this part of the eval passes.
+Contract result: Pass. Published Site result: Pass.
 
 ## Scaling walkthrough
 
-| Windows scale | Review assertion | Result |
-|---:|---|---|
-| 100% | Labelled 256-pixel navigation, full desktop hierarchy, six-stat row. | Pass |
-| 125% | Labels remain visible; compact gaps preserve hierarchy and target size. | Pass |
-| 150% | Side content follows main content; statistics use three or two columns; focus order is unchanged. | Pass |
-| 200% | One content column and compact labelled navigation fit without a core horizontal scrollbar. | Pass |
+| Logical profile | Actual canvas | Rail width | Dossier columns | Side below ledger | Result |
+|---:|---|---:|---:|---|---|
+| 100% | 1363×936 | 256 | 6 | No | Pass |
+| 125% | 1152×819 | 232 | 3 | Yes | Pass |
+| 150% | 960×683 | 232 | 3 | Yes | Pass |
+| 200% | 720×512 | 184 | 2 | Yes | Pass |
 
-The result is a reflowed desktop interface, not a mobile redesign. Text is not
-shrunk below its token size, and no essential control becomes icon-only without
-an accessible, visible way to obtain its label.
+These are CSS logical-canvas profiles, not native Windows DPI tests. The host
+viewport remains 1363×936; the preview canvas actually shrinks. All 60 complete
+screen/profile pairs have equal client/scroll widths in shell and main, no
+measured meaningful text below 12 px, and per-control target dimensions. The
+smallest observed width is 54.671875 px and the smallest height is 40 px.
 
 ## Material and contrast walkthrough
 
 | Surface | Review assertion | Result |
 |---|---|---|
-| Beige paper cards | Restrained paper texture is present; luminance variation stays low and no stains, folds, stacked sheets, or grunge intersect content. | Pass |
-| Felt/canvas | Texture is limited to broad, low-density surfaces and carries no state meaning. | Pass |
-| Wood | Grain is restricted to a narrow structural accent rather than every card. | Pass |
-| Brass | Used sparingly and never as the sole focus, selection, status, or text contrast. | Pass |
-| Text and controls | Flat token pairs pass at 5.30:1 or higher, but the published Site has representative rendered text between 1.14:1 and 3.20:1 across all seven primary destinations. | Fail |
+| Beige paper cards | Restrained paper texture, ink-scoped text, no stains or grunge behind content. | Pass |
+| Felt/canvas | Texture is limited to broad surfaces and carries no state meaning. | Pass |
+| Wood | Grain remains a narrow structural treatment. | Pass |
+| Brass | Never the sole focus, selection, status, or contrast cue. | Pass |
+| Text and controls | Every required screen meets the 4.5:1 normal-text or 3:1 large-text threshold. | Pass |
+| Meaningful metadata | No audited text is below the 12-pixel caption floor. | Pass |
 
-### Published Site contrast evidence
+The conservative text minima span 4.61:1 to 5.18:1 across the 15 required screen
+IDs (the minimum of each screen's four profiles, rounded down). Essential
+control boundaries at 200% meet 3.12:1 or better. These are texture/compositing
+bounds, not screenshot pixel samples or a comprehensive WCAG certification.
+Exact per-screen, per-state, and per-scale values are in the
+[published-site audit](ui-v2-rendered-audit.md) and its immutable evidence.
 
-The active rendered source was captured and measured as recorded in the
-[published-site audit](ui-v2-rendered-audit.md):
+## Published Site interaction evidence
 
-| Site view | Representative rendered ratio | Required | Result |
-|---|---:|---:|---|
-| `OPR-01` Operations Board | 2.17:1 | 4.5:1 | Fail |
-| `DOS-01` Pilot Dossier | 2.07:1 | 4.5:1 | Fail |
-| `MIS-01` Mission Log | 2.96:1 | 4.5:1 | Fail |
-| `JRN-01` War Diary | 1.14:1 | 4.5:1 | Fail |
-| `RPT-01` Reports Library | 1.15:1 | 4.5:1 | Fail |
-| `SQD-01` Squadron Roster | 3.20:1 | 4.5:1 | Fail |
-| `SYS-01` System Status | 2.73:1 | 4.5:1 | Fail |
-
-The audit used the Site's `Desktop 100%` profile in a 1363 by 936 CSS-pixel
-browser viewport at device-pixel ratio 1 and captured full-page lossless PNGs.
-It combined each computed foreground and opacity with the textured local
-backdrop sampled from the render. Normal text must reach 4.5:1; large text and
-essential non-text boundaries must reach 3:1. Flat-token ratios and archived
-Figma exports are supporting data, not substitutes for this rendered check.
-
-### Published Site interaction evidence
-
-The Site reaches `MIS-02`, `SQD-02`, `RPT-02`, Career Selector, and System Status
-without a dead end, but two normative behaviors fail:
-
-- selecting same-name career `RAF-41B-22C1` from `MIS-02` updates the context to
-  `41 Squadron RAF` while retaining the previous `14 Squadron RFC` mission
-  report; and
-- visible navigation uses `Dashboard`, `Pilot`, `Missions`, `Diary`, `Reports`,
-  `Squadron`, which does not match the normative labels and order.
-
-The fixture matrix also omits standalone visual records for `APP-00`, `SEL-01`,
-`DOS-02`, `DOS-03`, and `DOS-04`.
+- The visible order is `Operations`, `Pilot Dossier`, `Missions`,
+  `Squadron`, `War Diary`, and `Reports`, with `Data & System Status`
+  separated in the footer.
+- The fixture matrix exposes `APP-00`, `SEL-01`, `OPR-01`, `DOS-01`,
+  `DOS-02`, `DOS-03`, `DOS-04`, `MIS-01`, `MIS-02`, `SQD-01`,
+  `SQD-02`, `JRN-01`, `RPT-01`, `RPT-02`, and `SYS-01`.
+- Selecting `RAF-41B-22C1` after opening RFC mission
+  `MIS-1917-08-15-027`, aircrew `RFC-14-A-002`, or report
+  `RPT-RFC14A-19170815-CAREER` presents the RAF career's `WoFF Pilot 2`,
+  41 Squadron and Bertangles with no previous detail. Reopening each detail
+  also shows no RFC record. No transient animation-frame result is claimed.
+- The `sparse-slots-2-3` fixture renders no `Pilot1`; its first two list items
+  remain `WoFF Pilot 2` and `WoFF Pilot 3` instead of being renumbered.
+- Complete sequential Tab order and visible focus pass on all required screens
+  and exceptional Dossier states; modal wrapping and Escape restoration pass.
+- Primary navigation and the completed career transition focus
+  `h1#screen-title`.
 
 ## Privacy and scope review
 
 - All examples are visibly synthetic or explicitly unavailable.
-- No example contains a real campaign name, player name, path, database copy,
+- No example contains a real campaign name, personal path, database content,
   log, screenshot, raw WoFF payload, activation credential, or license value.
 - No screen reads SQL, files, watchdog state, or repository internals.
 - No screen offers campaign/configuration writes or launcher/session control.
-- No PySide, PyQt, React, web runtime, or other GUI dependency is introduced.
+- No production GUI dependency is introduced into this repository.
 - No Product Gate, toolkit ADR, or aggregate cycle is approved by this review.
 
-Result: Pending published Site conformance.
+Result: Passed.
 
 ## Traceability
 
 | Acceptance area | Repository evidence |
 |---|---|
-| Screen IDs, entries, exits, and future gates | `ui-v2-reference.md` — Navigation architecture and Screen inventory |
-| Stable career identity and Dossier semantics | `ui-v2-reference.md` — Career selection contract and Pilot Dossier reference |
+| Screen IDs, entries, exits, future gates, and persistent slots | `ui-v2-reference.md` |
 | Tokens, materials, components, and shared states | `ui-v2-visual-system.md` |
-| Keyboard and Windows scaling | `ui-v2-visual-system.md` — Keyboard model and Windows scaling behavior |
-| Synthetic/unavailable operational labels | Both specifications and the controlled scenario above |
-| No-dead-end flow | Main-flow walkthrough above |
-| Published render, interaction, and coverage failures | `ui-v2-rendered-audit.md` |
-| Governance and automated structure checks | `project-graph.yaml` and `test_architecture_contracts.py` |
+| Keyboard, focus, and logical scale profiles | This walkthrough and the published-site audit; native Windows checks remain future work |
+| Same-name career isolation | Published-site interaction evidence and `conformance-measurements.json` |
+| Sanitized captures, pinned source and executable driver | `evidence/ui-v2-site-2026-09-01-audit-4/` |
+| Governance, semantic replay and negative regressions | `project-graph.yaml`, `test_architecture_contracts.py`, `test_ui_v2_evidence.py` and `scripts/validate_ui_v2_evidence.py` |
 
 ## Review result and follow-up ownership
 
-`EVAL-UI-DESIGN-001` remains `planned` and Issue #79 remains `in_progress`.
-The repository design contract is reviewable, but the current published Site
-fails rendered contrast, stable-career isolation, destination focus, navigation
-conformance, and required visual coverage. A new published revision must pass
-the recorded rerun rule before either governance state can advance.
+`EVAL-UI-DESIGN-001` passes and is `implemented`. Issue #79 is `done`.
+This approves the repository UI V2 reference and its current rendered
+conformance evidence only.
 
-The following remain intentionally unresolved here:
+Python CI validates the immutable observations, not the mutable live Site.
+Audit 1–3 remain historical and are superseded for current acceptance.
 
-- Issue #80: formal state matrix and deterministic sanitized fixtures;
-- Issue #81: immutable view models and application query-service protocols;
-- Issue #82: isolated toolkit feasibility, packaging, scaling, accessibility,
-  plugin, resource, and licensing evidence; and
-- formal acceptance of the proposed toolkit ADR and applicable Product Gates.
+The following remain intentionally unresolved:
+
+- Issue #80: formal deterministic state fixtures;
+- Issue #81: immutable application view-model and query-service protocols;
+- Issue #82: isolated toolkit feasibility and packaging evidence;
+- the proposed toolkit ADR and applicable Product Gates; and
+- cycle 3.4.0 aggregate completion.

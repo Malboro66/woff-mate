@@ -1,0 +1,1668 @@
+@import "tailwindcss";
+
+:root {
+  --brown: #352117;
+  --brown-deep: #28170f;
+  --green-black: #111614;
+  --green-panel: #18231f;
+  --olive: #454e34;
+  --paper: #e7d8b8;
+  --paper-light: #f0e4ca;
+  --ink: #201d18;
+  --cream: #f4efe2;
+  --muted: #c2bcaf;
+  --brass: #c2a86b;
+  --brass-light: #d9bd7a;
+  --good: #82b58a;
+  --danger: #d97872;
+  --amber: #e0b65c;
+  --sidebar: 256px;
+}
+
+* { box-sizing: border-box; }
+html { background: var(--green-black); }
+body {
+  margin: 0;
+  min-width: 720px;
+  overflow-x: auto;
+  background: var(--green-black);
+  color: var(--cream);
+  font-family: Inter, "Segoe UI", Arial, sans-serif;
+  font-size: 14px;
+}
+button { color: inherit; font: inherit; }
+:where(button, a, [tabindex]):focus-visible,
+:where(input, select, textarea):focus-visible {
+  outline: 0;
+  box-shadow: 0 0 0 3px #f7f2e6, 0 0 0 6px #7d5a18 !important;
+}
+.workspace-content:focus-visible { outline: 3px solid #f7f2e6; outline-offset: -6px; box-shadow: inset 0 0 0 3px #7d5a18 !important; }
+.skip-link {
+  position: fixed;
+  z-index: 100;
+  top: 10px;
+  left: 12px;
+  padding: 10px 13px;
+  border: 2px solid #f0c66f;
+  border-radius: 2px;
+  background: #111b16;
+  color: #fff0c4;
+  font-weight: 800;
+  text-transform: uppercase;
+  transform: translateY(-160%);
+}
+.skip-link:focus { transform: translateY(0); }
+.announcement {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.desktop-preview {
+  position: relative;
+  width: min(100%, var(--preview-width));
+  height: min(100vh, var(--preview-height));
+  min-width: 720px;
+  container: desktop / inline-size;
+  contain: layout;
+}
+.app-shell { position: relative; min-width: 720px; height: 100%; overflow: auto; }
+.sidebar {
+  position: fixed;
+  inset: 0 auto 0 0;
+  z-index: 30;
+  display: flex;
+  width: var(--sidebar);
+  flex-direction: column;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 32px 22px 20px;
+  border-right: 1px solid #81623f;
+  background-color: var(--brown);
+  background-image:
+    linear-gradient(90deg, rgba(20, 9, 5, .08), rgba(26, 12, 7, .16) 72%, rgba(12, 6, 4, .46)),
+    linear-gradient(180deg, rgba(255, 235, 190, .035), rgba(18, 8, 5, .22)),
+    url("/textures/sidebar-wood.webp");
+  background-position: center, center, center;
+  background-repeat: no-repeat;
+  background-size: 100% 100%, 100% 100%, cover;
+  box-shadow: 8px 0 25px #0004;
+}
+.brand strong {
+  display: block;
+  color: #e8d5a1;
+  font-family: "Roboto Slab", Rockwell, Georgia, serif;
+  font-size: 28px;
+  font-weight: 800;
+  letter-spacing: .02em;
+  text-transform: uppercase;
+}
+.brand span {
+  display: block;
+  margin-top: 2px;
+  color: #c6b78f;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+}
+.watchdog {
+  margin-top: 14px;
+  min-height: 55px;
+  padding: 9px 12px;
+  border: 1px solid var(--brass);
+  border-radius: 4px;
+  background: #13201a;
+  box-shadow: inset 0 0 18px #0003;
+}
+.watchdog small,
+.watchdog strong { display: block; text-transform: uppercase; }
+.watchdog small { color: #a9a78d; font-size: 9px; }
+.watchdog strong { margin-top: 5px; color: #a9c787; font-size: 12px; }
+.watchdog i,
+.monitor i,
+.fixture-trigger i {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  margin-right: 7px;
+  border-radius: 50%;
+  background: var(--good);
+  box-shadow: 0 0 8px #789d5e88;
+}
+.status-mark {
+  display: inline-grid;
+  width: 1.35em;
+  height: 1.35em;
+  margin-right: .45em;
+  place-items: center;
+  border: 1px solid currentColor;
+  border-radius: 50%;
+  font-size: .82em;
+  font-style: normal;
+  line-height: 1;
+}
+.side-rule { height: 1px; margin: 14px 0; background: #8d6a414a; }
+.sidebar nav { display: flex; flex-direction: column; gap: 8px; }
+.sidebar nav button {
+  min-height: 43px;
+  padding: 0 13px;
+  border: 1px solid transparent;
+  border-radius: 3px;
+  background: transparent;
+  color: #d1c5a9;
+  cursor: pointer;
+  font-size: 15px;
+  font-weight: 500;
+  text-align: left;
+}
+.sidebar nav button:hover { background: #ffffff08; }
+.sidebar nav button.active {
+  border-color: #9c7945;
+  background: #755b34;
+  color: #eee0bc;
+  box-shadow: inset 0 1px #ffffff17;
+}
+.system-status-trigger {
+  display: flex;
+  min-height: 54px;
+  margin-top: auto;
+  padding: 9px 11px;
+  border: 1px solid #836b48;
+  border-radius: 3px;
+  flex-direction: column;
+  justify-content: center;
+  background: #17231d;
+  color: #d2c5a4;
+  cursor: pointer;
+  text-align: left;
+}
+.system-status-trigger:hover { background: #1c2a23; }
+.system-status-trigger.active { border-color: #ba9251; background: #725936; color: #f0dfb6; }
+.system-status-trigger span { font-size: 11px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; }
+.system-status-trigger small { margin: 4px 0 0 14px; color: #a9a28b; font-size: 8px; letter-spacing: .06em; text-transform: uppercase; }
+.system-status-trigger.active small { color: #ddc99c; }
+.system-status-trigger i { display: inline-block; width: 7px; height: 7px; margin-right: 7px; border-radius: 50%; background: var(--amber); box-shadow: 0 0 7px #b58a3e77; }
+.fixture-trigger {
+  display: flex;
+  margin-top: 8px;
+  padding: 10px 7px;
+  border: 0;
+  flex-direction: column;
+  gap: 4px;
+  background: transparent;
+  color: #9b927d;
+  cursor: pointer;
+  font-size: 10px;
+  letter-spacing: .08em;
+  text-align: left;
+  text-transform: uppercase;
+}
+.fixture-trigger span,
+.fixture-trigger small { display: block; }
+.fixture-trigger small { margin-left: 13px; color: #c0b492; font-size: 8px; letter-spacing: .035em; line-height: 1.35; text-transform: none; }
+.fixture-trigger i { width: 6px; height: 6px; background: var(--brass-light); box-shadow: none; }
+
+.workspace {
+  position: relative;
+  min-height: 100vh;
+  margin-left: var(--sidebar);
+  padding: 26px 32px 30px;
+  background-color: var(--green-black);
+  background-image:
+    radial-gradient(circle at 92% 0, rgba(55, 78, 63, .22), transparent 38%),
+    linear-gradient(180deg, rgba(6, 13, 10, .54), rgba(5, 11, 9, .68)),
+    url("/textures/workspace-felt.webp");
+  background-position: right top, center, center;
+  background-repeat: no-repeat;
+  background-size: auto, 100% 100%, cover;
+}
+.workspace-content { min-width: 0; }
+.ledger-list i,
+.crew-list i,
+.personnel-events i,
+.report-index > span > i { font-size: 12px !important; }
+.board-header {
+  position: relative;
+  display: grid;
+  min-height: 77px;
+  grid-template-columns: minmax(310px, 1fr) auto minmax(330px, 1fr);
+  align-items: start;
+  gap: 24px;
+  margin-bottom: 20px;
+  padding-bottom: 17px;
+  border-bottom: 2px solid #82683f;
+}
+.title-block h1,
+.panel-heading h2,
+.source-state h2,
+.next-screen h2,
+.fixture-loading-frame h2,
+.fixture-panel h2 {
+  font-family: "Roboto Slab", Rockwell, Georgia, serif;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+.title-block h1 { margin: 0; color: #e6d3a0; font-size: 31px; letter-spacing: .01em; }
+.context-path { display: block; margin-bottom: 4px; color: #9d8355; font-size: 8px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
+.title-block p { margin: 5px 0 0; color: #9f9f8c; font-size: 13px; }
+.title-block p span { margin: 0 6px; color: #716b59; }
+.campaign-badge {
+  align-self: center;
+  margin-top: 5px;
+  padding: 5px 10px;
+  border: 1px solid #9c7943;
+  border-radius: 2px;
+  background: #342817;
+  color: #d7bf87;
+  font-size: 10px;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  box-shadow: inset 0 0 12px #0005;
+}
+.header-facts { display: flex; justify-content: flex-end; gap: 25px; }
+.header-facts > div,
+.pilot-fact { min-width: 72px; padding: 0; border: 0; background: transparent; text-align: left; }
+.pilot-fact { cursor: pointer; }
+.header-facts small,
+.header-facts strong { display: block; }
+.header-facts small { color: #7e8173; font-size: 9px; letter-spacing: .04em; text-transform: uppercase; }
+.header-facts strong { margin-top: 4px; color: #d1c5a5; font-size: 12px; font-weight: 600; white-space: nowrap; }
+.header-facts .monitor { color: #a8be76; text-transform: uppercase; }
+.header-facts .monitor i { width: 7px; height: 7px; margin-right: 5px; }
+.header-facts .monitor .status-mark { width: 1.35em; height: 1.35em; margin-right: .45em; }
+.header-facts .monitor.warning { color: #d2a458; }
+.header-facts .monitor.warning i { background: #bd713e; }
+
+.career-menu {
+  position: absolute;
+  z-index: 50;
+  top: 88px;
+  right: 28px;
+  width: min(460px, calc(100vw - 40px));
+  overflow: hidden;
+  border: 1px solid var(--brass);
+  border-radius: 3px;
+  background: #19251f;
+  box-shadow: 0 18px 55px #000a;
+}
+.career-menu button {
+  display: grid;
+  width: 100%;
+  grid-template-columns: 1fr auto;
+  gap: 14px;
+  align-items: center;
+  padding: 13px 15px;
+  border: 0;
+  border-bottom: 1px solid #ffffff12;
+  background: transparent;
+  cursor: pointer;
+  text-align: left;
+}
+.career-menu button:hover,
+.career-menu button[aria-selected="true"] { background: #a98a4920; }
+.career-menu strong,
+.career-menu small { display: block; }
+.career-menu strong { color: #ded2b4; font-size: 12px; }
+.career-menu small { margin-top: 4px; color: #85897a; font-size: 9px; }
+.career-menu code { color: #c2a66b; font-family: inherit; font-size: 9px; }
+
+.operations-grid {
+  display: grid;
+  grid-template-columns: minmax(400px, 1.72fr) minmax(230px, .94fr) minmax(260px, 1fr);
+  gap: 20px;
+}
+.paper-card,
+.dark-panel,
+.squadron-panel,
+.source-state,
+.next-screen {
+  position: relative;
+  min-width: 0;
+  border: 1px solid var(--brass);
+  border-radius: 2px;
+  box-shadow: 0 0 0 1px #24180e, inset 0 0 18px #00000014;
+}
+.paper-card {
+  min-height: 220px;
+  padding: 17px;
+  background-color: var(--paper);
+  background-image:
+    linear-gradient(rgba(240, 228, 202, .94), rgba(240, 228, 202, .94)),
+    linear-gradient(110deg, rgba(143, 116, 75, .20), rgba(244, 226, 177, .12) 72%, rgba(126, 98, 62, .18)),
+    url("/textures/card-paper.webp");
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: 100% 100%, 100% 100%, cover;
+  color: var(--ink);
+}
+.dark-panel { background: #14221c; color: #d7ccb0; }
+.squadron-panel { background: var(--olive); color: #ded5b7; }
+.riveted {
+  background-image:
+    radial-gradient(circle at 11px 11px, #e0af56 0 3px, #49371c 3.3px 4px, transparent 4.3px),
+    radial-gradient(circle at calc(100% - 11px) 11px, #e0af56 0 3px, #49371c 3.3px 4px, transparent 4.3px),
+    radial-gradient(circle at 11px calc(100% - 11px), #e0af56 0 3px, #49371c 3.3px 4px, transparent 4.3px),
+    radial-gradient(circle at calc(100% - 11px) calc(100% - 11px), #e0af56 0 3px, #49371c 3.3px 4px, transparent 4.3px);
+  background-repeat: no-repeat;
+}
+.panel-label {
+  margin: 0;
+  color: inherit;
+  font-size: 10px;
+  font-style: normal;
+  font-weight: 600;
+  letter-spacing: .03em;
+  opacity: .72;
+  text-transform: uppercase;
+}
+.active-pilot { overflow: hidden; }
+.pilot-card-body { display: flex; gap: 15px; margin-top: 11px; }
+.service-block {
+  display: grid;
+  width: 104px;
+  min-height: 124px;
+  flex: 0 0 auto;
+  place-items: center;
+  border: 1px solid #725f3f;
+  border-radius: 2px;
+  background: #3b3b34;
+  color: #cbbb95;
+  font-family: "Roboto Slab", Rockwell, Georgia, serif;
+  font-size: 30px;
+  font-weight: 800;
+  box-shadow: inset 0 0 20px #0005;
+}
+.pilot-copy h2 { margin: 0 0 4px; font-family: "Roboto Slab", Rockwell, Georgia, serif; font-size: 22px; }
+.pilot-copy strong,
+.pilot-copy span,
+.pilot-copy small { display: block; }
+.pilot-copy strong { font-size: 13px; }
+.pilot-copy span { margin-top: 6px; font-size: 12px; }
+.pilot-copy small { margin-top: 4px; color: #725f49; font-size: 10px; }
+.pilot-copy em {
+  display: inline-block;
+  margin-top: 8px;
+  padding: 4px 8px;
+  border-radius: 2px;
+  background: #66854f;
+  color: #eef0d2;
+  font-size: 9px;
+  font-style: normal;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+.pilot-copy em[data-tone="danger"] { background: #884a3d; }
+.pilot-copy em[data-tone="warning"] { background: #7f6536; }
+.field-stamp {
+  position: absolute;
+  right: 31px;
+  bottom: 14px;
+  padding: 3px 7px;
+  border: 2px solid #915f4f;
+  color: #915f4f;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: .07em;
+  opacity: .75;
+  text-transform: uppercase;
+  transform: rotate(3deg);
+}
+.career-record { padding: 17px; }
+.record-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 19px 15px; margin-top: 13px; }
+.record-grid strong,
+.record-grid span,
+.record-grid small { display: block; }
+.record-grid strong { font-family: "Roboto Slab", Rockwell, Georgia, serif; font-size: 25px; }
+.record-grid span { margin-top: 2px; font-size: 11px; }
+.record-grid small { margin-top: 2px; color: #7b6650; font-size: 8px; text-transform: uppercase; }
+.condition { min-height: 220px; padding: 17px; }
+.gauges { display: flex; flex-direction: column; gap: 17px; margin-top: 19px; }
+.gauge > div:first-child { display: flex; justify-content: space-between; color: #cfc8ad; font-size: 11px; }
+.gauge strong { font-weight: 500; }
+.track { height: 8px; margin-top: 7px; overflow: hidden; border-radius: 999px; background: #344239; }
+.track i { display: block; height: 100%; border-radius: inherit; }
+.track i.amber { background: var(--amber); }
+.track i.green { background: var(--good); }
+.track i.red { background: var(--danger); }
+
+.sorties { grid-column: 1 / 3; min-height: 318px; padding: 17px; }
+.squadron-panel { min-height: 318px; padding: 17px; }
+.panel-heading { display: flex; justify-content: space-between; gap: 14px; }
+.panel-heading h2 { margin: 0; color: #e3d5ad; font-size: 18px; }
+.panel-heading p { margin: 3px 0 0; color: #8f9481; font-size: 10px; }
+.panel-heading > span { color: #a58a54; font-size: 9px; text-transform: uppercase; }
+.table-wrap { overflow-x: auto; }
+table { width: 100%; margin-top: 12px; border-collapse: collapse; color: #bbbbaa; font-size: 11px; }
+th { padding: 0 0 11px; color: #858b7d; font-size: 9px; font-weight: 600; text-align: left; text-transform: uppercase; }
+td { padding: 14px 0; border-top: 1px solid #6b746147; }
+td.good { color: #9fb875; text-transform: uppercase; }
+td.danger { color: #cb7665; text-transform: uppercase; }
+.mission-inline-link { padding: 0; border: 0; background: transparent; color: inherit; cursor: pointer; text-align: left; }
+.mission-inline-link:hover { color: #e5cf96; text-decoration: underline; text-underline-offset: 3px; }
+.roster { margin-top: 11px; }
+.roster > div { padding: 10px 0; border-top: 1px solid #ffffff14; }
+.roster strong,
+.roster span { display: block; }
+.roster strong { color: #ded4b5; font-family: "Roboto Slab", Rockwell, Georgia, serif; font-size: 12px; }
+.roster span { margin-top: 2px; color: #a8a88f; font-size: 9px; }
+.roster em { margin-left: 3px; font-style: normal; text-transform: uppercase; }
+.roster em.good { color: #b9cf94; }
+.roster em.danger { color: #efac9a; }
+.roster em.warning { color: #edc47d; }
+.roster-profile-link { padding: 0; border: 0; background: transparent; cursor: pointer; text-align: left; }
+.roster-profile-link:hover strong { color: #f0dfb4; text-decoration: underline; text-underline-offset: 3px; }
+.roster-summary { margin: 12px 0 0; color: #aaa88e; font-size: 9px; }
+.legitimate-empty { display: flex; min-height: 180px; flex-direction: column; align-items: center; justify-content: center; color: #8c917e; text-align: center; }
+.legitimate-empty strong { color: #d5c9aa; font-family: Georgia, serif; }
+.legitimate-empty span { margin-top: 7px; font-size: 9px; }
+.legitimate-empty.compact { min-height: 160px; }
+
+.dossier-grid {
+  display: grid;
+  grid-template-columns: minmax(520px, 1.7fr) minmax(350px, 1fr);
+  gap: 20px;
+}
+.dossier-identity { grid-column: 1 / -1; min-height: 285px; padding: 18px; overflow: hidden; }
+.dossier-identity-body { display: flex; gap: 21px; margin-top: 13px; }
+.portrait-frame {
+  position: relative;
+  width: 140px;
+  height: 176px;
+  flex: 0 0 auto;
+  padding: 5px;
+  border: 1px solid #755f3d;
+  background: #393a32;
+  box-shadow: inset 0 0 18px #0006;
+}
+.portrait-frame img { width: 100%; height: 100%; object-fit: cover; filter: sepia(.42) saturate(.72) contrast(1.08); }
+.portrait-frame::after { position: absolute; inset: 5px; content: ""; box-shadow: inset 0 0 17px #16130b99; pointer-events: none; }
+.dossier-portrait-fallback { display: grid; width: 100%; height: 100%; place-content: center; gap: 7px; background: #2d342d; color: #d4c79f; text-align: center; }
+.dossier-portrait-fallback strong { font: 800 30px/1 "Roboto Slab", Rockwell, Georgia, serif; letter-spacing: .08em; }
+.dossier-portrait-fallback small { color: #a4a58f; font-size: 7px; text-transform: uppercase; }
+.identity-copy { min-width: 0; }
+.service-kicker { color: #715b43; font-size: 9px; font-weight: 700; letter-spacing: .09em; text-transform: uppercase; }
+.identity-copy h2 { margin: 5px 0 0; font-family: "Roboto Slab", Rockwell, Georgia, serif; font-size: 28px; line-height: 1.1; }
+.identity-copy > p { margin: 6px 0 0; font-size: 12px; font-weight: 600; }
+.identity-copy dl { display: grid; grid-template-columns: repeat(3, minmax(90px, 1fr)); margin: 23px 0 0; }
+.identity-copy dl > div { padding: 0 13px; border-left: 1px solid #856d4b; }
+.identity-copy dl > div:first-child { padding-left: 0; border-left: 0; }
+.identity-copy dt { color: #756149; font-size: 8px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
+.identity-copy dd { margin: 5px 0 0; font-size: 10px; font-weight: 600; }
+.identity-copy dd em { display: inline-block; padding: 3px 6px; border-radius: 2px; background: #66854f; color: #f1efd6; font-size: 8px; font-style: normal; text-transform: uppercase; }
+.identity-copy dd em[data-tone="danger"] { background: #884a3d; }
+.identity-copy dd em[data-tone="warning"] { background: #7f6536; }
+.dossier-stamp { right: 25px; bottom: 17px; }
+.dossier-stat-file { grid-column: 1 / -1; min-height: 0; padding: 18px; }
+.dossier-stats { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 10px; margin-top: 13px; }
+.dossier-stats > div { position: relative; min-height: 70px; padding: 8px 10px; border: 1px solid #6f5e4247; background: #5b4b3120; }
+.dossier-stats > div::after { position: absolute; right: 7px; top: 7px; width: 5px; height: 5px; border-radius: 50%; background: #6d8d52; content: ""; }
+.dossier-stats > div[data-state="unknown"]::after { background: #967d5b; }
+.dossier-stats > div[data-state="unavailable"]::after { background: #776f63; }
+.dossier-stats > div[data-state="invalid"]::after { background: #a45345; }
+.dossier-stats > div[data-state="zero"]::after { background: #779b5c; box-shadow: 0 0 0 2px #779b5c33; }
+.dossier-stats span,
+.dossier-stats strong,
+.dossier-stats small { display: block; }
+.dossier-stats span { color: #755e45; font-size: 8px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; }
+.dossier-stats strong { margin-top: 3px; font-family: "Roboto Slab", Rockwell, Georgia, serif; font-size: 19px; }
+.dossier-stats small { margin-top: 1px; color: #7b6750; font-size: 8px; }
+.service-ledger { min-height: 320px; padding: 18px; }
+.dossier-side { min-height: 320px; padding: 18px; }
+.ledger-list { margin-top: 12px; }
+.ledger-list > div { display: grid; min-height: 56px; grid-template-columns: 88px 30px 1fr; align-items: center; border-top: 1px solid #68726445; }
+.ledger-list time { color: #84897a; font-size: 9px; }
+.ledger-list i { display: grid; width: 20px; height: 20px; place-items: center; border: 1px solid #796642; border-radius: 50%; color: #b49c66; font-size: 7px; font-style: normal; }
+.ledger-list span strong,
+.ledger-list span small { display: block; }
+.ledger-list span strong { color: #d2c8aa; font-family: "Roboto Slab", Rockwell, Georgia, serif; font-size: 11px; }
+.ledger-list span small { margin-top: 3px; color: #818879; font-size: 9px; }
+.victory-list { margin-top: 13px; }
+.victory-list > div { display: grid; grid-template-columns: 58px 1fr; gap: 9px; padding: 12px 0; border-top: 1px solid #ffffff17; }
+.victory-list time { color: #aaa98e; font-size: 9px; }
+.victory-list span strong,
+.victory-list span small { display: block; }
+.victory-list span strong { color: #dfd5b6; font-family: "Roboto Slab", Rockwell, Georgia, serif; font-size: 11px; }
+.victory-list span small { margin-top: 3px; color: #b5ac8e; font-size: 8px; text-transform: uppercase; }
+.provenance-note { margin-top: 13px; padding: 10px; border: 1px solid #b0995c4d; background: #17231d55; }
+.provenance-note strong,
+.provenance-note span,
+.provenance-note small { display: block; }
+.provenance-note strong { color: #d9cda9; font-size: 9px; text-transform: uppercase; }
+.provenance-note span { margin-top: 4px; color: #b0b093; font-size: 8px; }
+.provenance-note small { margin-top: 3px; color: #8c9079; font-size: 7px; }
+.provenance-note code { display: block; margin-top: 5px; color: #c1a66d; font-size: 7px; overflow-wrap: anywhere; }
+
+.mission-log-grid {
+  display: grid;
+  grid-template-columns: minmax(600px, 1.85fr) minmax(275px, .72fr);
+  gap: 20px;
+}
+.mission-register { grid-column: 1 / -1; min-height: 188px; padding: 18px; }
+.mission-register-heading { display: flex; justify-content: space-between; gap: 20px; }
+.mission-register-heading h2,
+.mission-order-heading h2 {
+  margin: 5px 0 0;
+  font-family: "Roboto Slab", Rockwell, Georgia, serif;
+  font-size: 24px;
+  text-transform: uppercase;
+}
+.mission-register-heading > div > span { display: block; margin-top: 4px; color: #715e47; font-size: 9px; }
+.register-stamp { align-self: flex-start; padding: 7px 10px; border: 2px solid #8e5e4e; color: #8e5e4e; font-size: 9px; font-weight: 800; line-height: 1.45; letter-spacing: .08em; text-align: center; transform: rotate(2deg); }
+.mission-totals { display: grid; grid-template-columns: repeat(4, 1fr); margin-top: 19px; border-top: 1px solid #876f4e; border-bottom: 1px solid #876f4e; }
+.mission-totals > div { position: relative; min-height: 66px; padding: 9px 14px; border-left: 1px solid #876f4e; }
+.mission-totals > div:first-child { border-left: 0; padding-left: 0; }
+.mission-totals > div::after { position: absolute; top: 11px; right: 11px; width: 5px; height: 5px; border-radius: 50%; background: #6d8d52; content: ""; }
+.mission-totals > div[data-state="unknown"]::after { background: #8a7154; }
+.mission-totals span,
+.mission-totals strong,
+.mission-totals small { display: block; }
+.mission-totals span { color: #715e48; font-size: 8px; font-weight: 700; text-transform: uppercase; }
+.mission-totals strong { margin-top: 3px; font-family: "Roboto Slab", Rockwell, Georgia, serif; font-size: 18px; }
+.mission-totals small { margin-top: 2px; color: #79664f; font-size: 8px; }
+.mission-list { min-height: 490px; padding: 18px; }
+.mission-list-heading { padding: 0 1px; }
+.mission-filters { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 16px; padding-bottom: 13px; border-bottom: 1px solid #6872644d; }
+.mission-filters button { min-height: 30px; padding: 0 10px; border: 1px solid #715e3b; border-radius: 2px; background: transparent; color: #9fa08c; cursor: pointer; font-size: 9px; text-transform: uppercase; }
+.mission-filters button:hover { background: #ffffff08; }
+.mission-filters button.active { background: #735a32; color: #eadab0; }
+.mission-rows { min-width: 0; }
+.mission-row { display: grid; width: 100%; grid-template-columns: 92px minmax(145px, 1.35fr) minmax(120px, 1fr) 92px 62px 20px; align-items: center; gap: 9px; min-height: 67px; padding: 0 3px; border: 0; border-top: 1px solid #68726447; background: transparent; color: #b8b8a5; cursor: pointer; font-size: 10px; text-align: left; }
+.mission-row:not(.mission-row-head):hover { background: #ffffff08; color: #ddd2af; }
+.mission-row-head { min-height: 35px; border-top: 0; color: #777f70; cursor: default; font-size: 8px; font-weight: 700; text-transform: uppercase; }
+.mission-row time { color: #9da08d; font-size: 9px; }
+.mission-row span strong,
+.mission-row span small { display: block; }
+.mission-row span strong { color: #d5caa9; font-family: "Roboto Slab", Rockwell, Georgia, serif; font-size: 11px; }
+.mission-row span small { margin-top: 3px; color: #757d70; font-size: 8px; }
+.mission-row em { font-size: 9px; font-style: normal; text-transform: uppercase; }
+.mission-row em.good { color: #a3bd77; }
+.mission-row em.danger { color: #efac9a; }
+.mission-row b { color: #b6975d; font-size: 18px; font-weight: 400; }
+.mission-empty { min-height: 310px; }
+.mission-context { min-height: 490px; padding: 18px; }
+.mission-context dl { margin: 15px 0 0; }
+.mission-context dl > div { padding: 12px 0; border-top: 1px solid #ffffff17; }
+.mission-context dt { color: #a9aa91; font-size: 8px; text-transform: uppercase; }
+.mission-context dd { margin: 4px 0 0; color: #e0d7b9; font-family: "Roboto Slab", Rockwell, Georgia, serif; font-size: 11px; }
+.mission-key { display: flex; flex-direction: column; gap: 8px; margin-top: 10px; padding: 12px 0; border-top: 1px solid #ffffff17; border-bottom: 1px solid #ffffff17; }
+.mission-key strong { color: #d9cfad; font-size: 9px; text-transform: uppercase; }
+.mission-key span { color: #abae94; font-size: 8px; }
+.mission-key i { display: inline-block; width: 6px; height: 6px; margin-right: 7px; border-radius: 50%; background: #8d907b; }
+.mission-key i.good { background: var(--good); }
+.mission-key i.danger { background: var(--danger); }
+
+.mission-report-flow { min-width: 0; }
+.back-to-log { margin: 0 0 13px; padding: 7px 0; border: 0; background: transparent; color: #b9a06c; cursor: pointer; font-size: 10px; text-transform: uppercase; }
+.back-to-log:hover { color: #e0c58a; }
+.mission-report-grid { display: grid; grid-template-columns: minmax(530px, 1.7fr) minmax(290px, .75fr); gap: 20px; }
+.mission-order { grid-column: 1 / -1; min-height: 254px; padding: 18px; overflow: hidden; }
+.mission-order-heading { display: flex; justify-content: space-between; gap: 20px; margin-top: 11px; }
+.mission-order-heading > div > span { color: #715f48; font-size: 10px; font-weight: 700; }
+.mission-order-heading > div > p { margin: 4px 0 0; color: #755f47; font-size: 9px; letter-spacing: .08em; }
+.mission-order-heading > em { align-self: flex-start; padding: 5px 9px; border: 1px solid #79623f; background: #735b33; color: #f0dfb3; font-size: 9px; font-style: normal; font-weight: 700; text-transform: uppercase; }
+.mission-order-heading > em.good { background: #667f4e; }
+.mission-order-heading > em.danger { background: #884a3d; }
+.mission-order-meta { display: grid; grid-template-columns: repeat(6, 1fr); margin: 22px 0 0; padding: 13px 0; border-top: 1px solid #876f4e; border-bottom: 1px solid #876f4e; }
+.mission-order-meta > div { min-width: 0; padding: 0 12px; border-left: 1px solid #876f4e; }
+.mission-order-meta > div:first-child { padding-left: 0; border-left: 0; }
+.mission-order-meta dt { color: #725f48; font-size: 7px; font-weight: 700; text-transform: uppercase; }
+.mission-order-meta dd { margin: 5px 0 0; color: #3d3024; font-size: 9px; font-weight: 600; overflow-wrap: anywhere; }
+.mission-report-stamp { right: 25px; bottom: 12px; }
+.mission-narrative { min-height: 350px; padding: 18px; }
+.objective { margin-top: 16px; padding: 12px; border: 1px solid #79623e; background: #b5935014; }
+.objective strong { color: #c0a366; font-size: 8px; text-transform: uppercase; }
+.objective p { margin: 5px 0 0; color: #adb09d; font-size: 10px; line-height: 1.55; }
+.mission-narrative blockquote { margin: 18px 6px 0; padding-left: 15px; border-left: 2px solid #846c41; color: #cbc5ab; font-family: Georgia, serif; font-size: 12px; line-height: 1.75; }
+.weather-line { display: flex; justify-content: space-between; gap: 14px; margin-top: 20px; padding-top: 12px; border-top: 1px solid #68726447; }
+.weather-line span { color: #7e8477; font-size: 8px; text-transform: uppercase; }
+.weather-line strong { color: #bfc0aa; font-size: 9px; font-weight: 500; }
+.mission-outcome { min-height: 350px; padding: 18px; }
+.outcome-stats { margin-top: 15px; }
+.outcome-stats > div { min-height: 78px; padding: 11px 0; border-top: 1px solid #ffffff17; }
+.outcome-stats span,
+.outcome-stats strong,
+.outcome-stats small { display: block; }
+.outcome-stats span { color: #aaa990; font-size: 8px; text-transform: uppercase; }
+.outcome-stats strong { margin-top: 4px; color: #e1d7b7; font-family: "Roboto Slab", Rockwell, Georgia, serif; font-size: 21px; }
+.outcome-stats strong.danger { color: #dc8068; font-size: 15px; }
+.outcome-stats strong.good { color: #afc883; font-size: 15px; }
+.outcome-stats small { margin-top: 3px; color: #9a9d85; font-size: 8px; }
+.crew-manifest { min-height: 278px; padding: 18px; }
+.paper-heading h2 { color: #3c2e23; }
+.paper-heading p,
+.paper-heading > span { color: #735f48; }
+.crew-list { margin-top: 13px; }
+.crew-list > div { display: grid; grid-template-columns: 28px 1fr auto; align-items: center; min-height: 52px; border-top: 1px solid #876f4e; }
+.crew-list i { display: grid; width: 20px; height: 20px; place-items: center; border: 1px solid #7e6745; border-radius: 50%; color: #6e5b46; font-size: 7px; font-style: normal; }
+.crew-list strong { font-family: "Roboto Slab", Rockwell, Georgia, serif; font-size: 10px; }
+.crew-list span { color: #715f48; font-size: 8px; text-transform: uppercase; }
+.paper-empty { color: #75644f; }
+.paper-empty strong { color: #44362a; }
+.report-provenance { min-height: 278px; padding: 18px; }
+.report-provenance dl { margin: 14px 0 0; }
+.report-provenance dl > div { padding: 10px 0; border-top: 1px solid #68726447; }
+.report-provenance dt { color: #7e8577; font-size: 8px; text-transform: uppercase; }
+.report-provenance dd { margin: 4px 0 0; color: #c5c1a8; font-size: 9px; overflow-wrap: anywhere; }
+.report-provenance > p { margin: 14px 0 0; padding: 10px; border: 1px solid #76613d; color: #929786; font-size: 8px; line-height: 1.5; }
+
+.squadron-grid {
+  display: grid;
+  grid-template-columns: minmax(620px, 1.9fr) minmax(275px, .72fr);
+  gap: 20px;
+}
+.squadron-register { grid-column: 1 / -1; min-height: 194px; padding: 18px; }
+.squadron-register-heading { display: flex; justify-content: space-between; gap: 20px; }
+.squadron-register-heading h2 {
+  margin: 5px 0 0;
+  font-family: "Roboto Slab", Rockwell, Georgia, serif;
+  font-size: 24px;
+  text-transform: uppercase;
+}
+.squadron-register-heading > div > span { display: block; margin-top: 4px; color: #715e47; font-size: 9px; }
+.squadron-roundel { display: grid; width: 52px; height: 52px; flex: 0 0 auto; place-items: center; border: 4px solid #8e5e4e; border-radius: 50%; background: #d1bd91; box-shadow: inset 0 0 0 5px #d1bd91, inset 0 0 0 9px #596b73; }
+.squadron-roundel i { display: grid; width: 24px; height: 24px; place-items: center; border-radius: 50%; background: #8e5e4e; color: #e6d4a6; font-size: 9px; font-style: normal; font-weight: 800; }
+.squadron-totals { display: grid; grid-template-columns: repeat(4, 1fr); margin-top: 18px; border-top: 1px solid #876f4e; border-bottom: 1px solid #876f4e; }
+.squadron-totals > div { position: relative; min-height: 68px; padding: 10px 14px; border-left: 1px solid #876f4e; }
+.squadron-totals > div:first-child { padding-left: 0; border-left: 0; }
+.squadron-totals > div::after { position: absolute; top: 12px; right: 12px; width: 5px; height: 5px; border-radius: 50%; background: var(--good); content: ""; }
+.squadron-totals > div[data-state="unknown"]::after { background: #8a7154; }
+.squadron-totals span,
+.squadron-totals strong,
+.squadron-totals small { display: block; }
+.squadron-totals span { color: #715e48; font-size: 8px; font-weight: 700; text-transform: uppercase; }
+.squadron-totals strong { margin-top: 3px; font-family: "Roboto Slab", Rockwell, Georgia, serif; font-size: 19px; }
+.squadron-totals small { margin-top: 2px; color: #79664f; font-size: 8px; }
+.squadron-roster { min-height: 570px; padding: 18px; }
+.squadron-filters { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 16px; padding-bottom: 13px; border-bottom: 1px solid #6872644d; }
+.squadron-filters button { min-height: 30px; padding: 0 10px; border: 1px solid #715e3b; border-radius: 2px; background: transparent; color: #9fa08c; cursor: pointer; font-size: 9px; text-transform: uppercase; }
+.squadron-filters button:hover { background: #ffffff08; }
+.squadron-filters button.active { background: #735a32; color: #eadab0; }
+.aircrew-rows { min-width: 0; }
+.aircrew-row { display: grid; width: 100%; grid-template-columns: 74px minmax(175px, 1.35fr) minmax(110px, .9fr) minmax(105px, .85fr) 86px 50px 18px; align-items: center; gap: 9px; min-height: 64px; padding: 0 3px; border: 0; border-top: 1px solid #68726447; background: transparent; color: #b6b6a2; cursor: pointer; font-size: 9px; text-align: left; }
+.aircrew-row:not(.aircrew-row-head):hover { background: #ffffff08; color: #ddd2af; }
+.aircrew-row-head { min-height: 34px; border-top: 0; color: #777f70; cursor: default; font-size: 8px; font-weight: 700; text-transform: uppercase; }
+.aircrew-name { display: flex; align-items: center; gap: 9px; min-width: 0; }
+.aircrew-name > i { display: grid; width: 28px; height: 28px; flex: 0 0 auto; place-items: center; border: 1px solid #806b44; border-radius: 50%; background: #26332b; color: #c4ab72; font-size: 8px; font-style: normal; }
+.aircrew-name b { min-width: 0; font-weight: 400; }
+.aircrew-name strong,
+.aircrew-name small { display: block; }
+.aircrew-name strong { overflow: hidden; color: #d6ccac; font-family: "Roboto Slab", Rockwell, Georgia, serif; font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
+.aircrew-name small { margin-top: 3px; color: #737b6e; font-size: 7px; }
+.aircrew-row em { font-size: 8px; font-style: normal; text-transform: uppercase; }
+.aircrew-row em.good { color: #a3bd77; }
+.aircrew-row em.danger { color: #d87661; }
+.aircrew-row em.warning { color: #d6aa62; }
+.row-arrow { color: #b6975d; font-size: 18px; font-weight: 400; }
+.squadron-empty { min-height: 390px; }
+.command-board { min-height: 570px; padding: 18px; }
+.command-board dl { margin: 15px 0 0; }
+.command-board dl > div { padding: 12px 0; border-top: 1px solid #ffffff17; }
+.command-board dt { color: #a9aa91; font-size: 8px; text-transform: uppercase; }
+.command-board dd { margin: 4px 0 0; color: #e0d7b9; font-family: "Roboto Slab", Rockwell, Georgia, serif; font-size: 11px; }
+.readiness { margin-top: 11px; padding-top: 5px; border-top: 1px solid #ffffff17; }
+.readiness > div { padding-top: 13px; }
+.readiness span,
+.readiness strong { font-size: 8px; }
+.readiness span { color: #aaa991; text-transform: uppercase; }
+.readiness strong { float: right; color: #d7cfaf; font-weight: 500; }
+.readiness i { display: block; height: 7px; margin-top: 7px; overflow: hidden; border-radius: 99px; background: #2e382b; }
+.readiness b { display: block; height: 100%; border-radius: inherit; background: #85965c; }
+
+.aircrew-profile-flow { min-width: 0; }
+.aircrew-profile-grid { display: grid; grid-template-columns: minmax(560px, 1.65fr) minmax(320px, .85fr); gap: 20px; }
+.aircrew-identity { grid-column: 1 / -1; min-height: 265px; padding: 18px; overflow: hidden; }
+.aircrew-identity-body { display: flex; gap: 22px; margin-top: 13px; }
+.aircrew-monogram { display: flex; width: 142px; min-height: 166px; flex: 0 0 auto; flex-direction: column; align-items: center; justify-content: center; border: 1px solid #725f3f; background: #3a3b34; box-shadow: inset 0 0 20px #0005; }
+.aircrew-monogram span { color: #cbbb95; font-family: "Roboto Slab", Rockwell, Georgia, serif; font-size: 35px; font-weight: 800; }
+.aircrew-monogram small { margin-top: 9px; color: #91866e; font-size: 7px; letter-spacing: .08em; text-transform: uppercase; }
+.aircrew-identity-body > div:last-child { min-width: 0; flex: 1; }
+.aircrew-identity-body h2 { margin: 5px 0 0; font-family: "Roboto Slab", Rockwell, Georgia, serif; font-size: 28px; }
+.aircrew-identity-body > div:last-child > p { margin: 5px 0 0; font-size: 12px; font-weight: 600; }
+.aircrew-identity-body dl { display: grid; grid-template-columns: repeat(3, 1fr); margin: 24px 0 0; }
+.aircrew-identity-body dl > div { padding: 0 13px; border-left: 1px solid #856d4b; }
+.aircrew-identity-body dl > div:first-child { padding-left: 0; border-left: 0; }
+.aircrew-identity-body dt { color: #756149; font-size: 8px; font-weight: 700; text-transform: uppercase; }
+.aircrew-identity-body dd { margin: 5px 0 0; font-size: 9px; font-weight: 600; overflow-wrap: anywhere; }
+.aircrew-identity-body dd em,
+.current-assignment dd em { display: inline-block; padding: 3px 6px; border-radius: 2px; background: #66854f; color: #f1efd6; font-size: 8px; font-style: normal; text-transform: uppercase; }
+.aircrew-identity-body dd em.danger,
+.current-assignment dd em.danger { background: #884a3d; }
+.aircrew-identity-body dd em.warning,
+.current-assignment dd em.warning { background: #99723a; }
+.aircrew-stamp { right: 25px; bottom: 14px; }
+.aircrew-stats { min-height: 350px; padding: 18px; }
+.aircrew-stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; margin-top: 14px; }
+.aircrew-stat-grid > div { position: relative; min-height: 82px; padding: 10px; border: 1px solid #ffffff17; background: #17231d4d; }
+.aircrew-stat-grid > div::after { position: absolute; top: 9px; right: 9px; width: 5px; height: 5px; border-radius: 50%; background: #9bb073; content: ""; }
+.aircrew-stat-grid > div[data-state="unknown"]::after { background: #9d855f; }
+.aircrew-stat-grid span,
+.aircrew-stat-grid strong,
+.aircrew-stat-grid small { display: block; }
+.aircrew-stat-grid span { color: #aaa991; font-size: 8px; text-transform: uppercase; }
+.aircrew-stat-grid strong { margin-top: 5px; color: #e0d6b6; font-family: "Roboto Slab", Rockwell, Georgia, serif; font-size: 16px; }
+.aircrew-stat-grid small { margin-top: 3px; color: #999b84; font-size: 8px; }
+.personnel-history { min-height: 350px; padding: 18px; }
+.personnel-note { margin-top: 15px; padding: 12px; border: 1px solid #79623e; background: #b5935014; }
+.personnel-note strong { color: #c0a366; font-size: 8px; text-transform: uppercase; }
+.personnel-note p { margin: 5px 0 0; color: #adb09d; font-size: 10px; line-height: 1.55; }
+.personnel-events { margin-top: 13px; }
+.personnel-events > div { display: grid; grid-template-columns: 92px 30px 1fr; align-items: center; min-height: 54px; border-top: 1px solid #68726447; }
+.personnel-events time { color: #858a7a; font-size: 8px; }
+.personnel-events i { display: grid; width: 20px; height: 20px; place-items: center; border: 1px solid #796642; border-radius: 50%; color: #b49c66; font-size: 7px; font-style: normal; }
+.personnel-events span strong,
+.personnel-events span small { display: block; }
+.personnel-events span strong { color: #d2c8aa; font-family: "Roboto Slab", Rockwell, Georgia, serif; font-size: 10px; }
+.personnel-events span small { margin-top: 3px; color: #818879; font-size: 8px; }
+.current-assignment { min-height: 300px; padding: 18px; }
+.current-assignment dl { display: grid; grid-template-columns: 1fr 1fr; gap: 0 16px; margin: 13px 0 0; }
+.current-assignment dl > div { padding: 10px 0; border-top: 1px solid #876f4e; }
+.current-assignment dt { color: #735f48; font-size: 8px; font-weight: 700; text-transform: uppercase; }
+.current-assignment dd { margin: 5px 0 0; color: #3d3024; font-size: 9px; font-weight: 600; }
+.assignment-notice { margin-top: 13px; padding: 10px; border: 1px solid #8a704b; color: #5b5345; font-size: 12px; line-height: 1.5; }
+.aircrew-provenance { min-height: 300px; padding: 18px; }
+.aircrew-provenance dl { margin: 14px 0 0; }
+.aircrew-provenance dl > div { padding: 10px 0; border-top: 1px solid #68726447; }
+.aircrew-provenance dt { color: #7e8577; font-size: 8px; text-transform: uppercase; }
+.aircrew-provenance dd { margin: 4px 0 0; color: #c5c1a8; font-size: 9px; overflow-wrap: anywhere; }
+.aircrew-provenance > p { margin: 14px 0 0; padding: 10px; border: 1px solid #76613d; color: #929786; font-size: 8px; line-height: 1.5; }
+
+.diary-grid {
+  display: grid;
+  grid-template-columns: minmax(620px, 1.78fr) minmax(285px, .72fr);
+  gap: 20px;
+}
+.diary-register { grid-column: 1 / -1; min-height: 196px; padding: 18px; overflow: hidden; }
+.diary-register-heading { display: flex; justify-content: space-between; gap: 20px; }
+.diary-register-heading h2 { margin: 5px 0 0; font-family: "Roboto Slab", Rockwell, Georgia, serif; font-size: 24px; text-transform: uppercase; }
+.diary-register-heading > div > span { display: block; margin-top: 4px; color: #715e47; font-size: 9px; }
+.diary-stamp { align-self: flex-start; padding: 7px 10px; border: 2px solid #8e5e4e; color: #8e5e4e; font-size: 9px; font-weight: 800; line-height: 1.45; letter-spacing: .08em; text-align: center; transform: rotate(1.5deg); }
+.diary-totals { display: grid; grid-template-columns: .72fr .85fr .82fr 1.55fr; margin-top: 19px; border-top: 1px solid #876f4e; border-bottom: 1px solid #876f4e; }
+.diary-totals > div { position: relative; min-height: 68px; padding: 9px 14px; border-left: 1px solid #876f4e; }
+.diary-totals > div:first-child { padding-left: 0; border-left: 0; }
+.diary-totals > div::after { position: absolute; top: 11px; right: 11px; width: 5px; height: 5px; border-radius: 50%; background: #6d8d52; content: ""; }
+.diary-totals > div[data-state="unknown"]::after { background: #9a7c50; }
+.diary-totals > div[data-state="zero"]::after { background: #779b5c; box-shadow: 0 0 0 2px #779b5c33; }
+.diary-totals span,
+.diary-totals strong,
+.diary-totals small { display: block; }
+.diary-totals span { color: #715e48; font-size: 8px; font-weight: 700; text-transform: uppercase; }
+.diary-totals strong { margin-top: 3px; font-family: "Roboto Slab", Rockwell, Georgia, serif; font-size: 18px; line-height: 1.15; }
+.diary-totals > div:last-child strong { font-size: 13px; }
+.diary-totals small { margin-top: 3px; color: #79664f; font-size: 8px; }
+.diary-ledger { min-height: 680px; padding: 18px; }
+.diary-filters { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 16px; padding-bottom: 13px; border-bottom: 1px solid #6872644d; }
+.diary-filters button { min-height: 30px; padding: 0 10px; border: 1px solid #715e3b; border-radius: 2px; background: transparent; color: #9fa08c; cursor: pointer; font-size: 9px; text-transform: uppercase; }
+.diary-filters button:hover { background: #ffffff08; }
+.diary-filters button.active { background: #735a32; color: #eadab0; }
+.diary-warning { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 5px 14px; margin-top: 14px; padding: 10px 12px; border: 1px solid #a47a3e; background: #8b65231c; }
+.diary-warning strong { color: #d4ab62; font-size: 9px; text-transform: uppercase; }
+.diary-warning span { color: #a9aa95; font-size: 9px; }
+.diary-timeline { position: relative; margin: 17px 0 0; padding: 0; list-style: none; }
+.diary-timeline::before { position: absolute; top: 6px; bottom: 20px; left: 106px; width: 1px; background: #8c7245; content: ""; }
+.diary-timeline > li { position: relative; display: grid; grid-template-columns: 88px 36px minmax(0, 1fr); align-items: start; margin-top: 16px; }
+.diary-timeline > li:first-child { margin-top: 0; }
+.diary-date { padding-top: 10px; text-align: right; }
+.diary-date time,
+.diary-date span { display: block; }
+.diary-date time { color: #c0b79b; font-size: 9px; font-weight: 700; }
+.diary-date span { margin-top: 4px; color: #777f70; font-size: 7px; letter-spacing: .05em; }
+.diary-marker { position: relative; z-index: 1; width: 13px; height: 13px; margin: 12px auto 0; border: 3px solid #17231d; border-radius: 50%; background: #a89159; box-shadow: 0 0 0 1px #a89159; }
+.diary-marker.combat { background: #a65c49; box-shadow: 0 0 0 1px #a65c49; }
+.diary-marker.squadron { background: #7f9861; box-shadow: 0 0 0 1px #7f9861; }
+.diary-entry-card { min-height: 0; padding: 14px 15px; box-shadow: 0 0 0 1px #24180e, 0 8px 18px #05090752, inset 0 0 18px #00000014; }
+.diary-entry-meta { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px 12px; }
+.diary-entry-meta > span { padding: 3px 6px; border: 1px solid #756245; color: #503d2c; font-size: 10px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
+.diary-entry-meta > span.combat { border-color: #75483f; color: #63342f; }
+.diary-entry-meta > span.squadron { border-color: #52633f; color: #334627; }
+.diary-entry-meta code { color: #7b6950; font-family: inherit; font-size: 7px; overflow-wrap: anywhere; }
+.diary-entry-card h3 { margin: 8px 0 0; color: #3a2d22; font-family: "Roboto Slab", Rockwell, Georgia, serif; font-size: 17px; }
+.diary-entry-card > p { margin: 7px 0 0; color: #594a38; font-family: Georgia, "Times New Roman", serif; font-size: 11px; font-style: italic; line-height: 1.62; }
+.diary-entry-card dl { display: grid; grid-template-columns: .65fr 1fr 1.35fr; margin: 12px 0 0; border-top: 1px solid #88725073; }
+.diary-entry-card dl > div { padding: 9px 9px 2px; border-left: 1px solid #88725073; }
+.diary-entry-card dl > div:first-child { padding-left: 0; border-left: 0; }
+.diary-entry-card dt { color: #78644b; font-size: 7px; font-weight: 700; text-transform: uppercase; }
+.diary-entry-card dd { margin: 4px 0 0; color: #4a3b2c; font-size: 8px; overflow-wrap: anywhere; }
+.diary-mission-link { margin-top: 12px; padding: 8px 0; border: 0; background: transparent; color: #503d2c; cursor: pointer; font-size: 10px; font-weight: 800; letter-spacing: .03em; text-transform: uppercase; }
+.diary-mission-link:hover { color: #3b2c1d; text-decoration: underline; text-underline-offset: 3px; }
+.diary-empty { min-height: 480px; }
+.diary-context { min-height: 680px; padding: 18px; }
+.diary-context dl { margin: 15px 0 0; }
+.diary-context dl > div { padding: 12px 0; border-top: 1px solid #ffffff17; }
+.diary-context dt { color: #a9aa91; font-size: 8px; text-transform: uppercase; }
+.diary-context dd { margin: 4px 0 0; color: #e0d7b9; font-family: "Roboto Slab", Rockwell, Georgia, serif; font-size: 10px; overflow-wrap: anywhere; }
+.diary-key { display: flex; flex-direction: column; gap: 8px; margin-top: 14px; padding-top: 14px; border-top: 1px solid #ffffff17; }
+.diary-key strong { color: #d9cfaf; font-size: 9px; text-transform: uppercase; }
+.diary-key span { color: #b1b099; font-size: 8px; }
+.diary-key i { display: inline-block; width: 7px; height: 7px; margin-right: 7px; border-radius: 50%; background: #a89159; }
+.diary-key i.combat { background: #a65c49; }
+.diary-key i.squadron { background: #7f9861; }
+
+.reports-grid {
+  display: grid;
+  grid-template-columns: minmax(620px, 1.78fr) minmax(285px, .72fr);
+  gap: 20px;
+}
+.reports-register { grid-column: 1 / -1; min-height: 196px; padding: 18px; overflow: hidden; }
+.reports-register-heading { display: flex; justify-content: space-between; gap: 20px; }
+.reports-register-heading h2 { margin: 5px 0 0; font-family: "Roboto Slab", Rockwell, Georgia, serif; font-size: 24px; text-transform: uppercase; }
+.reports-register-heading > div > span { display: block; margin-top: 4px; color: #715e47; font-size: 9px; }
+.reports-stamp { align-self: flex-start; padding: 7px 10px; border: 2px solid #8e5e4e; color: #8e5e4e; font-size: 9px; font-weight: 800; line-height: 1.45; letter-spacing: .08em; text-align: center; transform: rotate(1.5deg); }
+.reports-totals { display: grid; grid-template-columns: .82fr .82fr .92fr 1.35fr; margin-top: 19px; border-top: 1px solid #876f4e; border-bottom: 1px solid #876f4e; }
+.reports-totals > div { position: relative; min-height: 68px; padding: 9px 14px; border-left: 1px solid #876f4e; }
+.reports-totals > div:first-child { padding-left: 0; border-left: 0; }
+.reports-totals > div::after { position: absolute; top: 11px; right: 11px; width: 5px; height: 5px; border-radius: 50%; background: #6d8d52; content: ""; }
+.reports-totals > div[data-state="unknown"]::after { background: #9a7c50; }
+.reports-totals > div[data-state="zero"]::after { background: #779b5c; box-shadow: 0 0 0 2px #779b5c33; }
+.reports-totals span,
+.reports-totals strong,
+.reports-totals small { display: block; }
+.reports-totals span { color: #715e48; font-size: 8px; font-weight: 700; text-transform: uppercase; }
+.reports-totals strong { margin-top: 3px; font-family: "Roboto Slab", Rockwell, Georgia, serif; font-size: 18px; line-height: 1.15; }
+.reports-totals > div:last-child strong { font-size: 13px; }
+.reports-totals small { margin-top: 3px; color: #79664f; font-size: 8px; }
+.reports-library { min-height: 650px; padding: 18px; }
+.reports-filters { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 16px; padding-bottom: 13px; border-bottom: 1px solid #6872644d; }
+.reports-filters button { min-height: 30px; padding: 0 10px; border: 1px solid #715e3b; border-radius: 2px; background: transparent; color: #9fa08c; cursor: pointer; font-size: 9px; text-transform: uppercase; }
+.reports-filters button:hover { background: #ffffff08; }
+.reports-filters button.active { background: #735a32; color: #eadab0; }
+.reports-warning { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 5px 14px; margin-top: 14px; padding: 10px 12px; border: 1px solid #a47a3e; background: #8b65231c; }
+.reports-warning strong { color: #d4ab62; font-size: 9px; text-transform: uppercase; }
+.reports-warning span { color: #a9aa95; font-size: 9px; }
+.report-cards { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 13px; margin-top: 16px; }
+.report-card { min-height: 300px; padding: 15px; overflow: hidden; }
+.report-card::before { position: absolute; top: -1px; left: 19px; width: 74px; height: 9px; border: 1px solid #7b6648; border-bottom: 0; border-radius: 2px 2px 0 0; background: #bca77f; content: ""; }
+.report-card-top { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.report-category { padding: 3px 6px; border: 1px solid #756245; color: #503d2c; font-size: 10px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
+.report-category.missions { border-color: #75483f; color: #63342f; }
+.report-category.unit { border-color: #52633f; color: #334627; }
+.report-status { color: #334627; font-size: 10px; font-weight: 800; text-transform: uppercase; }
+.report-status i,
+.viewer-status i { display: inline-block; width: 6px; height: 6px; margin-right: 5px; border-radius: 50%; background: #6f8c55; }
+.report-code { margin-top: 19px; color: #503d2c; font-size: 12px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
+.report-card h3 { margin: 5px 0 0; color: #392c22; font-family: "Roboto Slab", Rockwell, Georgia, serif; font-size: 18px; text-transform: uppercase; }
+.report-card > p { min-height: 49px; margin: 7px 0 0; color: #594a38; font-size: 9px; line-height: 1.55; }
+.report-card dl { margin: 13px 0 0; border-top: 1px solid #88725073; }
+.report-card dl > div { display: grid; grid-template-columns: 70px 1fr; gap: 8px; padding: 7px 0; border-bottom: 1px solid #88725047; }
+.report-card dt { color: #78644b; font-size: 7px; font-weight: 700; text-transform: uppercase; }
+.report-card dd { margin: 0; color: #4a3b2c; font-size: 8px; overflow-wrap: anywhere; }
+.open-report { margin-top: 12px; padding: 8px 0; border: 0; background: transparent; color: #503d2c; cursor: pointer; font-size: 10px; font-weight: 800; letter-spacing: .03em; text-transform: uppercase; }
+.open-report:hover { color: #3b2c1d; text-decoration: underline; text-underline-offset: 3px; }
+.reports-empty { min-height: 490px; }
+.reports-context { min-height: 650px; padding: 18px; }
+.reports-context dl { margin: 15px 0 0; }
+.reports-context dl > div { padding: 12px 0; border-top: 1px solid #ffffff17; }
+.reports-context dt { color: #a9aa91; font-size: 8px; text-transform: uppercase; }
+.reports-context dd { margin: 4px 0 0; color: #e0d7b9; font-family: "Roboto Slab", Rockwell, Georgia, serif; font-size: 10px; overflow-wrap: anywhere; }
+.reports-key { display: flex; flex-direction: column; gap: 8px; margin-top: 14px; padding-top: 14px; border-top: 1px solid #ffffff17; }
+.reports-key strong { color: #d9cfaf; font-size: 9px; text-transform: uppercase; }
+.reports-key span { color: #b1b099; font-size: 8px; }
+.reports-key i { display: inline-block; width: 7px; height: 7px; margin-right: 7px; border-radius: 1px; background: #a89159; }
+.reports-key i.missions { background: #a65c49; }
+.reports-key i.unit { background: #7f9861; }
+.reports-key b { display: inline-grid; width: 12px; height: 12px; margin-right: 5px; place-items: center; border: 1px solid #7f9861; border-radius: 50%; color: #c9d7ad; font-size: 7px; }
+
+.report-viewer-flow { min-width: 0; }
+.report-viewer-grid { display: grid; grid-template-columns: minmax(620px, 1.78fr) minmax(285px, .72fr); gap: 20px; }
+.report-document { min-height: 760px; padding: 24px; }
+.report-document-header { display: flex; justify-content: space-between; gap: 20px; padding-bottom: 18px; border-bottom: 2px solid #765f42; }
+.report-document-header > div > span { display: block; margin-top: 10px; color: #715e48; font-size: 8px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
+.report-document-header h2 { margin: 5px 0 0; color: #35291f; font-family: "Roboto Slab", Rockwell, Georgia, serif; font-size: 28px; text-transform: uppercase; }
+.report-document-header > div > p:last-child { max-width: 670px; margin: 7px 0 0; color: #5f4e3a; font-size: 10px; line-height: 1.55; }
+.report-document-stamp { align-self: flex-start; flex: 0 0 auto; padding: 7px 10px; border: 2px solid #8e5e4e; color: #8e5e4e; font-size: 9px; font-weight: 800; line-height: 1.45; letter-spacing: .08em; text-align: center; transform: rotate(1.5deg); }
+.report-document-meta { display: grid; grid-template-columns: 1.35fr .75fr 1fr .85fr; margin: 0; border-bottom: 1px solid #876f4e; }
+.report-document-meta > div { padding: 12px 11px; border-left: 1px solid #876f4e; }
+.report-document-meta > div:first-child { padding-left: 0; border-left: 0; }
+.report-document-meta dt { color: #756149; font-size: 7px; font-weight: 700; text-transform: uppercase; }
+.report-document-meta dd { margin: 4px 0 0; color: #3e3024; font-size: 8px; font-weight: 600; overflow-wrap: anywhere; }
+.report-partial-banner { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 5px 14px; margin-top: 16px; padding: 10px 12px; border: 1px solid #9d713a; background: #9f78341c; }
+.report-partial-banner strong { color: #765327; font-size: 8px; text-transform: uppercase; }
+.report-partial-banner span { color: #6a5840; font-size: 8px; }
+.report-sections { margin-top: 21px; }
+.report-sections > section { padding: 18px 0 22px; border-top: 1px solid #856e4d; }
+.report-sections > section:first-child { padding-top: 0; border-top: 0; }
+.report-sections > section > header span { color: #80694c; font-size: 7px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
+.report-sections > section > header h3 { margin: 4px 0 0; color: #392c22; font-family: "Roboto Slab", Rockwell, Georgia, serif; font-size: 19px; text-transform: uppercase; }
+.report-sections > section > p { margin: 8px 0 0; color: #5a4937; font-family: Georgia, "Times New Roman", serif; font-size: 11px; line-height: 1.62; }
+.report-data-rows { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; margin-top: 14px; }
+.report-data-rows > div { min-height: 72px; padding: 10px; border: 1px solid #806a4b80; background: #6c58371a; }
+.report-data-rows span,
+.report-data-rows strong,
+.report-data-rows small { display: block; }
+.report-data-rows span { color: #756149; font-size: 7px; font-weight: 700; text-transform: uppercase; }
+.report-data-rows strong { margin-top: 5px; color: #392c22; font-family: "Roboto Slab", Rockwell, Georgia, serif; font-size: 14px; }
+.report-data-rows small { margin-top: 3px; color: #79664f; font-size: 8px; }
+.report-section-unavailable { margin-top: 11px; padding: 18px; border: 1px dashed #8a704b; background: #765c3320; }
+.report-section-unavailable strong { color: #6f512e; font-size: 9px; text-transform: uppercase; }
+.report-section-unavailable p { margin: 6px 0 0; color: #6c5942; font-size: 9px; line-height: 1.55; }
+.report-document-footer { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px; margin-top: 14px; padding-top: 12px; border-top: 2px double #765f42; color: #78644a; font-size: 7px; letter-spacing: .05em; text-transform: uppercase; }
+.report-document-footer strong { color: #5a4632; }
+.report-inspector { min-height: 760px; padding: 18px; }
+.report-inspector dl { margin: 15px 0 0; }
+.report-inspector dl > div { padding: 12px 0; border-top: 1px solid #68726447; }
+.report-inspector dt { color: #7e8577; font-size: 8px; text-transform: uppercase; }
+.report-inspector dd { margin: 4px 0 0; color: #c5c1a8; font-size: 9px; overflow-wrap: anywhere; }
+.viewer-status { color: #a3bd77; font-weight: 700; text-transform: uppercase; }
+.report-index { display: flex; flex-direction: column; gap: 8px; margin-top: 15px; padding-top: 14px; border-top: 1px solid #68726447; }
+.report-index > strong { color: #cdbf99; font-size: 9px; text-transform: uppercase; }
+.report-index > span { display: grid; grid-template-columns: 24px 1fr auto; align-items: center; gap: 7px; min-height: 31px; color: #acae99; font-size: 8px; }
+.report-index > span > i { display: grid; width: 20px; height: 20px; place-items: center; border: 1px solid #796642; border-radius: 50%; color: #b49c66; font-size: 7px; font-style: normal; }
+.report-index > span > small { color: #7f8878; font-size: 7px; text-transform: uppercase; }
+.report-viewer-notice { margin-top: 18px; padding: 12px; border: 1px solid #76613d; background: #b5935012; }
+.report-viewer-notice strong { color: #c0a366; font-size: 8px; text-transform: uppercase; }
+.report-viewer-notice p { margin: 6px 0 0; color: #adb09d; font-size: 9px; line-height: 1.5; }
+.report-viewer-notice small { display: block; margin-top: 6px; color: #7e8577; font-size: 7px; line-height: 1.45; }
+
+.system-grid {
+  display: grid;
+  grid-template-columns: minmax(620px, 1.78fr) minmax(285px, .72fr);
+  gap: 20px;
+}
+.system-summary { grid-column: 1 / -1; min-height: 196px; padding: 18px; overflow: hidden; }
+.system-summary-heading { display: flex; justify-content: space-between; gap: 20px; }
+.system-summary-heading h2 { margin: 5px 0 0; font-family: "Roboto Slab", Rockwell, Georgia, serif; font-size: 24px; text-transform: uppercase; }
+.system-summary-heading > div > span { display: block; margin-top: 4px; color: #715e47; font-size: 9px; }
+.system-stamp { align-self: flex-start; padding: 7px 10px; border: 2px solid #8e5e4e; color: #8e5e4e; font-size: 9px; font-weight: 800; line-height: 1.45; letter-spacing: .08em; text-align: center; transform: rotate(1.5deg); }
+.system-totals { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); margin-top: 19px; border-top: 1px solid #876f4e; border-bottom: 1px solid #876f4e; }
+.system-totals > div { position: relative; min-height: 68px; padding: 9px 14px; border-left: 1px solid #876f4e; }
+.system-totals > div:first-child { padding-left: 0; border-left: 0; }
+.system-totals > div::after { position: absolute; top: 11px; right: 11px; width: 6px; height: 6px; border-radius: 50%; content: ""; }
+.system-totals > div[data-state="healthy"]::after { background: var(--good); box-shadow: 0 0 6px #779b5c66; }
+.system-totals > div[data-state="attention"]::after { background: var(--amber); }
+.system-totals > div[data-state="stale"]::after { border: 1px solid #c09754; background: transparent; }
+.system-totals > div[data-state="unavailable"]::after { background: var(--danger); }
+.system-totals span,
+.system-totals strong,
+.system-totals small { display: block; }
+.system-totals span { color: #715e48; font-size: 8px; font-weight: 700; text-transform: uppercase; }
+.system-totals strong { margin-top: 3px; font-family: "Roboto Slab", Rockwell, Georgia, serif; font-size: 20px; }
+.system-totals small { margin-top: 3px; color: #79664f; font-size: 8px; }
+.system-check-board { min-height: 690px; padding: 18px; }
+.system-filters { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 16px; padding-bottom: 13px; border-bottom: 1px solid #6872644d; }
+.system-filters button { min-height: 30px; padding: 0 10px; border: 1px solid #715e3b; border-radius: 2px; background: transparent; color: #9fa08c; cursor: pointer; font-size: 9px; text-transform: uppercase; }
+.system-filters button:hover { background: #ffffff08; }
+.system-filters button.active { background: #735a32; color: #eadab0; }
+.system-warning { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 5px 14px; margin-top: 14px; padding: 10px 12px; border: 1px solid #a47a3e; background: #8b65231c; }
+.system-warning strong { color: #d4ab62; font-size: 9px; text-transform: uppercase; }
+.system-warning span { color: #a9aa95; font-size: 9px; }
+.system-checks { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-top: 16px; }
+.system-check { min-height: 226px; padding: 14px; border: 1px solid #5e684f; border-radius: 2px; background: #1a2720; box-shadow: inset 0 0 18px #0002; }
+.system-check-heading { display: flex; align-items: center; justify-content: space-between; gap: 9px; }
+.system-check-heading code { color: #777e70; font-family: Inter, "Segoe UI", Arial, sans-serif; font-size: 7px; }
+.system-state { display: inline-flex; align-items: center; gap: 5px; color: #b5b7a4; font-size: 8px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; }
+.system-state i { display: inline-grid; width: 16px; height: 16px; place-items: center; border: 1px solid currentColor; border-radius: 50%; font-size: 8px; font-style: normal; }
+.system-state.healthy { color: #a4bf78; }
+.system-state.attention { color: #d1a653; }
+.system-state.stale { color: #c39757; }
+.system-state.unavailable { color: #c67a69; }
+.system-area { display: block; margin-top: 13px; color: #898d7d; font-size: 7px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
+.system-check h3 { margin: 4px 0 0; color: #ded2b1; font-family: "Roboto Slab", Rockwell, Georgia, serif; font-size: 16px; text-transform: uppercase; }
+.system-check > p { min-height: 45px; margin: 7px 0 0; color: #a8aa98; font-size: 9px; line-height: 1.5; }
+.system-check dl { margin: 12px 0 0; border-top: 1px solid #60674f66; }
+.system-check dl > div { display: grid; grid-template-columns: 70px 1fr; gap: 8px; padding: 6px 0; border-bottom: 1px solid #60674f42; }
+.system-check dt { color: #797f70; font-size: 7px; text-transform: uppercase; }
+.system-check dd { margin: 0; color: #b8b6a0; font-size: 8px; overflow-wrap: anywhere; }
+.system-empty { min-height: 505px; }
+.system-context { min-height: 690px; padding: 18px; }
+.system-context dl { margin: 15px 0 0; }
+.system-context dl > div { padding: 12px 0; border-top: 1px solid #ffffff17; }
+.system-context dt { color: #a9aa91; font-size: 8px; text-transform: uppercase; }
+.system-context dd { margin: 4px 0 0; color: #e0d7b9; font-family: "Roboto Slab", Rockwell, Georgia, serif; font-size: 10px; overflow-wrap: anywhere; }
+.system-key { display: flex; flex-direction: column; gap: 8px; margin-top: 15px; padding-top: 14px; border-top: 1px solid #ffffff17; }
+.system-key > strong { color: #d9cfaf; font-size: 9px; text-transform: uppercase; }
+.system-key > span { display: grid; grid-template-columns: 18px 66px 1fr; align-items: center; gap: 6px; color: #b1b099; font-size: 8px; }
+.system-key > span > i { display: inline-grid; width: 15px; height: 15px; place-items: center; border: 1px solid currentColor; border-radius: 50%; font-size: 7px; font-style: normal; }
+.system-key > span > i.healthy { color: #a4bf78; }
+.system-key > span > i.attention { color: #d1a653; }
+.system-key > span > i.stale { color: #c39757; }
+.system-key > span > i.unavailable { color: #c67a69; }
+.system-key b { color: #d7cfb2; font-size: 12px; text-transform: uppercase; }
+.system-readonly-note { margin-top: 18px; padding: 12px; border: 1px solid #826943; background: #272b201f; }
+.system-readonly-note strong { color: #d2b273; font-size: 8px; text-transform: uppercase; }
+.system-readonly-note p { margin: 6px 0 0; color: #ded5b7; font-size: 9px; line-height: 1.5; }
+.system-readonly-note small { display: block; margin-top: 7px; color: #aaa993; font-size: 7px; line-height: 1.45; }
+.system-observations { grid-column: 1 / -1; min-height: 245px; padding: 18px; }
+.system-observation-rows { margin-top: 14px; border-top: 1px solid #876f4e; }
+.system-observation-rows > div { display: grid; grid-template-columns: 145px 105px minmax(170px, 1fr) minmax(145px, .8fr); align-items: center; gap: 12px; min-height: 44px; border-bottom: 1px solid #876f4e80; }
+.system-observation-rows time { color: #6e5c47; font-size: 8px; }
+.system-observation-rows .system-state { color: #503d2c; }
+.system-observation-rows .system-state.healthy { color: #334627; }
+.system-observation-rows .system-state.attention,
+.system-observation-rows .system-state.stale { color: #5b3e1d; }
+.system-observation-rows .system-state.unavailable { color: #63342f; }
+.system-observation-rows strong { color: #403125; font-family: "Roboto Slab", Rockwell, Georgia, serif; font-size: 10px; }
+.system-observation-rows small { color: #756149; font-size: 8px; overflow-wrap: anywhere; }
+.system-ledger-empty { min-height: 150px; }
+
+/* Shared legibility baseline for dense operational copy. */
+:is(.paper-card, .dark-panel, .squadron-panel) .panel-label { opacity: 1; }
+.paper-card :is(small, dt, code, time) { color: #503d2c; font-size: 10px; line-height: 1.35; }
+.dark-panel :is(small, dt, code, time),
+.dark-panel .panel-heading p { color: #adb3a1; font-size: 10px; line-height: 1.35; }
+.squadron-panel :is(small, dt, code, time),
+.squadron-panel .panel-heading p { color: #c2c0a9; font-size: 10px; line-height: 1.35; }
+.mission-filters button,
+.squadron-filters button,
+.diary-filters button,
+.reports-filters button,
+.system-filters button { min-height: 36px; font-size: 10px; }
+.context-path { color: #c4a463; font-size: 10px; }
+.header-facts small { color: #adb2a0; font-size: 10px; }
+.mission-row-head,
+.aircrew-row-head { color: #a5aa99; }
+
+.source-state,
+.next-screen {
+  min-height: 530px;
+  padding: 80px 12%;
+  background-color: #15221c;
+  text-align: center;
+}
+.source-state h2,
+.next-screen h2 { margin: 15px 0 8px; color: #e0d0a3; font-size: 27px; }
+.source-state > p:not(.panel-label),
+.next-screen > p:not(.panel-label) { max-width: 620px; margin: 0 auto; color: #929685; line-height: 1.7; }
+.source-state > div { display: inline-flex; flex-direction: column; gap: 5px; margin-top: 25px; padding: 12px 18px; border: 1px solid #8b7047; }
+.source-state > div span { color: #8c907e; font-size: 9px; text-transform: uppercase; }
+.source-state > div code { color: #e1cf9f; }
+.source-state > div small { max-width: 520px; color: #a5a593; font-size: 9px; line-height: 1.5; }
+.fixture-source-state.failure { border-color: #a96050; }
+.fixture-source-state.attention { border-color: #a9874f; }
+.next-screen button {
+  margin-top: 25px;
+  padding: 9px 14px;
+  border: 1px solid #9c7b45;
+  border-radius: 2px;
+  background: #6f5731;
+  cursor: pointer;
+}
+
+.fixture-contract-notice {
+  display: grid;
+  grid-template-columns: minmax(190px, auto) minmax(220px, 1fr) auto;
+  align-items: center;
+  gap: 16px;
+  margin: -7px 0 16px;
+  padding: 9px 12px;
+  border: 1px solid #7f6948;
+  border-left: 4px solid #a38650;
+  background: #17221de8;
+  box-shadow: inset 0 0 16px #0004;
+}
+.fixture-contract-notice.ready { border-left-color: #8eaa6e; }
+.fixture-contract-notice.failure { border-left-color: #b56857; }
+.fixture-contract-notice.waiting { border-left-color: #c29a54; }
+.fixture-contract-notice > span strong,
+.fixture-contract-notice > span small { display: block; }
+.fixture-contract-notice > span strong { color: #d8c592; font-size: 9px; letter-spacing: .06em; text-transform: uppercase; }
+.fixture-contract-notice > span small { margin-top: 3px; color: #9b9f8e; font-size: 8px; }
+.fixture-contract-notice p { margin: 0; color: #b9baa7; font-size: 9px; line-height: 1.45; }
+.fixture-contract-notice code { color: #d2b371; font-size: 9px; }
+
+.fixture-loading-frame {
+  min-height: 530px;
+  padding: 32px;
+  border: 1px solid #846c48;
+  background: #15211c;
+  box-shadow: inset 0 0 28px #0005;
+}
+.fixture-loading-copy h2 { margin: 8px 0; color: #e0d0a3; font-size: 25px; }
+.fixture-loading-copy > span { color: #a6a997; font-size: 11px; line-height: 1.6; }
+.fixture-skeleton-grid { display: grid; grid-template-columns: 1.2fr .8fr; gap: 14px; margin-top: 28px; }
+.fixture-skeleton-grid i { display: block; min-height: 150px; border: 1px solid #7c6747; background: linear-gradient(105deg, #26342b, #314037 45%, #26342b); opacity: .58; }
+.fixture-skeleton-grid i:first-child { grid-row: span 2; min-height: 316px; }
+.fixture-loading-frame > small { display: block; margin-top: 18px; color: #999c8b; font-size: 9px; text-transform: uppercase; }
+
+.fixture-overlay { position: fixed; z-index: 80; inset: 0; display: grid; place-items: center; padding: 20px; }
+.overlay-dismiss { position: absolute; inset: 0; border: 0; background: #050806cc; cursor: default; }
+.fixture-panel {
+  position: relative;
+  width: min(1120px, 100%);
+  max-height: 100%;
+  padding: 25px;
+  border: 1px solid var(--brass);
+  border-radius: 3px;
+  background: #19251f;
+  box-shadow: 0 20px 70px #000c;
+  overflow-y: auto;
+}
+.fixture-matrix-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 25px; }
+.fixture-matrix-heading h2 { margin: 7px 0; color: #e0d0a3; font-size: 26px; }
+.fixture-matrix-heading p:not(.panel-label) { max-width: 720px; margin: 0; color: #a5a796; font-size: 10px; line-height: 1.55; }
+.fixture-matrix-heading > span { padding: 7px 10px; border: 2px solid #8f7143; color: #c5a76a; font: 800 9px/1.4 "Roboto Slab", Rockwell, Georgia, serif; letter-spacing: .08em; text-align: center; transform: rotate(-2deg); }
+.fixture-matrix-selection { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 12px; margin-top: 17px; padding: 10px 12px; border: 1px solid #826a48; background: #101a16; }
+.fixture-matrix-selection small { color: #9b9d8b; font-size: 8px; letter-spacing: .06em; text-transform: uppercase; }
+.fixture-matrix-selection strong { color: #ded0a7; font-size: 10px; }
+.fixture-matrix-selection code { color: #c5a665; font-size: 9px; }
+.fixture-workbench { display: grid; grid-template-columns: 235px minmax(0, 1fr); gap: 17px; margin-top: 18px; }
+.fixture-panel fieldset { min-width: 0; margin: 0; padding: 13px; border: 1px solid #6e5d43; }
+.fixture-panel legend { padding: 0 7px; color: #c5ac76; font-size: 9px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+.fixture-surface-picker > div { display: grid; gap: 6px; }
+.fixture-surface-picker button,
+.fixture-state-grid button,
+.fixture-viewport-picker button { border: 1px solid #66573f; border-radius: 2px; background: #202d26; color: #c8c7b3; cursor: pointer; text-align: left; }
+.fixture-surface-picker button { display: grid; grid-template-columns: 55px 1fr; align-items: center; gap: 8px; min-height: 36px; padding: 7px 9px; }
+.fixture-surface-picker button code { color: #c3a66b; font-size: 9px; }
+.fixture-surface-picker button span { font-size: 9px; }
+.fixture-surface-picker button.active,
+.fixture-state-grid button.active,
+.fixture-viewport-picker button.active { border-color: #c39851; background: #705732; color: #f2e2b9; box-shadow: inset 0 0 0 1px #d0aa682e; }
+.fixture-state-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 7px; }
+.fixture-state-grid button { display: flex; min-height: 112px; padding: 9px; flex-direction: column; }
+.fixture-state-grid button.failure { border-left-color: #a75d4e; }
+.fixture-state-grid button.attention { border-left-color: #ae8746; }
+.fixture-state-grid button.ready { border-left-color: #78925d; }
+.fixture-state-grid button span small,
+.fixture-state-grid button span strong { display: block; }
+.fixture-state-grid button span small { color: #a6a895; font-size: 7px; letter-spacing: .06em; text-transform: uppercase; }
+.fixture-state-grid button span strong { margin-top: 2px; color: #ded1ac; font-size: 10px; }
+.fixture-state-grid button em { display: block; margin-top: 7px; color: #aeb09e; font-size: 8px; font-style: normal; line-height: 1.4; }
+.fixture-state-grid button code { display: block; margin-top: auto; padding-top: 7px; color: #c3a66b; font-size: 7px; overflow-wrap: anywhere; }
+.fixture-state-grid button.active :is(span small, span strong, em, code) { color: #f1e2bc; }
+.fixture-viewport-picker { margin-top: 17px !important; }
+.fixture-viewport-picker > div { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 7px; }
+.fixture-viewport-picker button { min-height: 54px; padding: 9px 11px; }
+.fixture-viewport-picker button strong,
+.fixture-viewport-picker button span { display: block; }
+.fixture-viewport-picker button strong { color: #dfd2ac; font-size: 9px; }
+.fixture-viewport-picker button span { margin-top: 4px; color: #9fa290; font-size: 8px; }
+.fixture-viewport-picker button.active span { color: #ead9ae; }
+.snapshot-contract-inspector { margin-top: 17px; padding: 14px; border: 1px solid #756344; background: #111b17; box-shadow: inset 0 0 20px #0004; }
+.snapshot-contract-inspector > header { display: flex; align-items: flex-start; justify-content: space-between; gap: 20px; }
+.snapshot-contract-inspector h3 { margin: 5px 0 0; color: #e0d0a3; font: 800 17px/1.2 "Roboto Slab", Rockwell, Georgia, serif; }
+.snapshot-contract-inspector > header > span { padding: 5px 8px; border: 1px solid #809966; color: #aec58f; font-size: 8px; font-weight: 800; letter-spacing: .08em; }
+.snapshot-contract-inspector dl { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); margin: 13px 0 0; border-top: 1px solid #64553e; border-bottom: 1px solid #64553e; }
+.snapshot-contract-inspector dl > div { min-width: 0; padding: 9px 10px; border-left: 1px solid #64553e; }
+.snapshot-contract-inspector dl > div:first-child { padding-left: 0; border-left: 0; }
+.snapshot-contract-inspector dt { color: #979b89; font-size: 7px; letter-spacing: .06em; text-transform: uppercase; }
+.snapshot-contract-inspector dd { margin: 4px 0 0; color: #ddd0aa; font-size: 8px; overflow-wrap: anywhere; }
+.snapshot-field-states { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 7px; margin-top: 11px; }
+.snapshot-field-states > span { display: grid; min-height: 42px; padding: 7px 9px; border: 1px solid #60533e; grid-template-columns: auto 1fr; align-items: center; gap: 8px; }
+.snapshot-field-states strong { color: #e1d3ae; font: 800 16px/1 "Roboto Slab", Rockwell, Georgia, serif; }
+.snapshot-field-states small { color: #a4a795; font-size: 7px; text-transform: uppercase; }
+.snapshot-field-states > span[data-state="known"] { border-left-color: #78925d; }
+.snapshot-field-states > span[data-state="unknown"] { border-left-color: #a48655; }
+.snapshot-field-states > span[data-state="unavailable"] { border-left-color: #777267; }
+.snapshot-field-states > span[data-state="invalid"] { border-left-color: #a45345; }
+.snapshot-contract-inspector > p { display: grid; grid-template-columns: auto auto 1fr; align-items: center; gap: 10px; margin: 11px 0 0; color: #9fa290; font-size: 8px; }
+.snapshot-contract-inspector > p strong { color: #c8b98f; text-transform: uppercase; }
+.snapshot-contract-inspector > p code { color: #c5a665; }
+.fixture-actions { display: flex; align-items: center; justify-content: space-between; gap: 22px; margin-top: 17px; padding-top: 15px; border-top: 1px solid #6e5a3d; }
+.fixture-actions p { max-width: 650px; margin: 0; color: #989b89; font-size: 8px; line-height: 1.5; }
+.fixture-actions > div { display: flex; gap: 8px; }
+.fixture-status-picker { display: grid; gap: 8px; margin-top: 18px; color: #f4efe2; }
+.fixture-status-picker select { width: 100%; padding: 8px 12px; color: #f4efe2; border: 1px solid #829087; background: #111b16; font: inherit; }
+.fixture-state-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-top: 20px; padding: 16px; border: 1px solid #829087; background: #19251f; color: #f4efe2; }
+.fixture-state-actions button { padding: 8px 12px; border: 1px solid #829087; background: #202d26; color: #f4efe2; cursor: pointer; }
+.fixture-state-actions small { flex-basis: 100%; color: #d5d0c4; }
+.source-state .source-name { margin-top: 14px; }
+.pilot-status { display: inline-flex; flex-direction: column; gap: 6px; }
+.status-mapping-notice { display: block; max-width: 32ch; }
+.collection-unavailable { padding: 18px 0; }
+.collection-unavailable strong, .collection-unavailable span { display: block; margin-bottom: 6px; }
+.app-shell :is(button, select, input, a[href], [role="button"]) { min-width: 32px; min-height: 40px; }
+.app-shell [data-primary="true"], .app-shell .pilot-fact, .app-shell .sidebar nav button { min-height: 40px; }
+.close-fixtures,
+.apply-fixture { min-height: 38px; padding: 0 15px; border: 1px solid #856b44; border-radius: 2px; cursor: pointer; }
+.close-fixtures { background: transparent; color: #b0ae99; }
+.apply-fixture { background: #725a34; color: #eee0ba; font-weight: 800; }
+
+.shell-reference-grid,
+.dossier-context-grid {
+  display: grid;
+  grid-template-columns: minmax(520px, 1.7fr) minmax(300px, 1fr);
+  gap: 20px;
+}
+.shell-reference-file,
+.dossier-context-file { min-height: 220px; overflow: hidden; }
+.shell-reference-file h2,
+.dossier-context-file h2 { margin: 9px 0 0; font: 800 25px/1.2 "Roboto Slab", Rockwell, Georgia, serif; text-transform: uppercase; }
+.shell-reference-file > p:last-of-type,
+.dossier-context-file > p:last-of-type { max-width: 720px; margin: 10px 0 0; line-height: 1.6; }
+.shell-region-list,
+.dossier-context-ledger { min-height: 410px; padding: 19px; }
+.shell-region-list { grid-row: span 2; }
+.shell-region-list > div { margin-top: 13px; }
+.shell-region-list article { display: grid; min-height: 61px; grid-template-columns: 32px 1fr; align-items: center; gap: 10px; border-top: 1px solid #829087; }
+.shell-region-list article i { display: grid; width: 24px; height: 24px; place-items: center; border: 1px solid #c2a86b; border-radius: 50%; font-style: normal; }
+.shell-region-list article span,
+.shell-region-list article strong,
+.shell-region-list article small { display: block; }
+.shell-region-list article small { margin-top: 4px; }
+.shell-contract,
+.dossier-context-meta { min-height: 170px; padding: 18px; }
+.shell-contract > p { line-height: 1.6; }
+
+.selector-reference { min-height: 590px; padding: 25px; border: 1px solid #829087; background: #19251f; box-shadow: inset 0 0 28px #0006; }
+.selector-reference > header { display: flex; align-items: flex-start; justify-content: space-between; gap: 24px; }
+.selector-reference > header h2 { margin: 8px 0 0; font: 800 27px/1.2 "Roboto Slab", Rockwell, Georgia, serif; text-transform: uppercase; }
+.selector-reference > header p:not(.panel-label) { max-width: 760px; margin: 8px 0 0; line-height: 1.6; }
+.selector-reference > header > span { padding: 8px 11px; border: 2px solid #c2a86b; color: #f4efe2; font-weight: 800; letter-spacing: .08em; text-align: center; transform: rotate(-2deg); }
+.selector-reference-options { display: grid; gap: 10px; margin-top: 24px; }
+.sparse-slot-notice { display: flex; gap: 14px; margin-top: 20px; padding: 12px 14px; border: 1px solid #a5ad91; background: #111614; }
+.sparse-slot-notice strong { flex: 0 0 auto; text-transform: uppercase; }
+.selector-reference-options button { display: grid; min-height: 86px; grid-template-columns: 1fr auto; align-items: center; gap: 18px; padding: 14px 16px; border: 1px solid #829087; border-radius: 4px; background: #202d26; color: #f4efe2; cursor: pointer; text-align: left; }
+.selector-reference-options button[aria-selected="true"] { border-color: #e0b65c; background: #4f442d; box-shadow: inset 0 0 0 1px #f4efe238; }
+.selector-reference-options button span,
+.selector-reference-options button small,
+.selector-reference-options button strong,
+.selector-reference-options button em { display: block; }
+.selector-reference-options button strong { margin-top: 4px; font: 800 18px/1.25 "Roboto Slab", Rockwell, Georgia, serif; }
+.selector-reference-options button em { margin-top: 5px; font-style: normal; }
+.selector-reference-options button code { overflow-wrap: anywhere; }
+.selector-reference > footer { display: flex; gap: 14px; margin-top: 20px; padding: 14px; border: 1px solid #829087; background: #111614; }
+.selector-reference > footer strong { flex: 0 0 auto; text-transform: uppercase; }
+
+.dossier-context-links { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 9px; margin-top: 14px; }
+.dossier-context-links button { min-height: 44px; padding: 8px 10px; border: 1px solid #71614a; border-radius: 3px; background: #f0e4ca; color: #201d18; cursor: pointer; font-weight: 700; text-align: left; }
+.dossier-context-links button:hover { background: #fff4d9; }
+.dossier-context-file { grid-column: 1 / -1; }
+.dossier-context-ledger { grid-column: 1; }
+.dossier-context-meta { grid-column: 2; }
+.dossier-context-meta dl { margin: 13px 0 0; }
+.dossier-context-meta dl > div { padding: 9px 0; border-top: 1px solid #a5ad91; }
+.dossier-context-meta dd { margin: 4px 0 0; overflow-wrap: anywhere; }
+.context-stat-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 16px; }
+.context-stat-row > div { padding: 13px; border: 1px solid #829087; background: #202d26; }
+.context-stat-row span,
+.context-stat-row strong,
+.context-stat-row small { display: block; }
+.context-stat-row strong { margin-top: 5px; font: 800 25px/1.2 "Roboto Slab", Rockwell, Georgia, serif; }
+.context-stat-row small { margin-top: 4px; text-transform: uppercase; }
+.decoration-list { display: grid; gap: 10px; margin-top: 16px; }
+.decoration-list > div { padding: 14px; border: 1px solid #829087; background: #202d26; }
+.decoration-list strong,
+.decoration-list span { display: block; }
+.decoration-list span { margin-top: 6px; }
+
+@container desktop (max-width: 1180px) {
+  .app-shell { --sidebar: 232px; }
+  .workspace { padding: 24px; }
+  .sidebar { padding: 27px 16px 18px; }
+  .brand strong { font-size: 24px; }
+  .sidebar nav button { min-height: 40px; font-size: 14px; }
+  .board-header { grid-template-columns: minmax(270px, 1fr) auto; }
+  .header-facts { grid-column: 1 / -1; justify-content: flex-start; }
+  .operations-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .shell-reference-grid,
+  .dossier-context-grid { grid-template-columns: 1fr; }
+  .shell-region-list,
+  .dossier-context-file,
+  .dossier-context-ledger,
+  .dossier-context-meta { grid-column: auto; grid-row: auto; }
+  .active-pilot { grid-column: 1 / -1; }
+  .sorties { grid-column: 1 / -1; }
+  .dossier-grid { grid-template-columns: 1fr; }
+  .dossier-stats { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .mission-log-grid,
+  .mission-report-grid,
+  .squadron-grid,
+  .aircrew-profile-grid,
+  .diary-grid,
+  .reports-grid,
+  .report-viewer-grid,
+  .system-grid { grid-template-columns: 1fr; }
+  .mission-register,
+  .mission-order,
+  .squadron-register,
+  .aircrew-identity,
+  .diary-register,
+  .reports-register { grid-column: auto; }
+  .mission-row { grid-template-columns: 90px minmax(145px, 1.3fr) minmax(110px, 1fr) 85px 58px 18px; }
+  .mission-order-meta { grid-template-columns: repeat(3, 1fr); gap: 14px 0; }
+  .mission-order-meta > div:nth-child(4) { border-left: 0; padding-left: 0; }
+}
+
+@container desktop (max-width: 820px) {
+  .app-shell { --sidebar: 184px; }
+  .sidebar { display: flex; padding: 20px 11px 14px; }
+  .brand strong { font-size: 19px; }
+  .brand span { font-size: 8px; }
+  .watchdog { min-height: 47px; margin-top: 11px; padding: 7px 9px; }
+  .watchdog small { font-size: 8px; }
+  .watchdog strong { font-size: 10px; }
+  .side-rule { margin: 10px 0; }
+  .sidebar nav { gap: 5px; }
+  .sidebar nav button { min-height: 34px; padding: 0 9px; font-size: 12px; }
+  .system-status-trigger { min-height: 48px; padding: 7px 8px; }
+  .system-status-trigger span { font-size: 9px; }
+  .fixture-trigger { padding: 8px 5px; font-size: 8px; }
+  .fixture-trigger small { margin-left: 12px; font-size: 7px; }
+  .workspace { margin-left: var(--sidebar); padding: 24px; }
+  .fixture-contract-notice { grid-template-columns: 1fr auto; }
+  .fixture-contract-notice p { grid-column: 1 / -1; grid-row: 2; }
+  .fixture-workbench { grid-template-columns: 1fr; }
+  .fixture-surface-picker > div { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .fixture-state-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .fixture-viewport-picker > div { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .snapshot-contract-inspector dl { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .snapshot-contract-inspector dl > div:nth-child(4) { padding-left: 0; border-left: 0; }
+  .dossier-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .board-header { grid-template-columns: 1fr; }
+  .campaign-badge { justify-self: start; }
+  .header-facts { grid-column: auto; flex-wrap: wrap; }
+  .career-menu { top: 215px; right: 20px; }
+}
+
+/* Dense registers reflow before the narrower sidebar breakpoint. Their
+   desktop columns otherwise exceed the available main region at 150%. */
+@container desktop (max-width: 980px) {
+  .mission-row-head,
+  .aircrew-row-head { display: none; }
+  .mission-row { grid-template-columns: 84px minmax(0, 1fr) auto; gap: 5px 10px; min-width: 0; padding: 11px 4px; }
+  .mission-row > time { grid-row: 1 / 3; }
+  .mission-row > span:nth-of-type(1) { grid-column: 2; grid-row: 1; }
+  .mission-row > span:nth-of-type(2) { grid-column: 2; grid-row: 2; }
+  .mission-row > em { grid-column: 3; grid-row: 1; }
+  .mission-row > span:nth-of-type(3) { grid-column: 3; grid-row: 2; text-align: right; }
+  .mission-row > b { display: none; }
+  .aircrew-row { grid-template-columns: 96px minmax(0, 1fr) auto; gap: 5px 10px; min-width: 0; padding: 11px 4px; }
+  .aircrew-row > span:nth-of-type(1) { grid-row: 1 / 3; }
+  .aircrew-name { grid-column: 2; grid-row: 1; }
+  .aircrew-row > span:nth-of-type(3) { grid-column: 2; grid-row: 2; }
+  .aircrew-row > span:nth-of-type(4) { grid-column: 2; grid-row: 3; }
+  .aircrew-row > em { grid-column: 3; grid-row: 1; }
+  .aircrew-row > span:nth-of-type(5) { grid-column: 3; grid-row: 2; text-align: right; }
+  .aircrew-row > b { display: none; }
+}
+
+@container desktop (max-width: 820px) {
+  .workspace { padding: 24px; }
+  .title-block h1 { font-size: 25px; }
+  .operations-grid { grid-template-columns: 1fr; gap: 14px; }
+  .active-pilot,
+  .sorties { grid-column: auto; }
+  .pilot-card-body { align-items: flex-start; }
+  .service-block { width: 82px; min-height: 105px; font-size: 24px; }
+  .pilot-copy h2 { font-size: 18px; }
+  .field-stamp { position: static; width: max-content; margin: 13px 0 0 auto; }
+  .header-facts { gap: 16px; }
+  .paper-card,
+  .condition { min-height: auto; }
+  .table-wrap { overflow: visible; }
+  .sorties table { min-width: 0; }
+  .sorties thead { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; }
+  .sorties tbody { display: grid; gap: 9px; margin-top: 13px; }
+  .sorties tr { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 12px; padding: 10px; border: 1px solid #68726466; }
+  .sorties td { padding: 0; border: 0; }
+  .sorties td:nth-child(2) { grid-column: 1; grid-row: 1; }
+  .sorties td:nth-child(4) { grid-column: 2; grid-row: 1; text-align: right; }
+  .sorties td:nth-child(1) { grid-column: 1; grid-row: 2; color: #adb3a1; }
+  .sorties td:nth-child(5) { grid-column: 2; grid-row: 2; text-align: right; }
+  .sorties td:nth-child(3) { grid-column: 1 / -1; grid-row: 3; color: #adb3a1; }
+  .fixture-panel { padding: 18px; }
+  .selector-reference { padding: 18px; }
+  .selector-reference > header { flex-direction: column; }
+  .selector-reference > header > span { align-self: flex-start; }
+  .selector-reference-options button { grid-template-columns: 1fr; }
+  .selector-reference > footer { flex-direction: column; }
+  .dossier-context-links,
+  .context-stat-row { grid-template-columns: 1fr; }
+  .fixture-matrix-heading > span { display: none; }
+  .fixture-matrix-selection { grid-template-columns: 1fr; }
+  .fixture-state-grid { grid-template-columns: 1fr; }
+  .fixture-actions { align-items: stretch; flex-direction: column; }
+  .fixture-actions > div { justify-content: flex-end; }
+  .snapshot-contract-inspector dl { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .snapshot-contract-inspector dl > div:nth-child(odd) { padding-left: 0; border-left: 0; }
+  .snapshot-contract-inspector > p { grid-template-columns: 1fr; }
+  .dossier-identity-body { gap: 13px; }
+  .portrait-frame { width: 104px; height: 135px; }
+  .identity-copy h2 { font-size: 21px; }
+  .identity-copy dl { grid-template-columns: 1fr; margin-top: 12px; }
+  .identity-copy dl > div { padding: 6px 0; border-top: 1px solid #856d4b66; border-left: 0; }
+  .identity-copy dl > div:first-child { border-top: 0; }
+  .dossier-stamp { position: static; margin-top: 15px; }
+  .dossier-stats { grid-template-columns: 1fr 1fr; }
+  .ledger-list > div { grid-template-columns: 72px 27px 1fr; }
+  .mission-register-heading { flex-direction: column; }
+  .register-stamp { display: none; }
+  .mission-totals { grid-template-columns: 1fr 1fr; }
+  .mission-totals > div:nth-child(3) { padding-left: 0; border-left: 0; border-top: 1px solid #876f4e; }
+  .mission-totals > div:nth-child(4) { border-top: 1px solid #876f4e; }
+  .mission-list,
+  .mission-context { min-height: auto; }
+  .mission-order-heading { flex-direction: column; }
+  .mission-order-heading > em { align-self: flex-start; }
+  .mission-order-meta { grid-template-columns: 1fr 1fr; }
+  .mission-order-meta > div { padding: 7px 10px; border-top: 1px solid #876f4e66; }
+  .mission-order-meta > div:nth-child(odd) { padding-left: 0; border-left: 0; }
+  .mission-order-meta > div:nth-child(4) { padding-left: 10px; border-left: 1px solid #876f4e; }
+  .mission-report-stamp { position: static; margin-top: 14px; }
+  .mission-narrative,
+  .mission-outcome,
+  .crew-manifest,
+  .report-provenance { min-height: auto; }
+  .squadron-register-heading { flex-direction: column; }
+  .squadron-roundel { display: none; }
+  .squadron-totals { grid-template-columns: 1fr 1fr; }
+  .squadron-totals > div:nth-child(3) { padding-left: 0; border-left: 0; border-top: 1px solid #876f4e; }
+  .squadron-totals > div:nth-child(4) { border-top: 1px solid #876f4e; }
+  .squadron-roster,
+  .command-board { min-height: auto; }
+  .aircrew-identity-body { gap: 13px; }
+  .aircrew-monogram { width: 102px; min-height: 132px; }
+  .aircrew-monogram span { font-size: 25px; }
+  .aircrew-identity-body h2 { font-size: 21px; }
+  .aircrew-identity-body dl { grid-template-columns: 1fr; margin-top: 12px; }
+  .aircrew-identity-body dl > div { padding: 6px 0; border-top: 1px solid #856d4b66; border-left: 0; }
+  .aircrew-identity-body dl > div:first-child { border-top: 0; }
+  .aircrew-stamp { position: static; margin-top: 14px; }
+  .aircrew-stats,
+  .personnel-history,
+  .current-assignment,
+  .aircrew-provenance,
+  .diary-ledger,
+  .diary-context { min-height: auto; }
+  .personnel-events > div { grid-template-columns: 72px 27px 1fr; }
+  .diary-register-heading { flex-direction: column; }
+  .diary-stamp { display: none; }
+  .diary-totals { grid-template-columns: 1fr 1fr; }
+  .diary-totals > div:nth-child(3) { padding-left: 0; border-top: 1px solid #876f4e; border-left: 0; }
+  .diary-totals > div:nth-child(4) { border-top: 1px solid #876f4e; }
+  .diary-timeline::before { left: 6px; }
+  .diary-timeline > li { grid-template-columns: 1fr; padding-left: 24px; }
+  .diary-date { padding: 0 0 7px; text-align: left; }
+  .diary-date time,
+  .diary-date span { display: inline; }
+  .diary-date span { margin-left: 7px; }
+  .diary-marker { position: absolute; top: 1px; left: 0; margin: 0; }
+  .diary-entry-card dl { grid-template-columns: 1fr; }
+  .diary-entry-card dl > div { padding: 7px 0; border-top: 1px solid #88725073; border-left: 0; }
+  .reports-library,
+  .reports-context,
+  .report-document,
+  .report-inspector,
+  .system-check-board,
+  .system-context,
+  .system-observations { min-height: auto; }
+  .reports-register-heading,
+  .report-document-header,
+  .system-summary-heading { flex-direction: column; }
+  .reports-stamp,
+  .report-document-stamp,
+  .system-stamp { display: none; }
+  .reports-totals { grid-template-columns: 1fr 1fr; }
+  .reports-totals > div:nth-child(3) { padding-left: 0; border-top: 1px solid #876f4e; border-left: 0; }
+  .reports-totals > div:nth-child(4) { border-top: 1px solid #876f4e; }
+  .report-cards,
+  .report-data-rows { grid-template-columns: 1fr; }
+  .report-document { padding: 17px; }
+  .report-document-meta { grid-template-columns: 1fr 1fr; }
+  .report-document-meta > div { padding: 8px 9px; border-top: 1px solid #876f4e66; }
+  .report-document-meta > div:nth-child(odd) { padding-left: 0; border-left: 0; }
+  .system-totals { grid-template-columns: 1fr 1fr; }
+  .system-totals > div:nth-child(3) { padding-left: 0; border-top: 1px solid #876f4e; border-left: 0; }
+  .system-totals > div:nth-child(4) { border-top: 1px solid #876f4e; }
+  .system-checks { grid-template-columns: 1fr; }
+  .system-check > p { min-height: auto; }
+  .system-observation-rows > div { grid-template-columns: 1fr 1fr; gap: 7px 12px; padding: 9px 0; }
+  .system-observation-rows strong,
+  .system-observation-rows small { grid-column: 1 / -1; }
+}
+
+/* UI V2 rendered-conformance floor: surface-scoped ink, full opacity, and the
+   approved 12px minimum for meaningful normal text across every scale. */
+.paper-card {
+  --surface-text: #201d18;
+  --surface-muted: #494235;
+  border-color: #71614a;
+  color: var(--surface-text);
+}
+.paper-card .service-kicker { color: var(--surface-muted); }
+.paper-card .crew-list i { color: var(--surface-muted); }
+.dark-panel,
+.source-state,
+.fixture-loading-frame,
+.fixture-panel,
+.selector-reference,
+.career-menu {
+  --surface-text: #f4efe2;
+  --surface-muted: #c2bcaf;
+  border-color: #829087;
+  color: var(--surface-text);
+}
+.squadron-panel {
+  --surface-text: #f4efe2;
+  --surface-muted: #d5d0c4;
+  border-color: #a5ad91;
+  color: var(--surface-text);
+}
+.sidebar,
+.board-header,
+.fixture-contract-notice {
+  --surface-text: #f4efe2;
+  --surface-muted: #d5d0c4;
+  color: var(--surface-text);
+}
+
+:where(.app-shell) :where(small, code, dt, dd, th, td, p, span, em, strong, button, a, label, legend, time, blockquote) {
+  font-size: max(12px, 1em) !important;
+}
+:where(.app-shell) :where(p, span, small, code, dt, dd, th, td, em, time, blockquote, .panel-label, .field-stamp) {
+  opacity: 1 !important;
+}
+
+.paper-card :where(.panel-label, p, small, code, dt, time, th),
+.paper-card :where([class*="totals"], [class*="stats"], .record-grid) span,
+.paper-card .panel-heading > span,
+.paper-card .system-summary-heading > div > span,
+.paper-card :where([class$="-heading"], [class*="-heading "]) > div > span {
+  color: var(--surface-muted) !important;
+}
+.paper-card :where(h2, h3, strong, dd, td, button, a) {
+  color: var(--surface-text);
+}
+.paper-card :where(.field-stamp, [class*="-stamp"]) {
+  border-color: #6b342d;
+  color: #6b342d !important;
+}
+.pilot-copy em,
+.identity-copy dd em,
+.aircrew-identity-body dd em,
+.current-assignment dd em {
+  background: #315c3a;
+  color: #f4efe2;
+}
+.pilot-copy em[data-tone="danger"],
+.identity-copy dd em[data-tone="danger"],
+.aircrew-identity-body dd em.danger { background: #6e2e29; }
+.pilot-copy em[data-tone="warning"],
+.identity-copy dd em[data-tone="warning"],
+.aircrew-identity-body dd em.warning { background: #674b14; }
+:where(.field-stamp, .campaign-badge, [class$="-stamp"], [class*="-stamp "]) {
+  font-size: 12px !important;
+}
+
+:where(.dark-panel, .source-state, .fixture-loading-frame, .fixture-panel, .selector-reference, .career-menu) :where(.panel-label, p, small, code, dt, time, th, span),
+.squadron-panel :where(.panel-label, p, small, code, dt, time, th, span),
+.board-header :where(p, small, span),
+.sidebar :where(small, span) {
+  color: var(--surface-muted) !important;
+}
+:where(.dark-panel, .source-state, .fixture-loading-frame, .fixture-panel, .selector-reference, .career-menu, .squadron-panel) :where(h2, h3, strong, dd, td, button, a) {
+  color: var(--surface-text);
+}
+.title-block h1,
+.campaign-badge { color: #f4efe2; }
+.campaign-badge,
+.system-status-trigger,
+.fixture-trigger,
+.career-menu button,
+.fixture-panel button,
+.selector-reference button { border-color: #829087; }
+.sidebar nav button.active,
+.system-status-trigger.active,
+.fixture-panel button.active,
+.selector-reference button[aria-selected="true"] {
+  border-color: #e0b65c;
+  color: #f4efe2;
+}
+.sidebar nav button.active { background-color: #67512f; }
+:is(.mission-filters, .squadron-filters, .diary-filters, .reports-filters, .system-filters) button {
+  border-color: #829087;
+}
+:is(.mission-filters, .squadron-filters, .diary-filters, .reports-filters, .system-filters) button.active {
+  border-color: #e0b65c;
+}
+.mission-row,
+.aircrew-row { border-top-color: #829087; }
+.sidebar .system-status-trigger.active :where(span, small),
+.squadron-panel .system-readonly-note strong {
+  color: #f4efe2 !important;
+}
+.aircrew-monogram small {
+  color: #f4efe2 !important;
+}
+.crew-manifest .crew-list span,
+.report-document :where(span, small, dt, code, time) {
+  color: var(--surface-muted) !important;
+}
+.field-stamp { opacity: 1; }
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; }
+}
+
+@media (prefers-contrast: more) {
+  :root { --muted: #c7c8b7; --brass: #c69a55; }
+  .paper-card,
+  .dark-panel,
+  .squadron-panel,
+  .source-state { border-width: 2px; }
+  .title-block p,
+  .panel-heading p,
+  .header-facts small { color: #d0d2c2; }
+  .paper-card :is(small, dt, code, time) { color: #403022; }
+}
+
+@media (forced-colors: active) {
+  .sidebar,
+  .workspace,
+  .paper-card,
+  .dark-panel,
+  .squadron-panel,
+  .riveted { background-image: none; }
+  .paper-card,
+  .dark-panel,
+  .squadron-panel,
+  .source-state,
+  .fixture-contract-notice,
+  .fixture-loading-frame,
+  .career-menu,
+  .fixture-panel { border-color: CanvasText; background: Canvas; color: CanvasText; }
+  :where(button, a, [tabindex]):focus-visible { outline-color: Highlight; }
+  .system-state,
+  .monitor,
+  .mission-row em,
+  .aircrew-row em { color: CanvasText; }
+  .track i { background: Highlight; }
+}

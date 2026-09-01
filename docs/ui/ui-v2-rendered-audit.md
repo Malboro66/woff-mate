@@ -1,134 +1,177 @@
-# UI V2 published-site audit
+# UI V2 rendered conformance audit
 
-Status: Failed — corrections required
+Status: Passed within the recorded Issue #79 coverage.
 
-Date: 2026-08-29
+Date: 2026-09-01
 
 Eval: `EVAL-UI-DESIGN-001`
 
-Tracks: Issue #79
+## Source and traceability
 
-## Source and authority
-
-The current rendered source for UI V2 is the published
+The active rendered source is the published
 [WoFF Mate UI V2 Site](https://woff-mate-ui-v2.pilotohans.chatgpt.site/).
-It replaces Figma as the active visual reference. The original Figma file is
-retained only as an archive and design-origin record.
+This is a sanitized design/reference prototype, not the production Python UI.
+Figma is archival. Audits 1–3 are immutable historical evidence, superseded for
+current acceptance because their flags did not enforce the claimed behavior.
 
-This audit checks the published Site as a prototype. It does not treat the Site
-as production code, approve a web runtime for the Windows application, or
-replace the toolkit-independent contracts in
-[UI V2 reference](ui-v2-reference.md) and
-[UI V2 visual system](ui-v2-visual-system.md).
+- Evidence: [`UIV2-SITE-2026-09-01-AUDIT-4`](evidence/ui-v2-site-2026-09-01-audit-4/README.md).
+- Saved version: `18`.
+- Source commit: `cf20ea65049682d2fb84f33f329213b93ba0575e`.
+- Deployment: `appgdep_6a96d56b15608191b13155cbcb7f7204`.
+- Saved version ID: `appgprj_6a8baac178c88191acc54dde62e1870d~appgver_659eb3bc64f081919436991e057f63a7`.
+- Deployment API status: `succeeded`.
+- Evidence-set SHA-256: `164aabda86d7a7766345c9715d46815ce9c5ec8a4ae7c2e6b30444aabd6d992d`.
 
-## Capture record
+The saved archive was built from the tested, committed and pushed source.
+The evidence includes actual DOM/style/control observations, the executable
+browser driver, paint calculator, regression tests and presentation source
+snapshots. `SHA256SUMS` verifies their immutable bytes.
 
-- Evidence revision: [`UIV2-SITE-2026-08-29-AUDIT-1`](evidence/ui-v2-site-2026-08-29/README.md).
-- Published deployment: `69c0abd6-d843-4646-b141-f76723098421`, obtained
-  from `__artifactCompatibility.deploymentVersion` while the audited revision
-  remained published.
-- Evidence-set SHA-256:
-  `ef028e0f8a49663c1a5b7d835b61f4c5128b238a7dde0df0e0f8633d0892b161`.
-- Browser viewport: 1363 by 936 CSS pixels at device-pixel ratio 1.
-- Fixture profile displayed by the Site: `Desktop 100%`.
-- Captures: versioned full-page JPEG evidence for the seven
-  persistent-navigation destinations, plus the Career Selector, Mission Report,
-  Aircrew Profile, Report Viewer, and Desktop Fixture Matrix.
-- Data: the Site's synthetic/sanitized fixture only.
-- Source states exercised: `Complete` for the recorded contrast table, a
-  same-name career change, primary navigation, and contextual entry/return
-  routes.
+## Method and boundaries
 
-The Site exposed these fixture-matrix screen IDs: `OPR-01`, `DOS-01`, `MIS-01`,
-`MIS-02`, `SQD-01`, `SQD-02`, `JRN-01`, `RPT-01`, `RPT-02`, and `SYS-01`. It
-also exposed fourteen semantic states and four desktop scale profiles.
+The driver selected every fixture through visible controls in the supervised
+preview. It read rendered DOM and computed styles, pressed actual Tab keys,
+and activated the four permitted state actions. It did not write DOM state,
+force clicks or inspect React internals.
 
-## Contrast method
+Browser viewport width: 1363 CSS pixels; height: 936 CSS pixels.
+Four preview profiles resize a real logical canvas inside this fixed host.
+They are not browser zoom labels or native Windows DPI certification.
 
-For every visible text run, the audit recorded the computed foreground,
-cumulative opacity, font size and weight, bounding rectangle, and nearest
-rendered surface. The versioned full-page capture supplied the actual textured
-backdrop. The reported rendered ratio uses the WCAG relative-luminance formula
-against the median of the adjacent four-pixel background ring. This avoids
-counting anti-aliased glyph pixels as background while retaining the paper,
-wood, felt, gradient, and opacity composition visible beside the glyphs. The
-computed base pairs also fail for every representative row, so the result does
-not depend on the capture encoding.
+Text contrast is a conservative lower bound computed from the actual texture
+crop under each text rectangle and computed gradients, alpha and inset
+shadows. Unsupported paint operations fail closed. The minimum retained text
+bound is 4.61:1; required control boundaries measure at least 3.12:1.
+The two-ring focus colors give 5.62:1 contrast with 3 px per ring.
+These are not screenshot pixel samples. Scroll-clipped nodes are recorded as
+excluded, never assigned an invented passing ratio.
 
-The table records one representative failure per destination. All examples are
-normal text and therefore require at least 4.5:1. Because even the local median
-is below 4.5:1, the failure does not depend on claiming a global pixel minimum.
+Coverage is 60 complete screen/profile cases, 14 representative DOS-01 states
+at 100%, 12 DOS-01 pilot-status inputs at 100%, 28 complete Tab sequences at
+200%, four state-action flows, 36 fixture-dialog controls, and three same-name
+career isolation flows. Text paint covers 86 cases; control boundaries cover
+all 15 complete screens at 200%. Modal contrast and a full 15×14×4 semantic
+cross-product are not claimed. Screen-reader/native-toolkit audits remain
+separate work.
 
-| Screen | Representative text | Computed base pair | Rendered local ratio | Required | Result |
-|---|---|---:|---:|---:|---|
-| `OPR-01` Operations Board | `RFC · FORM 14A · FIELD COPY` | 2.02:1 | 2.17:1 | 4.5:1 | Fail |
-| `DOS-01` Pilot Dossier | `· READ ONLY` | 2.02:1 | 2.07:1 | 4.5:1 | Fail |
-| `MIS-01` Mission Log | `14 SQN · RFC` | 2.68:1 | 2.96:1 | 4.5:1 | Fail |
-| `JRN-01` War Diary | `Location` | 1.06:1 | 1.14:1 | 4.5:1 | Fail |
-| `RPT-01` Reports Library | `Period` | 1.06:1 | 1.15:1 | 4.5:1 | Fail |
-| `SQD-01` Squadron Roster | `Bailleul Aerodrome · 15 AUG 1917` | 3.05:1 | 3.20:1 | 4.5:1 | Fail |
-| `SYS-01` System Status | unknown-value em dash | 2.67:1 | 2.73:1 | 4.5:1 | Fail |
+## Actual profile changes
 
-Two repeated causes are visible in the computed styles:
+| Profile | Logical cap | Actual canvas | Rail | Dossier stat columns | Side below ledger |
+|---|---|---|---:|---:|---|
+| Desktop 100% | 1440×1024 | 1363×936 | 256 | 6 | No |
+| Desktop 125% | 1152×819 | 1152×819 | 232 | 3 | Yes |
+| Desktop 150% | 960×683 | 960×683 | 232 | 3 | Yes |
+| Desktop 200% | 720×512 | 720×512 | 184 | 2 | Yes |
 
-- dark-surface muted text (`rgb(173, 179, 161)`) is reused on textured paper,
-  producing approximately 1.06:1 before the texture is sampled; and
-- stamps and small paper metadata use muted color and opacity combinations
-  that remain below the normal-text threshold.
+Shell/main client and scroll widths match in every captured profile. There
+are no measured text sizes below 12 px. A stuck canvas, unchanged rail,
+incorrect column count or unchanged side placement fails the executable test.
 
-The published Site also renders essential metadata at 7–10 CSS pixels even
-though `type.caption` is 12 logical pixels in the approved visual system. That
-is a separate conformance problem from the contrast ratio.
+## Screen and read-only control inventory
 
-## Interaction and contract checks
+Counts below exclude the ten shell controls, which are also individually
+recorded and checked. Contrast is the minimum of each screen's four profile
+captures, rounded down. The JSON retains full precision.
 
-| Check | Observed evidence | Result |
-|---|---|---|
-| Stable same-name career selection | Selecting career `RAF-41B-22C1` from `MIS-02` updated the context to `41 Squadron RAF` but retained the previous `MIS-1917-08-15-027` report, including `14 Squadron RFC` content. | Fail |
-| Programmatic destination focus | Primary navigation to Pilot Dossier left focus on `<main class="workspace" tabindex="-1">`; the `h1` had no `tabindex` and was not active. | Fail |
-| Published navigation contract | The visible order is `Dashboard`, `Pilot`, `Missions`, `Diary`, `Reports`, `Squadron`; the normative order is `Operations`, `Pilot Dossier`, `Missions`, `Squadron`, `War Diary`, `Reports`. | Fail |
-| Core contextual routes | `MIS-02`, `SQD-02`, `RPT-02`, the Career Selector, fixture states, filters, and return routes were reachable without a dead end. | Pass |
-| Required visual coverage | The fixture matrix does not expose standalone `APP-00`, `SEL-01`, `DOS-02`, `DOS-03`, or `DOS-04` records. | Partial |
+| Screen | Main interactive controls | Text lower bound |
+|---|---|---:|
+| `APP-00` | 0 | 5.18:1 |
+| `SEL-01` | 2 stable-slot career options | 5.18:1 |
+| `OPR-01` | 6 owned mission/aircrew links | 4.61:1 |
+| `DOS-01` | 3 dossier-context links | 5.18:1 |
+| `DOS-02` | 1 return to Dossier | 4.83:1 |
+| `DOS-03` | 1 return to Dossier | 5.05:1 |
+| `DOS-04` | 1 return to Dossier | 4.83:1 |
+| `MIS-01` | 4 filters + 5 record rows | 4.68:1 |
+| `MIS-02` | 1 return to Mission Log | 4.86:1 |
+| `SQD-01` | 4 filters + 11 aircrew rows | 4.68:1 |
+| `SQD-02` | 1 return to Squadron | 4.67:1 |
+| `JRN-01` | 4 filters + 5 mission links | 4.68:1 |
+| `RPT-01` | 4 filters + 4 report links | 4.68:1 |
+| `RPT-02` | 1 return to Reports | 5.08:1 |
+| `SYS-01` | 5 status filters | 4.68:1 |
 
-The same-name result is a presentation-boundary failure: changing the active
-career must clear or replace previous-career content before presenting the new
-context. A fixture label is not sufficient protection when contradictory
-career data remains visible.
+Every discovered interactive control has its role, accessible name, action
+purpose, href, tabindex and bounding rectangle recorded. Unknown purposes or
+write/session controls fail; tests inject Edit, Delete, Import, Reset, Launch,
+Save, Repair and other prohibited actions on every required screen.
+Minimum observed target width is 54.671875 px and height is 40 px.
+The contract enforces ≥32×32 and primary height ≥40, per control and profile.
 
-## Required corrections
+## Complete keyboard coverage
 
-1. Scope text colors to their rendered surface. Paper metadata must use the
-   approved ink tokens at full effective contrast; muted dark-surface tokens
-   cannot inherit into paper cards. Recheck every state and scale after texture
-   and opacity composition.
-2. Raise essential typography to the approved token floor; do not use 7–10
-   pixel text for status, provenance, table headings, or other meaningful data.
-3. On `career_id` change, clear the current detail snapshot immediately, enter
-   the loading/no-career-safe geometry, and route only to content belonging to
-   the newly selected identity.
-4. Move one-time programmatic focus to the destination `h1` with
-   `tabindex="-1"` or the toolkit-equivalent API. Keep the heading out of the
-   sequential `Tab` order and restore overlay focus to its opener.
-5. Align the published navigation label/order with the normative screen map and
-   either add the missing contextual coverage or identify the Site explicitly
-   as a partial visual source.
+The shell order is Skip, career selector, Operations, Pilot Dossier, Missions,
+Squadron, War Diary, Reports, Data & System Status, then Fixture matrix.
+The latter is a prototype-only control. Each recorded sequence continues
+through contextual returns, links, filters, record rows and state actions to
+the final control. The 15 complete screens plus 13 exceptional Dossier states
+give 28 sequences; observations retain every stop's visible focus and viewport
+presence. `h1#screen-title` has tabindex −1 and receives destination focus;
+it is never a sequential Tab stop.
 
-## Outcome and rerun rule
+The fixture dialog records all 36 controls, visible focus, forward/reverse
+wrapping and Escape restoration. Its native status select receives visible
+focus. Earlier career-selector Space/ArrowDown/Escape results remain historical
+and are not newly certified by this run.
 
-`EVAL-UI-DESIGN-001` remains `planned` and Issue #79 remains `in_progress`.
-The repository contract is reviewable, but the published rendered source does
-not yet satisfy its contrast, identity-isolation, focus, navigation, or coverage
-requirements.
+## State and status semantics
 
-The audit may pass only after a new published revision records:
+For every shared state, the capture retains displayed fields, their typed
+states, collection counts, text, sanitized reason and permitted controls.
 
-- at least 4.5:1 for every normal-text role and 3:1 for large text and
-  essential non-text boundaries on the rendered pixels;
-- all required screen/state/scale coverage, including `MIS-02`, `SQD-02`, and
-  `RPT-02`, or an approved reduction of scope;
-- no previous-career content after a `career_id` change;
-- the specified focus and navigation behavior; and
-- a new immutable deployment identifier and sanitized, hashed evidence set.
+- Complete retains six authoritative values; empty collections retain unrelated
+  career totals and do not become missing records.
+- Loading and absent/invalid-source states contain no previous record values,
+  no borrowed events/victories and no false valid-empty collections.
+- Partial retains known fields and distinguishes unavailable, unknown and invalid.
+- Zeroes remain explicit values; unknown values never become zero.
+- No-career clears identity and offers Select career.
+- Missing, truncated, unsupported, unreadable and unavailable have distinct reasons.
+- Error offers Retry view and View data status without paths, payloads or raw exceptions.
+- Stale retains the safe older snapshot and the 14 AUG 1917 · 23:41 timestamp,
+  explicitly labels it non-current, and offers Refresh snapshot.
+- Retry/refresh were observed before, during cleared loading, and after recovery;
+  status navigation reached SYS-01 and Select career recovered the same career.
 
-Flat token calculations and an archived Figma export remain supporting design
-data only; neither substitutes for a passing audit of the published Site.
+The eight normalized pilot statuses were separately rendered and checked:
+`Active`, `KIA` → Killed in Action (KIA), `PoW` → Prisoner of War (PoW),
+`MIA` → Missing in Action (MIA), `Invalided Out`, `Survived War`,
+`Lightly Wounded`, and `Seriously Wounded`.
+Missing, blank and unavailable input map to Unknown. The future value
+Transferred (future) remains verbatim with an unsupported-mapping notice.
+Source input, visible label and accessibility label are all recorded;
+collapsing wound severity or changing only the accessibility label fails.
+
+## Career and source-slot isolation
+
+Changing from RFC career `RFC-14A-08F2` to same-name RAF career
+`RAF-41B-22C1` was exercised independently from mission, aircrew and report
+detail. Each old reference is visible first, absent after selection, and absent
+when its detail route is reopened. The resulting RAF view shows WoFF Pilot 2,
+41 Squadron and Bertangles. No claim is made about capturing the transient
+animation frame between those observations.
+
+The standalone sparse selector contains only WoFF Pilot 2 / RAF-41B-22C1 and
+WoFF Pilot 3 / CAREER-14B8. It never derives a slot label from list position.
+Slot-vacancy reconciliation and same-slot generation detection are backend
+issues, not implemented by this design evidence.
+
+## Enforcement and decision
+
+`scripts/validate_ui_v2_evidence.py` verifies exact coverage, measured
+geometry, state semantics, status labels, per-control targets/purposes, full
+Tab order, action outcomes, contextual isolation and recomputed retained
+contrast bounds. `test_ui_v2_evidence.py` deliberately corrupts each reviewed
+contract and requires rejection. The architecture contract checks governance,
+links, immutable source/measurement hashes and all historical manifests.
+
+The pinned Site source passed 51 tests, its app-only TypeScript check and its
+production build. Python CI replays the archive; it does not contact or
+certify the mutable live Site. A changed Site source requires a fresh rendered
+run and a new immutable evidence revision.
+
+`EVAL-UI-DESIGN-001` passes and is implemented for this bounded design
+acceptance. Issue #79 may close through PR #124 after review and merge.
+This does not implement #80, #81, #82 or #122, adopt a GUI toolkit, approve a
+Product Gate, or complete a release/cycle. No real campaign data or credentials
+are present, and no Python production/runtime dependency is changed.

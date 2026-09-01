@@ -1,0 +1,153 @@
+{
+  "evidenceRevision": "UIV2-SITE-2026-08-31-AUDIT-3",
+  "predecessor": {
+    "evidenceRevision": "UIV2-SITE-2026-08-31-AUDIT-2",
+    "evidenceSetSha256": "a64fd0e67383d3cf828ec33edc225fde18df1a710833b648a838222938ee5ce9"
+  },
+  "deployment": {
+    "id": "appgdep_6a95ebac3afc8191a3913a988ad16ac3",
+    "savedVersion": 17,
+    "savedVersionId": "appgprj_6a8baac178c88191acc54dde62e1870d~appgver_6b91e8fab2f481919c054576804969cf",
+    "sourceCommit": "d96fb6da3e5240919d9dc95fca68f9060c3e9434",
+    "url": "https://woff-mate-ui-v2.pilotohans.chatgpt.site"
+  },
+  "browser": {
+    "viewportWidthCssPx": 1363,
+    "devicePixelRatio": 1,
+    "fixtureProfile": "Desktop 100%"
+  },
+  "method": {
+    "textThreshold": 4.5,
+    "largeTextThreshold": 3.0,
+    "nonTextContrastThreshold": 3.0,
+    "minimumMeaningfulFontSizeCssPx": 12,
+    "backgroundSelection": "nearest opaque rendered surface",
+    "formula": "WCAG relative luminance",
+    "focusMethod": "computed focus-visible rings against their adjacent rendered colors",
+    "keyboardMethod": "sequential Tab order plus Enter, Space, ArrowDown, Escape, and modal wrap checks"
+  },
+  "summary": {
+    "requiredScreenCount": 15,
+    "semanticStateCount": 14,
+    "desktopScaleCount": 4,
+    "lowestMeasuredNormalTextRatio": 4.55,
+    "lowestMeasuredNonTextRatio": 3.34,
+    "contrastFailures": 0,
+    "nonTextContrastFailures": 0,
+    "fontSizeFailures": 0,
+    "horizontalOverflowFailures": 0,
+    "destinationFocusFailures": 0,
+    "keyboardInteractionFailures": 0,
+    "careerIsolationFailures": 0,
+    "sparseSlotFailures": 0
+  },
+  "screens": [
+    {"id": "APP-00", "minimumRatio": 5.39, "contrastFailures": 0, "fontSizeFailures": 0, "headingFocused": true, "headingTabIndex": -1, "horizontalOverflow": false},
+    {"id": "SEL-01", "minimumRatio": 5.54, "contrastFailures": 0, "fontSizeFailures": 0, "headingFocused": true, "headingTabIndex": -1, "horizontalOverflow": false},
+    {"id": "OPR-01", "minimumRatio": 4.61, "contrastFailures": 0, "fontSizeFailures": 0, "headingFocused": true, "headingTabIndex": -1, "horizontalOverflow": false},
+    {"id": "DOS-01", "minimumRatio": 4.55, "contrastFailures": 0, "fontSizeFailures": 0, "headingFocused": true, "headingTabIndex": -1, "horizontalOverflow": false},
+    {"id": "DOS-02", "minimumRatio": 5.39, "contrastFailures": 0, "fontSizeFailures": 0, "headingFocused": true, "headingTabIndex": -1, "horizontalOverflow": false},
+    {"id": "DOS-03", "minimumRatio": 5.39, "contrastFailures": 0, "fontSizeFailures": 0, "headingFocused": true, "headingTabIndex": -1, "horizontalOverflow": false},
+    {"id": "DOS-04", "minimumRatio": 5.39, "contrastFailures": 0, "fontSizeFailures": 0, "headingFocused": true, "headingTabIndex": -1, "horizontalOverflow": false},
+    {"id": "MIS-01", "minimumRatio": 4.68, "contrastFailures": 0, "fontSizeFailures": 0, "headingFocused": true, "headingTabIndex": -1, "horizontalOverflow": false},
+    {"id": "MIS-02", "minimumRatio": 4.59, "contrastFailures": 0, "fontSizeFailures": 0, "headingFocused": true, "headingTabIndex": -1, "horizontalOverflow": false},
+    {"id": "SQD-01", "minimumRatio": 4.68, "contrastFailures": 0, "fontSizeFailures": 0, "headingFocused": true, "headingTabIndex": -1, "horizontalOverflow": false},
+    {"id": "SQD-02", "minimumRatio": 4.55, "contrastFailures": 0, "fontSizeFailures": 0, "headingFocused": true, "headingTabIndex": -1, "horizontalOverflow": false},
+    {"id": "JRN-01", "minimumRatio": 4.68, "contrastFailures": 0, "fontSizeFailures": 0, "headingFocused": true, "headingTabIndex": -1, "horizontalOverflow": false},
+    {"id": "RPT-01", "minimumRatio": 4.68, "contrastFailures": 0, "fontSizeFailures": 0, "headingFocused": true, "headingTabIndex": -1, "horizontalOverflow": false},
+    {"id": "RPT-02", "minimumRatio": 5.39, "contrastFailures": 0, "fontSizeFailures": 0, "headingFocused": true, "headingTabIndex": -1, "horizontalOverflow": false},
+    {"id": "SYS-01", "minimumRatio": 4.68, "contrastFailures": 0, "fontSizeFailures": 0, "headingFocused": true, "headingTabIndex": -1, "horizontalOverflow": false}
+  ],
+  "states": [
+    {"label": "Complete", "minimumRatio": 4.55, "contrastFailures": 0, "fontSizeFailures": 0, "headingFocused": true, "horizontalOverflow": false},
+    {"label": "Loading", "minimumRatio": 5.54, "contrastFailures": 0, "fontSizeFailures": 0, "headingFocused": true, "horizontalOverflow": false},
+    {"label": "Empty", "minimumRatio": 4.55, "contrastFailures": 0, "fontSizeFailures": 0, "headingFocused": true, "horizontalOverflow": false},
+    {"label": "Partial", "minimumRatio": 4.55, "contrastFailures": 0, "fontSizeFailures": 0, "headingFocused": true, "horizontalOverflow": false},
+    {"label": "No career", "minimumRatio": 5.54, "contrastFailures": 0, "fontSizeFailures": 0, "headingFocused": true, "horizontalOverflow": false},
+    {"label": "Missing", "minimumRatio": 5.54, "contrastFailures": 0, "fontSizeFailures": 0, "headingFocused": true, "horizontalOverflow": false},
+    {"label": "Truncated", "minimumRatio": 5.54, "contrastFailures": 0, "fontSizeFailures": 0, "headingFocused": true, "horizontalOverflow": false},
+    {"label": "Unsupported", "minimumRatio": 5.54, "contrastFailures": 0, "fontSizeFailures": 0, "headingFocused": true, "horizontalOverflow": false},
+    {"label": "Unreadable", "minimumRatio": 5.54, "contrastFailures": 0, "fontSizeFailures": 0, "headingFocused": true, "horizontalOverflow": false},
+    {"label": "Error", "minimumRatio": 5.54, "contrastFailures": 0, "fontSizeFailures": 0, "headingFocused": true, "horizontalOverflow": false},
+    {"label": "Stale", "minimumRatio": 5.54, "contrastFailures": 0, "fontSizeFailures": 0, "headingFocused": true, "horizontalOverflow": false},
+    {"label": "Authoritative zeroes", "minimumRatio": 4.55, "contrastFailures": 0, "fontSizeFailures": 0, "headingFocused": true, "horizontalOverflow": false},
+    {"label": "Unknown values", "minimumRatio": 4.55, "contrastFailures": 0, "fontSizeFailures": 0, "headingFocused": true, "horizontalOverflow": false},
+    {"label": "Not available", "minimumRatio": 5.54, "contrastFailures": 0, "fontSizeFailures": 0, "headingFocused": true, "horizontalOverflow": false}
+  ],
+  "scales": [
+    {"label": "Desktop 100%", "profile": "desktop-100", "minimumRatio": 4.61, "viewportWidth": 1363, "documentScrollWidth": 1363, "mainClientWidth": 1091, "mainScrollWidth": 1091, "contrastFailures": 0, "fontSizeFailures": 0, "headingFocused": true},
+    {"label": "Desktop 125%", "profile": "desktop-125", "minimumRatio": 4.61, "viewportWidth": 1363, "documentScrollWidth": 1363, "mainClientWidth": 1091, "mainScrollWidth": 1091, "contrastFailures": 0, "fontSizeFailures": 0, "headingFocused": true},
+    {"label": "Desktop 150%", "profile": "desktop-150", "minimumRatio": 4.61, "viewportWidth": 1363, "documentScrollWidth": 1363, "mainClientWidth": 1091, "mainScrollWidth": 1091, "contrastFailures": 0, "fontSizeFailures": 0, "headingFocused": true},
+    {"label": "Desktop 200%", "profile": "desktop-200", "minimumRatio": 4.61, "viewportWidth": 1363, "documentScrollWidth": 1363, "mainClientWidth": 1091, "mainScrollWidth": 1091, "contrastFailures": 0, "fontSizeFailures": 0, "headingFocused": true}
+  ],
+  "nonTextContrast": {
+    "threshold": 3.0,
+    "lowestMeasuredRatio": 3.34,
+    "failures": 0,
+    "focusTreatment": {
+      "innerColor": "rgb(247, 242, 230)",
+      "outerColor": "rgb(125, 90, 24)",
+      "ratio": 5.62,
+      "minimumThicknessCssPx": 3,
+      "computedBoxShadow": "rgb(247, 242, 230) 0px 0px 0px 3px, rgb(125, 90, 24) 0px 0px 0px 6px"
+    },
+    "boundaries": [
+      {"label": "Paper action", "boundaryColor": "rgb(113, 97, 74)", "adjacentFill": "rgb(240, 228, 202)", "ratio": 4.74},
+      {"label": "Current navigation", "boundaryColor": "rgb(224, 182, 92)", "adjacentFill": "rgb(117, 91, 52)", "ratio": 3.34},
+      {"label": "System status control", "boundaryColor": "rgb(130, 144, 135)", "adjacentFill": "rgb(23, 35, 29)", "ratio": 4.86},
+      {"label": "Sparse selector option", "boundaryColor": "rgb(130, 144, 135)", "adjacentFill": "rgb(32, 45, 38)", "ratio": 4.29}
+    ]
+  },
+  "interaction": {
+    "sequentialFocus": [
+      {"label": "Skip to main content", "visibleFocus": true},
+      {"label": "Change active career", "visibleFocus": true},
+      {"label": "Operations", "visibleFocus": true},
+      {"label": "Pilot Dossier", "visibleFocus": true},
+      {"label": "Missions", "visibleFocus": true},
+      {"label": "Squadron", "visibleFocus": true},
+      {"label": "War Diary", "visibleFocus": true},
+      {"label": "Reports", "visibleFocus": true},
+      {"label": "Data & System Status", "visibleFocus": true},
+      {"label": "Fixture matrix", "visibleFocus": true}
+    ],
+    "destinationFocus": {"target": "H1#screen-title", "tag": "H1", "id": "screen-title", "tabIndex": -1, "sequentialTabStop": false},
+    "careerSelectorKeyboard": {
+      "enterOpens": true,
+      "arrowDownMovesFocusTo": "WoFF Pilot 2 · RAF-41B-22C1",
+      "escapeCloses": true,
+      "escapeRestoresFocusTo": "Change active career",
+      "spaceOpens": true,
+      "spaceActivatesOption": true,
+      "activationRestoresFocusTo": "Change active career"
+    },
+    "fixtureDialogKeyboard": {
+      "initialFocus": "APP-00 Application Shell",
+      "shiftTabWrapsTo": "Apply desktop preview",
+      "tabWrapsTo": "APP-00 Application Shell",
+      "escapeCloses": true,
+      "escapeRestoresFocusTo": "Fixture matrix"
+    },
+    "sparseSlots": {
+      "fixture": "sparse-slots-2-3",
+      "pilot1Present": false,
+      "options": [
+        {"listIndex": 0, "slotLabel": "WoFF Pilot 2", "careerId": "RAF-41B-22C1"},
+        {"listIndex": 1, "slotLabel": "WoFF Pilot 3", "careerId": "CAREER-14B8"}
+      ]
+    },
+    "sameNameCareerSwitch": {
+      "fromCareer": "RFC-14A-08F2",
+      "toCareer": "RAF-41B-22C1",
+      "toSlotLabel": "WoFF Pilot 2",
+      "contexts": {
+        "mission": {"oldReference": "MIS-1917-08-15-027", "visibleBeforeSelection": true, "visibleAfterSelection": false},
+        "aircrew": {"oldReference": "RFC-14-A-002", "oldName": "Capt Collins", "visibleBeforeSelection": true, "visibleAfterSelection": false},
+        "report": {"oldReference": "RPT-RFC14A-19170815-CAREER", "visibleBeforeSelection": true, "visibleAfterSelection": false}
+      },
+      "newCareerReferenceVisible": true,
+      "newSquadronVisible": true,
+      "newAerodromeVisible": true
+    }
+  }
+}
