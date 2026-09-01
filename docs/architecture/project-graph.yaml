@@ -134,9 +134,10 @@ modules:
     forbidden_dependencies: []
 
   governance:
-    responsibility: Executable repository policy and project graph validation.
+    responsibility: Executable repository policy, project graph and immutable evidence validation.
     paths:
       - scripts/validate_project_graph.py
+      - scripts/validate_ui_v2_evidence.py
     may_depend_on: []
     forbidden_dependencies:
       - foundation
@@ -185,7 +186,7 @@ gates:
   Q5:
     description: Product decision gates approve data reliability, launcher viability, social core, or public release.
   Q6-CYCLE-3.3.0:
-    description: All sixteen 3.3.0 work items, applicable evals, functional exit criteria, documentation, and CI are approved.
+    description: All seventeen 3.3.0 work items, applicable evals, functional exit criteria, documentation, and CI are approved.
   Q6-CYCLE-3.4.0:
     description: All sixteen 3.4.0 work items, applicable evals, functional exit criteria, documentation, and CI are approved.
 
@@ -321,6 +322,30 @@ evals:
     work_items: [issue-87]
     status: planned
     evidence: Sanitized longitudinal Dossier fixtures distinguish a replay from a same-name replacement career in the same pilot slot, or record that the available structure cannot do so safely.
+  EVAL-PILOT-VACANCY-001:
+    work_items: [issue-122]
+    status: planned
+    evidence: Confirmed Dossier absence vacates only the exact namespaced slot, dependent files cannot preserve occupancy, and the historical career and every related record remain unchanged.
+  EVAL-PILOT-SPARSE-001:
+    work_items: [issue-122]
+    status: planned
+    evidence: Sparse live slots retain their original Pilot numbers without renumbering or rebinding surviving careers.
+  EVAL-PILOT-VACANCY-STABILITY-001:
+    work_items: [issue-122]
+    status: planned
+    evidence: Atomic replacement, transient sharing failures, unavailable roots, and incomplete scans cannot create a false vacancy.
+  EVAL-PILOT-VACANCY-RESTART-001:
+    work_items: [issue-122]
+    status: planned
+    evidence: Startup reconciliation repairs stale bindings only after a complete successful Dossier inventory for the applicable campaign namespace.
+  EVAL-PILOT-VACANCY-REUSE-001:
+    work_items: [issue-122]
+    status: planned
+    evidence: A Dossier arriving after confirmed vacancy creates a new career identity for same-name or different-name slot reuse without inheriting historical data.
+  EVAL-PILOT-VACANCY-ISOLATION-001:
+    work_items: [issue-122]
+    status: planned
+    evidence: Vacancy, restart reconciliation, persistence rollback, and slot reuse are idempotent and isolated across campaign namespaces.
   EVAL-PILOT-STATUS-001:
     work_items: [issue-71]
     status: implemented
@@ -494,12 +519,19 @@ evals:
       - woff/tests/test_victory_decoration_merge.py
   EVAL-DOSSIER-001:
     work_items: [issue-35]
-    status: planned
+    status: implemented
     evidence: Required identity is validated by fields instead of line count.
+    enforced_by:
+      - woff/tests/test_dossier_parser.py
+      - woff/tests/test_dossier_transactions.py
   EVAL-DOSSIER-002:
     work_items: [issue-35]
-    status: planned
+    status: implemented
     evidence: Useful partial data is distinguished from truncation and decoding failure.
+    enforced_by:
+      - woff/tests/test_dossier_parser.py
+      - woff/tests/test_dossier_transactions.py
+      - woff/tests/test_pilot_stat_merge.py
   EVAL-ROSTER-001:
     work_items: [issue-37]
     status: planned
@@ -613,8 +645,8 @@ evals:
   EVAL-UI-DESIGN-001:
     work_items: [issue-79]
     status: implemented
-    evidence: Published UI V2 Site version 17 and deployment appgdep_6a95ebac3afc8191a3913a988ad16ac3 pass all 15 screen IDs, 14 shared states, four desktop scales, rendered WCAG AA text and non-text contrast, full keyboard and focus behavior, mission-aircrew-report career isolation, and an actual sparse Pilot2/Pilot3 list; immutable revision UIV2-SITE-2026-08-31-AUDIT-3 pins the evidence.
-    enforced_by: [woff/tests/test_architecture_contracts.py]
+    evidence: Published UI V2 Site version 18 and deployment appgdep_6a96d56b15608191b13155cbcb7f7204 pass all 15 screen IDs across four measured logical profiles, 14 representative Dossier states, 12 pilot-status inputs, 28 complete Tab sequences, per-control targets and read-only inventories, WCAG AA text and non-text contrast thresholds within recorded coverage, mission-aircrew-report career isolation, and an actual sparse Pilot2/Pilot3 list; immutable revision UIV2-SITE-2026-09-01-AUDIT-4 pins source and observations. CI replays this capture, not the mutable Site or native Windows DPI.
+    enforced_by: [woff/tests/test_architecture_contracts.py, woff/tests/test_ui_v2_evidence.py]
   EVAL-UI-STATES-001:
     work_items: [issue-80]
     status: planned
@@ -655,6 +687,7 @@ evals:
       - issue-95
       - issue-73
       - issue-27
+      - issue-122
     status: planned
     evidence: Every 3.3.0 member passes its acceptance criteria and applicable evals before the tracker closes.
   EVAL-CYCLE-340-001:
@@ -735,7 +768,7 @@ work_items:
   issue-35:
     title: Replace the Dossier line-count gate with field-level validation
     module: ingestion
-    state: backlog
+    state: done
     evals: [EVAL-DOSSIER-001, EVAL-DOSSIER-002]
     gates: [Q0, Q1, Q3, Q6-CYCLE-3.4.0]
     depends_on:
@@ -752,12 +785,12 @@ work_items:
   issue-37:
     title: Distinguish squadron transfers from missing wingmen
     module: application
-    state: blocked
+    state: backlog
     evals: [EVAL-ROSTER-001, EVAL-ROSTER-002]
     gates: [Q0, Q1, Q2, Q6-CYCLE-3.4.0]
     depends_on:
       - {id: issue-34, status: satisfied}
-      - {id: issue-35, status: unsatisfied}
+      - {id: issue-35, status: satisfied}
   issue-38:
     title: Use exact aliases and stop fabricating unknown normalized values
     module: domain
@@ -1048,6 +1081,23 @@ work_items:
     depends_on:
       - {id: issue-37, status: unsatisfied}
       - {id: issue-96, status: unsatisfied}
+  issue-122:
+    title: Reconcile pilot-slot vacancy after campaign deletion and reuse
+    module: ingestion
+    state: backlog
+    evals:
+      - EVAL-PILOT-VACANCY-001
+      - EVAL-PILOT-SPARSE-001
+      - EVAL-PILOT-VACANCY-STABILITY-001
+      - EVAL-PILOT-VACANCY-RESTART-001
+      - EVAL-PILOT-VACANCY-REUSE-001
+      - EVAL-PILOT-VACANCY-ISOLATION-001
+    gates: [Q0, Q1, Q2, Q3, Q4, Q6-CYCLE-3.3.0]
+    depends_on:
+      - {id: issue-70, status: satisfied}
+      - {id: issue-94, status: satisfied}
+      - {id: issue-42, status: satisfied}
+      - {id: issue-27, status: satisfied}
 
 cycles:
   cycle-3.2.1:
@@ -1077,6 +1127,7 @@ cycles:
       - issue-95
       - issue-73
       - issue-27
+      - issue-122
     aggregate_eval: EVAL-CYCLE-330-001
     gate: Q6-CYCLE-3.3.0
   cycle-3.4.0:

@@ -40,7 +40,7 @@ public 3.2.1 release unless release evidence is recorded separately.
 
 ## Active cycle 3.3.0
 
-Issue #50 is the official tracker. The sixteen work items remain separate
+Issue #50 is the official tracker. The seventeen work items remain separate
 issues and pull requests.
 
 | Work item | Eval IDs | Required evidence |
@@ -61,12 +61,13 @@ issues and pull requests.
 | #95 | `EVAL-PERSIST-RETRY-001` through `EVAL-PERSIST-RETRY-004` | Exactly-once persistence, same-mission derived-state correction, a stable retry bound across late notifications, and complete startup recovery coverage |
 | #73 | `EVAL-VICTORY-MERGE-001`, `EVAL-DECORATION-MERGE-001` | Lossless same-minute victories and non-destructive enrichment of stable rows |
 | #27 | `EVAL-DEFER-001`, `EVAL-DEFER-002` | Deferred reprocessing without loss or unbounded retention |
+| #122 | `EVAL-PILOT-VACANCY-001`, `EVAL-PILOT-SPARSE-001`, `EVAL-PILOT-VACANCY-STABILITY-001`, `EVAL-PILOT-VACANCY-RESTART-001`, `EVAL-PILOT-VACANCY-REUSE-001`, `EVAL-PILOT-VACANCY-ISOLATION-001` | Exact namespaced vacancy, sparse-slot preservation, bounded false-vacancy protection, safe startup repair, new career identity on reuse, and cross-root idempotence |
 
 ### EVAL-CYCLE-330-001
 
 The aggregate eval passes only when:
 
-- all sixteen member issues satisfy their acceptance criteria
+- all seventeen member issues satisfy their acceptance criteria
 - every applicable member eval is implemented and passing
 - dependency relations in the graph are satisfied
 - focused tests, related tests, the full suite, and Pyright pass
@@ -77,16 +78,24 @@ The aggregate eval passes only when:
 Green CI alone does not pass this aggregate eval.
 
 Issue #27 and its two deferred-ingestion evals reached `main` through PR #115.
-Issue #87 remains the only unresolved cycle member. Its sanitized-evidence gap
-does not weaken or reopen the guarantees already verified by #70. The aggregate
-gate remains pending until #87 records either sufficient longitudinal evidence
-or the structural limitation defined by its acceptance criteria.
+Issue #122 is the new implementable cycle member for confirmed pilot-slot
+vacancy after Dossier deletion or move-away. Issue #87 remains independently
+blocked on privacy-safe longitudinal evidence; its gap does not weaken or reopen
+the guarantees already verified by #70. The aggregate gate remains pending
+until #122 is implemented and #87 records either sufficient longitudinal
+evidence or the structural limitation defined by its acceptance criteria.
 
 ## Newly registered data-integrity evals
 
 | Eval | Work item | Required evidence |
 |---|---|---|
 | `EVAL-CAREER-REUSE-EVIDENCE-001` | #87 | Sanitized longitudinal fixtures distinguish replay from a same-slot, same-name replacement career, or prove that available Dossier structure cannot support the distinction safely |
+| `EVAL-PILOT-VACANCY-001` | #122 | Confirmed Dossier absence vacates only the exact namespaced slot; dependent sources cannot keep it occupied and historical data is preserved |
+| `EVAL-PILOT-SPARSE-001` | #122 | Surviving sparse slots retain their original Pilot numbers and career bindings |
+| `EVAL-PILOT-VACANCY-STABILITY-001` | #122 | Transient replacement, sharing failures, unavailable roots, and incomplete scans do not create false vacancy |
+| `EVAL-PILOT-VACANCY-RESTART-001` | #122 | Startup repairs stale bindings only after a complete successful namespaced Dossier inventory |
+| `EVAL-PILOT-VACANCY-REUSE-001` | #122 | Reuse after confirmed vacancy creates a new career identity without inheriting prior history, including same-name reuse |
+| `EVAL-PILOT-VACANCY-ISOLATION-001` | #122 | Reconciliation, rollback, replay, and reuse remain idempotent and isolated across campaign namespaces |
 | `EVAL-CAREER-SELECT-001` | #93 | Same-name careers stay separate in every query and editor flow selected by stable pilot ID |
 | `EVAL-CAREER-SELECT-002` | #93 | Ambiguous names fail before export or mutation with a deterministic candidate contract |
 | `EVAL-ROOT-BINDING-001` | #94 | Equal slots in distinct watched roots keep independent bindings and persistent career IDs, even after another root retires a same-name career, with correct dependent-file routing |
@@ -126,7 +135,7 @@ claim Q5 or approval of Product Gate A or Gate B.
 
 | Eval | Work item | Status | Evidence or required evidence | Enforcement |
 |---|---|---|---|---|
-| `EVAL-UI-DESIGN-001` | #79 | Implemented | The approved V2 screen map, visual tokens and materials, component/state inventory, focus order, Windows scaling behavior, persistent simulator-slot labels, and synthetic labels pass the recorded repository design walkthrough and the published UI V2 Site passes its rendered contrast and interaction audit | `woff/tests/test_architecture_contracts.py` |
+| `EVAL-UI-DESIGN-001` | #79 | Implemented | The V2 reference and Site version 18 pass the bounded rendered audit: measured logical reflow, semantic states, lossless status labels, complete Tab sequences, per-control targets, read-only inventory, contrast and stable sparse-slot identity; CI replays immutable observations, not the live Site or Windows DPI | `woff/tests/test_architecture_contracts.py`, `woff/tests/test_ui_v2_evidence.py` |
 | `EVAL-UI-STATES-001` | #80 | Planned | Deterministic synthetic fixtures cover every shared state and privacy constraint without production dependencies | — |
 | `EVAL-UI-CONTRACTS-001` | #81 | Planned | Immutable toolkit-independent view models and query protocols preserve stable identity, state, freshness, warnings, and sanitized failures | — |
 | `EVAL-UI-SPIKE-001` | #82 | Planned | One PySide6 line passes the supported Python and Windows packaging and measured resource matrix | — |
@@ -142,12 +151,17 @@ governance state. It also preserves the absence of GUI runtime dependencies.
 The published
 [WoFF Mate UI V2 Site](https://woff-mate-ui-v2.pilotohans.chatgpt.site/)
 replaces Figma as the active rendered source. Its
-[recorded audit](../ui/ui-v2-rendered-audit.md) passes all 15 screen IDs, all 14
-shared semantic states, Desktop 100%, 125%, 150%, and 200%, rendered WCAG AA
-contrast, same-name career isolation, persistent slot presentation,
-destination focus, navigation conformance, and required visual coverage.
+[recorded audit](../ui/ui-v2-rendered-audit.md) passes all 15 screen IDs at four
+logical profiles, all 14 shared semantic states on representative DOS-01,
+12 status inputs, 28 complete Tab sequences, per-control pointer targets and
+read-only inventories. It also records conservative contrast bounds, same-name
+career isolation and persistent slots. It is not native Windows DPI testing
+or a full semantic-state/screen/profile cross-product.
 `EVAL-UI-DESIGN-001` is implemented by the immutable
-`UIV2-SITE-2026-08-31-AUDIT-3` evidence revision and the architecture contract.
+`UIV2-SITE-2026-09-01-AUDIT-4` evidence revision, architecture contract and
+semantic replay/mutation tests. The pinned browser driver produces fresh
+observations; Python CI verifies archived content, geometry and source hashes,
+not the mutable public Site. Audit 1–3 remain immutable historical evidence.
 
 Issue #80 remains unblocked planning work. Issue #81 waits for the shared state
 and fixture vocabulary from #80. Issue #82 is an isolated feasibility spike
@@ -511,12 +525,29 @@ for the broader roster-generation and truncated-input policy.
 | #80 | `EVAL-UI-STATES-001` |
 | #81 | `EVAL-UI-CONTRACTS-001` |
 
-Cycle 3.4.0 is `active`. Issues #28, #38, #41, #75, #79, and #97 are complete.
-Issue #35 is the next dependency-ordered implementation item, #37 remains
-blocked by #35, and #101 remains blocked by #37 and #96.
+Cycle 3.4.0 is `active`. Issues #28, #35, #38, #41, #75, #79, and #97 are complete.
+Issue #37 is now unblocked and is the next dependency-ordered implementation
+item. Issue #101 remains blocked by #37 and #96.
 `EVAL-CYCLE-340-001` aggregates all sixteen members and remains planned until
 every member acceptance criterion, applicable eval, and `Q6-CYCLE-3.4.0`
 condition passes.
+
+### Implemented Dossier field-validation evals
+
+- `EVAL-DOSSIER-001` is enforced by
+  `woff/tests/test_dossier_parser.py` and
+  `woff/tests/test_dossier_transactions.py`. Required identity fields replace
+  the former line-count gate, invalid or absent identity cannot reach
+  persistence, and partial input that is structurally valid under multiple
+  filename-derived keys fails closed before a pilot or slot binding is
+  created.
+- `EVAL-DOSSIER-002` is enforced by
+  `woff/tests/test_dossier_parser.py`,
+  `woff/tests/test_dossier_transactions.py`, and
+  `woff/tests/test_pilot_stat_merge.py`. Sanitized fixtures cover 50, 51, and
+  105 records; supported partial, truncated, unsupported-layout, and
+  decryption-failed outcomes remain distinct; missing optional statistics
+  persist as SQL `NULL` and cannot erase authoritative values.
 
 ### Implemented exact normalization evals
 

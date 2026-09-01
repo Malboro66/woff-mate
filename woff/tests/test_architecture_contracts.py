@@ -17,6 +17,11 @@ from scripts.validate_project_graph import (
     main,
     validate_graph,
 )
+from scripts.validate_ui_v2_evidence import (
+    SCREENS,
+    validate_evidence as validate_ui_evidence,
+    verify_manifest,
+)
 
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
@@ -1329,7 +1334,7 @@ def test_ui_v2_reference_contract() -> None:
     visual_system_path = ui_root / "ui-v2-visual-system.md"
     walkthrough_path = ui_root / "ui-v2-walkthrough.md"
     rendered_audit_path = ui_root / "ui-v2-rendered-audit.md"
-    evidence_root = ui_root / "evidence" / "ui-v2-site-2026-08-31-audit-3"
+    evidence_root = ui_root / "evidence" / "ui-v2-site-2026-09-01-audit-4"
     evidence_readme_path = evidence_root / "README.md"
     evidence_checksums_path = evidence_root / "SHA256SUMS"
     evidence_measurements_path = evidence_root / "conformance-measurements.json"
@@ -1489,205 +1494,57 @@ def test_ui_v2_reference_contract() -> None:
     assert site_url in rendered_audit
     assert "Browser viewport width: 1363 CSS pixels" in rendered_audit
     assert "Changing from RFC career `RFC-14A-08F2`" in rendered_audit
-    assert '`h1#screen-title`' in rendered_audit
-    assert '`EVAL-UI-DESIGN-001` passes and is implemented' in rendered_audit
-    deployment_id = "appgdep_6a95ebac3afc8191a3913a988ad16ac3"
-    source_commit = "d96fb6da3e5240919d9dc95fca68f9060c3e9434"
-    evidence_set_digest = (
-        "5ff88aa30e908c3af4049ecd5adf0bae37bf8cbfa34c27516c0ccbace273bfac"
-    )
-    assert deployment_id in rendered_audit
-    assert source_commit in rendered_audit
-    assert evidence_set_digest in rendered_audit
-    assert re.search(r"immutable\s+historical evidence", rendered_audit)
-    for screen_id in (
-        "APP-00",
-        "SEL-01",
-        "OPR-01",
-        "DOS-01",
-        "DOS-02",
-        "DOS-03",
-        "DOS-04",
-        "MIS-01",
-        "MIS-02",
-        "SQD-01",
-        "SQD-02",
-        "JRN-01",
-        "RPT-01",
-        "RPT-02",
-        "SYS-01",
-    ):
+    assert "`h1#screen-title`" in rendered_audit
+    assert "`EVAL-UI-DESIGN-001` passes and is implemented" in rendered_audit
+    deployment_id = "appgdep_6a96d56b15608191b13155cbcb7f7204"
+    source_commit = "cf20ea65049682d2fb84f33f329213b93ba0575e"
+    evidence_set_digest = "164aabda86d7a7766345c9715d46815ce9c5ec8a4ae7c2e6b30444aabd6d992d"
+    for value in (deployment_id, source_commit, evidence_set_digest):
+        assert value in rendered_audit
+    assert "immutable historical evidence" in rendered_audit
+    for screen_id in SCREENS:
         assert f"`{screen_id}`" in rendered_audit
-    for ratio in (
-        "3.34:1",
-        "4.55:1",
-        "4.59:1",
-        "4.61:1",
-        "4.68:1",
-        "5.39:1",
-        "5.54:1",
-        "5.62:1",
-    ):
+    for ratio in ("3.12:1", "4.61:1", "5.62:1"):
         assert ratio in rendered_audit
     for scale in ("100%", "125%", "150%", "200%"):
         assert f"Desktop {scale}" in rendered_audit
+    assert "not browser zoom labels or native Windows DPI certification" in rendered_audit
+    assert "does not contact or" in rendered_audit
 
     evidence_readme = evidence_readme_path.read_text(encoding="utf-8")
-    assert "Evidence revision: `UIV2-SITE-2026-08-31-AUDIT-3`" in evidence_readme
-    assert deployment_id in evidence_readme
-    assert source_commit in evidence_readme
-    assert evidence_set_digest in evidence_readme
+    assert "Evidence revision: `UIV2-SITE-2026-09-01-AUDIT-4`" in evidence_readme
+    for value in (deployment_id, source_commit, evidence_set_digest):
+        assert value in evidence_readme
     assert "synthetic fixture data" in evidence_readme
     assert "`sparse-slots-2-3` fixture has no `Pilot1` option" in evidence_readme
-    checksum_lines = evidence_checksums_path.read_text(encoding="ascii").splitlines()
-    checksum_entries = []
-    for line in checksum_lines:
-        digest, filename = line.split("  ", 1)
-        evidence_path = evidence_root / filename
-        assert evidence_path.is_file()
-        assert hashlib.sha256(evidence_path.read_bytes()).hexdigest() == digest
-        checksum_entries.append(f"{digest}  {filename}\n")
-    assert len(checksum_entries) == 1
-    assert (
-        hashlib.sha256("".join(checksum_entries).encode("ascii")).hexdigest()
-        == evidence_set_digest
-    )
+    assert verify_manifest(evidence_root) == evidence_set_digest
 
     measurements = json.loads(evidence_measurements_path.read_text(encoding="utf-8"))
-    assert measurements["evidenceRevision"] == "UIV2-SITE-2026-08-31-AUDIT-3"
     assert measurements["deployment"] == {
         "id": deployment_id,
-        "savedVersion": 17,
+        "savedVersion": 18,
         "savedVersionId": (
             "appgprj_6a8baac178c88191acc54dde62e1870d~"
-            "appgver_6b91e8fab2f481919c054576804969cf"
+            "appgver_659eb3bc64f081919436991e057f63a7"
         ),
         "sourceCommit": source_commit,
         "url": "https://woff-mate-ui-v2.pilotohans.chatgpt.site",
+        "status": "succeeded",
     }
-    assert measurements["summary"] == {
-        "requiredScreenCount": 15,
-        "semanticStateCount": 14,
-        "desktopScaleCount": 4,
-        "lowestMeasuredNormalTextRatio": 4.55,
-        "lowestMeasuredNonTextRatio": 3.34,
-        "contrastFailures": 0,
-        "nonTextContrastFailures": 0,
-        "fontSizeFailures": 0,
-        "horizontalOverflowFailures": 0,
-        "destinationFocusFailures": 0,
-        "keyboardInteractionFailures": 0,
-        "careerIsolationFailures": 0,
-        "sparseSlotFailures": 0,
-    }
-    required_screen_ids = {
-        "APP-00",
-        "SEL-01",
-        "OPR-01",
-        "DOS-01",
-        "DOS-02",
-        "DOS-03",
-        "DOS-04",
-        "MIS-01",
-        "MIS-02",
-        "SQD-01",
-        "SQD-02",
-        "JRN-01",
-        "RPT-01",
-        "RPT-02",
-        "SYS-01",
-    }
-    assert {screen["id"] for screen in measurements["screens"]} == required_screen_ids
-    assert len(measurements["states"]) == 14
-    assert len(measurements["scales"]) == 4
-    for collection in (
-        measurements["screens"],
-        measurements["states"],
-        measurements["scales"],
-    ):
-        for result in collection:
-            assert result["minimumRatio"] >= 4.5
-            assert result["contrastFailures"] == 0
-            assert result["fontSizeFailures"] == 0
-            assert result["headingFocused"] is True
-    assert all(not screen["horizontalOverflow"] for screen in measurements["screens"])
-    assert all(not state["horizontalOverflow"] for state in measurements["states"])
-    for scale in measurements["scales"]:
-        assert scale["viewportWidth"] == scale["documentScrollWidth"]
-        assert scale["mainClientWidth"] == scale["mainScrollWidth"]
+    # Replay observations: geometry, values/absence, controls and full Tab
+    # sequences. Negative tests mutate each reviewed contract separately.
+    # This does not browse or certify a later revision of the live Site.
+    validate_ui_evidence(measurements)
 
-    non_text = measurements["nonTextContrast"]
-    assert non_text["threshold"] == 3.0
-    assert non_text["lowestMeasuredRatio"] == 3.34
-    assert non_text["failures"] == 0
-    assert non_text["focusTreatment"]["ratio"] == 5.62
-    assert non_text["focusTreatment"]["minimumThicknessCssPx"] >= 3
-    assert all(boundary["ratio"] >= 3.0 for boundary in non_text["boundaries"])
-
-    interaction = measurements["interaction"]
-    assert interaction["destinationFocus"] == {
-        "target": "H1#screen-title",
-        "tag": "H1",
-        "id": "screen-title",
-        "tabIndex": -1,
-        "sequentialTabStop": False,
-    }
-    sequential_focus = interaction["sequentialFocus"]
-    assert [stop["label"] for stop in sequential_focus] == [
-        "Skip to main content",
-        "Change active career",
-        "Operations",
-        "Pilot Dossier",
-        "Missions",
-        "Squadron",
-        "War Diary",
-        "Reports",
-        "Data & System Status",
-        "Fixture matrix",
-    ]
-    assert all(stop["visibleFocus"] is True for stop in sequential_focus)
-    selector_keyboard = interaction["careerSelectorKeyboard"]
-    assert selector_keyboard == {
-        "enterOpens": True,
-        "arrowDownMovesFocusTo": "WoFF Pilot 2 · RAF-41B-22C1",
-        "escapeCloses": True,
-        "escapeRestoresFocusTo": "Change active career",
-        "spaceOpens": True,
-        "spaceActivatesOption": True,
-        "activationRestoresFocusTo": "Change active career",
-    }
-    dialog_keyboard = interaction["fixtureDialogKeyboard"]
-    assert dialog_keyboard["shiftTabWrapsTo"] == "Apply desktop preview"
-    assert dialog_keyboard["tabWrapsTo"] == "APP-00 Application Shell"
-    assert dialog_keyboard["escapeCloses"] is True
-    assert dialog_keyboard["escapeRestoresFocusTo"] == "Fixture matrix"
-
-    sparse_slots = interaction["sparseSlots"]
-    assert sparse_slots == {
-        "fixture": "sparse-slots-2-3",
-        "pilot1Present": False,
-        "options": [
-            {
-                "listIndex": 0,
-                "slotLabel": "WoFF Pilot 2",
-                "careerId": "RAF-41B-22C1",
-            },
-            {
-                "listIndex": 1,
-                "slotLabel": "WoFF Pilot 3",
-                "careerId": "CAREER-14B8",
-            },
-        ],
-    }
-    career_switch = measurements["interaction"]["sameNameCareerSwitch"]
-    assert career_switch["toSlotLabel"] == "WoFF Pilot 2"
-    assert set(career_switch["contexts"]) == {"mission", "aircrew", "report"}
-    for detail in career_switch["contexts"].values():
-        assert detail["visibleBeforeSelection"] is True
-        assert detail["visibleAfterSelection"] is False
-    assert career_switch["newCareerReferenceVisible"] is True
-    assert career_switch["newSquadronVisible"] is True
-    assert career_switch["newAerodromeVisible"] is True
+    # Audit 3 remains byte-identical history, not current acceptance evidence.
+    audit3_root = ui_root / "evidence" / "ui-v2-site-2026-08-31-audit-3"
+    audit3_manifest = (audit3_root / "SHA256SUMS").read_text(encoding="ascii")
+    assert hashlib.sha256(audit3_manifest.encode("ascii")).hexdigest() == (
+        "5ff88aa30e908c3af4049ecd5adf0bae37bf8cbfa34c27516c0ccbace273bfac"
+    )
+    for line in audit3_manifest.splitlines():
+        digest, filename = line.split("  ", 1)
+        assert hashlib.sha256((audit3_root / filename).read_bytes()).hexdigest() == digest
 
     predecessor_deployment_id = "appgdep_6a9555f927b081919b6cc2f33e9f3ffb"
     predecessor_evidence_set_digest = (
@@ -1743,7 +1600,7 @@ def test_ui_v2_reference_contract() -> None:
 
     quality_gates = quality_gates_path.read_text(encoding="utf-8")
     assert (
-        "Issues #28, #38, #41, #75, #79, and #97 are complete"
+        "Issues #28, #35, #38, #41, #75, #79, and #97 are complete"
         in quality_gates
     )
     assert "published UI V2" in quality_gates
@@ -1753,9 +1610,9 @@ def test_ui_v2_reference_contract() -> None:
     eval_catalog = evals_path.read_text(encoding="utf-8")
     assert "Issue #79 is complete" in eval_catalog
     assert "`EVAL-UI-DESIGN-001` is implemented" in eval_catalog
-    assert "UIV2-SITE-2026-08-31-AUDIT-3" in eval_catalog
+    assert "UIV2-SITE-2026-09-01-AUDIT-4" in eval_catalog
     assert site_url in eval_catalog
-    assert "published UI V2 Site" in eval_catalog
+    assert "Site version 18" in eval_catalog
 
     pyproject = _load_pyproject()
     project = pyproject["project"]
@@ -1782,7 +1639,10 @@ def test_ui_v2_reference_contract() -> None:
     assert re.search(r"published UI V2 Site", ui_eval["evidence"], re.IGNORECASE)
     assert "pass all 15 screen IDs" in ui_eval["evidence"]
     assert "WCAG AA text and non-text contrast" in ui_eval["evidence"]
-    assert "full keyboard and focus behavior" in ui_eval["evidence"]
+    assert "28 complete Tab sequences" in ui_eval["evidence"]
     assert "mission-aircrew-report career isolation" in ui_eval["evidence"]
     assert "actual sparse Pilot2/Pilot3 list" in ui_eval["evidence"]
-    assert ui_eval["enforced_by"] == ["woff/tests/test_architecture_contracts.py"]
+    assert ui_eval["enforced_by"] == [
+        "woff/tests/test_architecture_contracts.py",
+        "woff/tests/test_ui_v2_evidence.py",
+    ]

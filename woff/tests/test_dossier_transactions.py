@@ -10,8 +10,9 @@ from ..campaign_engine import CampaignEngine
 from ..database import DatabaseManager
 from ..handler import FileProcessor
 from ..identity import PilotIdentityEvidence, PilotIdentityKind
+from ..ingestion.outcome import ProcessingReason, ProcessingStatus
 from ..parsers.dossier_parser import WoFFDossierParser
-from .test_dossier_parser import _encode_dossier
+from .test_dossier_parser import _dossier_fixture, _encode_dossier
 
 
 def _wingman(
@@ -165,6 +166,88 @@ def _changed_dossier() -> bytes:
             _wingman("Robert", "Baker"),
         ),
     )
+
+
+def test_identityless_dossier_never_reaches_merge_and_write(dossier_runtime):
+    database, processor, dossier_path = dossier_runtime
+    dossier_path.write_bytes(
+        _encode_dossier(
+            _dossier_fixture("long_corrupt_sanitized.txt"),
+            dossier_path.name,
+        )
+    )
+
+    with patch.object(
+        database,
+        "merge_and_write",
+        wraps=database.merge_and_write,
+    ) as merge_and_write:
+        outcome = processor.process(str(dossier_path), "initial")
+
+    assert outcome.status is ProcessingStatus.PERMANENT_REJECTION
+    assert outcome.reason is ProcessingReason.PARSER_REJECTED
+    merge_and_write.assert_not_called()
+    state = _stored_state(database)
+    assert all(not rows for rows in state.values())
+
+
+def test_ambiguous_partial_dossier_never_reaches_merge_and_write(
+    dossier_runtime,
+):
+    database, processor, dossier_path = dossier_runtime
+    wrong_slot_path = dossier_path.with_name("Pilot49Dossier.txt")
+    wrong_slot_path.write_bytes(
+        _encode_dossier(
+            _dossier_fixture("short_ambiguous_sanitized.txt"),
+            "Pilot1Dossier.txt",
+        )
+    )
+
+    with patch.object(
+        database,
+        "merge_and_write",
+        wraps=database.merge_and_write,
+    ) as merge_and_write:
+        outcome = processor.process(str(wrong_slot_path), "initial")
+
+    assert outcome.status is ProcessingStatus.PERMANENT_REJECTION
+    assert outcome.reason is ProcessingReason.PARSER_REJECTED
+    merge_and_write.assert_not_called()
+    state = _stored_state(database)
+    assert all(not rows for rows in state.values())
+
+
+def test_partial_null_rank_preserves_stored_rank_and_diary(dossier_runtime):
+    database, processor, dossier_path = dossier_runtime
+    assert _process(
+        processor,
+        dossier_path,
+        _dossier_bytes(rank="Captain"),
+        "initial",
+    ) is not None
+    diary_before = _stored_state(database)["diary"]
+    partial_lines = _dossier_fixture("short_valid_sanitized.txt")
+    partial_lines[1] = "Britain"
+    partial_lines[3] = "Null"
+    partial_lines[4] = "James"
+    partial_lines[5] = "Hartley"
+    partial = _encode_dossier(
+        partial_lines,
+        dossier_path.name,
+    )
+
+    assert _process(
+        processor,
+        dossier_path,
+        partial,
+        "modified",
+    ) is not None
+
+    stored_rank = database._get_conn().execute(
+        "SELECT rank FROM pilots"
+    ).fetchone()
+    assert stored_rank == ("Captain",)
+    assert _stored_state(database)["diary"] == diary_before
 
 
 @pytest.mark.parametrize("event_type", ["initial", "modified"])

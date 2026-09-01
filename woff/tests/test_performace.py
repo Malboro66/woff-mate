@@ -30,7 +30,12 @@ def _generate_large_encoded_dossier(filename: str, num_lines: int = 50000) -> by
 
     for i in range(num_lines):
         # Simular uma string de dados em cada linha
-        line = f"Line_{i}_data_string_for_testing_performance_and_memory_usage"
+        if i == 4:
+            line = "Stress"
+        elif i == 5:
+            line = "Pilot"
+        else:
+            line = f"Line_{i}_data_string_for_testing_performance_and_memory_usage"
         key_index = 0
         counter = 0x80
         

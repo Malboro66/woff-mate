@@ -143,7 +143,7 @@ Green CI without this evidence does not approve a public release.
 
 Issue #50 closes only when all conditions below pass:
 
-- #34, #57, #45, #36, #42, #40, #39, #70, #87, #71, #72, #93, #94, #95, #73, and #27 are complete
+- #34, #57, #45, #36, #42, #40, #39, #70, #87, #71, #72, #93, #94, #95, #73, #27, and #122 are complete
 - every dependency in `cycle-3.3.0` is satisfied
 - all member acceptance criteria are demonstrated
 - every applicable eval in `EVAL-CYCLE-330-001` passes
@@ -157,6 +157,9 @@ Issue #50 closes only when all conditions below pass:
 - equal pilot slots in distinct watched roots retain independent campaign bindings
 - transient SQLite contention retains admitted generations for bounded exactly-once retry
 - dependent pilot files are reprocessed without duplication or silent loss
+- confirmed Dossier absence vacates only the exact namespaced slot without deleting history or renumbering surviving slots
+- transient replacement, unavailable roots, and incomplete scans cannot create false vacancy
+- complete startup reconciliation repairs stale bindings, and later slot reuse creates a new career identity idempotently across roots
 - focused tests, related tests, full suite, and Pyright pass
 - applicable Windows checks pass
 - project graph, eval catalog, quality gates, and public documentation are current
@@ -166,11 +169,14 @@ CI success alone does not close #50 or release 3.3.0.
 
 ## Q6-CYCLE-3.4.0: parser, roster, presentation, and RPG integrity
 
-Cycle 3.4.0 is active. Issues #28, #38, #41, #75, #79, and #97 are complete.
+Cycle 3.4.0 is active. Issues #28, #35, #38, #41, #75, #79, and #97 are complete.
 #79's repository design contract and published UI V2 Site pass the recorded
-rendered WCAG AA contrast, stable-career isolation, persistent sparse-slot
-presentation, destination focus, navigation conformance, state, scale, and
-visual-coverage checks. Issue #35 is now unblocked. The aggregate gate remains
+rendered WCAG AA contrast thresholds within bounded Audit 4 coverage,
+stable-career isolation, persistent sparse-slot presentation, destination
+focus, complete Tab sequences, per-control targets/read-only inventories,
+semantic states, status labels and actual logical-canvas reflow. The executable
+driver and immutable source/capture are pinned; CI replay is not a live-Site
+or native Windows DPI certification. Issue #37 is now unblocked. The aggregate gate remains
 pending until every member and `EVAL-CYCLE-340-001` pass.
 
 Cycle 3.4.0 is approved only when all conditions below pass:

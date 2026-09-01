@@ -1,9 +1,23 @@
 import unittest
 import os
+from pathlib import Path
 from unittest.mock import patch, mock_open
 
 
 from ..parsers.dossier_parser import WoFFDossierParser
+
+
+_DOSSIER_FIXTURES = Path(__file__).parent / "fixtures" / "dossier"
+
+
+def _dossier_fixture(name: str) -> list[str]:
+    return (_DOSSIER_FIXTURES / name).read_text(encoding="utf-8").splitlines()
+
+
+def _validation_status_value(parser: WoFFDossierParser) -> str | None:
+    status = getattr(parser, "validation_status", None)
+    return getattr(status, "value", None)
+
 
 def _encode_dossier(plaintext_lines: list, filename: str) -> bytes:
     """
@@ -118,6 +132,118 @@ class TestWoFFDossierParser(unittest.TestCase):
         self.assertEqual(self.parser.pilot.reputation, 800)
         self.assertEqual(self.parser.pilot.startDate, "1915-09-20")
         self.assertEqual(self.parser.pilot.enlisted, "1918-11-11")
+
+    def test_short_layout_with_required_identity_is_supported_partial_data(self):
+        lines = _dossier_fixture("short_valid_sanitized.txt")
+        self.assertEqual(len(lines), 50)
+
+        self.assertTrue(
+            self.parser.parse_bytes(
+                _encode_dossier(lines, self.filename),
+                self.filename,
+            )
+        )
+
+        self.assertIsNotNone(self.parser.pilot)
+        assert self.parser.pilot is not None
+        self.assertEqual(self.parser.pilot.name, "Sample Pilot")
+        self.assertIsNone(self.parser.pilot.missions)
+        self.assertIsNone(self.parser.pilot.reputation)
+
+    def test_short_layout_parses_each_available_optional_field_independently(self):
+        lines = _dossier_fixture("short_valid_sanitized.txt")
+        lines[46] = "7"
+
+        self.assertTrue(
+            self.parser.parse_bytes(
+                _encode_dossier(lines, self.filename),
+                self.filename,
+            )
+        )
+
+        self.assertIsNotNone(self.parser.pilot)
+        assert self.parser.pilot is not None
+        self.assertEqual(self.parser.pilot.missions, 7)
+        self.assertIsNone(self.parser.pilot.reputation)
+
+    def test_long_layout_without_required_identity_is_rejected(self):
+        lines = _dossier_fixture("long_corrupt_sanitized.txt")
+        self.assertEqual(len(lines), 51)
+
+        with self.assertLogs("WoFFWatch", level="WARNING") as captured:
+            self.assertFalse(
+                self.parser.parse_bytes(
+                    _encode_dossier(lines, self.filename),
+                    self.filename,
+                )
+            )
+
+        self.assertIsNone(self.parser.pilot)
+        logged = " ".join(captured.output)
+        self.assertIn("category=unsupported-layout", logged)
+        self.assertNotIn("Sample Pilot", logged)
+
+    def test_identity_fields_require_alphabetic_text(self):
+        lines = _dossier_fixture("current_full_sanitized.txt")
+        lines[4] = "123"
+        lines[5] = "---"
+
+        with self.assertLogs("WoFFWatch", level="WARNING") as captured:
+            self.assertFalse(
+                self.parser.parse_bytes(
+                    _encode_dossier(lines, self.filename),
+                    self.filename,
+                )
+            )
+
+        self.assertIsNone(self.parser.pilot)
+        self.assertIn(
+            "category=unsupported-layout",
+            " ".join(captured.output),
+        )
+
+    def test_identity_fields_accept_supported_name_characters(self):
+        cases = (
+            ("Émile", "O'Connor"),
+            ("Jean-Pierre", "St. John"),
+        )
+
+        for first_name, last_name in cases:
+            with self.subTest(first_name=first_name, last_name=last_name):
+                lines = _dossier_fixture("short_valid_sanitized.txt")
+                lines[4] = first_name
+                lines[5] = last_name
+                parser = WoFFDossierParser()
+
+                self.assertTrue(
+                    parser.parse_bytes(
+                        _encode_dossier(lines, self.filename),
+                        self.filename,
+                    )
+                )
+                self.assertIsNotNone(parser.pilot)
+                assert parser.pilot is not None
+                self.assertEqual(
+                    parser.pilot.name,
+                    f"{first_name} {last_name}",
+                )
+
+    def test_content_ending_before_required_identity_is_truncated(self):
+        lines = _dossier_fixture("truncated_sanitized.txt")
+        self.assertEqual(len(lines), 5)
+
+        with self.assertLogs("WoFFWatch", level="WARNING") as captured:
+            self.assertFalse(
+                self.parser.parse_bytes(
+                    _encode_dossier(lines, self.filename),
+                    self.filename,
+                )
+            )
+
+        self.assertIsNone(self.parser.pilot)
+        logged = " ".join(captured.output)
+        self.assertIn("category=truncated", logged)
+        self.assertNotIn("Sample", logged)
 
     def test_dossier_nation_recognition_uses_all_supported_exact_aliases(self):
         cases = (
@@ -308,17 +434,234 @@ class TestWoFFDossierParser(unittest.TestCase):
 
     def test_parse_dossier_wrong_filename(self):
         """Testa que chave XOR errada não produz o piloto correto."""
-        # Tentar ler com um nome de ficheiro diferente gera uma chave XOR diferente
-        with patch("builtins.open", mock_open(read_data=self.encoded_data)):
-            ok = self.parser.parse("WrongName.txt")
-            
-        # FIX: Com chave errada, ou falha completamente ou devolve dados corrompidos
-        if ok and self.parser.pilot:
-            # Type narrowing
-            assert self.parser.pilot is not None
-            self.assertNotEqual(self.parser.pilot.name, "James Hartley")
-        else:
-            self.assertFalse(ok) 
+        with self.assertLogs("WoFFWatch", level="WARNING") as captured:
+            with patch("builtins.open", mock_open(read_data=self.encoded_data)):
+                self.assertFalse(self.parser.parse("WrongName.txt"))
+
+        self.assertIsNone(self.parser.pilot)
+        logged = " ".join(captured.output)
+        self.assertIn("category=decryption-failed", logged)
+        self.assertNotIn("James Hartley", logged)
+
+    def test_dossier_encoded_for_another_valid_slot_is_rejected(self):
+        encoded = _encode_dossier(
+            _dossier_fixture("current_full_sanitized.txt"),
+            "Pilot1Dossier.txt",
+        )
+
+        with self.assertLogs("WoFFWatch", level="WARNING") as captured:
+            self.assertFalse(
+                self.parser.parse_bytes(encoded, "Pilot2Dossier.txt")
+            )
+
+        self.assertIsNone(self.parser.pilot)
+        self.assertIn(
+            "category=decryption-failed",
+            " ".join(captured.output),
+        )
+
+    def test_short_dossier_encoded_for_another_slot_is_rejected(self):
+        encoded = _encode_dossier(
+            _dossier_fixture("short_valid_sanitized.txt"),
+            "Pilot1Dossier.txt",
+        )
+
+        self.assertFalse(
+            self.parser.parse_bytes(encoded, "Pilot11Dossier.txt")
+        )
+
+        self.assertIsNone(self.parser.pilot)
+        self.assertEqual(
+            _validation_status_value(self.parser),
+            "decryption-failed",
+        )
+
+    def test_partial_dossier_with_ambiguous_key_is_rejected_fail_closed(self):
+        encoded = _encode_dossier(
+            _dossier_fixture("short_ambiguous_sanitized.txt"),
+            "Pilot1Dossier.txt",
+        )
+
+        for source_name in ("Pilot1Dossier.txt", "Pilot49Dossier.txt"):
+            with self.subTest(source_name=source_name):
+                parser = WoFFDossierParser()
+
+                self.assertFalse(parser.parse_bytes(encoded, source_name))
+                self.assertIsNone(parser.pilot)
+                self.assertEqual(
+                    _validation_status_value(parser),
+                    "decryption-failed",
+                )
+
+    def test_decoded_controls_at_record_edges_are_rejected_before_trimming(self):
+        for first_name in ("\tSample", "Sample\t"):
+            with self.subTest(first_name=repr(first_name)):
+                lines = _dossier_fixture("short_valid_sanitized.txt")
+                lines[4] = first_name
+                parser = WoFFDossierParser()
+
+                self.assertFalse(
+                    parser.parse_bytes(
+                        _encode_dossier(lines, self.filename),
+                        self.filename,
+                    )
+                )
+                self.assertIsNone(parser.pilot)
+                self.assertEqual(
+                    _validation_status_value(parser),
+                    "decryption-failed",
+                )
+
+    def test_partial_dossier_normalizes_missing_optional_strings(self):
+        lines = _dossier_fixture("short_valid_sanitized.txt")
+        lines.extend(["Null"] * (93 - len(lines)))
+        lines[1] = "France"
+        lines[3] = "Null"
+        lines[4] = "Sample"
+        lines[5] = "Pilot"
+
+        self.assertTrue(
+            self.parser.parse_bytes(
+                _encode_dossier(lines, self.filename),
+                self.filename,
+            )
+        )
+
+        self.assertIsNotNone(self.parser.pilot)
+        assert self.parser.pilot is not None
+        self.assertEqual(
+            (
+                self.parser.pilot.rank,
+                self.parser.pilot.squadron,
+                self.parser.pilot.aircraft,
+                self.parser.pilot.aerodrome,
+                self.parser.pilot.sector,
+                self.parser.pilot.birthPlace,
+            ),
+            ("", "", "", "", "", ""),
+        )
+
+    def test_bytes_without_decoded_fields_are_decryption_failure(self):
+        with self.assertLogs("WoFFWatch", level="WARNING") as captured:
+            self.assertFalse(
+                self.parser.parse_bytes(b"not encoded\r\n", self.filename)
+            )
+
+        self.assertIsNone(self.parser.pilot)
+        self.assertIn(
+            "category=decryption-failed",
+            " ".join(captured.output),
+        )
+
+    def test_validation_status_distinguishes_dossier_outcomes(self):
+        cases = (
+            ("current_full_sanitized.txt", "supported-full"),
+            ("short_valid_sanitized.txt", "supported-partial"),
+            ("truncated_sanitized.txt", "truncated"),
+            ("long_corrupt_sanitized.txt", "unsupported-layout"),
+        )
+
+        for fixture, expected in cases:
+            with self.subTest(fixture=fixture):
+                parser = WoFFDossierParser()
+                parser.parse_bytes(
+                    _encode_dossier(_dossier_fixture(fixture), self.filename),
+                    self.filename,
+                )
+                self.assertEqual(_validation_status_value(parser), expected)
+
+        parser = WoFFDossierParser()
+        parser.parse_bytes(b"not encoded\r\n", self.filename)
+        self.assertEqual(
+            _validation_status_value(parser),
+            "decryption-failed",
+        )
+
+    def test_acceptance_diagnostic_omits_campaign_fields(self):
+        lines = _dossier_fixture("current_full_sanitized.txt")
+
+        with self.assertLogs("WoFFWatch", level="INFO") as captured:
+            self.assertTrue(
+                self.parser.parse_bytes(
+                    _encode_dossier(lines, self.filename),
+                    self.filename,
+                )
+            )
+
+        logged = " ".join(captured.output)
+        self.assertIn("category=supported-full", logged)
+        self.assertIn("layout=fixed-index-v1", logged)
+        self.assertIn("records=105", logged)
+        for private_value in (
+            "Sample Pilot",
+            "Escadrille N 15",
+            "Savy",
+        ):
+            with self.subTest(private_value=private_value):
+                self.assertNotIn(private_value, logged)
+
+    def test_windows_source_path_uses_only_basename_for_key_and_diagnostic(self):
+        lines = _dossier_fixture("current_full_sanitized.txt")
+        source_name = r"C:\Users\PrivateName\Pilot1Dossier.txt"
+
+        with self.assertLogs("WoFFWatch", level="INFO") as captured:
+            self.assertTrue(
+                self.parser.parse_bytes(
+                    _encode_dossier(lines, self.filename),
+                    source_name,
+                )
+            )
+
+        self.assertIsNotNone(self.parser.pilot)
+        assert self.parser.pilot is not None
+        self.assertEqual(self.parser.pilot.source_file, self.filename)
+        logged = " ".join(captured.output)
+        self.assertIn(f"source={self.filename}", logged)
+        self.assertNotIn("PrivateName", logged)
+
+    def test_rejected_parse_clears_previous_dossier_state(self):
+        self.assertTrue(
+            self.parser.parse_bytes(
+                _encode_dossier(
+                    _dossier_fixture("current_full_sanitized.txt"),
+                    self.filename,
+                ),
+                self.filename,
+            )
+        )
+        self.assertIsNotNone(self.parser.pilot)
+        self.assertTrue(self.parser.raw_strings)
+        self.assertTrue(self.parser.wingmen)
+        self.assertTrue(self.parser.decorations)
+
+        self.assertFalse(
+            self.parser.parse_bytes(
+                _encode_dossier(
+                    _dossier_fixture("truncated_sanitized.txt"),
+                    self.filename,
+                ),
+                self.filename,
+            )
+        )
+
+        self.assertIsNone(self.parser.pilot)
+        self.assertEqual(self.parser.raw_strings, [])
+        self.assertEqual(self.parser.wingmen, [])
+        self.assertEqual(self.parser.decorations, [])
+
+    def test_read_failure_clears_previous_dossier_state(self):
+        self.assertTrue(
+            self.parser.parse_bytes(self.encoded_data, self.filename)
+        )
+
+        with patch("builtins.open", side_effect=OSError("read failed")):
+            self.assertFalse(self.parser.parse(self.filename))
+
+        self.assertIsNone(self.parser.pilot)
+        self.assertEqual(self.parser.raw_strings, [])
+        self.assertEqual(self.parser.wingmen, [])
+        self.assertEqual(self.parser.decorations, [])
+        self.assertEqual(_validation_status_value(self.parser), "unparsed")
 
     def test_wingmen_extraction(self):
         """Testa extração de wingmen com patentes conhecidas."""

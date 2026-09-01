@@ -35,6 +35,57 @@ strings and are not guessed as a nation. All parser paths use the alias tables
 in `woff/maps.py`; new aliases require a sanitized representative sample or an
 existing regression fixture that establishes the value.
 
+## Dossier layout validation
+
+WoFF Mate names the existing fixed-index contract `fixed-index-v1`. This name
+documents the parser behavior already covered by sanitized regression data. It
+does not identify a WoFF build and does not claim compatibility with another
+layout.
+
+The supported layout requires a nonempty first name at decoded index 4 and a
+nonempty surname at decoded index 5. Both fields must contain alphabetic text
+and only name-compatible separators. The parser validates these identity
+fields before reading optional statistics or constructing a pilot.
+
+Every decoded record is validated before surrounding whitespace is normalized
+and must contain only printable text. A replacement character or control
+character is treated as evidence that the filename-derived XOR key did not
+decode the input safely. This is a structural guard, not a cryptographic
+integrity check; the confirmed format provides no authenticated marker or
+checksum.
+
+Partial input is accepted only when the filename-derived key is structurally
+unambiguous. The parser checks all 128 key variants produced by the format's
+modulo-128 filename sum. If another distinct key also produces printable
+records with a valid required identity, the input fails closed as
+`decryption-failed` before persistence. Two filenames that produce the same
+complete key remain indistinguishable from the file alone; resolving an exact
+key collision requires external evidence that the confirmed format does not
+provide.
+
+Decoded input receives one structural classification:
+
+| Classification | Policy |
+| --- | --- |
+| `supported-full` | Required identity is valid and every fixed field through index 100 is addressable. |
+| `supported-partial` | Required identity is valid, but one or more later fixed fields are unavailable. Present optional fields are parsed independently. |
+| `truncated` | Input ends before the required identity positions are complete. It is rejected. |
+| `unsupported-layout` | Required positions exist, but identity fields are missing or semantically invalid. It is rejected. |
+| `decryption-failed` | No decoded fields are produced, any decoded record contains evidence of the wrong key or invalid decoded text, or a partial input is valid under more than one distinct key. It is rejected. |
+
+Missing optional string sentinels are normalized to absent values before a
+pilot is constructed. Missing optional numeric values remain unknown. A new
+partial Dossier stores missing numeric values as SQL `NULL`, and a later
+partial update does not replace an existing authoritative string or numeric
+value. Explicit numeric zero remains distinct and writable.
+
+Dossier acceptance and structural-rejection diagnostics contain only the
+source basename, classification, layout name, and decoded record count.
+Numeric-field diagnostics add the field name and sanitized failure reason.
+Neither form logs pilot identity or campaign fields. Future layout variants
+require separate identifiers and sanitized representative evidence. Fixed
+indexes must not shift silently.
+
 ## Reporting a compatibility problem safely
 
 Include only the minimum technical context needed to reproduce the problem:

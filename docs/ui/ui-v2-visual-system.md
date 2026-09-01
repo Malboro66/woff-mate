@@ -61,7 +61,7 @@ These ratios pass the normal-text target for their listed pair. Each rendered
 Site view must still be checked after texture, opacity, focus, and state
 composition are applied. The current
 [published-site audit](ui-v2-rendered-audit.md) passes that rendered check with
-a lowest measured normal-text ratio of 4.55:1; it does not weaken any future
+a lowest conservative normal-text contrast bound of 4.61:1; it does not weaken any future
 rerun requirement in this specification.
 
 ## Material tokens
