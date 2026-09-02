@@ -12,6 +12,7 @@ from dataclasses import dataclass
 from typing import Any, Callable, Dict, Optional, Protocol, Set, Tuple
 
 from ..campaign_namespace import canonical_windows_path
+from ..identity import PilotSlotBinding
 from .deferred import DependencyKey, DependencyRetryPolicy
 from .outcome import (
     PersistenceRetryPolicy,
@@ -76,6 +77,7 @@ class EventScheduler:
         ] = None,
         persistence_retry_policy: Optional[PersistenceRetryPolicy] = None,
         dependency_retry_policy: Optional[DependencyRetryPolicy] = None,
+        vacancy_pending: Optional[Callable[[PilotSlotBinding], bool]] = None,
     ) -> None:
         if (
             isinstance(max_pending_events, bool)
@@ -88,6 +90,7 @@ class EventScheduler:
         self._persistence_retry_process = persistence_retry_process
         self._dependency_retry_process = dependency_retry_process
         self._dependency_key_for_event = dependency_key_for_event
+        self._vacancy_pending = vacancy_pending
         self._persistence_retry_policy = (
             persistence_retry_policy or PersistenceRetryPolicy()
         )
@@ -138,7 +141,22 @@ class EventScheduler:
     @property
     def admitted_paths(self) -> int:
         with self._lock:
-            return len(self._states)
+            return self._admission_size_locked()
+
+    def _admission_size_locked(self, resuming_key: Optional[str] = None) -> int:
+        """Unpersisted vacancy proofs reserve capacity until safely applied."""
+        self._prune_resolved_vacancies_locked()
+        return len(self._states) + sum(
+            outcome.confirmed_vacancy is not None and key != resuming_key
+            for key, outcome in self._terminal_outcomes.items()
+        )
+
+    def _prune_resolved_vacancies_locked(self) -> None:
+        if self._vacancy_pending is not None:
+            for key, outcome in list(self._terminal_outcomes.items()):
+                proof = outcome.confirmed_vacancy
+                if proof is not None and not self._vacancy_pending(proof):
+                    del self._terminal_outcomes[key]
 
     @property
     def max_pending_events(self) -> int:
@@ -190,7 +208,7 @@ class EventScheduler:
                 self._metrics["coalesced"] += 1
                 self._changed.notify_all()
                 return True
-            while len(self._states) >= self._max_pending_events:
+            while self._admission_size_locked(key) >= self._max_pending_events:
                 remaining = deadline - time.monotonic()
                 if remaining <= 0:
                     self._reject_locked("saturated")
@@ -214,6 +232,8 @@ class EventScheduler:
                 self._executor.submit(self._run, key, event)
             except Exception:
                 del self._states[key]
+                if terminal_outcome is not None and terminal_outcome.confirmed_vacancy is not None:
+                    self._remember_terminal_locked(key, terminal_outcome)
                 self._metrics["queued"] -= 1
                 self._metrics["rejected"] += 1
                 self._metrics["submission_failures"] += 1
@@ -419,7 +439,9 @@ class EventScheduler:
                 ):
                     self._release_retained_bytes_locked(state)
 
-                if (
+                if outcome is not None and outcome.confirmed_vacancy is not None:
+                    state.terminal_outcome = outcome
+                elif (
                     outcome is not None
                     and outcome.status is not ProcessingStatus.TRANSIENT_FAILURE
                     and outcome.reason is not ProcessingReason.RETRY_TERMINATED
@@ -753,6 +775,7 @@ class EventScheduler:
     def _resolve_dependency_locked(
         self, dependency_key: DependencyKey
     ) -> None:
+        self._prune_resolved_vacancies_locked()
         self._dependency_resolution_sequence += 1
         for state in self._states.values():
             if state.expected_dependency == dependency_key:
@@ -800,10 +823,18 @@ class EventScheduler:
         self, key: str, outcome: ProcessingOutcome
     ) -> None:
         """Retain one exhausted generation per recently active path."""
+        if (outcome.confirmed_vacancy is not None
+                and self._vacancy_pending is not None
+                and not self._vacancy_pending(outcome.confirmed_vacancy)):
+            return
         self._terminal_outcomes[key] = outcome
         self._terminal_outcomes.move_to_end(key)
         while len(self._terminal_outcomes) > self._max_pending_events:
-            self._terminal_outcomes.popitem(last=False)
+            evictable = next(
+                candidate for candidate, retained in self._terminal_outcomes.items()
+                if retained.confirmed_vacancy is None
+            )
+            del self._terminal_outcomes[evictable]
 
     @staticmethod
     def _log_retry_terminal(

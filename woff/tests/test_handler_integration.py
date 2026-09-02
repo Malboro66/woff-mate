@@ -359,6 +359,9 @@ class TestHandlerIntegration(unittest.TestCase):
         self.assertGreater(metrics["dependency_retained_bytes"], 0)
 
     def test_all_dependent_sources_converge_after_dossier_without_duplicates(self):
+        # Per-slot serialization must not make this dependency-order test rely
+        # on three concurrent wall-clock snapshot timeouts.
+        self.handler.processor.guard._sleep = lambda _delay: None
         dossier_path = os.path.join(self.tmp_dir, "Pilot1Dossier.txt")
         sources = {
             os.path.join(self.tmp_dir, "Pilot1Log.txt"): (

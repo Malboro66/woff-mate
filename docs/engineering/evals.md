@@ -78,12 +78,44 @@ The aggregate eval passes only when:
 Green CI alone does not pass this aggregate eval.
 
 Issue #27 and its two deferred-ingestion evals reached `main` through PR #115.
-Issue #122 is the new implementable cycle member for confirmed pilot-slot
-vacancy after Dossier deletion or move-away. Issue #87 remains independently
+Issue #122 implements the six confirmed pilot-slot vacancy evals below for
+Dossier deletion or move-away. Issue #87 remains independently
 blocked on privacy-safe longitudinal evidence; its gap does not weaken or reopen
 the guarantees already verified by #70. The aggregate gate remains pending
-until #122 is implemented and #87 records either sufficient longitudinal
-evidence or the structural limitation defined by its acceptance criteria.
+until #87 records either sufficient longitudinal evidence or the structural
+limitation defined by its acceptance criteria, and the maintainer approves
+the complete cycle. Implementing #122 does not complete the aggregate gate.
+
+### Implemented pilot-slot vacancy evals (#122)
+
+All six evals are enforced by `woff/tests/test_pilot_vacancy.py`; the same focused
+suite also runs in the Windows Python 3.10 CI job.
+
+| Eval | Deterministic evidence |
+|---|---|
+| `EVAL-PILOT-VACANCY-001` | Live Dossier deletion releases exactly one binding; all historical tables stay unchanged; dependent deletion and valid zero counts never define occupancy |
+| `EVAL-PILOT-SPARSE-001` | Deleting slot 1 preserves slot 2/3 identities, including sparse startup and the source-presence read contract |
+| `EVAL-PILOT-VACANCY-STABILITY-001` | Complete observations span the bounded stability window; temporary replacement, invalid-but-present Dossiers, inaccessible subtrees, and root replacement do not vacate |
+| `EVAL-PILOT-VACANCY-RESTART-001` | Reopen preserves the vacancy boundary; startup repairs an absent slot only for a complete, available root inventory |
+| `EVAL-PILOT-VACANCY-REUSE-001` | Same-name and different-name reuse allocate a new career without inherited history; pre-vacancy retained snapshots cannot cross the persisted boundary |
+| `EVAL-PILOT-VACANCY-ISOLATION-001` | Conditional release is idempotent; injected write failure rolls back binding and epoch together; a concurrent second root continues unchanged; confirmed proofs survive bounded retries and reserve admission capacity |
+
+Q0 checked `main` at `47bbfcb` and the earlier fixes from #70/PR #88 (`018e6ba`),
+#94/PR #104 (`bba867b`) and PR #107 (`da133e8`), #42/PR #83 (`f975c52`), and
+#27/PR #115 (`39e8ef2`). PR #126 (`71a5d45`) registered #122 without implementing
+vacancy. Before the production changes, both the live-deletion and sparse
+restart regressions failed because the slot-1 binding remained. The correction
+is limited to that missing lifecycle boundary; #87, #99, and UI implementation
+remain separate.
+
+Focused commands:
+
+```bash
+python -m pytest woff/tests/test_pilot_vacancy.py -q
+python -m pytest woff/tests/test_stable_snapshot.py woff/tests/test_handler_integration.py woff/tests/test_privacy_contracts.py -q
+python scripts/validate_project_graph.py
+pyright
+```
 
 ## Newly registered data-integrity evals
 

@@ -153,6 +153,71 @@ allow startup reconciliation or a later filesystem notification to reconsider
 the current generation. If memory or scheduler saturation repeats, first check
 for missing or invalid Dossiers before changing `max_pending_events`.
 
+## Pilot-slot vacancy
+
+`Pilot{N}` is a persistent simulator slot, not a list position or career ID.
+Only a Dossier establishes occupancy. Deleting or moving its last copy out of
+a configured campaign root submits a bounded, coalesced reconciliation event.
+The slot must remain absent in complete recursive inventories throughout the
+configured file-stability window. A present but empty or unreadable Dossier,
+temporary replacement, inaccessible directory, changing/incomplete scan, or
+unverified symlink/junction tree does not prove vacancy.
+
+When `.txt` monitoring is enabled, startup compares persisted bindings against
+each available root's complete Dossier inventory before importing current
+sources. It confirms each missing slot through the same stability policy.
+The negative-inventory wait covers both vacancy persistence and a new Dossier
+arriving during that transaction, including both bounded persistence budgets.
+Missing roots are not empty roots. Sparse sets such as `{Pilot2, Pilot3}` keep
+their slot numbers and bindings unchanged when slot 1 becomes vacant.
+
+A committed vacancy releases only the exact namespace/slot binding. It never
+deletes historical careers, missions, victories, diary, RPG, or squadron data.
+A later Dossier creates a new career ID, including same-name reuse, without
+inheriting the old career's history. Retained pre-vacancy source snapshots are
+rejected at the persisted lifecycle boundary. An observed boundary does not
+resolve #87's same-name replacement without observed vacancy.
+
+Deleting Log, Claims, or Squads files does not change occupancy. A complete Log
+or Claims file declaring zero entries is accepted as valid empty input, distinct
+from a missing or incomplete file; it neither erases accumulated history nor
+creates a pilot binding.
+
+### Presence read contract
+
+`DatabaseManager.list_slot_bindings(namespace)` returns the last known occupied
+slots in their original numeric order; `get_slot_binding(namespace, slot)`
+returns one immutable binding or `None`. The binding contains namespace, slot,
+career ID (`pilot_id`), verified Dossier digest, and last update time. These are
+persisted observations, not a fresh filesystem availability check. An unavailable
+root retains its last known binding. `list_careers` and `resolve_career` still
+return historical careers by stable ID, with `slot=None` after vacancy.
+Source presence is independent of Active, Wounded, KIA, or retired status.
+Consumers must not infer live occupancy from a career's stored source filename,
+military status, dependent-file counts, or list position.
+
+### Deferred vacancy and recovery
+
+Sanitized diagnostics distinguish `Dossier vacancy confirmed`,
+`Dossier vacancy deferred`, `Startup vacancy deferred`, and
+`New career allocated after vacancy`. They report only a shortened campaign
+namespace, slot, category, and applicable attempt count, not paths or pilot data.
+
+Vacancy persistence uses four attempts with 0.1, 0.2, and 0.4 seconds of backoff
+for recognized transient SQLite errors. Failure rolls back the binding and
+lifecycle counter together. Once absence is confirmed, a Dossier reappearing
+during those attempts does not cancel that boundary. Sources for the same
+logical slot are serialized, while other slots and roots may continue.
+
+After persistence exhaustion, the uncommitted proof reserves scheduler path
+capacity and is not evicted to admit unrelated work. A later admitted event for
+that slot can retry persistence; dependent bytes cannot write into its old
+career. Resolve database locking or write failures before reusing the slot or
+stopping WoFF Mate. An uncommitted proof exists only in memory: after a process
+restart, startup can confirm continued absence, but cannot reconstruct a gap
+if a same-name Dossier already replaced it. Keep normal backups and preserve
+source files; do not delete SQLite sidecars or manually edit slot bindings.
+
 ## Common database messages
 
 ### Victory merge outcomes

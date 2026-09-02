@@ -181,6 +181,16 @@ Issue #50 closes only when all conditions below pass:
 
 CI success alone does not close #50 or release 3.3.0.
 
+Issue #122's six vacancy evals are implemented in
+`woff/tests/test_pilot_vacancy.py`, including rollback and reopen without a
+schema change, retained-generation isolation, bounded proof retention, sparse
+startup, and independent roots. The focused suite runs on Windows as well as
+within the Linux full-suite matrix. Q0 records the earlier identity, namespace,
+snapshot, and dependency fixes plus the pre-fix live-deletion/startup failures
+in the [eval catalog](evals.md#implemented-pilot-slot-vacancy-evals-122).
+Issue #87's independent evidence gap and maintainer approval still keep the
+aggregate gate pending; this change does not declare cycle completion.
+
 ## Q6-CYCLE-3.4.0: parser, roster, presentation, and RPG integrity
 
 Cycle 3.4.0 is active. Issues #28, #35, #37, #38, #41, #75, #79, #80, and #97 are
