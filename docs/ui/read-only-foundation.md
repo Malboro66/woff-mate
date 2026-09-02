@@ -75,6 +75,11 @@ Every screen supports the same explicit state envelope:
 presented as current. Fields inside a `ready` snapshot may still be explicitly
 unavailable and carry warnings.
 
+The [shared screen-state matrix](screen-state-matrix.md) defines exact state
+selection, field reasons, freshness and visual aliases. The
+[synthetic fixture inventory](../../woff/tests/fixtures/ui_states/README.md)
+provides the isolated, executable examples for `EVAL-UI-STATES-001`.
+
 ## Navigation and stable inputs
 
 | Screen | Responsibility | Immutable view-model inputs |
@@ -123,16 +128,16 @@ The approved follow-up work is now tracked explicitly:
   state inventory, focus order, Windows scaling notes, persistent-slot rule,
   and passing published-Site conformance evidence without production UI code;
   it is complete.
-- #80 defines the shared state matrix and deterministic sanitized fixtures used
-  by designs, contract tests, and the toolkit spike.
+- #80 is complete: the shared state matrix and deterministic sanitized fixtures
+  are enforced by a standard-library validator and isolated contract tests.
 - #81 defines immutable read-only view models and application query-service
   protocols after #80 establishes the shared vocabulary.
 - #82 measures one isolated PySide6 and Qt Widgets line after #80, including
   supported Python and Windows versions, PyInstaller packaging, startup,
   memory, scaling, keyboard use, accessibility, plugins, and licensing.
 
-Issue #80 may proceed without a GUI runtime dependency. Issues #81 and #82
-remain blocked by #80; completion of #79 does not satisfy either dependency. A
+Issue #80 adds no GUI runtime dependency. Its completion satisfies the fixture
+prerequisite for #81 and #82; both remain unimplemented backlog work. A
 retained production shell still requires ADR acceptance, applicable Product
 Gate A and Product Gate B decisions, an approved optional-dependency policy,
 clean Windows packaging evidence, and explicit maintainer approval. None of

@@ -1,5 +1,5 @@
 version: 1
-updated: 2026-08-29
+updated: 2026-09-01
 
 project:
   repository: Malboro66/woff-mate
@@ -138,6 +138,7 @@ modules:
     paths:
       - scripts/validate_project_graph.py
       - scripts/validate_ui_v2_evidence.py
+      - scripts/validate_ui_fixtures.py
     may_depend_on: []
     forbidden_dependencies:
       - foundation
@@ -651,8 +652,9 @@ evals:
     enforced_by: [woff/tests/test_architecture_contracts.py, woff/tests/test_ui_v2_evidence.py]
   EVAL-UI-STATES-001:
     work_items: [issue-80]
-    status: planned
-    evidence: Sanitized deterministic fixtures cover every shared screen state without personal data, Qt, SQLite, WoFF files, or network access.
+    status: implemented
+    evidence: Thirty closed-vocabulary synthetic fixtures cover all six shared states, separate global/list/detail selection contexts, explicit subject selection, retained career context, owner identity field placement, consistent identity, field reasons, source conflicts, unknown freshness, stale timestamps, safe failures, redacted settings and sparse same-name career identities. The matrix maps all 15 V2 screens and archived visual aliases. Mutation tests and an isolated standard-library process enforce privacy and absence of SQLite, WoFF, network, Qt and application access.
+    enforced_by: [scripts/validate_ui_fixtures.py, tests/test_ui_state_fixtures.py, woff/tests/test_architecture_contracts.py]
   EVAL-UI-CONTRACTS-001:
     work_items: [issue-81]
     status: planned
@@ -991,7 +993,7 @@ work_items:
   issue-80:
     title: Define sanitized UI fixtures and the shared screen-state matrix
     module: presentation
-    state: backlog
+    state: done
     evals: [EVAL-UI-STATES-001]
     gates: [Q0, Q1, Q6-CYCLE-3.4.0]
     depends_on:
@@ -999,21 +1001,21 @@ work_items:
   issue-81:
     title: Define immutable read-only UI view models and query-service contracts
     module: presentation
-    state: blocked
+    state: backlog
     evals: [EVAL-UI-CONTRACTS-001]
     gates: [Q0, Q1, Q6-CYCLE-3.4.0]
     depends_on:
       - {id: issue-56, status: satisfied}
-      - {id: issue-80, status: unsatisfied}
+      - {id: issue-80, status: satisfied}
   issue-82:
     title: Validate PySide6 packaging, startup, scaling, and accessibility
     module: platform
-    state: blocked
+    state: backlog
     evals: [EVAL-UI-SPIKE-001, EVAL-UI-SPIKE-002]
     gates: [Q0, Q1, Q4]
     depends_on:
       - {id: issue-56, status: satisfied}
-      - {id: issue-80, status: unsatisfied}
+      - {id: issue-80, status: satisfied}
   issue-87:
     title: Validate same-name career reuse in the same pilot slot
     module: persistence

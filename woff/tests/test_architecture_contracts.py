@@ -1340,6 +1340,32 @@ def test_ui_read_only_foundation_contract() -> None:
         assert "issue-56" not in cycle.get("members", [])
 
 
+def test_ui_state_fixture_gate_and_followup_dependencies() -> None:
+    from scripts.validate_ui_fixtures import load_catalog
+
+    assert len(load_catalog()["fixtures"]) == 30
+    matrix = REPOSITORY_ROOT / "docs" / "ui" / "screen-state-matrix.md"
+    assert matrix.is_file()
+    for document in ("README.md", "docs/ui/read-only-foundation.md", "docs/engineering/evals.md"):
+        assert "screen-state-matrix.md" in (REPOSITORY_ROOT / document).read_text(encoding="utf-8")
+    graph = _graph()
+    work_items, evals = graph["work_items"], graph["evals"]
+    assert isinstance(work_items, dict) and isinstance(evals, dict)
+    assert work_items["issue-80"]["state"] == "done"
+    assert evals["EVAL-UI-STATES-001"]["status"] == "implemented"
+    assert evals["EVAL-UI-STATES-001"]["enforced_by"] == [
+        "scripts/validate_ui_fixtures.py",
+        "tests/test_ui_state_fixtures.py",
+        "woff/tests/test_architecture_contracts.py",
+    ]
+    for issue in ("issue-81", "issue-82"):
+        assert work_items[issue]["state"] == "backlog"
+        assert {"id": "issue-80", "status": "satisfied"} in work_items[issue]["depends_on"]
+        for eval_id in work_items[issue]["evals"]:
+            assert evals[eval_id]["status"] == "planned"
+    assert evals["EVAL-CYCLE-340-001"]["status"] == "planned"
+
+
 def test_ui_v2_reference_contract() -> None:
     ui_root = REPOSITORY_ROOT / "docs" / "ui"
     reference_path = ui_root / "ui-v2-reference.md"
@@ -1612,7 +1638,7 @@ def test_ui_v2_reference_contract() -> None:
 
     quality_gates = quality_gates_path.read_text(encoding="utf-8")
     assert re.search(
-        r"Issues #28, #35, #37, #38, #41, #75, #79, and #97 are\s+complete",
+        r"Issues #28, #35, #37, #38, #41, #75, #79, #80, and #97 are\s+complete",
         quality_gates,
     )
     assert "published UI V2" in quality_gates

@@ -68,6 +68,20 @@ Privacy/security changes also run:
 python -m pytest woff/tests/test_privacy_contracts.py -q
 ```
 
+The Issue #80 fixture gate additionally runs:
+
+```bash
+python -I -S scripts/validate_ui_fixtures.py
+python -m pytest tests/test_ui_state_fixtures.py -q
+```
+
+The fixture suite uses no `woff/tests` persistence setup. It enforces the
+six-state envelope, all 15 screen mappings, deterministic inventory/order,
+synthetic labeling, fixed safe text, field reasons, stale/unknown freshness,
+stable ownership and isolation from application, database, GUI and network
+access. Passing this gate satisfies #80 only; #81/#82, the toolkit ADR,
+Product Gates and the aggregate cycle remain separate decisions.
+
 ## Q2: database and data
 
 Apply Q2 to writes, transactions, schemas, and migrations:
@@ -169,7 +183,7 @@ CI success alone does not close #50 or release 3.3.0.
 
 ## Q6-CYCLE-3.4.0: parser, roster, presentation, and RPG integrity
 
-Cycle 3.4.0 is active. Issues #28, #35, #37, #38, #41, #75, #79, and #97 are
+Cycle 3.4.0 is active. Issues #28, #35, #37, #38, #41, #75, #79, #80, and #97 are
 complete.
 #79's repository design contract and published UI V2 Site pass the recorded
 rendered WCAG AA contrast thresholds within bounded Audit 4 coverage,

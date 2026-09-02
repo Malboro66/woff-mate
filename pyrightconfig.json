@@ -6,6 +6,7 @@
     "woff_editor.py",
     "woff_query.py",
     "diagnostico.py",
-    "scripts"
+    "scripts",
+    "tests"
   ]
 }

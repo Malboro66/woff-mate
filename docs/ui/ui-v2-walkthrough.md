@@ -198,9 +198,12 @@ conformance evidence only.
 Python CI validates the immutable observations, not the mutable live Site.
 Audit 1–3 remain historical and are superseded for current acceptance.
 
+Issue #80: formal deterministic state fixtures are now complete in the
+[shared screen-state matrix](screen-state-matrix.md) and its isolated catalog.
+This follow-up does not alter the immutable visual audit above.
+
 The following remain intentionally unresolved:
 
-- Issue #80: formal deterministic state fixtures;
 - Issue #81: immutable application view-model and query-service protocols;
 - Issue #82: isolated toolkit feasibility and packaging evidence;
 - the proposed toolkit ADR and applicable Product Gates; and
