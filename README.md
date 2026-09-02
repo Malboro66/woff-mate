@@ -1,4 +1,5 @@
-# ✈️ WoFF Mate
+<img src="icon.png" alt="WOFF MATE LOGO">
+WoFF Mate
 
 > An open-source companion application for *Wings Over Flanders Fields: Between Heaven & Hell II*.
 
