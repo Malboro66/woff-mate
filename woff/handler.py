@@ -13,11 +13,17 @@ import logging
 import ntpath
 import os
 import sqlite3
+import time
+import threading
+import weakref
+from contextlib import nullcontext
 from typing import Any, Optional, List, Sequence
 
 from watchdog.events import FileSystemEventHandler
 
-from .campaign_namespace import CampaignNamespaceError, CampaignNamespaceResolver
+from .campaign_namespace import (
+    CampaignNamespaceError, CampaignNamespaceResolver, campaign_namespace_label,
+)
 from .database import (
     DatabaseManager,
     MergeWriteOutcome,
@@ -31,6 +37,7 @@ from .ingestion.outcome import (
     ProcessingOutcome,
     ProcessingReason,
     ProcessingStatus,
+    PersistenceRetryPolicy,
     VerifiedProcessingInput,
     classify_transient_sqlite_error,
 )
@@ -40,13 +47,16 @@ from .ingestion.snapshot import (
     StableFileSnapshot,
     StableSnapshotReader,
 )
+from .ingestion.vacancy import DossierVacancyGuard, VacancyState
 from .identity import (
     PilotIdentityError,
     PilotIdentityEvidence,
     PilotIdentityKind,
     PilotIdentityRejected,
     PilotIdentityUnavailable,
+    PilotSlotBinding,
     dossier_source_name,
+    is_dossier_source,
     pilot_slot,
 )
 from .normalization import canonical_mission_order_key
@@ -137,7 +147,38 @@ class FileProcessor:
         self.campaign_engine = campaign_engine
         self.discovery = discovery
         self.guard = FileStabilityGuard(timeout=stability_timeout, interval=stability_interval)
+        self.vacancy_guard = DossierVacancyGuard(stability_timeout, stability_interval)
+        self.vacancy_retry_policy = PersistenceRetryPolicy()
+        self._retry_sleep = time.sleep
         self._campaign_namespaces = CampaignNamespaceResolver(watch_roots)
+        self._slot_locks: weakref.WeakValueDictionary[tuple[str, int], Any] = (
+            weakref.WeakValueDictionary()
+        )
+        self._slot_locks_guard = threading.Lock()
+        # The scheduler reserves one admission slot for each unpersisted proof.
+        # Keep it namespace-keyed as well, so sibling sources and path moves
+        # cannot bypass a confirmed boundary while SQLite is unavailable.
+        self._confirmed_vacancies: dict[tuple[str, int], PilotSlotBinding] = {}
+
+    def _slot_lock(self, path: str):
+        if pilot_slot(path) is None:
+            return nullcontext()
+        try:
+            key = self._dependent_binding_key(path, _safe_filename(path))
+        except PilotIdentityError:
+            return nullcontext()
+        with self._slot_locks_guard:
+            lock = self._slot_locks.get(key)
+            if lock is None:
+                lock = threading.RLock()
+                self._slot_locks[key] = lock
+            return lock
+
+    def vacancy_pending(self, binding: PilotSlotBinding) -> bool:
+        """Nonblocking scheduler check for a retained, unpersisted boundary."""
+        return self._confirmed_vacancies.get(
+            (binding.campaign_namespace, binding.slot)
+        ) == binding
 
     def process(
         self,
@@ -145,8 +186,44 @@ class FileProcessor:
         event_type: str,
         previous_generation: Optional[FileGeneration] | ProcessingOutcome = None,
     ) -> ProcessingOutcome:
+        # Serialize one logical slot, not every root or all workers. This also
+        # covers Dossier aliases in different subdirectories of the same root.
+        with self._slot_lock(path):
+            return self._process(path, event_type, previous_generation)
+
+    def _process(
+        self,
+        path: str,
+        event_type: str,
+        previous_generation: Optional[FileGeneration] | ProcessingOutcome = None,
+    ) -> ProcessingOutcome:
         """Process one path and return an explicit acknowledgement contract."""
         try:
+            confirmed_vacancy = (
+                previous_generation.confirmed_vacancy
+                if isinstance(previous_generation, ProcessingOutcome) else None
+            )
+            if pilot_slot(path) is not None:
+                key = self._dependent_binding_key(path, _safe_filename(path))
+                confirmed_vacancy = self._confirmed_vacancies.get(key, confirmed_vacancy)
+            if confirmed_vacancy is not None or (is_dossier_source(path) and (
+                event_type in {"deleted", "moved-away", "initial-vacancy"}
+            )):
+                vacancy = self._reconcile_vacancy(path, confirmed_vacancy)
+                if vacancy is not None:
+                    if (vacancy.confirmed_vacancy is not None
+                            and _requires_dependent_identity(path)):
+                        # Fresh dependent bytes observed after the boundary
+                        # belong to the next epoch, but cannot write before the
+                        # vacancy and the next Dossier both commit.
+                        snapshot = self.guard.acquire(path)
+                        next_epoch = self.db_manager.get_slot_epoch(
+                            *self._dependent_binding_key(path, snapshot.name)
+                        ) + 1
+                        return self._dependency_pending(
+                            VerifiedProcessingInput(snapshot, slot_epoch=next_epoch)
+                        )
+                    return vacancy
             previous_outcome = (
                 previous_generation
                 if isinstance(previous_generation, ProcessingOutcome)
@@ -193,12 +270,17 @@ class FileProcessor:
                     self._resolved_dependency(snapshot),
                 )
 
+            slot_epoch = None
+            if pilot_slot(path) is not None:
+                slot_epoch = self.db_manager.get_slot_epoch(
+                    *self._dependent_binding_key(path, snapshot.name)
+                )
             try:
-                retry_input = self._verified_processing_input(path, snapshot)
+                retry_input = self._verified_processing_input(path, snapshot, slot_epoch)
             except SnapshotFailure:
                 if not _requires_dependent_identity(snapshot.name):
                     raise
-                retry_input = VerifiedProcessingInput(snapshot)
+                retry_input = VerifiedProcessingInput(snapshot, slot_epoch=slot_epoch)
                 return self._dependency_pending(retry_input)
             return self._process_verified(
                 retry_input, event_type, record_discovery=True
@@ -220,6 +302,80 @@ class FileProcessor:
                 ProcessingReason.UNEXPECTED_ERROR
             )
 
+    def _reconcile_vacancy(
+        self, path: str, confirmed: Optional[PilotSlotBinding] = None
+    ) -> Optional[ProcessingOutcome]:
+        namespace, slot = self._dependent_binding_key(path, _safe_filename(path))
+        root = self._campaign_namespaces.root_for(path)
+        if confirmed is not None and (confirmed.campaign_namespace, confirmed.slot) != (
+            namespace, slot
+        ):
+            raise PilotIdentityRejected("vacancy-binding-key-mismatch", slot)
+        expected = confirmed or self.db_manager.get_slot_binding(namespace, slot)
+        if expected is None:
+            return (
+                None if os.path.exists(path)
+                else ProcessingOutcome.reconciled(ProcessingReason.SLOT_UNCHANGED)
+            )
+        if confirmed is None:
+            observation = self.vacancy_guard.confirm(root, slot)
+            if observation.state is VacancyState.PRESENT:
+                return None if os.path.exists(path) else ProcessingOutcome.reconciled(
+                    ProcessingReason.SLOT_UNCHANGED
+                )
+            if observation.state is VacancyState.DEFERRED:
+                return self._vacancy_deferred(namespace, slot)
+
+        # Once the full window proves absence, later arrival is a new career
+        # boundary even if persistence was busy. Never cancel this proof merely
+        # because a Dossier reappears while the transaction is retried.
+        self._confirmed_vacancies[(namespace, slot)] = expected
+
+        policy = self.vacancy_retry_policy
+        for attempt in range(1, policy.max_attempts + 1):
+            try:
+                with self.db_manager.transaction():
+                    if self.db_manager.get_slot_binding(namespace, slot) != expected:
+                        self._confirmed_vacancies.pop((namespace, slot), None)
+                        return None if os.path.exists(path) else ProcessingOutcome.reconciled(
+                            ProcessingReason.SLOT_UNCHANGED
+                        )
+                    released = self.db_manager.release_slot_binding(expected)
+                self._confirmed_vacancies.pop((namespace, slot), None)
+                if released:
+                    log.info(
+                        "Dossier vacancy confirmed: namespace=%s slot=%d",
+                        campaign_namespace_label(namespace), slot,
+                    )
+                    return None if os.path.exists(path) else ProcessingOutcome.reconciled(
+                        ProcessingReason.SLOT_VACANT
+                    )
+                return ProcessingOutcome.reconciled(ProcessingReason.SLOT_UNCHANGED)
+            except Exception as error:
+                reason = classify_transient_sqlite_error(error)
+                log.warning(
+                    "Vacancy persistence deferred: namespace=%s slot=%d "
+                    "category=%s attempts=%d",
+                    campaign_namespace_label(namespace), slot,
+                    (reason or ProcessingReason.SQLITE_PERMANENT).value, attempt,
+                )
+                if reason is None or attempt == policy.max_attempts:
+                    return self._vacancy_deferred(namespace, slot, expected)
+                self._retry_sleep(policy.delay_after_failure(attempt))
+        return self._vacancy_deferred(namespace, slot, expected)
+
+    @staticmethod
+    def _vacancy_deferred(
+        namespace: str, slot: int, confirmed: Optional[PilotSlotBinding] = None
+    ) -> ProcessingOutcome:
+        log.warning(
+            "Dossier vacancy deferred: namespace=%s slot=%d "
+            "category=%s",
+            campaign_namespace_label(namespace), slot,
+            "persistence-pending" if confirmed is not None else "unconfirmed-absence",
+        )
+        return ProcessingOutcome.reconciled(ProcessingReason.VACANCY_DEFERRED, confirmed)
+
     def replay(
         self, outcome: ProcessingOutcome, event_type: str
     ) -> ProcessingOutcome:
@@ -229,11 +385,20 @@ class FileProcessor:
             or outcome.retry_input is None
         ):
             raise ValueError("only a transient processing outcome can be replayed")
-        return self._process_verified(
-            outcome.retry_input, event_type, record_discovery=False
-        )
+        with self._slot_lock(outcome.retry_input.snapshot.path):
+            return self._process_verified(
+                outcome.retry_input, event_type, record_discovery=False
+            )
 
     def replay_dependency(
+        self, outcome: ProcessingOutcome, event_type: str
+    ) -> ProcessingOutcome:
+        if outcome.retry_input is None:
+            raise ValueError("only a pending dependency can be replayed")
+        with self._slot_lock(outcome.retry_input.snapshot.path):
+            return self._replay_dependency(outcome, event_type)
+
+    def _replay_dependency(
         self, outcome: ProcessingOutcome, event_type: str
     ) -> ProcessingOutcome:
         """Replay retained source bytes after its Dossier dependency changes."""
@@ -245,25 +410,27 @@ class FileProcessor:
         retained = outcome.retry_input
         snapshot = retained.snapshot
         try:
-            identity = self._dependent_identity(snapshot.path, snapshot.name)
+            identity = self._dependent_identity(
+                snapshot.path, snapshot.name, retained.slot_epoch
+            )
         except SnapshotFailure:
             return self._dependency_pending(retained)
         except PilotIdentityError as error:
             return self._identity_rejection(snapshot.path, error)
         return self._process_verified(
-            VerifiedProcessingInput(snapshot, identity),
+            VerifiedProcessingInput(snapshot, identity, retained.slot_epoch),
             event_type,
             record_discovery=False,
         )
 
     def _verified_processing_input(
-        self, path: str, snapshot: StableFileSnapshot
+        self, path: str, snapshot: StableFileSnapshot, slot_epoch: Optional[int] = None
     ) -> VerifiedProcessingInput:
         source_name = snapshot.name
         dependent_identity = None
         if _requires_dependent_identity(source_name):
-            dependent_identity = self._dependent_identity(path, source_name)
-        return VerifiedProcessingInput(snapshot, dependent_identity)
+            dependent_identity = self._dependent_identity(path, source_name, slot_epoch)
+        return VerifiedProcessingInput(snapshot, dependent_identity, slot_epoch)
 
     def _process_verified(
         self,
@@ -275,6 +442,12 @@ class FileProcessor:
         snapshot = retry_input.snapshot
         path = snapshot.path
         try:
+            if pilot_slot(path) is not None:
+                key = self._dependent_binding_key(path, snapshot.name)
+                if key in self._confirmed_vacancies:
+                    return self._identity_rejection(
+                        path, PilotIdentityRejected("vacancy-persistence-pending", key[1])
+                    )
             if record_discovery and self.discovery and os.path.exists(path):
                 self.discovery.log_file(path, event_type)
 
@@ -288,6 +461,7 @@ class FileProcessor:
                     filename,
                     snapshot,
                     dependent_identity=retry_input.dependent_identity,
+                    slot_epoch=retry_input.slot_epoch,
                 )
             else:
                 return ProcessingOutcome.permanent(
@@ -371,6 +545,7 @@ class FileProcessor:
     def _dossier_identity(
         self,
         snapshot: Optional[StableFileSnapshot],
+        slot_epoch: Optional[int] = None,
     ) -> PilotIdentityEvidence:
         if snapshot is None:
             raise PilotIdentityRejected("missing-stable-snapshot")
@@ -388,6 +563,7 @@ class FileProcessor:
             slot,
             snapshot.generation.digest,
             campaign_namespace,
+            slot_epoch,
         )
 
     def _resolved_dependency(
@@ -454,7 +630,7 @@ class FileProcessor:
         return pilot_id
 
     def _dependent_identity(
-        self, path: str, source_name: str
+        self, path: str, source_name: str, slot_epoch: Optional[int] = None
     ) -> PilotIdentityEvidence:
         campaign_namespace, slot = self._dependent_binding_key(
             path, source_name
@@ -468,6 +644,7 @@ class FileProcessor:
             slot,
             dossier.generation.digest,
             campaign_namespace,
+            slot_epoch,
         )
 
     def _dependent_binding_key(
@@ -518,12 +695,13 @@ class FileProcessor:
         snapshot: Optional[StableFileSnapshot] = None,
         *,
         dependent_identity: Optional[PilotIdentityEvidence] = None,
+        slot_epoch: Optional[int] = None,
     ) -> Optional[ProcessingReason]:
         data, name = self._parser_input(path, snapshot)
         if "dossier" in fname:
             parser = WoFFDossierParser()
             if parser.parse_bytes(data, name) and parser.pilot:
-                identity = self._dossier_identity(snapshot)
+                identity = self._dossier_identity(snapshot, slot_epoch)
                 real_pilot_id = self.campaign_engine.process_dossier_import(
                     pilot=parser.pilot,
                     decorations=parser.decorations,
@@ -556,13 +734,18 @@ class FileProcessor:
 
         # Ficheiros de piloto (Log, Claims, Squads)
         parser = WoFFPilotDataParser()
-        if parser.parse_bytes(data, name) and parser.pilot:
+        parsed = parser.parse_bytes(data, name)
+        if getattr(parser, "valid_empty", False) is True:
+            # A verified zero-count source is present and valid. Acknowledge
+            # its bytes without inferring occupancy or clearing prior history.
+            return None
+        if parsed and parser.pilot:
             persisted_pilot_id = self._merge_and_process_latest_mission(
                 parser,
                 (
                     dependent_identity
                     if dependent_identity is not None
-                    else self._dependent_identity(path, name)
+                    else self._dependent_identity(path, name, slot_epoch)
                 ),
             )
             return (
@@ -608,6 +791,7 @@ class WoFFEventHandler(FileSystemEventHandler):
             persistence_retry_process=self._execute_persistence_retry_pipeline,
             dependency_retry_process=self._execute_dependency_retry_pipeline,
             dependency_key_for_event=self._dependency_key_for_event,
+            vacancy_pending=self.processor.vacancy_pending,
         )
         self._startup_admission_timeout = config.stability_timeout_sec
 
@@ -619,8 +803,14 @@ class WoFFEventHandler(FileSystemEventHandler):
         if not event.is_directory:
             self._handle(str(event.src_path), "created")
 
+    def on_deleted(self, event):
+        if not event.is_directory and is_dossier_source(str(event.src_path)):
+            self._handle(str(event.src_path), "deleted")
+
     def on_moved(self, event):
         if not event.is_directory:
+            if is_dossier_source(str(event.src_path)):
+                self._handle(str(event.src_path), "moved-away")
             self._handle(str(event.dest_path), "moved")
 
     def _handle(self, path: str, event_type: str):
@@ -640,6 +830,12 @@ class WoFFEventHandler(FileSystemEventHandler):
         """Route startup reconciliation through the bounded live scheduler."""
         return self.scheduler.submit(
             path, "initial", admission_timeout=self._startup_admission_timeout
+        )
+
+    def submit_initial_vacancy(self, path: str) -> bool:
+        """Keep a proven negative inventory distinct from a positive snapshot."""
+        return self.scheduler.submit(
+            path, "initial-vacancy", admission_timeout=self._startup_admission_timeout
         )
 
     def wait_initial(self, paths: list[str], timeout: float) -> bool:

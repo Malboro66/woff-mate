@@ -1,5 +1,5 @@
 version: 1
-updated: 2026-09-01
+updated: 2026-09-02
 
 project:
   repository: Malboro66/woff-mate
@@ -325,28 +325,40 @@ evals:
     evidence: Sanitized longitudinal Dossier fixtures distinguish a replay from a same-name replacement career in the same pilot slot, or record that the available structure cannot do so safely.
   EVAL-PILOT-VACANCY-001:
     work_items: [issue-122]
-    status: planned
+    status: implemented
     evidence: Confirmed Dossier absence vacates only the exact namespaced slot, dependent files cannot preserve occupancy, and the historical career and every related record remain unchanged.
+    enforced_by:
+      - woff/tests/test_pilot_vacancy.py
   EVAL-PILOT-SPARSE-001:
     work_items: [issue-122]
-    status: planned
+    status: implemented
     evidence: Sparse live slots retain their original Pilot numbers without renumbering or rebinding surviving careers.
+    enforced_by:
+      - woff/tests/test_pilot_vacancy.py
   EVAL-PILOT-VACANCY-STABILITY-001:
     work_items: [issue-122]
-    status: planned
+    status: implemented
     evidence: Atomic replacement, transient sharing failures, unavailable roots, and incomplete scans cannot create a false vacancy.
+    enforced_by:
+      - woff/tests/test_pilot_vacancy.py
   EVAL-PILOT-VACANCY-RESTART-001:
     work_items: [issue-122]
-    status: planned
+    status: implemented
     evidence: Startup reconciliation repairs stale bindings only after a complete successful Dossier inventory for the applicable campaign namespace.
+    enforced_by:
+      - woff/tests/test_pilot_vacancy.py
   EVAL-PILOT-VACANCY-REUSE-001:
     work_items: [issue-122]
-    status: planned
+    status: implemented
     evidence: A Dossier arriving after confirmed vacancy creates a new career identity for same-name or different-name slot reuse without inheriting historical data.
+    enforced_by:
+      - woff/tests/test_pilot_vacancy.py
   EVAL-PILOT-VACANCY-ISOLATION-001:
     work_items: [issue-122]
-    status: planned
+    status: implemented
     evidence: Vacancy, restart reconciliation, persistence rollback, and slot reuse are idempotent and isolated across campaign namespaces.
+    enforced_by:
+      - woff/tests/test_pilot_vacancy.py
   EVAL-PILOT-STATUS-001:
     work_items: [issue-71]
     status: implemented
@@ -1088,7 +1100,7 @@ work_items:
   issue-122:
     title: Reconcile pilot-slot vacancy after campaign deletion and reuse
     module: ingestion
-    state: backlog
+    state: done
     evals:
       - EVAL-PILOT-VACANCY-001
       - EVAL-PILOT-SPARSE-001

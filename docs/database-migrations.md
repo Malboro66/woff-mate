@@ -107,9 +107,11 @@ migration established unambiguous ownership.
 A Dossier whose display name changes in an already bound slot creates a new
 career and rotates only the current binding. The prior pilot row, relationships,
 RPG state, and diary remain attached to the prior ID. A matching-name Dossier in
-the same slot is currently treated as a replay of the bound career; distinguishing
-a same-name replacement in that same slot requires sanitized longitudinal WOFF
-fixtures and is tracked separately with `needs-real-fixture`.
+the same slot is treated as a replay only while that binding remains current.
+Confirmed vacancy releases the binding, so even a same-name arrival starts a new
+career. Distinguishing replacement without an observed vacancy requires
+sanitized longitudinal WOFF fixtures and remains tracked separately in #87
+with `needs-real-fixture`.
 
 Live XML and `Mission.log` ingestion cannot establish a supported career
 identity and performs no persistent write. Slot-dependent files require both a
@@ -120,6 +122,24 @@ transactional rollback procedure described below. Certification requires
 `PRAGMA foreign_key_check` to return no rows, `PRAGMA integrity_check` to return
 `ok`, and the migrated database to reopen under the current schema contract.
 The migration backup is retained after both successful migration and recovery.
+
+## Pilot-slot vacancy without a schema migration
+
+Issue #122 keeps schema 3.4 unchanged. After a complete, stable absence
+observation, one transaction compares the exact observed binding, deletes only
+that `(campaign_namespace, slot)` binding, and advances its lifecycle counter in
+the existing `meta` table under
+`pilot_slot_vacancy:<campaign_namespace>:<slot>`. Missing counters mean zero.
+This counter is not a pilot ID or military status; it prevents already retained
+pre-vacancy snapshots from writing into a later career in the same slot.
+
+The pilot, career namespace ownership, missions, victories, decorations, RPG,
+diary, and squadron history are not rewritten or deleted. Existing databases
+need no reseeding, DDL, or version change. A failed transaction rolls back both
+the binding release and counter increment; a committed boundary survives reopen.
+`woff/tests/test_pilot_vacancy.py` enforces rollback, historical preservation,
+same-name reuse, reopen, integrity, and foreign-key checks. Normal export-backup
+configuration remains applicable; this operation does not alter WoFF files.
 
 ## Automatic migration protection
 
