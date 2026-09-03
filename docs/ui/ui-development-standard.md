@@ -139,8 +139,7 @@ for convenience.
 The approved V2 visual system currently publishes concrete token names and
 values in `docs/ui/ui-v2-visual-system.md`, including color, typography,
 spacing, shape, borders, elevation, materials, and state treatment. That is a
-normative human-readable source, but it is not a dedicated machine-readable
-token artifact with a versioned schema intended for automated consumption.
+normative human-readable source, but it is not a dedicated machine-readable token artifact with a versioned schema intended for automated consumption.
 
 Therefore #135 does **not** introduce a token pipeline. A separate narrowly
 scoped follow-up is recommended to evaluate a machine-readable V2 token source
