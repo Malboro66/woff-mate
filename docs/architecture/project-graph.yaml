@@ -1,5 +1,5 @@
 version: 1
-updated: 2026-09-01
+updated: 2026-09-03
 
 project:
   repository: Malboro66/woff-mate
@@ -189,7 +189,7 @@ gates:
   Q6-CYCLE-3.3.0:
     description: All seventeen 3.3.0 work items, applicable evals, functional exit criteria, documentation, and CI are approved.
   Q6-CYCLE-3.4.0:
-    description: All sixteen 3.4.0 work items, applicable evals, functional exit criteria, documentation, and CI are approved.
+    description: All seventeen 3.4.0 work items, applicable evals, functional exit criteria, documentation, and CI are approved.
 
 evals:
   EVAL-DIARY-001:
@@ -500,6 +500,26 @@ evals:
       - woff/tests/test_dossier_parser.py
       - woff/tests/test_xml_parser.py
       - woff/tests/test_mission_log_parser.py
+  EVAL-NATION-DOMAIN-001:
+    work_items: [issue-136]
+    status: planned
+    evidence: The canonical playable-nation domain contains exactly GB, FR, DE, US, and BE, while RFC, RNAS, and RAF remain distinct British services rather than nation identities.
+  EVAL-NATION-PARSER-PARITY-001:
+    work_items: [issue-136]
+    status: planned
+    evidence: XML and Dossier resolve known, missing, and unsupported nation or service evidence through the same canonical contract without substring inference or fabricated fallback.
+  EVAL-NATION-PROVENANCE-001:
+    work_items: [issue-136]
+    status: planned
+    evidence: Unsupported raw nation values remain recoverable and distinguishable from supported nation identities and missing values.
+  EVAL-NATION-MIGRATION-001:
+    work_items: [issue-136]
+    status: planned
+    evidence: Existing RFC, RNAS, RAF, French, German, American, and Belgian values migrate deterministically while unknown legacy values are preserved without guessing.
+  EVAL-NATION-PRESENTATION-001:
+    work_items: [issue-136]
+    status: planned
+    evidence: Presentation and downstream nation-dependent rules consume canonical nation and service values without inferring identity from arbitrary display or raw strings.
   EVAL-NORM-MISSION-001:
     work_items: [issue-38]
     status: implemented
@@ -698,6 +718,7 @@ evals:
     work_items:
       - issue-41
       - issue-38
+      - issue-136
       - issue-74
       - issue-35
       - issue-37
@@ -1001,12 +1022,13 @@ work_items:
   issue-81:
     title: Define immutable read-only UI view models and query-service contracts
     module: presentation
-    state: backlog
+    state: blocked
     evals: [EVAL-UI-CONTRACTS-001]
     gates: [Q0, Q1, Q6-CYCLE-3.4.0]
     depends_on:
       - {id: issue-56, status: satisfied}
       - {id: issue-80, status: satisfied}
+      - {id: issue-136, status: unsatisfied}
   issue-82:
     title: Validate PySide6 packaging, startup, scaling, and accessibility
     module: platform
@@ -1102,6 +1124,20 @@ work_items:
       - {id: issue-94, status: satisfied}
       - {id: issue-42, status: satisfied}
       - {id: issue-27, status: satisfied}
+  issue-136:
+    title: Separate playable nation from military service and define the WoFF nation domain
+    module: domain
+    state: backlog
+    evals:
+      - EVAL-NATION-DOMAIN-001
+      - EVAL-NATION-PARSER-PARITY-001
+      - EVAL-NATION-PROVENANCE-001
+      - EVAL-NATION-MIGRATION-001
+      - EVAL-NATION-PRESENTATION-001
+    gates: [Q0, Q1, Q2, Q6-CYCLE-3.4.0]
+    depends_on:
+      - {id: issue-38, status: satisfied}
+      - {id: issue-35, status: satisfied}
 
 cycles:
   cycle-3.2.1:
@@ -1139,6 +1175,7 @@ cycles:
     members:
       - issue-41
       - issue-38
+      - issue-136
       - issue-74
       - issue-35
       - issue-37
