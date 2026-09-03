@@ -1022,7 +1022,7 @@ work_items:
   issue-81:
     title: Define immutable read-only UI view models and query-service contracts
     module: presentation
-    state: blocked
+    state: backlog
     evals: [EVAL-UI-CONTRACTS-001]
     gates: [Q0, Q1, Q6-CYCLE-3.4.0]
     depends_on:
