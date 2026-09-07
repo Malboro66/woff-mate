@@ -662,14 +662,26 @@ class FileProcessor:
     def dependency_key_for_path(
         self, path: str
     ) -> Optional[tuple[str, int]]:
-        """Return a dependent path key without reading its Dossier."""
+        """Return a logical slot key without reading mutable source bytes."""
         source_name = _safe_filename(path)
-        if not _requires_dependent_identity(source_name):
+        if pilot_slot(source_name) is None:
             return None
         try:
             return self._dependent_binding_key(path, source_name)
         except PilotIdentityError:
             return None
+
+    def vacancy_paths_for_directory(self, path: str) -> list[str]:
+        """Return bounded synthetic Dossier paths for one affected namespace."""
+        try:
+            namespace = self._campaign_namespaces.namespace_for(path)
+            root = self._campaign_namespaces.root_for(path)
+        except CampaignNamespaceError:
+            return []
+        return [
+            os.path.join(root, dossier_source_name(binding.slot))
+            for binding in self.db_manager.list_slot_bindings(namespace)
+        ]
 
     def _process_xml(
         self, path: str, snapshot: Optional[StableFileSnapshot] = None
@@ -804,14 +816,23 @@ class WoFFEventHandler(FileSystemEventHandler):
             self._handle(str(event.src_path), "created")
 
     def on_deleted(self, event):
-        if not event.is_directory and is_dossier_source(str(event.src_path)):
+        if event.is_directory:
+            self._reconcile_directory(str(event.src_path), "deleted")
+        elif is_dossier_source(str(event.src_path)):
             self._handle(str(event.src_path), "deleted")
 
     def on_moved(self, event):
-        if not event.is_directory:
+        if event.is_directory:
+            self._reconcile_directory(str(event.src_path), "moved-away")
+        else:
             if is_dossier_source(str(event.src_path)):
                 self._handle(str(event.src_path), "moved-away")
             self._handle(str(event.dest_path), "moved")
+
+    def _reconcile_directory(self, path: str, event_type: str) -> None:
+        """Recheck occupied slots after a subtree may have left a watch root."""
+        for dossier_path in self.processor.vacancy_paths_for_directory(path):
+            self._handle(dossier_path, event_type)
 
     def _handle(self, path: str, event_type: str):
         bn = os.path.basename(path).lower()

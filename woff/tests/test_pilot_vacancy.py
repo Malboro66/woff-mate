@@ -7,7 +7,13 @@ import threading
 from unittest.mock import Mock
 
 import pytest
-from watchdog.events import FileCreatedEvent, FileDeletedEvent, FileMovedEvent
+from watchdog.events import (
+    DirDeletedEvent,
+    DirMovedEvent,
+    FileCreatedEvent,
+    FileDeletedEvent,
+    FileMovedEvent,
+)
 
 from .. import woff_watchdog
 from ..campaign_engine import CampaignEngine
@@ -29,6 +35,7 @@ from ..ingestion.vacancy import (
     VacancyState,
     scan_dossiers,
 )
+from ..identity import pilot_slot
 from .test_dossier_parser import _dossier_fixture, _encode_dossier
 
 
@@ -266,6 +273,45 @@ def test_move_away_and_move_within_one_namespace(runtime, move_inside_root):
     handler.on_moved(FileMovedEvent(str(path), str(destination)))
     assert handler.scheduler.wait_for_paths([str(path), str(destination)], 2)
     assert _bindings(database) == (before if move_inside_root else [])
+
+
+@pytest.mark.parametrize(
+    ("event_kind", "binding_survives"),
+    [("move-away", False), ("move-within", True), ("delete", False)],
+)
+def test_directory_events_reconcile_dossiers_in_the_moved_subtree(
+    runtime, event_kind, binding_survives
+):
+    root, _config, database, handler = runtime
+    source = root / "source"
+    source.mkdir()
+    dossier = source / "Pilot1Dossier.txt"
+    dossier.write_bytes(
+        _encode_dossier(
+            _dossier_fixture("current_full_sanitized.txt"), dossier.name
+        )
+    )
+    assert handler.processor.process(str(dossier), "created").status is (
+        ProcessingStatus.SUCCESS
+    )
+    before = _bindings(database)
+
+    if event_kind == "delete":
+        dossier.unlink()
+        source.rmdir()
+        handler.on_deleted(DirDeletedEvent(str(source)))
+    else:
+        destination = (
+            root / "destination"
+            if event_kind == "move-within"
+            else root.parent / "outside"
+        )
+        source.rename(destination)
+        handler.on_moved(DirMovedEvent(str(source), str(destination)))
+
+    reconciliation_path = root / "Pilot1Dossier.txt"
+    assert handler.scheduler.wait_for_paths([str(reconciliation_path)], 2)
+    assert _bindings(database) == (before if binding_survives else [])
 
 
 def test_zero_count_sources_and_dependent_deletions_do_not_define_occupancy(runtime):
@@ -531,14 +577,20 @@ def test_unpersisted_proof_cannot_be_evicted_or_exceed_scheduler_capacity(runtim
         max_workers=1,
         max_pending_events=1,
         retry_process=process,
+        dependency_key_for_event=lambda path, _event_type: (
+            (proof.campaign_namespace, slot)
+            if (slot := pilot_slot(path)) is not None
+            else None
+        ),
     )
     try:
         assert scheduler.submit("Pilot1Dossier.txt", "deleted")
         assert scheduler.wait_for_paths(["Pilot1Dossier.txt"], 2)
         assert scheduler.admitted_paths == 1
         assert not scheduler.submit("Pilot2Dossier.txt", "deleted")
-        assert scheduler.submit("Pilot1Dossier.txt", "created")
-        assert scheduler.wait_for_paths(["Pilot1Dossier.txt"], 2)
+        alias = "nested/Pilot1Dossier.txt"
+        assert scheduler.submit(alias, "created")
+        assert scheduler.wait_for_paths([alias], 2)
         assert scheduler.admitted_paths == 0
         assert scheduler.metrics()["saturated"] == 1
     finally:

@@ -143,13 +143,45 @@ class EventScheduler:
         with self._lock:
             return self._admission_size_locked()
 
-    def _admission_size_locked(self, resuming_key: Optional[str] = None) -> int:
+    @staticmethod
+    def _vacancy_dependency(
+        outcome: ProcessingOutcome,
+    ) -> Optional[DependencyKey]:
+        proof = outcome.confirmed_vacancy
+        if proof is None:
+            return None
+        return proof.campaign_namespace, proof.slot
+
+    def _admission_size_locked(
+        self,
+        resuming_key: Optional[str] = None,
+        resuming_dependency: Optional[DependencyKey] = None,
+    ) -> int:
         """Unpersisted vacancy proofs reserve capacity until safely applied."""
         self._prune_resolved_vacancies_locked()
         return len(self._states) + sum(
-            outcome.confirmed_vacancy is not None and key != resuming_key
+            outcome.confirmed_vacancy is not None
+            and key != resuming_key
+            and self._vacancy_dependency(outcome) != resuming_dependency
             for key, outcome in self._terminal_outcomes.items()
         )
+
+    def _take_terminal_outcome_locked(
+        self, key: str, dependency: Optional[DependencyKey]
+    ) -> Optional[ProcessingOutcome]:
+        """Resume a retained vacancy by logical slot, even through a path alias."""
+        exact = self._terminal_outcomes.pop(key, None)
+        matching_vacancy = None
+        if dependency is not None:
+            for retained_key, outcome in list(self._terminal_outcomes.items()):
+                if self._vacancy_dependency(outcome) != dependency:
+                    continue
+                if matching_vacancy is None:
+                    matching_vacancy = outcome
+                del self._terminal_outcomes[retained_key]
+        if matching_vacancy is not None:
+            return matching_vacancy
+        return exact
 
     def _prune_resolved_vacancies_locked(self) -> None:
         if self._vacancy_pending is not None:
@@ -195,6 +227,11 @@ class EventScheduler:
         """Admit within a bounded deadline; return false on shutdown/saturation."""
         key = canonical_windows_path(path)
         event = (path, event_type)
+        expected_dependency = (
+            self._dependency_key_for_event(*event)
+            if self._dependency_key_for_event is not None
+            else None
+        )
         deadline = time.monotonic() + admission_timeout
         with self._changed:
             if not self._accepting:
@@ -208,7 +245,10 @@ class EventScheduler:
                 self._metrics["coalesced"] += 1
                 self._changed.notify_all()
                 return True
-            while self._admission_size_locked(key) >= self._max_pending_events:
+            while (
+                self._admission_size_locked(key, expected_dependency)
+                >= self._max_pending_events
+            ):
                 remaining = deadline - time.monotonic()
                 if remaining <= 0:
                     self._reject_locked("saturated")
@@ -217,11 +257,8 @@ class EventScheduler:
                 if not self._accepting:
                     self._reject_locked("shutdown")
                     return False
-            terminal_outcome = self._terminal_outcomes.pop(key, None)
-            expected_dependency = (
-                self._dependency_key_for_event(*event)
-                if self._dependency_key_for_event is not None
-                else None
+            terminal_outcome = self._take_terminal_outcome_locked(
+                key, expected_dependency
             )
             self._states[key] = _PathState(
                 terminal_outcome=terminal_outcome,
