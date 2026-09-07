@@ -25,17 +25,27 @@ communication, and accessibility before decoration.
 
 When instructions or examples conflict, use this precedence:
 
-1. Observed and deterministically tested repository behavior, where applicable.
-2. Repository architecture contracts, `AGENTS.md`, project graph, evals, and
+1. Repository instructions and governance requirements: `AGENTS.md`, Python
+   3.10 compatibility, the mandatory Q0 historical, current-main, and
+   reproduction evidence, architecture contracts, project graph, evals, and
    quality gates.
+2. Current `main` and deterministically tested behavior, where applicable, as
+   factual evidence of the repository's technical state.
 3. Current issue acceptance criteria and normative WoFF Mate UI V2 repository
    documentation.
 4. This UI/UX development standard and approved agent-use rules.
 5. External skills, galleries, libraries, prompt collections, design-system
    references, and asset-generation tools.
 
-A visually attractive external example never overrides repository identity,
-privacy, accessibility, state, provenance, or toolkit boundaries.
+Observed or passing behavior informs what the software currently does; it never
+authorizes violating the normative rules above. A visually attractive external
+example never overrides repository identity, privacy, accessibility, state,
+provenance, or toolkit boundaries.
+
+This hierarchy distinguishes instruction authority from technical-state
+evidence. Consistent with `docs/architecture/modular-monolith.md`, current
+`main` and its CI still define the final technical state; that fact does not
+waive repository instructions or gates for later work.
 
 ### Closed-issue safety
 
@@ -134,7 +144,7 @@ Screens consume established foundations, tokens, components, and patterns.
 A screen should not create local state semantics or undocumented identity rules
 for convenience.
 
-## Q0: machine-readable design tokens
+## Machine-readable design-token assessment
 
 The approved V2 visual system currently publishes concrete token names and
 values in `docs/ui/ui-v2-visual-system.md`, including color, typography,
@@ -223,7 +233,7 @@ least:
 - one-time programmatic heading focus for top-level navigation/career changes,
   without making headings ordinary `Tab` stops;
 - accessible names/roles for interactive controls;
-- status expressed with text and/or shape/icon semantics, never hue alone;
+- status is always expressed with visible text plus an icon, never color alone;
 - no essential information available only in a tooltip or image;
 - desktop behavior reviewed at Windows logical scaling profiles equivalent to
   100%, 125%, 150%, and 200%; and
@@ -354,10 +364,13 @@ must not reveal SQL, cursors, local paths, raw exceptions, payloads, or secrets.
 
 ## Project-graph and release-gate boundary
 
-This standard does not add #135 to `docs/architecture/project-graph.yaml`, does
-not alter aggregate cycle membership, and does not approve Product Gates or the
-UI toolkit ADR. A future decision that makes this policy release-blocking must
-register that change explicitly through the normal governance process.
+Issue #135, `EVAL-UI-POLICY-001`, and `UI-GOV-001` are registered in
+`docs/architecture/project-graph.yaml` so this safety policy has discoverable
+ownership and executable enforcement. This registration does not add #135 to
+an aggregate release cycle, alter aggregate cycle membership, or approve
+Product Gates or the UI toolkit ADR. A future decision that makes this policy
+release-blocking must register that change explicitly through the normal
+governance process.
 
 ## Review checklist
 

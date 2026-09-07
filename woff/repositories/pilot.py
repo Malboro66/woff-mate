@@ -10,12 +10,14 @@ import sqlite3
 from datetime import datetime
 from typing import Any, Dict, List, Optional, Tuple
 
+from ..campaign_namespace import campaign_namespace_label, is_campaign_namespace
 from ..identity import (
     PilotIdentityAmbiguous,
     PilotIdentityEvidence,
     PilotIdentityKind,
     PilotIdentityRejected,
     PilotIdentityUnavailable,
+    PilotSlotBinding,
     dossier_source_name,
     pilot_slot,
 )
@@ -27,6 +29,7 @@ from .mission import canonicalized_mission_mapping
 log = logging.getLogger("WoFFWatch")
 _PLACEHOLDER_NAME = re.compile(r"^Pilot [1-9][0-9]*$")
 _STATUS_WRITABLE_BY = frozenset({PilotIdentityKind.DOSSIER})
+_VACANCY_EPOCH_PREFIX = "pilot_slot_vacancy:"
 
 
 class PilotRepository(BaseRepository):
@@ -49,6 +52,10 @@ class PilotRepository(BaseRepository):
             return self._resolve_explicit_related_pilot(ids)
         if identity is None or identity.kind is PilotIdentityKind.UNRESOLVED:
             raise PilotIdentityRejected("unsupported-identity-source")
+        if identity.vacancy_epoch is not None and identity.vacancy_epoch != (
+            self.get_slot_epoch(*identity.binding_key)
+        ):
+            raise PilotIdentityRejected("slot-generation-superseded", identity.slot)
         if identity.kind is PilotIdentityKind.DOSSIER:
             return self._upsert_dossier_pilot(pilot, identity)
         return self._upsert_slot_dependent_pilot(pilot, identity)
@@ -104,6 +111,11 @@ class PilotRepository(BaseRepository):
             # An unbound runtime namespace/slot always starts a new career.
             pilot_id = pilot.id
             self._insert_pilot(pilot, identity.kind)
+            if self.get_slot_epoch(campaign_namespace, slot):
+                log.info(
+                    "New career allocated after vacancy: namespace=%s slot=%d",
+                    campaign_namespace_label(campaign_namespace), slot,
+                )
 
         cursor.execute(
             """
@@ -126,6 +138,77 @@ class PilotRepository(BaseRepository):
         )
         log.info("  Pilot persisted from verified Dossier identity.")
         return pilot_id
+
+    @staticmethod
+    def _slot_epoch_key(campaign_namespace: str, slot: int) -> str:
+        if not is_campaign_namespace(campaign_namespace, allow_legacy=True):
+            raise ValueError("slot lifecycle requires a campaign namespace")
+        if type(slot) is not int or slot <= 0:
+            raise ValueError("slot lifecycle requires a positive integer slot")
+        return f"{_VACANCY_EPOCH_PREFIX}{campaign_namespace}:{slot}"
+
+    def get_slot_epoch(self, campaign_namespace: str, slot: int) -> int:
+        """Persisted vacancy boundary used to reject retained pre-vacancy input."""
+        key = self._slot_epoch_key(campaign_namespace, slot)
+        with self._lock:
+            row = self._conn.execute(
+                "SELECT value FROM meta WHERE key=?", (key,)
+            ).fetchone()
+            if row is None:
+                return 0
+            value = str(row[0])
+            if not value.isascii() or not value.isdigit():
+                raise PilotIdentityRejected("invalid-slot-vacancy-epoch", slot)
+            return int(value)
+
+    def list_slot_bindings(self, campaign_namespace: str) -> list[PilotSlotBinding]:
+        """Return occupied slots without renumbering or consulting pilot status."""
+        self._slot_epoch_key(campaign_namespace, 1)
+        with self._lock:
+            rows = self._conn.execute(
+                "SELECT campaign_namespace, slot, pilotId, dossier_digest, "
+                "last_updated FROM pilot_slot_bindings "
+                "WHERE campaign_namespace=? ORDER BY slot",
+                (campaign_namespace,),
+            ).fetchall()
+            return [PilotSlotBinding(*row) for row in rows]
+
+    def get_slot_binding(
+        self, campaign_namespace: str, slot: int
+    ) -> Optional[PilotSlotBinding]:
+        self._slot_epoch_key(campaign_namespace, slot)
+        with self._lock:
+            row = self._conn.execute(
+                "SELECT campaign_namespace, slot, pilotId, dossier_digest, "
+                "last_updated FROM pilot_slot_bindings "
+                "WHERE campaign_namespace=? AND slot=?",
+                (campaign_namespace, slot),
+            ).fetchone()
+            return PilotSlotBinding(*row) if row else None
+
+    def release_slot_binding(self, expected: PilotSlotBinding) -> bool:
+        """Release exactly the observed binding and advance its epoch atomically.
+
+        Filesystem absence must be confirmed by the caller. Comparing every
+        binding field prevents a stale observation from releasing a refreshed
+        binding. Historical rows are never updated or deleted here.
+        """
+        namespace, slot = expected.campaign_namespace, expected.slot
+        with self._db.transaction():
+            if self.get_slot_binding(namespace, slot) != expected:
+                return False
+            epoch = self.get_slot_epoch(namespace, slot)
+            self._conn.execute(
+                "DELETE FROM pilot_slot_bindings "
+                "WHERE campaign_namespace=? AND slot=?",
+                (namespace, slot),
+            )
+            self._conn.execute(
+                "INSERT INTO meta (key, value) VALUES (?, ?) "
+                "ON CONFLICT(key) DO UPDATE SET value=excluded.value",
+                (self._slot_epoch_key(namespace, slot), str(epoch + 1)),
+            )
+        return True
 
     def _upsert_slot_dependent_pilot(
         self, pilot: WoFFPilot, identity: PilotIdentityEvidence

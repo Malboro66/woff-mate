@@ -127,11 +127,20 @@ WoFF Mate is structured as a modular monolith: one Windows application and one l
 
 Stable `Pilot{N}Dossier.txt` snapshots establish the current career for a pilot
 slot. `Log`, `Claims`, and `Squads` files may update that career only when the
-simultaneously observed Dossier digest matches the stored binding. Reusing a
-slot with a different pilot name creates a separate career ID and leaves the
-prior career and its history unchanged. Parsed campaign XML and `Mission.log`
-remain available to parser/reporting workflows, but the live persistence path
-rejects them when they cannot supply a supported career identity.
+simultaneously observed Dossier digest matches the stored binding. Confirmed
+Dossier deletion or move-away releases only that campaign-root/slot binding;
+historical careers remain queryable, and surviving slots are never renumbered.
+Reuse after confirmed vacancy creates a separate career ID even for the same
+display name. A different name also starts a new career in an occupied slot.
+Temporary replacement and unavailable or incompletely scanned roots do not
+prove vacancy. Same-name replacement without an observed vacancy remains the
+separate evidence gap tracked by #87. See
+[vacancy reconciliation](docs/troubleshooting.md#pilot-slot-vacancy) for recovery
+and source-presence semantics.
+
+Parsed campaign XML and `Mission.log` remain available to parser/reporting
+workflows, but the live persistence path rejects them when they cannot supply
+a supported career identity.
 
 ## Compatibility
 

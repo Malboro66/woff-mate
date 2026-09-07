@@ -41,7 +41,7 @@ from .campaign_namespace import (
     LEGACY_CAMPAIGN_NAMESPACE,
     is_campaign_namespace,
 )
-from .identity import PilotIdentityError, PilotIdentityEvidence, pilot_slot
+from .identity import PilotIdentityError, PilotIdentityEvidence, PilotSlotBinding, pilot_slot
 from .models import WoFFPilot, WoFFMission, WoFFVictory, WoFFDecoration, WoFFWingman
 from .repositories import PilotRepository, MissionRepository, RpgRepository, WingmanRepository
 from .version import SCHEMA_VERSION, __version__
@@ -2301,6 +2301,20 @@ class DatabaseManager:
 
     def get_pilot_state(self, pilot_name: str) -> Tuple[Optional[str], Optional[str]]:
         return self._pilots.get_pilot_state(pilot_name)
+
+    def get_slot_epoch(self, campaign_namespace: str, slot: int) -> int:
+        return self._pilots.get_slot_epoch(campaign_namespace, slot)
+
+    def list_slot_bindings(self, campaign_namespace: str) -> List[PilotSlotBinding]:
+        return self._pilots.list_slot_bindings(campaign_namespace)
+
+    def get_slot_binding(
+        self, campaign_namespace: str, slot: int
+    ) -> Optional[PilotSlotBinding]:
+        return self._pilots.get_slot_binding(campaign_namespace, slot)
+
+    def release_slot_binding(self, expected: PilotSlotBinding) -> bool:
+        return self._pilots.release_slot_binding(expected)
 
     def get_pilot_state_by_id(
         self, pilot_id: str

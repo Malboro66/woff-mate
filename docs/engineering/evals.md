@@ -78,12 +78,44 @@ The aggregate eval passes only when:
 Green CI alone does not pass this aggregate eval.
 
 Issue #27 and its two deferred-ingestion evals reached `main` through PR #115.
-Issue #122 is the new implementable cycle member for confirmed pilot-slot
-vacancy after Dossier deletion or move-away. Issue #87 remains independently
+Issue #122 implements the six confirmed pilot-slot vacancy evals below for
+Dossier deletion or move-away. Issue #87 remains independently
 blocked on privacy-safe longitudinal evidence; its gap does not weaken or reopen
 the guarantees already verified by #70. The aggregate gate remains pending
-until #122 is implemented and #87 records either sufficient longitudinal
-evidence or the structural limitation defined by its acceptance criteria.
+until #87 records either sufficient longitudinal evidence or the structural
+limitation defined by its acceptance criteria, and the maintainer approves
+the complete cycle. Implementing #122 does not complete the aggregate gate.
+
+### Implemented pilot-slot vacancy evals (#122)
+
+All six evals are enforced by `woff/tests/test_pilot_vacancy.py`; the same focused
+suite also runs in the Windows Python 3.10 CI job.
+
+| Eval | Deterministic evidence |
+|---|---|
+| `EVAL-PILOT-VACANCY-001` | Live Dossier deletion releases exactly one binding; all historical tables stay unchanged; dependent deletion and valid zero counts never define occupancy |
+| `EVAL-PILOT-SPARSE-001` | Deleting slot 1 preserves slot 2/3 identities, including sparse startup and the source-presence read contract |
+| `EVAL-PILOT-VACANCY-STABILITY-001` | Complete observations span the bounded stability window; temporary replacement, invalid-but-present Dossiers, inaccessible subtrees, and root replacement do not vacate |
+| `EVAL-PILOT-VACANCY-RESTART-001` | Reopen preserves the vacancy boundary; startup repairs an absent slot only for a complete, available root inventory |
+| `EVAL-PILOT-VACANCY-REUSE-001` | Same-name and different-name reuse allocate a new career without inherited history; pre-vacancy retained snapshots cannot cross the persisted boundary |
+| `EVAL-PILOT-VACANCY-ISOLATION-001` | Conditional release is idempotent; injected write failure rolls back binding and epoch together; a concurrent second root continues unchanged; confirmed proofs survive bounded retries and reserve admission capacity |
+
+Q0 checked `main` at `47bbfcb` and the earlier fixes from #70/PR #88 (`018e6ba`),
+#94/PR #104 (`bba867b`) and PR #107 (`da133e8`), #42/PR #83 (`f975c52`), and
+#27/PR #115 (`39e8ef2`). PR #126 (`71a5d45`) registered #122 without implementing
+vacancy. Before the production changes, both the live-deletion and sparse
+restart regressions failed because the slot-1 binding remained. The correction
+is limited to that missing lifecycle boundary; #87, #99, and UI implementation
+remain separate.
+
+Focused commands:
+
+```bash
+python -m pytest woff/tests/test_pilot_vacancy.py -q
+python -m pytest woff/tests/test_stable_snapshot.py woff/tests/test_handler_integration.py woff/tests/test_privacy_contracts.py -q
+python scripts/validate_project_graph.py
+pyright
+```
 
 ## Newly registered data-integrity evals
 
@@ -137,6 +169,7 @@ claim Q5 or approval of Product Gate A or Gate B.
 |---|---|---|---|---|
 | `EVAL-UI-DESIGN-001` | #79 | Implemented | The V2 reference and Site version 18 pass the bounded rendered audit: measured logical reflow, semantic states, lossless status labels, complete Tab sequences, per-control targets, read-only inventory, contrast and stable sparse-slot identity; CI replays immutable observations, not the live Site or Windows DPI | `woff/tests/test_architecture_contracts.py`, `woff/tests/test_ui_v2_evidence.py` |
 | `EVAL-UI-STATES-001` | #80 | Implemented | Thirty synthetic fixtures and the 15-screen matrix enforce six shared states, separate global/list/detail contexts, explicit subject selection, retained career context, owner identity field placement, consistent identity, partial/conflicting fields, safe freshness, redacted settings, closed text and sanitized failures without production dependencies | `scripts/validate_ui_fixtures.py`, `tests/test_ui_state_fixtures.py`, `woff/tests/test_architecture_contracts.py` |
+| `EVAL-UI-POLICY-001` | #135 | Implemented | The canonical UI development standard preserves repository authority, V2 accessibility, privacy, provenance, reduced motion, and toolkit-independent runtime boundaries | `woff/tests/test_ui_development_standard.py` |
 | `EVAL-UI-CONTRACTS-001` | #81 | Planned | Immutable toolkit-independent view models and query protocols preserve stable identity, state, freshness, warnings, and sanitized failures | — |
 | `EVAL-UI-SPIKE-001` | #82 | Planned | One PySide6 line passes the supported Python and Windows packaging and measured resource matrix | — |
 | `EVAL-UI-SPIKE-002` | #82 | Planned | Scaling, keyboard use, accessibility, plugin behavior, and licensing evidence support a Go, Conditional Go, or No-go recommendation | — |
@@ -170,6 +203,12 @@ The isolated fixture suite runs outside `woff/tests` to avoid its persistence
 setup; the validator also runs under `python -I -S` with integration imports
 and events blocked by a regression test. None of these items adopts Qt,
 creates a production UI, or approves Product Gate A or Product Gate B.
+
+Issue #135 is independent UI governance work and is not an aggregate cycle
+member. `UI-GOV-001` and `EVAL-UI-POLICY-001` make its repository authority,
+accessibility, privacy, provenance, reduced-motion, and runtime-dependency
+boundaries discoverable and enforceable without making the policy a release
+blocker.
 
 ### Implemented scheduler evals
 

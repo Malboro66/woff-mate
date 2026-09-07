@@ -105,7 +105,18 @@ class CampaignNamespaceResolver:
 
     def __init__(self, roots: Optional[Sequence[str]] = None) -> None:
         self._strict = roots is not None
+        self._source_roots = tuple(roots or ())
         self._roots = canonical_watch_roots(roots or ())
+
+    def root_for(self, path: str) -> str:
+        """Return the configured spelling of a source's root for filesystem IO."""
+        canonical = canonical_windows_path(path)
+        for root, source_root in zip(self._roots, self._source_roots):
+            if _contains(root, canonical):
+                return source_root
+        if self._strict:
+            raise CampaignNamespaceError("source is outside configured campaign roots")
+        return os.path.dirname(path) or "."
 
     def namespace_for(self, path: str) -> str:
         canonical = canonical_windows_path(path)
