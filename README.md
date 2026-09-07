@@ -177,6 +177,7 @@ Current work and planned features are tracked in the [WoFF Mate Development Proj
 - [Troubleshooting](docs/troubleshooting.md)
 - [Engineering evals](docs/engineering/evals.md)
 - [Quality gates](docs/engineering/quality-gates.md)
+- [Product demonstrability and full-application reviews](docs/engineering/product-milestones.md)
 - [Progressive autonomy](docs/engineering/autonomy.md)
 
 ## Development

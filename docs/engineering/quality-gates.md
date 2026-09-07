@@ -136,6 +136,28 @@ Apply Q4 to registry, launcher, build, installation, and release work:
 | C. Social RPG | Is the small social core coherent and testable? | Deterministic model, persistent relationships, and safe simulation |
 | D. Public release | Does a non-technical user install, use, update, recover, and retain control of local data? | Installer, diagnostics, documentation, upgrade, rollback, `PRIV-001`, `LIC-001`, `NET-001`, and their evals validated |
 
+For **every Gate A-D approval**, the conditions above remain necessary and the
+maintainer must also require the applicable **Full Application Review** and
+**product-demonstrability record** defined in
+[Product demonstrability and full-application reviews](product-milestones.md).
+The review records the **exact audited `main` commit SHA**; the gate decision
+must evaluate that revision or document the intervening changes' scope-impact
+determination as required by that policy. Otherwise rerun the affected review
+scope before approval. Missing, stale, or unassessed evidence blocks approval;
+green CI and engineering cycle completion cannot substitute for these records.
+`priority:P0` / `priority:P1` findings remain blocking under existing governance.
+This adds no exception to privacy, data safety, Codex Review or human approval.
+
+### Q5-UI-ARCHITECTURE: R2 production retention decision
+
+The graph tracks `review-r2` after #81, #82 and P0/#140. R2 requires the
+revision-bound Full Application Review, P0 demonstration and explicit maintainer
+ADR decision before retaining production UI architecture or beginning P1 work.
+#82 supplies feasibility evidence and P0 supplies fixture-backed experience;
+neither approves a production toolkit. A documented experimental P0 path may
+precede R2; all existing ADR adoption gates still apply to production retention.
+R2 does not rename, replace or approve any Product Gate A-D.
+
 ### Privacy and security release evidence
 
 A public release is blocked unless all of the following are true:
@@ -197,7 +219,7 @@ pending until every member and `EVAL-CYCLE-340-001` pass.
 
 Cycle 3.4.0 is approved only when all conditions below pass:
 
-- #41, #38, #74, #35, #37, #44, #43, #28, #75, #76, #96, #97, #101, #79, #80, and #81 are complete
+- all twenty members (#41, #38, #136, #74, #35, #37, #44, #43, #28, #75, #76, #96, #97, #101, #79, #80, #81, #82, #139, and #140) are complete
 - every dependency in `cycle-3.4.0` is satisfied
 - all member acceptance criteria are demonstrated
 - every applicable member eval and `EVAL-CYCLE-340-001` pass
@@ -206,12 +228,19 @@ Cycle 3.4.0 is approved only when all conditions below pass:
 - same-name wingmen retain distinct persistent identity, personality, memory, and history
 - wingman transfer notifications identify the correct member and source squadron, expose a destination only when reliable evidence exists, and keep an unknown destination explicit otherwise
 - diary, CLI, narrative, and RPG presentation contracts preserve machine-readable and domain invariants
+- #82 supplies measured feasibility evidence and #140 demonstrates P0 using synthetic fixtures and #81 contracts, with no live SQLite/WoFF binding or production toolkit acceptance
 - any database or schema change satisfies Q2, including backup, rollback, integrity, foreign-key, and reopen evidence
 - focused tests, related tests, full suite, Pyright, project-graph validation, and applicable Windows checks pass
 - project graph, eval catalog, quality gates, and public documentation are current
 - the maintainer approves completion
 
 CI success alone does not approve cycle 3.4.0.
+
+#82 now belongs to 3.4.0 on the near-term P0 path. #139 registers the policy and
+#140 its separate implementation; `review-r2` is a product-review checkpoint,
+not another release-cycle issue. See the [#136 closure discrepancy](evals.md#136-closure-discrepancy)
+before treating #81 as ready. No aggregate tracker is declared for 3.4.0;
+`EVAL-CYCLE-340-001` and its graph members define the aggregate scope.
 
 ## Minimum gate matrix
 

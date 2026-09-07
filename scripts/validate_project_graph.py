@@ -356,7 +356,9 @@ def _validate_eval_owners(evals: Mapping[str, Any]) -> None:
             )
 
 
-def _validate_gates(graph: Mapping[str, Any]) -> Mapping[str, Any]:
+def _validate_gates(
+    repository_root: Path, graph: Mapping[str, Any]
+) -> Mapping[str, Any]:
     gates = _mapping(graph.get("gates"), "gates")
     for gate_id, raw_gate in gates.items():
         gate = _mapping(raw_gate, f"gates.{gate_id}")
@@ -365,6 +367,17 @@ def _validate_gates(graph: Mapping[str, Any]) -> Mapping[str, Any]:
             raise GraphValidationError(
                 f"gates.{gate_id}.description must be a non-empty string"
             )
+    q5 = _mapping(gates.get("Q5"), "gates.Q5")
+    policy = "docs/engineering/product-milestones.md"
+    if q5.get("policy") != policy:
+        raise GraphValidationError(f"gates.Q5.policy must reference {policy}")
+    _validate_existing_paths(repository_root, [policy], "gates.Q5.policy")
+    required = {"full_application_review", "product_demonstrability", "revision_scope_impact"}
+    declared = _string_list(q5.get("required_evidence"), "gates.Q5.required_evidence")
+    if not required.issubset(declared):
+        raise GraphValidationError(
+            f"gates.Q5.required_evidence must include {sorted(required)}"
+        )
     return gates
 
 
@@ -850,7 +863,7 @@ def validate_graph(repository_root: Path, graph: Mapping[str, Any]) -> None:
     _validate_invariants(repository_root, graph)
 
     work_items = _mapping(graph.get("work_items"), "work_items")
-    gates = _validate_gates(graph)
+    gates = _validate_gates(repository_root, graph)
     evals = _validate_evals(repository_root, graph, work_items)
     work_items = _validate_work_items(graph, modules, evals, gates)
     cycles = _mapping(graph.get("cycles"), "cycles")

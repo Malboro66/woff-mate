@@ -140,6 +140,60 @@ claim Q5 or approval of Product Gate A or Gate B.
 | `EVAL-UI-CONTRACTS-001` | #81 | Planned | Immutable toolkit-independent view models and query protocols preserve stable identity, state, freshness, warnings, and sanitized failures | — |
 | `EVAL-UI-SPIKE-001` | #82 | Planned | One PySide6 line passes the supported Python and Windows packaging and measured resource matrix | — |
 | `EVAL-UI-SPIKE-002` | #82 | Planned | Scaling, keyboard use, accessibility, plugin behavior, and licensing evidence support a Go, Conditional Go, or No-go recommendation | — |
+| `EVAL-P0-FLOW-001` | #140 | Planned | Seven primary destinations, two synthetic careers, six shared states, immutable #81 values, isolation, keyboard/focus and scaling | — |
+| `EVAL-P0-BOUNDARY-001` | #140 | Planned | Fixture-only execution excludes live SQLite/WoFF, repository/parser/watchdog access, writes, launcher control, network, personal data, runtime AI and production social/RPG behavior | — |
+| `EVAL-P0-DEMO-001` | #140 | Planned | Reproducible Windows launch/build, approved experimental toolkit/ADR path, interaction captures and product-demonstrability record | — |
+| `EVAL-R2-REVIEW-001` | `review-r2` | Planned | Revision-bound Full Application Review of #81/#82/P0, explicit maintainer ADR decision and existing adoption gates before retained production architecture/P1 | — |
+
+The executable sequence is #81 -> #82 -> P0/#140 -> R2 -> retained production
+architecture/P1. #82 now belongs to cycle 3.4.0, and its #81 dependency records
+this near-term order; earlier disposable exploration is not completion of that
+sequence. #140 depends on #79/#80 (satisfied) and #81/#82/#139 (unsatisfied).
+Its planned evals prove neither live data integration nor production toolkit
+acceptance. `review-r2` is a repository review work item outside engineering
+cycle membership, not a newly numbered GitHub issue. Future retained production
+UI/P1 work must declare its dependency on `review-r2` and the
+`Q5-UI-ARCHITECTURE` gate, in addition to existing ADR gates.
+
+### Product policy enforcement
+
+`EVAL-PRODUCT-POLICY-001` belongs to #139 and is enforced by
+`scripts/validate_project_graph.py` and `woff/tests/test_product_milestones.py`.
+It validates Q5's mandatory policy/evidence references, revision rules,
+cross-document navigation, cycle membership and the P0/R2 sequence. Implemented
+policy checks do not claim that a Full Application Review, P0 or any Product
+Gate has passed. The [product-milestone policy](product-milestones.md) defines
+the canonical review record and scope-impact rule; Q5 requires both a review
+and a demonstrability record at every Gate A-D decision.
+
+### #136 closure discrepancy
+
+Verified on 2026-09-07 against integrated `main`
+`a411cc7d3d70e993958b9056483d35ed02248d42`:
+[Issue #136](https://github.com/Malboro66/woff-mate/issues/136) is closed as
+completed on GitHub. Its timeline records closure on 2026-09-03, two seconds
+after [PR #137](https://github.com/Malboro66/woff-mate/pull/137) merged. That PR
+changed only `project-graph.yaml`, expressly registering planned work without
+implementing or closing #136. No merged nation/service implementation was found.
+The earlier [PR #120](https://github.com/Malboro66/woff-mate/pull/120) implemented
+#38's exact aliases and raw unknown preservation, not #136's closed domain.
+
+| #136 eval | Current-main evidence and remaining gap | Disposition |
+|---|---|---|
+| `EVAL-NATION-DOMAIN-001` | `woff/maps.py` still maps Britain to RFC; `woff/models.py` exposes one `nation` string. `test_normalize_nation_known` in `woff/tests/test_normalization.py` expects RFC/French/etc., not separate GB/FR identities and services | Planned |
+| `EVAL-NATION-PARSER-PARITY-001` | `woff/parsers/xml_parser.py` uses `normalize_nation`, retaining unknown text; `woff/parsers/dossier_parser.py` uses `resolve_nation_alias`, accepting only recognized aliases. No shared known/missing/unsupported nation-service contract | Planned |
+| `EVAL-NATION-PROVENANCE-001` | `test_normalize_nation_unknown` and `test_short_nation_aliases_do_not_match_inside_other_names` protect #38 raw unknown normalization, but do not prove separate supported identity/state and recoverable evidence across ingestion/persistence | Planned |
+| `EVAL-NATION-MIGRATION-001` | `woff/database.py` retains `pilots.nation TEXT`; no nation/service migration or corresponding reopen/rollback evidence exists | Planned |
+| `EVAL-NATION-PRESENTATION-001` | The immutable UI V2 evidence's `source/app/view-models.ts` still exposes `serviceOrNationLabel`; no production canonical nation/service consumer exists | Planned |
+
+The graph therefore preserves #136 as `backlog`, all five evals as `planned`
+without fabricated `enforced_by` paths, and #81's dependency as `unsatisfied`.
+This is an explicitly documented GitHub/repository inconsistency, not proof of
+completion or an instruction to reimplement completed behavior. A maintainer
+must identify missing merged evidence or decide where the unimplemented scope
+is owned before #81 passes Q0. This PR neither reopens #136 nor implements its
+domain/schema changes. Later reconciliation must update these states only from
+real implementation and passing evidence.
 
 Issue #79 is complete. Its repository design artifacts are
 `docs/ui/ui-v2-reference.md`, `docs/ui/ui-v2-visual-system.md`, and
@@ -512,6 +566,7 @@ roster-generation, transfer-baseline, and incomplete-input policy.
 |---|---|
 | #41 | `EVAL-NUM-001`, `EVAL-NUM-002` |
 | #38 | `EVAL-NATION-001`, `EVAL-NATION-002`, `EVAL-NORM-MISSION-001`, `EVAL-NORM-VICTORY-001` |
+| #136 | `EVAL-NATION-DOMAIN-001`, `EVAL-NATION-PARSER-PARITY-001`, `EVAL-NATION-PROVENANCE-001`, `EVAL-NATION-MIGRATION-001`, `EVAL-NATION-PRESENTATION-001` |
 | #74 | `EVAL-PARSE-SEM-001`, `EVAL-PARSE-SEM-002` |
 | #35 | `EVAL-DOSSIER-001`, `EVAL-DOSSIER-002` |
 | #37 | `EVAL-ROSTER-001`, `EVAL-ROSTER-002` |
@@ -526,11 +581,14 @@ roster-generation, transfer-baseline, and incomplete-input policy.
 | #79 | `EVAL-UI-DESIGN-001` |
 | #80 | `EVAL-UI-STATES-001` |
 | #81 | `EVAL-UI-CONTRACTS-001` |
+| #82 | `EVAL-UI-SPIKE-001`, `EVAL-UI-SPIKE-002` |
+| #139 | `EVAL-PRODUCT-POLICY-001` |
+| #140 | `EVAL-P0-FLOW-001`, `EVAL-P0-BOUNDARY-001`, `EVAL-P0-DEMO-001` |
 
 Cycle 3.4.0 is `active`. Issues #28, #35, #37, #38, #41, #75, #79, #80, and #97
 are complete. Issue #101 remains blocked by #96 after #37 satisfied its
 roster-lifecycle dependency.
-`EVAL-CYCLE-340-001` aggregates all sixteen members and remains planned until
+`EVAL-CYCLE-340-001` aggregates all twenty members and remains planned until
 every member acceptance criterion, applicable eval, and `Q6-CYCLE-3.4.0`
 condition passes.
 
