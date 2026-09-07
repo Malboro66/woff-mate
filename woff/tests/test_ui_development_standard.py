@@ -84,7 +84,9 @@ def test_ui_standard_records_bounded_machine_readable_token_follow_up() -> None:
     assert "## Q0: machine-readable design tokens" in standard
     assert "not a dedicated machine-readable token artifact" in standard
     assert "does **not** introduce a token pipeline" in standard
-    assert "separate narrowly scoped follow-up is recommended" in standard
+    assert "separate narrowly scoped follow-up is recommended" in " ".join(
+        standard.split()
+    )
 
 
 def test_ui_standard_keeps_component_research_toolkit_independent() -> None:
