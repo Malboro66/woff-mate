@@ -831,8 +831,25 @@ class WoFFEventHandler(FileSystemEventHandler):
 
     def _reconcile_directory(self, path: str, event_type: str) -> None:
         """Recheck occupied slots after a subtree may have left a watch root."""
-        for dossier_path in self.processor.vacancy_paths_for_directory(path):
-            self._handle(dossier_path, event_type)
+        dossier_paths = self.processor.vacancy_paths_for_directory(path)
+        for dossier_path in dossier_paths:
+            if not self.scheduler.submit(
+                dossier_path,
+                event_type,
+                admission_timeout=self.startup_phase_timeout([dossier_path]),
+            ):
+                log.error(
+                    "Directory vacancy reconciliation incomplete: "
+                    "category=admission-timeout"
+                )
+                return
+        if dossier_paths and not self.scheduler.wait_for_paths(
+            dossier_paths, 2 * self.startup_phase_timeout(dossier_paths)
+        ):
+            log.error(
+                "Directory vacancy reconciliation incomplete: "
+                "category=processing-timeout"
+            )
 
     def _handle(self, path: str, event_type: str):
         bn = os.path.basename(path).lower()
@@ -856,7 +873,9 @@ class WoFFEventHandler(FileSystemEventHandler):
     def submit_initial_vacancy(self, path: str) -> bool:
         """Keep a proven negative inventory distinct from a positive snapshot."""
         return self.scheduler.submit(
-            path, "initial-vacancy", admission_timeout=self._startup_admission_timeout
+            path,
+            "initial-vacancy",
+            admission_timeout=self.startup_phase_timeout([path]),
         )
 
     def wait_initial(self, paths: list[str], timeout: float) -> bool:

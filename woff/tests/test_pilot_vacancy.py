@@ -4,6 +4,7 @@ from dataclasses import replace
 from pathlib import Path
 import sqlite3
 import threading
+import time
 from unittest.mock import Mock
 
 import pytest
@@ -312,6 +313,45 @@ def test_directory_events_reconcile_dossiers_in_the_moved_subtree(
     reconciliation_path = root / "Pilot1Dossier.txt"
     assert handler.scheduler.wait_for_paths([str(reconciliation_path)], 2)
     assert _bindings(database) == (before if binding_survives else [])
+
+
+def test_directory_event_reconciles_every_slot_with_capacity_one(tmp_path):
+    root = tmp_path / "Synthetic campaign"
+    source = root / "source"
+    source.mkdir(parents=True)
+    config = WatchdogConfig(
+        watch_paths=[str(root)],
+        export_path=str(tmp_path / "capacity-one.sqlite"),
+        stability_timeout_sec=0.05,
+        stability_check_interval_sec=0.005,
+        max_pending_events=1,
+    )
+    database = DatabaseManager(
+        config.export_path, campaign_namespaces=config.campaign_namespaces
+    )
+    handler = WoFFEventHandler(config, database, CampaignEngine(database))
+    try:
+        for slot in (1, 2):
+            dossier = source / f"Pilot{slot}Dossier.txt"
+            dossier.write_bytes(
+                _encode_dossier(
+                    _dossier_fixture("current_full_sanitized.txt"), dossier.name
+                )
+            )
+            assert handler.processor.process(str(dossier), "created").status is (
+                ProcessingStatus.SUCCESS
+            )
+
+        destination = root.parent / "outside"
+        source.rename(destination)
+        handler.on_moved(DirMovedEvent(str(source), str(destination)))
+
+        paths = [str(root / f"Pilot{slot}Dossier.txt") for slot in (1, 2)]
+        assert handler.scheduler.wait_for_paths(paths, 2)
+        assert _bindings(database) == []
+    finally:
+        handler.shutdown()
+        database.close()
 
 
 def test_zero_count_sources_and_dependent_deletions_do_not_define_occupancy(runtime):
@@ -732,6 +772,32 @@ def test_startup_vacancy_budget_covers_release_and_a_new_dossier(runtime, monkey
     try:
         assert watchdog.start()
         assert budgets and budgets[0][0] == 2 * budgets[0][1]
+        assert _bindings(watchdog.db_manager) == []
+    finally:
+        watchdog.stop()
+
+
+def test_startup_reconciles_multiple_missing_slots_with_capacity_one(
+    runtime, monkeypatch
+):
+    root, config, database, handler = runtime
+    paths = [_occupy(root, handler, slot) for slot in (1, 2)]
+    for path in paths:
+        path.unlink()
+    config.max_pending_events = 1
+    handler.shutdown()
+    database.close()
+    monkeypatch.setattr(woff_watchdog, "Observer", Mock)
+    original_confirm = DossierVacancyGuard.confirm
+
+    def delayed_confirm(self, directory, slot):
+        time.sleep(2 * config.stability_timeout_sec)
+        return original_confirm(self, directory, slot)
+
+    monkeypatch.setattr(DossierVacancyGuard, "confirm", delayed_confirm)
+    watchdog = woff_watchdog.WoFFWatchdog(config)
+    try:
+        assert watchdog.start()
         assert _bindings(watchdog.db_manager) == []
     finally:
         watchdog.stop()
