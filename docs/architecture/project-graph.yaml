@@ -1,5 +1,5 @@
 version: 1
-updated: 2026-09-03
+updated: 2026-09-07
 
 project:
   repository: Malboro66/woff-mate
@@ -172,6 +172,10 @@ invariants:
     statement: Core WoFF Mate functionality operates offline without external telemetry, analytics, tracking, automatic upload, or automatic crash-report transmission; local watchdog monitoring of approved WoFF-generated files is permitted.
     enforced_by:
       - woff/tests/test_privacy_contracts.py
+  UI-GOV-001:
+    statement: UI research, design, review, and agent-assisted work remains subordinate to repository governance and preserves the approved accessibility, privacy, provenance, reduced-motion, and runtime dependency boundaries.
+    enforced_by:
+      - woff/tests/test_ui_development_standard.py
 
 gates:
   Q0:
@@ -687,6 +691,11 @@ evals:
     status: implemented
     evidence: Thirty closed-vocabulary synthetic fixtures cover all six shared states, separate global/list/detail selection contexts, explicit subject selection, retained career context, owner identity field placement, consistent identity, field reasons, source conflicts, unknown freshness, stale timestamps, safe failures, redacted settings and sparse same-name career identities. The matrix maps all 15 V2 screens and archived visual aliases. Mutation tests and an isolated standard-library process enforce privacy and absence of SQLite, WoFF, network, Qt and application access.
     enforced_by: [scripts/validate_ui_fixtures.py, tests/test_ui_state_fixtures.py, woff/tests/test_architecture_contracts.py]
+  EVAL-UI-POLICY-001:
+    work_items: [issue-135]
+    status: implemented
+    evidence: The canonical UI development standard preserves repository authority, V2 accessibility, privacy, provenance, reduced motion, and toolkit-independent runtime boundaries.
+    enforced_by: [woff/tests/test_ui_development_standard.py]
   EVAL-UI-CONTRACTS-001:
     work_items: [issue-81]
     status: planned
@@ -1136,6 +1145,15 @@ work_items:
       - {id: issue-94, status: satisfied}
       - {id: issue-42, status: satisfied}
       - {id: issue-27, status: satisfied}
+  issue-135:
+    title: Establish WoFF Mate UI/UX reference stack and agent-skill policy
+    module: governance
+    state: done
+    evals: [EVAL-UI-POLICY-001]
+    gates: [Q0, Q1]
+    depends_on:
+      - {id: issue-79, status: satisfied}
+      - {id: issue-80, status: satisfied}
   issue-136:
     title: Separate playable nation from military service and define the WoFF nation domain
     module: domain
