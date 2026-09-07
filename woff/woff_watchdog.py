@@ -63,6 +63,8 @@ try:
     from .command_contract import ExitCode
     from .config import InvalidConfigurationError, WatchdogConfig, load_config
     from .handler import WoFFEventHandler
+    from .identity import dossier_source_name
+    from .ingestion.vacancy import scan_dossiers
     from .database import DatabaseManager
     from .discovery import DiscoveryLogger
     from .medal_cataloger import catalog_medals
@@ -199,6 +201,7 @@ class WoFFWatchdog:
         # ──────────────────────────────────────────────────────────────
             file_patterns = []
             if ".txt" in self.config.watched_extensions:
+                self._reconcile_vacant_slots(valid)
                 log.info("A sincronizar dados iniciais dos pilotos...")
                 file_patterns = [
                     "Pilot*Dossier.txt",
@@ -238,6 +241,38 @@ class WoFFWatchdog:
             log.info(f"Discovery log: {self.config.discovery_log_path}")
         log.info("Pressiona Ctrl+C para parar.\n")
         return True
+
+    def _reconcile_vacant_slots(self, roots: List[str]) -> None:
+        """Submit negative inventory through the same bounded Dossier path."""
+        handler = self._handler
+        if handler is None:
+            raise RuntimeError("startup reconciliation requires an event handler")
+        for root in roots:
+            namespace = campaign_namespace_for_root(root)
+            bindings = self.db_manager.list_slot_bindings(namespace)
+            if not bindings:
+                continue
+            try:
+                inventory = scan_dossiers(root)
+            except OSError:
+                log.warning(
+                    "Startup vacancy deferred: namespace=%s category=incomplete-scan",
+                    campaign_namespace_label(namespace),
+                )
+                continue
+            missing_paths = [
+                os.path.join(root, dossier_source_name(binding.slot))
+                for binding in bindings if binding.slot not in inventory.slots
+            ]
+            for path in missing_paths:
+                if not handler.submit_initial_vacancy(path):
+                    raise RuntimeError("bounded startup vacancy admission failed")
+            if missing_paths and not handler.wait_initial(
+                # A Dossier arriving after confirmation can require both the
+                # vacancy transaction and a separate positive-generation write.
+                missing_paths, 2 * handler.startup_phase_timeout(missing_paths)
+            ):
+                raise RuntimeError("bounded startup vacancy reconciliation failed")
 
     def run_forever(self):
         """Mantém o programa a correr até ser interrompido (Ctrl+C)."""

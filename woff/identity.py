@@ -27,6 +27,7 @@ class PilotIdentityEvidence:
     slot: Optional[int] = None
     dossier_digest: Optional[str] = None
     campaign_namespace: Optional[str] = None
+    vacancy_epoch: Optional[int] = None
 
     def __post_init__(self) -> None:
         if self.kind is PilotIdentityKind.UNRESOLVED:
@@ -34,6 +35,7 @@ class PilotIdentityEvidence:
                 self.slot is not None
                 or self.dossier_digest is not None
                 or self.campaign_namespace is not None
+                or self.vacancy_epoch is not None
             ):
                 raise ValueError("unresolved identity cannot carry slot evidence")
             return
@@ -44,6 +46,10 @@ class PilotIdentityEvidence:
             raise ValueError("identity evidence requires a lowercase SHA-256 digest")
         if not is_campaign_namespace(self.campaign_namespace):
             raise ValueError("identity evidence requires a campaign namespace")
+        if self.vacancy_epoch is not None and (
+            type(self.vacancy_epoch) is not int or self.vacancy_epoch < 0
+        ):
+            raise ValueError("vacancy epoch must be a nonnegative integer")
 
     @property
     def binding_key(self) -> tuple[str, int]:
@@ -52,6 +58,32 @@ class PilotIdentityEvidence:
         if self.campaign_namespace is None or self.slot is None:
             raise ValueError("unresolved identity has no binding key")
         return self.campaign_namespace, self.slot
+
+
+@dataclass(frozen=True)
+class PilotSlotBinding:
+    """Last known source occupancy, independent of a career's military status."""
+
+    campaign_namespace: str
+    slot: int
+    pilot_id: str
+    dossier_digest: Optional[str]
+    last_updated: str
+
+    def __post_init__(self) -> None:
+        if not is_campaign_namespace(self.campaign_namespace, allow_legacy=True):
+            raise ValueError("slot binding requires a campaign namespace")
+        if type(self.slot) is not int or self.slot <= 0:
+            raise ValueError("slot binding requires a positive integer slot")
+
+
+def is_dossier_source(source_name: str) -> bool:
+    """Recognize only authoritative, positive-slot Dossier filenames."""
+    slot = pilot_slot(source_name)
+    basename = ntpath.basename(source_name.replace("/", "\\"))
+    return slot is not None and basename.casefold() == (
+        dossier_source_name(slot).casefold()
+    )
 
 
 class PilotIdentityError(RuntimeError):

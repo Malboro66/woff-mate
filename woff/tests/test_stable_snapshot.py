@@ -269,6 +269,7 @@ def test_dossier_side_effects_never_use_filesystem_timestamp(
 
     monkeypatch.setattr("woff.handler.WoFFDossierParser", Parser)
     database = MagicMock()
+    database.get_slot_epoch.return_value = 0
     engine = MagicMock()
     engine.process_dossier_import.return_value = "pilot-id"
     processor = FileProcessor(database, engine)
@@ -289,6 +290,7 @@ def test_dossier_side_effects_never_use_filesystem_timestamp(
         1,
         "d" * 64,
         processor._campaign_namespaces.namespace_for(snapshot.path),
+        vacancy_epoch=0,
     )
     assert "event_date" not in call.kwargs
 
@@ -428,6 +430,7 @@ def test_unresolved_identity_does_not_acknowledge_coalesced_generation(monkeypat
     database = cast(Any, MagicMock())
 
     pilot = MagicMock()
+    database.get_slot_epoch.return_value = 0
     pilot.name = "Pilot 1"
     pilot.source_file = "Pilot1Log.txt"
 
@@ -541,6 +544,7 @@ def test_merge_rejection_never_acknowledges_any_ingestion_route(
 
     monkeypatch.setattr(parser_target, Parser)
     database = cast(Any, MagicMock())
+    database.get_slot_epoch.return_value = 0
     database.resolve_bound_dossier_id.return_value = None
     database.merge_and_write.return_value = None
     engine = cast(Any, MagicMock())
@@ -572,6 +576,7 @@ def test_merge_rejection_retries_same_generation_then_acknowledges_once(monkeypa
     first_merge_started = threading.Event()
     allow_failure = threading.Event()
     database = cast(Any, MagicMock())
+    database.get_slot_epoch.return_value = 0
     merge_results = iter((None, "pilot-id"))
 
     pilot = MagicMock(name="pilot", source_file="Pilot1Log.txt")
@@ -639,6 +644,7 @@ def test_explicit_derived_failure_does_not_acknowledge_generation(monkeypatch):
 
     monkeypatch.setattr("woff.handler.WoFFPilotDataParser", Parser)
     database = cast(Any, MagicMock())
+    database.get_slot_epoch.return_value = 0
     database.merge_and_write.return_value = "pilot-id"
     database.get_mission_id_by_natural_key.return_value = "m1"
     engine = cast(Any, MagicMock())

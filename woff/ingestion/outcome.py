@@ -8,7 +8,7 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Optional
 
-from ..identity import PilotIdentityEvidence
+from ..identity import PilotIdentityEvidence, PilotSlotBinding
 from .deferred import DependencyKey
 from .snapshot import FileGeneration, StableFileSnapshot
 
@@ -21,6 +21,7 @@ class ProcessingStatus(str, Enum):
     PERMANENT_REJECTION = "permanent-rejection"
     TRANSIENT_FAILURE = "transient-failure"
     DEPENDENCY_PENDING = "dependency-pending"
+    RECONCILED = "reconciled"
 
 
 class ProcessingReason(str, Enum):
@@ -41,6 +42,9 @@ class ProcessingReason(str, Enum):
     SQLITE_IO_BLOCKED = "sqlite-io-blocked"
     SQLITE_PERMANENT = "sqlite-permanent"
     UNEXPECTED_ERROR = "unexpected-error"
+    SLOT_VACANT = "slot-vacant"
+    SLOT_UNCHANGED = "slot-unchanged"
+    VACANCY_DEFERRED = "vacancy-deferred"
 
 
 _TRANSIENT_REASONS = frozenset(
@@ -51,6 +55,11 @@ _TRANSIENT_REASONS = frozenset(
         ProcessingReason.SQLITE_IO_BLOCKED,
     }
 )
+_RECONCILIATION_REASONS = frozenset({
+    ProcessingReason.SLOT_VACANT,
+    ProcessingReason.SLOT_UNCHANGED,
+    ProcessingReason.VACANCY_DEFERRED,
+})
 
 
 @dataclass(frozen=True)
@@ -59,6 +68,7 @@ class VerifiedProcessingInput:
 
     snapshot: StableFileSnapshot
     dependent_identity: Optional[PilotIdentityEvidence] = None
+    slot_epoch: Optional[int] = None
 
 
 @dataclass(frozen=True)
@@ -71,8 +81,23 @@ class ProcessingOutcome:
     retry_input: Optional[VerifiedProcessingInput] = None
     dependency_key: Optional[DependencyKey] = None
     resolved_dependency: Optional[DependencyKey] = None
+    confirmed_vacancy: Optional[PilotSlotBinding] = None
 
     def __post_init__(self) -> None:
+        if self.status is ProcessingStatus.RECONCILED:
+            if (
+                self.reason not in _RECONCILIATION_REASONS
+                or self.generation is not None
+                or self.retry_input is not None
+                or self.dependency_key is not None
+                or self.resolved_dependency is not None
+                or (self.confirmed_vacancy is not None
+                    and self.reason is not ProcessingReason.VACANCY_DEFERRED)
+            ):
+                raise ValueError("reconciliation cannot acknowledge source bytes")
+            return
+        if self.confirmed_vacancy is not None:
+            raise ValueError("only deferred reconciliation retains a confirmed vacancy")
         acknowledged = self.status in {
             ProcessingStatus.SUCCESS,
             ProcessingStatus.UNCHANGED,
@@ -130,6 +155,7 @@ class ProcessingOutcome:
             return
         if (
             self.reason in _TRANSIENT_REASONS
+            or self.reason in _RECONCILIATION_REASONS
             or self.reason
             in {
                 ProcessingReason.SUCCESS,
@@ -159,6 +185,15 @@ class ProcessingOutcome:
             or dependency_key[1] <= 0
         ):
             raise ValueError("dependency key requires namespace and positive slot")
+
+    @classmethod
+    def reconciled(
+        cls, reason: ProcessingReason,
+        confirmed_vacancy: Optional[PilotSlotBinding] = None,
+    ) -> "ProcessingOutcome":
+        return cls(
+            ProcessingStatus.RECONCILED, reason, confirmed_vacancy=confirmed_vacancy
+        )
 
     @classmethod
     def success(

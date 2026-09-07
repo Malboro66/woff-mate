@@ -269,6 +269,7 @@ def test_identity_dependency_diagnostic_omits_personal_data_and_digest(
 
     monkeypatch.setattr("woff.handler.WoFFPilotDataParser", Parser)
     database = MagicMock()
+    database.get_slot_epoch.return_value = 0
     database.merge_and_write.side_effect = PilotIdentityUnavailable(
         "stale-dossier-binding", 1
     )
