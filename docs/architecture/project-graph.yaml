@@ -189,11 +189,15 @@ gates:
   Q4:
     description: Windows and packaging changes pass supported Python, smoke, build, install, upgrade, and rollback checks.
   Q5:
-    description: Product decision gates approve data reliability, launcher viability, social core, or public release.
+    description: Product Gates A-D retain their data reliability, launcher viability, social core, and public release conditions; each additionally requires the applicable Full Application Review and product-demonstrability record valid for the exact integrated decision revision, plus explicit maintainer approval.
+    policy: docs/engineering/product-milestones.md
+    required_evidence: [full_application_review, product_demonstrability, revision_scope_impact]
+  Q5-UI-ARCHITECTURE:
+    description: R2 requires a revision-bound Full Application Review after issue-81, issue-82 and P0/issue-140, the prototype demonstration, and an explicit maintainer ADR decision before retained production UI architecture or P1; all existing ADR adoption gates remain required, and neither feasibility nor P0 accepts a production toolkit.
   Q6-CYCLE-3.3.0:
     description: All seventeen 3.3.0 work items, applicable evals, functional exit criteria, documentation, and CI are approved.
   Q6-CYCLE-3.4.0:
-    description: All seventeen 3.4.0 work items, applicable evals, functional exit criteria, documentation, and CI are approved.
+    description: All twenty 3.4.0 work items, applicable evals, functional exit criteria, documentation, and CI are approved.
 
 evals:
   EVAL-DIARY-001:
@@ -713,6 +717,27 @@ evals:
     status: implemented
     evidence: Invalid paths, modules, evals, gates, cycles, and dependency states fail validation.
     enforced_by: [woff/tests/test_architecture_contracts.py]
+  EVAL-PRODUCT-POLICY-001:
+    work_items: [issue-139]
+    status: implemented
+    evidence: Q5 cannot omit revision-bound review and demonstrability requirements; policy, ADR, README, cycle ownership and the executable issue-81/issue-82/P0/R2 sequence agree without claiming production implementation or unproven nation-domain coverage.
+    enforced_by: [scripts/validate_project_graph.py, woff/tests/test_product_milestones.py]
+  EVAL-P0-FLOW-001:
+    work_items: [issue-140]
+    status: planned
+    evidence: A launchable V2 desktop prototype exposes all seven primary destinations, two synthetic careers isolated by stable career_id, six shared states and immutable issue-81-compatible values; career switching clears prior-career content and keyboard focus and scaling follow the approved contracts.
+  EVAL-P0-BOUNDARY-001:
+    work_items: [issue-140]
+    status: planned
+    evidence: Deterministic synthetic fixtures alone drive P0, with no SQLite, WoFF files, parsers, watchdog, repositories, network, launcher control, configuration or campaign mutation, production social/RPG behavior, personal data, or runtime AI.
+  EVAL-P0-DEMO-001:
+    work_items: [issue-140]
+    status: planned
+    evidence: Reproducible Windows launch/build and close/reopen evidence, approved prototype toolkit/version and ADR status, keyboard/scaling walkthrough and sanitized captures support a product-demonstrability record of new capability, limitations and P1 blockers; packaging measurements follow issue-82 and do not claim a supported installer or production toolkit acceptance.
+  EVAL-R2-REVIEW-001:
+    work_items: [review-r2]
+    status: planned
+    evidence: A Full Application Review pins the exact audited main commit SHA and assesses issue-81 contracts, issue-82 feasibility and P0/issue-140 demonstration; a revision-valid scope-impact determination, residual-risk dispositions and explicit maintainer ADR decision precede retained production architecture or P1, without waiving existing adoption gates.
   EVAL-CYCLE-330-001:
     work_items:
       - issue-50
@@ -754,6 +779,9 @@ evals:
       - issue-79
       - issue-80
       - issue-81
+      - issue-82
+      - issue-139
+      - issue-140
     status: planned
     evidence: Every 3.4.0 member passes its acceptance criteria and applicable evals before the cycle is approved.
 
@@ -1055,10 +1083,11 @@ work_items:
     module: platform
     state: backlog
     evals: [EVAL-UI-SPIKE-001, EVAL-UI-SPIKE-002]
-    gates: [Q0, Q1, Q4]
+    gates: [Q0, Q1, Q4, Q6-CYCLE-3.4.0]
     depends_on:
       - {id: issue-56, status: satisfied}
       - {id: issue-80, status: satisfied}
+      - {id: issue-81, status: unsatisfied}
   issue-87:
     title: Validate same-name career reuse in the same pilot slot
     module: persistence
@@ -1158,6 +1187,8 @@ work_items:
     title: Separate playable nation from military service and define the WoFF nation domain
     module: domain
     state: backlog
+    # GitHub closed as completed, but merged PR #137 registered governance only.
+    # No implementation evidence on main a411cc7; see evals.md#136-closure-discrepancy.
     evals:
       - EVAL-NATION-DOMAIN-001
       - EVAL-NATION-PARSER-PARITY-001
@@ -1168,6 +1199,35 @@ work_items:
     depends_on:
       - {id: issue-38, status: satisfied}
       - {id: issue-35, status: satisfied}
+  issue-139:
+    title: Establish product demonstrability and full-application review milestones
+    module: governance
+    state: in_progress
+    evals: [EVAL-PRODUCT-POLICY-001]
+    gates: [Q0, Q1, Q6-CYCLE-3.4.0]
+    depends_on: []
+  issue-140:
+    title: Build the P0 fixture-backed functional desktop prototype
+    module: presentation
+    state: backlog
+    evals: [EVAL-P0-FLOW-001, EVAL-P0-BOUNDARY-001, EVAL-P0-DEMO-001]
+    gates: [Q0, Q1, Q4, Q6-CYCLE-3.4.0]
+    depends_on:
+      - {id: issue-79, status: satisfied}
+      - {id: issue-80, status: satisfied}
+      - {id: issue-81, status: unsatisfied}
+      - {id: issue-82, status: unsatisfied}
+      - {id: issue-139, status: unsatisfied}
+  review-r2:
+    title: R2 UI Architecture Decision before retained production architecture or P1
+    module: governance
+    state: backlog
+    evals: [EVAL-R2-REVIEW-001]
+    gates: [Q0, Q1, Q5-UI-ARCHITECTURE]
+    depends_on:
+      - {id: issue-81, status: unsatisfied}
+      - {id: issue-82, status: unsatisfied}
+      - {id: issue-140, status: unsatisfied}
 
 cycles:
   cycle-3.2.1:
@@ -1220,6 +1280,9 @@ cycles:
       - issue-79
       - issue-80
       - issue-81
+      - issue-82
+      - issue-139
+      - issue-140
     aggregate_eval: EVAL-CYCLE-340-001
     gate: Q6-CYCLE-3.4.0
   cycle-3.5.0:
@@ -1234,4 +1297,3 @@ cycles:
       - issue-30
       - issue-98
       - issue-99
-      - issue-82

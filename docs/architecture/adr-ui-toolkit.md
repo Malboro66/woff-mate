@@ -68,7 +68,9 @@ adoption; estimates or upstream anecdotes are not acceptance evidence.
 This documentation PR adds **no GUI runtime dependency or production UI
 module**. Adoption remains gated by:
 
-1. explicit acceptance of this ADR;
+1. explicit acceptance of this ADR following the R2 Full Application Review of
+   #81/#82 and P0/#140 evidence, under
+   [the product-milestone policy](../engineering/product-milestones.md);
 2. applicable Product Gate A (reliable data) and Gate B (viable launcher)
    decisions—neither is approved here;
 3. an optional-dependency policy that preserves non-UI installation;
@@ -80,3 +82,11 @@ module**. Adoption remains gated by:
 Issues #79 through #82 collect the missing design, fixture, contract, and
 feasibility evidence. They do not accept this ADR, add a mandatory Qt
 dependency, create a production UI, or approve Product Gate A or Product Gate B.
+
+The near-term order is #81 -> #82 -> P0/#140 -> R2 -> retained production
+architecture/P1. #82 provides feasibility evidence; P0 proves the fixture-backed
+experience. The post-spike decision must explicitly authorize any experimental
+P0 implementation path, but the ADR remains Proposed for production until R2
+and all adoption gates are satisfied. Neither the spike nor P0 silently accepts
+PySide6 or any other GUI toolkit. This governance change adds no dependency or
+permission to ship an experimental artifact as production UI.
