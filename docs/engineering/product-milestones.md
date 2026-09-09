@@ -33,6 +33,12 @@ A Full Application Review is an integrated audit of current `main`. It is not a 
 
 A Full Application Review is mandatory before approving each major Product Gate transition and may also be triggered exceptionally.
 
+The first formal [R1 Integrity Baseline record](r1-integrity-baseline.md) audited
+integrated `main` at `f8da6c3d4da3264c025303d851f8bd2fcf1d8f4b` and
+returned **FAIL — confirmed blocking defects exist**. Product Gate A is not
+approved. That record owns the revision-bound finding classification and links
+each finding to its focused issue or governance disposition.
+
 ### Revision-bound review record
 
 Every review records the **exact audited `main` commit SHA**, applicable scope,
@@ -102,11 +108,11 @@ A long engineering sequence can legitimately have no new user-visible capability
 
 The current priority is to convert the strong foundation into demonstrable product increments without weakening reliability.
 
-1. Stabilize the currently open integrity/governance work.
-2. Synchronize governance after those merges.
-3. Perform **R1** before Product Gate A is approved.
-4. Resolve the remaining cycle 3.3.0 evidence/gate decision.
-5. Complete **#81** immutable read-only presentation/query contracts after its evidenced domain prerequisites are satisfied.
+1. Correct or explicitly disposition the blocking findings from the failed first **R1** review.
+2. Restore deterministic native Windows/local validation through #145.
+3. Resolve the remaining cycle 3.3.0 evidence/gate decision, including #87 and maintainer approval.
+4. Repeat the affected R1 scope against the corrected integrated revision and produce the reliable-companion/recovery demonstration before Gate A consideration.
+5. Complete **#81** immutable read-only presentation/query contracts after #136 and its other evidenced domain prerequisites are satisfied.
 6. Execute **#82** toolkit/packaging/scaling/accessibility spike for feasibility evidence and explicitly document the permitted fixture-only prototype path in the ADR.
 7. Implement **#140 — P0 Functional Desktop Prototype**.
 8. Use P0 as the first recurring product-demonstrability checkpoint.
@@ -118,12 +124,12 @@ experience; R2 decides production retention. In particular, neither #82 nor P0
 accepts a production toolkit. An explicitly approved experimental P0 path is
 not production ADR acceptance and does not waive Product Gates A/B.
 
-At the verified baseline, #136 is closed on GitHub but its domain contract is
-not implemented on `main`. The [eval catalog's #136 closure discrepancy](evals.md#136-closure-discrepancy)
-records the merged evidence and why #81's dependency remains unsatisfied.
-Resolve that evidence/ownership discrepancy before starting #81; do not treat
-GitHub closure or the old graph alone as proof, silently unblock #81, or reopen
-#136 merely to rewrite its history.
+The [eval catalog's historical #136 closure discrepancy](evals.md#136-closure-discrepancy)
+records why PR #137 did not implement the domain contract. R1 confirmed the gap,
+and #136 is now reopened for actual implementation. Its evals remain planned
+and #81's dependency remains unsatisfied. Do not treat the earlier closure as
+proof, silently unblock #81, or freeze the old `serviceOrNationLabel`
+ambiguity.
 
 The sequence does not require every 3.4.0/3.5.0 item to finish before P0. Work unrelated to the P0 safety and presentation boundary must not indefinitely postpone the first functional desktop prototype.
 
