@@ -1638,7 +1638,7 @@ def test_ui_v2_reference_contract() -> None:
 
     quality_gates = quality_gates_path.read_text(encoding="utf-8")
     assert re.search(
-        r"Issues #28, #35, #37, #38, #41, #75, #79, #80, and #97 are\s+complete",
+        r"Issues #28, #35, #37, #38, #41, #75, #79, #80, #97, and\s+#139 are complete",
         quality_gates,
     )
     assert "published UI V2" in quality_gates

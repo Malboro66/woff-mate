@@ -148,6 +148,18 @@ green CI and engineering cycle completion cannot substitute for these records.
 `priority:P0` / `priority:P1` findings remain blocking under existing governance.
 This adds no exception to privacy, data safety, Codex Review or human approval.
 
+### Current Gate A status after R1
+
+The [first R1 Integrity Baseline](r1-integrity-baseline.md) audited integrated
+`main` `f8da6c3d4da3264c025303d851f8bd2fcf1d8f4b` and returned
+**FAIL — confirmed blocking defects exist**. **Product Gate A is not approved.**
+Gate A consideration requires correction or existing-governance disposition of
+the blocking R1 findings, deterministic native Windows/local validation through
+#145, the applicable #87/cycle evidence, revision-valid Full Application Review
+evidence for the corrected integrated revision, a reproducible
+reliable-companion/recovery demonstration, and explicit maintainer approval.
+CI success alone cannot satisfy or approve this gate.
+
 ### Q5-UI-ARCHITECTURE: R2 production retention decision
 
 The graph tracks `review-r2` after #81, #82 and P0/#140. R2 requires the
@@ -215,8 +227,8 @@ aggregate gate pending; this change does not declare cycle completion.
 
 ## Q6-CYCLE-3.4.0: parser, roster, presentation, and RPG integrity
 
-Cycle 3.4.0 is active. Issues #28, #35, #37, #38, #41, #75, #79, #80, and #97 are
-complete.
+Cycle 3.4.0 is active. Issues #28, #35, #37, #38, #41, #75, #79, #80, #97, and
+#139 are complete.
 #79's repository design contract and published UI V2 Site pass the recorded
 rendered WCAG AA contrast thresholds within bounded Audit 4 coverage,
 stable-career isolation, persistent sparse-slot presentation, destination
@@ -246,8 +258,9 @@ Cycle 3.4.0 is approved only when all conditions below pass:
 
 CI success alone does not approve cycle 3.4.0.
 
-#82 now belongs to 3.4.0 on the near-term P0 path. #139 registers the policy and
-#140 its separate implementation; `review-r2` is a product-review checkpoint,
+#82 now belongs to 3.4.0 on the near-term P0 path. #139 completed the policy
+through PR #141 and its dependency into #140 is satisfied; #140 remains blocked
+by #81/#82 and remains fixture-backed only. `review-r2` is a product-review checkpoint,
 not another release-cycle issue. See the [#136 closure discrepancy](evals.md#136-closure-discrepancy)
 before treating #81 as ready. No aggregate tracker is declared for 3.4.0;
 `EVAL-CYCLE-340-001` and its graph members define the aggregate scope.

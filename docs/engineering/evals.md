@@ -181,7 +181,7 @@ claim Q5 or approval of Product Gate A or Gate B.
 The executable sequence is #81 -> #82 -> P0/#140 -> R2 -> retained production
 architecture/P1. #82 now belongs to cycle 3.4.0, and its #81 dependency records
 this near-term order; earlier disposable exploration is not completion of that
-sequence. #140 depends on #79/#80 (satisfied) and #81/#82/#139 (unsatisfied).
+sequence. #140 depends on #79/#80/#139 (satisfied) and #81/#82 (unsatisfied).
 Its planned evals prove neither live data integration nor production toolkit
 acceptance. `review-r2` is a repository review work item outside engineering
 cycle membership, not a newly numbered GitHub issue. Future retained production
@@ -199,9 +199,36 @@ Gate has passed. The [product-milestone policy](product-milestones.md) defines
 the canonical review record and scope-impact rule; Q5 requires both a review
 and a demonstrability record at every Gate A-D decision.
 
+### R1 Integrity Baseline governance
+
+The [revision-bound R1 record](r1-integrity-baseline.md) audited integrated
+`main` `f8da6c3d4da3264c025303d851f8bd2fcf1d8f4b` and records
+**FAIL — confirmed blocking defects exist**. `EVAL-R1-REVIEW-001` enforces the
+review identity, SHA, verdict, finding classification and unapproved Gate A
+status. `EVAL-R1-GOVERNANCE-001` belongs to #148 and enforces the resulting
+issue, dependency, cycle and revision-validity reconciliation. Neither eval
+claims that the defects are fixed or that Gate A has passed.
+
+| Eval | Work item | Status | Required evidence or recorded result |
+|---|---|---|---|
+| `EVAL-STARTUP-RECURSIVE-001` | #142 | Planned | Recursive positive startup inventory matches live observation and defers incomplete scans safely |
+| `EVAL-TXN-INTERRUPT-001` | #143 | Planned | Process-level interruption rolls back composable transactions without masking the primary failure |
+| `EVAL-LIVE-COMPLETENESS-001` | #144 | Planned | Incomplete live sources cannot persist a partial generation and return ordinary success |
+| `EVAL-WINDOWS-VALIDATION-001` | #145 | Planned | Native Windows full-suite/Pyright use deterministic interpreter, file-mode and subprocess-encoding contracts |
+| `EVAL-EVIDENCE-BYTES-001` | #145 | Planned | Supported Windows checkouts preserve byte-sensitive immutable evidence hashes |
+| `EVAL-DERIVED-RECOVERY-001` | #146 | Planned | Mission and required derived state converge through an atomic or durable recovery contract |
+| `EVAL-SNAPSHOT-BOUNDS-001` | #147 | Planned | Snapshot acquisition and retry retention obey an explicit composable byte bound |
+| `EVAL-R1-REVIEW-001` | `review-r1` | Implemented | Exact audited SHA, FAIL verdict, classifications, owners and Gate A status are recorded |
+| `EVAL-R1-GOVERNANCE-001` | #148 | Implemented | Graph, catalog, gates, milestone policy and dependency state agree with the R1 record |
+
+#142–#147 are tracked outside cycles 3.3.0 and 3.4.0. Their R1/Gate A impact
+does not silently rewrite historical engineering-cycle membership. Any later
+cycle assignment requires its own explicit governance change and architecture
+or milestone rationale.
+
 ### #136 closure discrepancy
 
-Verified on 2026-09-07 against integrated `main`
+Historical record verified on 2026-09-07 against integrated `main`
 `a411cc7d3d70e993958b9056483d35ed02248d42`:
 [Issue #136](https://github.com/Malboro66/woff-mate/issues/136) is closed as
 completed on GitHub. Its timeline records closure on 2026-09-03, two seconds
@@ -221,12 +248,12 @@ The earlier [PR #120](https://github.com/Malboro66/woff-mate/pull/120) implement
 
 The graph therefore preserves #136 as `backlog`, all five evals as `planned`
 without fabricated `enforced_by` paths, and #81's dependency as `unsatisfied`.
-This is an explicitly documented GitHub/repository inconsistency, not proof of
-completion or an instruction to reimplement completed behavior. A maintainer
-must identify missing merged evidence or decide where the unimplemented scope
-is owned before #81 passes Q0. This PR neither reopens #136 nor implements its
-domain/schema changes. Later reconciliation must update these states only from
-real implementation and passing evidence.
+This was an explicitly documented GitHub/repository inconsistency, not proof of
+completion or an instruction to reimplement completed behavior. R1 later
+confirmed the missing implementation on audited `main` `f8da6c3d` and #136 was
+reopened on 2026-09-08 for its actual acceptance criteria. The graph remains
+`backlog`, all five evals remain `planned`, and #81 remains blocked. Update those
+states only from real implementation and passing evidence.
 
 Issue #79 is complete. Its repository design artifacts are
 `docs/ui/ui-v2-reference.md`, `docs/ui/ui-v2-visual-system.md`, and
@@ -624,8 +651,8 @@ roster-generation, transfer-baseline, and incomplete-input policy.
 | #139 | `EVAL-PRODUCT-POLICY-001` |
 | #140 | `EVAL-P0-FLOW-001`, `EVAL-P0-BOUNDARY-001`, `EVAL-P0-DEMO-001` |
 
-Cycle 3.4.0 is `active`. Issues #28, #35, #37, #38, #41, #75, #79, #80, and #97
-are complete. Issue #101 remains blocked by #96 after #37 satisfied its
+Cycle 3.4.0 is `active`. Issues #28, #35, #37, #38, #41, #75, #79, #80, #97,
+and #139 are complete. Issue #101 remains blocked by #96 after #37 satisfied its
 roster-lifecycle dependency.
 `EVAL-CYCLE-340-001` aggregates all twenty members and remains planned until
 every member acceptance criterion, applicable eval, and `Q6-CYCLE-3.4.0`

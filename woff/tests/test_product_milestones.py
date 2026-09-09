@@ -12,6 +12,7 @@ from scripts.validate_project_graph import GraphValidationError, load_graph, val
 
 ROOT = Path(__file__).resolve().parents[2]
 POLICY = "docs/engineering/product-milestones.md"
+R1_RECORD = "docs/engineering/r1-integrity-baseline.md"
 
 
 def _graph() -> dict[str, Any]:
@@ -78,6 +79,10 @@ def test_product_path_and_cycle_ownership_are_executable() -> None:
     assert {"Q4", "Q6-CYCLE-3.4.0"} <= set(items["issue-140"]["gates"])
     assert "Q5-UI-ARCHITECTURE" in items["review-r2"]["gates"]
     assert "Q5-UI-ARCHITECTURE" not in items["issue-140"]["gates"]
+    assert items["issue-139"]["state"] == "done"
+    assert {"id": "issue-139", "status": "satisfied"} in items["issue-140"]["depends_on"]
+    assert {"id": "issue-81", "status": "unsatisfied"} in items["issue-140"]["depends_on"]
+    assert {"id": "issue-82", "status": "unsatisfied"} in items["issue-140"]["depends_on"]
     members = set(cycles["cycle-3.4.0"]["members"])
     assert {"issue-136", "issue-139", "issue-140", "issue-81", "issue-82"} <= members
     assert len(members) == 20
@@ -105,6 +110,77 @@ def test_unimplemented_nation_contract_cannot_be_closed_by_github_status() -> No
     graph["work_items"]["issue-136"]["state"] = "done"
     with pytest.raises(GraphValidationError):
         validate_graph(ROOT, graph)
+
+
+def test_first_r1_record_and_gate_a_disposition_are_revision_bound() -> None:
+    graph = _graph()
+    items, evals = graph["work_items"], graph["evals"]
+    record = _text(R1_RECORD)
+    policy = _text(POLICY)
+    quality = _text("docs/engineering/quality-gates.md")
+    audited_sha = "f8da6c3d4da3264c025303d851f8bd2fcf1d8f4b"
+
+    for text in (record, policy, quality):
+        assert audited_sha in text
+        assert "FAIL — confirmed blocking defects exist" in text
+        assert "Gate A" in text
+    assert "Product Gate A is not approved" in quality
+    assert "CI success alone" in record
+    for category in (
+        "Verified defect", "Structural risk", "Evidence gap",
+        "Governance action", "Intentional deferral",
+    ):
+        assert category in record
+    for number in range(1, 21):
+        assert f"R1-{number:03d}" in record
+
+    assert items["review-r1"]["state"] == "done"
+    assert items["issue-148"]["state"] == "done"
+    for eval_id in ("EVAL-R1-REVIEW-001", "EVAL-R1-GOVERNANCE-001"):
+        assert evals[eval_id]["status"] == "implemented"
+        assert evals[eval_id]["enforced_by"] == ["woff/tests/test_product_milestones.py"]
+
+    assert items["issue-122"]["state"] == "done"
+    assert all(evals[eval_id]["status"] == "implemented"
+               for eval_id in items["issue-122"]["evals"])
+    assert items["issue-87"]["state"] == "blocked"
+    assert evals["EVAL-CAREER-REUSE-EVIDENCE-001"]["status"] == "planned"
+    assert graph["cycles"]["cycle-3.3.0"]["state"] == "active"
+    assert evals["EVAL-CYCLE-330-001"]["status"] == "planned"
+    assert items["issue-136"]["state"] == "backlog"
+    assert {"id": "issue-136", "status": "unsatisfied"} in items["issue-81"]["depends_on"]
+
+
+def test_r1_follow_ups_are_registered_without_implicit_cycle_membership() -> None:
+    graph = _graph()
+    items, evals, cycles = graph["work_items"], graph["evals"], graph["cycles"]
+    expected = {
+        "issue-142": ({"issue-42", "issue-122"}, {"EVAL-STARTUP-RECURSIVE-001"}),
+        "issue-143": ({"issue-34"}, {"EVAL-TXN-INTERRUPT-001"}),
+        "issue-144": ({"issue-42", "issue-75"}, {"EVAL-LIVE-COMPLETENESS-001"}),
+        "issue-145": (set(), {"EVAL-WINDOWS-VALIDATION-001", "EVAL-EVIDENCE-BYTES-001"}),
+        "issue-146": ({"issue-34", "issue-39", "issue-95"}, {"EVAL-DERIVED-RECOVERY-001"}),
+        "issue-147": ({"issue-27", "issue-42"}, {"EVAL-SNAPSHOT-BOUNDS-001"}),
+    }
+    cycle_members = {
+        member for cycle in cycles.values() for member in cycle["members"]
+    }
+    for item_id, (dependencies, eval_ids) in expected.items():
+        item = items[item_id]
+        assert item["state"] == "backlog"
+        assert set(item["evals"]) == eval_ids
+        assert "Q5" in item["gates"]
+        assert {dep["id"] for dep in item["depends_on"]} == dependencies
+        assert all(dep["status"] == "satisfied" for dep in item["depends_on"])
+        assert item_id not in cycle_members
+        for eval_id in eval_ids:
+            assert evals[eval_id]["status"] == "planned"
+            assert not evals[eval_id].get("enforced_by")
+            assert evals[eval_id]["work_items"] == [item_id]
+
+    record = _text(R1_RECORD)
+    assert "not members of cycles 3.3.0 or 3.4.0" in record
+    assert "Gate A disposition and engineering-cycle membership are separate decisions" in record
 
 
 def test_review_revision_and_priority_contract() -> None:
