@@ -125,6 +125,14 @@ def test_first_r1_record_and_gate_a_disposition_are_revision_bound() -> None:
             flags=re.MULTILINE,
         )
     }
+    recorded_result_by_command = {
+        " ".join(command.split()): " ".join(result.replace("`", "").split())
+        for command, result in re.findall(
+            r"^\s*\|\s*`([^`]+)`[^|]*\|\s*([^|]+?)\s*\|",
+            record_source,
+            flags=re.MULTILINE,
+        )
+    }
     policy = _text(POLICY)
     quality = _text("docs/engineering/quality-gates.md")
     audited_sha = "f8da6c3d4da3264c025303d851f8bd2fcf1d8f4b"
@@ -150,14 +158,43 @@ def test_first_r1_record_and_gate_a_disposition_are_revision_bound() -> None:
         "R1-019": "EVIDENCE GAP",
         "R1-020": "INTENTIONALLY DEFERRED WORK",
     }
+    expected_recorded_validation = {
+        r".venv\Scripts\python.exe scripts/validate_project_graph.py": "PASS, exit 0",
+        r".venv\Scripts\python.exe -m pytest woff/tests/test_architecture_contracts.py -q": "123 passed",
+        r".venv\Scripts\python.exe -m pytest woff/tests/test_privacy_contracts.py -q": "10 passed",
+        r".venv\Scripts\python.exe -m pytest woff/tests/test_pilot_vacancy.py -q": "38 passed",
+        r".venv\Scripts\python.exe -m pytest -q": (
+            "15 failed, 1233 passed, 1 skipped, 23 warnings; 145 subtests passed"
+        ),
+        r".venv\Scripts\pyright.exe": "FAIL: 28 errors, 3 warnings",
+        "git diff --check": "PASS, exit 0",
+        r".venv\Scripts\pyright.exe --pythonpath .venv\Scripts\python.exe": (
+            "1 error, 0 warnings: os.O_ACCMODE at "
+            "woff/tests/test_command_contracts.py:778"
+        ),
+        (
+            r".venv\Scripts\python.exe -m pytest "
+            "woff/tests/test_command_contracts.py woff/tests/test_woff_query.py -q"
+        ): (
+            "1 failed, 65 passed; the remaining failure was the "
+            "os.O_ACCMODE portability defect"
+        ),
+    }
 
-    for text in (record, policy, quality):
+    for source, text in {
+        R1_RECORD: record,
+        POLICY: policy,
+        "docs/engineering/quality-gates.md": quality,
+    }.items():
         assert audited_sha in text
         assert "FAIL — confirmed blocking defects exist" in text
-        assert "Gate A" in text
-    assert "Product Gate A is not approved" in quality
+        assert "Product Gate A is not approved." in text, source
     assert "CI success alone" in record
     assert classification_by_finding == expected_classifications
+    assert recorded_result_by_command == expected_recorded_validation
+    assert "PermissionError: [WinError 5]" in record
+    assert "environment preparation context, not a product defect" in record
+    assert "did not run or establish a passing native-Windows full suite" in record
 
     assert items["review-r1"]["state"] == "done"
     assert items["issue-148"]["state"] == "done"

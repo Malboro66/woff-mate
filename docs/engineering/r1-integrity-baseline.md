@@ -18,23 +18,49 @@ the reproducible evidence and corrective acceptance criteria. A model
 inference is not repository fact unless supported by executable or repository
 evidence.
 
-## Validation summary
+## Validation and evidence
 
-On the audited revision, project-graph validation, the focused architecture,
-privacy and pilot-vacancy suites, and `git diff --check` passed. Cross-system
-reproductions confirmed the verified defects assigned below.
+These are the exact commands and recorded results from the R1 audit of the
+integrated revision above. They are historical baseline evidence, not reruns by
+the governance PR.
 
-The native Windows full suite and Pyright did not provide a clean gate result.
-The observed interpreter selection, unsupported test-only file-mode constant,
-locale-dependent subprocess decoding, and byte-sensitive checkout behavior are
-owned by #145. Green Linux full-suite/Pyright CI and the narrower Windows
-smoke/build job do not replace that missing native Windows evidence.
+### Baseline validation
+
+| Exact command | Recorded result |
+|---|---|
+| `.venv\Scripts\python.exe scripts/validate_project_graph.py` | `PASS, exit 0` |
+| `.venv\Scripts\python.exe -m pytest woff/tests/test_architecture_contracts.py -q` | `123 passed` |
+| `.venv\Scripts\python.exe -m pytest woff/tests/test_privacy_contracts.py -q` | `10 passed` |
+| `.venv\Scripts\python.exe -m pytest woff/tests/test_pilot_vacancy.py -q` | `38 passed` |
+| `.venv\Scripts\python.exe -m pytest -q` | `15 failed, 1233 passed, 1 skipped, 23 warnings; 145 subtests passed` |
+| `.venv\Scripts\pyright.exe` | `FAIL: 28 errors, 3 warnings` |
+| `git diff --check` | `PASS, exit 0` |
+
+### Native-Windows diagnostics
+
+| Exact command | Recorded result |
+|---|---|
+| `.venv\Scripts\pyright.exe --pythonpath .venv\Scripts\python.exe` | `1 error, 0 warnings: os.O_ACCMODE at woff/tests/test_command_contracts.py:778` |
+| `.venv\Scripts\python.exe -m pytest woff/tests/test_command_contracts.py woff/tests/test_woff_query.py -q` (UTF-8 interpreter mode enabled in the audit environment) | `1 failed, 65 passed`; the remaining failure was the `os.O_ACCMODE` portability defect |
+
+The audit's initial sandboxed focused-test attempts encountered
+`PermissionError: [WinError 5]` while accessing pytest's existing temporary
+directory. Authorized reruns outside that sandbox preparation boundary
+succeeded. This was environment preparation context, not a product defect.
+
+The audited SHA's GitHub CI run succeeded for Linux Python 3.10/3.14 tests,
+Linux Pyright, and Windows smoke/build. It did not run or establish a passing
+native-Windows full suite. The baseline full-suite/Pyright failures and the
+diagnostic `os.O_ACCMODE`, interpreter-selection, subprocess-decoding, and
+byte-sensitive-checkout portability defects remain owned by #145.
 
 ## Finding ownership and disposition
 
 The Classification column reproduces the authoritative R1 labels verbatim.
 Ownership and Gate A disposition describe follow-up without altering that
-classification.
+classification. Each numbered owner below is the repository-local GitHub issue
+that holds the finding's reproducible evidence and acceptance criteria; R1-009
+instead requires the revision-bound Gate A decision/demonstration evidence.
 
 | Finding | Classification | Owner | Gate A disposition |
 |---|---|---|---|
@@ -87,7 +113,7 @@ membership are separate decisions.
 
 ## Gate A path and revision validity
 
-Product Gate A remains unapproved. Consideration requires, at minimum:
+Product Gate A is not approved. Consideration requires, at minimum:
 
 1. correction or explicit existing-governance disposition of the blocking R1
    findings;
