@@ -32,32 +32,32 @@ smoke/build job do not replace that missing native Windows evidence.
 
 ## Finding ownership and disposition
 
-The classifications below preserve the review distinction between a reproduced
-defect, a structural risk, an evidence gap, a governance action, and work that
-is intentionally deferred.
+The Classification column reproduces the authoritative R1 labels verbatim.
+Ownership and Gate A disposition describe follow-up without altering that
+classification.
 
 | Finding | Classification | Owner | Gate A disposition |
 |---|---|---|---|
-| R1-001 | Verified defect | #96 | Blocking `priority:P1`; correct and revalidate |
-| R1-002 | Verified defect | #74 | Blocking `priority:P1`; correct and revalidate |
-| R1-003 | Verified defect | #142 | Blocking `priority:P1`; correct and revalidate |
-| R1-004 | Verified defect | #143 | Resolve the abnormal-exit rollback contract before the reliable-data claim |
-| R1-005 | Verified defect | #144 | Resolve incomplete live-ingestion acknowledgement before the reliable-data claim |
-| R1-006 | Verified validation defect | #145 | Restore deterministic native Windows validation before consideration |
-| R1-007 | Verified governance/implementation discrepancy | #136 | #136 remains open and planned; #81 remains blocked |
-| R1-008 | Evidence gap | #87 / #50 | Resolve under the cycle 3.3.0 evidence contract; do not close from assumption |
-| R1-009 | Required evidence | Gate A decision record | Produce the revision-bound reliable-companion/recovery demonstration after blocking corrections |
-| R1-010 | Verified defect | #99 | Correct or explicitly disposition under existing governance |
-| R1-011 | Verified defect | #77 | Correct or explicitly disposition under existing governance |
-| R1-012 | Structural risk | #145 | Preserve deterministic raw evidence bytes across supported Windows checkouts |
-| R1-013 | Verified defect | #98 | Correct or explicitly disposition under existing governance |
-| R1-014 | Structural risk | #146 | Define and evidence atomic or durable derived-state recovery |
-| R1-015 | Verified defect | #29 | Correct or explicitly disposition catalog-writer ownership/concurrency risk |
-| R1-016 | Structural risk | #147 | Evidence a bounded acquisition policy or record the residual-risk decision |
-| R1-017 | Verified defect | #44 | Correct or explicitly disposition under existing governance |
-| R1-018 | Verified defect | #76 | Correct or explicitly disposition under existing governance |
-| R1-019 | Governance action | #148 | Synchronize this record, graph, evals, cycles and dependencies |
-| R1-020 | Intentional deferral | #81 / #82 / #140 | Preserve sequence and fixture-only P0 boundary; P0 absence does not itself block Gate A |
+| R1-001 | VERIFIED DEFECT | #96 | Blocking `priority:P1`; correct and revalidate |
+| R1-002 | VERIFIED DEFECT | #74 | Blocking `priority:P1`; correct and revalidate |
+| R1-003 | VERIFIED DEFECT | #142 | Blocking `priority:P1`; correct and revalidate |
+| R1-004 | VERIFIED DEFECT | #143 | Resolve the abnormal-exit rollback contract before the reliable-data claim |
+| R1-005 | VERIFIED DEFECT | #144 | Resolve incomplete live-ingestion acknowledgement before the reliable-data claim |
+| R1-006 | VERIFIED DEFECT | #145 | Restore deterministic native Windows validation before consideration |
+| R1-007 | EVIDENCE GAP | #136 | #136 remains open and planned; #81 remains blocked |
+| R1-008 | EVIDENCE GAP | #87 / #50 | Resolve under the cycle 3.3.0 evidence contract; do not close from assumption |
+| R1-009 | EVIDENCE GAP | Gate A decision record | Produce the revision-bound reliable-companion/recovery demonstration after blocking corrections |
+| R1-010 | VERIFIED DEFECT | #99 | Correct or explicitly disposition under existing governance |
+| R1-011 | VERIFIED DEFECT | #77 | Correct or explicitly disposition under existing governance |
+| R1-012 | STRUCTURAL RISK | #145 | Preserve deterministic raw evidence bytes across supported Windows checkouts |
+| R1-013 | VERIFIED DEFECT | #98 | Correct or explicitly disposition under existing governance |
+| R1-014 | STRUCTURAL RISK | #146 | Define and evidence atomic or durable derived-state recovery |
+| R1-015 | STRUCTURAL RISK | #29 | Correct or explicitly disposition catalog-writer ownership/concurrency risk |
+| R1-016 | STRUCTURAL RISK | #147 | Evidence a bounded acquisition policy or record the residual-risk decision |
+| R1-017 | VERIFIED DEFECT | #44 | Correct or explicitly disposition under existing governance |
+| R1-018 | VERIFIED DEFECT | #76 | Correct or explicitly disposition under existing governance |
+| R1-019 | EVIDENCE GAP | #148 | Synchronize this record, graph, evals, cycles and dependencies |
+| R1-020 | INTENTIONALLY DEFERRED WORK | #81 / #82 / #140 | Preserve sequence and fixture-only P0 boundary; P0 absence does not itself block Gate A |
 
 Issues #142–#147 are registered as independently owned R1 follow-ups with
 planned evals and applicable Q0–Q5 references. They are not members of cycles

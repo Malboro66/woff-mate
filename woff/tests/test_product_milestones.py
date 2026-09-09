@@ -116,9 +116,40 @@ def test_first_r1_record_and_gate_a_disposition_are_revision_bound() -> None:
     graph = _graph()
     items, evals = graph["work_items"], graph["evals"]
     record = _text(R1_RECORD)
+    record_source = (ROOT / R1_RECORD).read_text(encoding="utf-8")
+    classification_by_finding = {
+        finding: " ".join(classification.split())
+        for finding, classification in re.findall(
+            r"^\s*\|\s*(R1-\d{3})\s*\|\s*([^|]+?)\s*\|",
+            record_source,
+            flags=re.MULTILINE,
+        )
+    }
     policy = _text(POLICY)
     quality = _text("docs/engineering/quality-gates.md")
     audited_sha = "f8da6c3d4da3264c025303d851f8bd2fcf1d8f4b"
+    expected_classifications = {
+        "R1-001": "VERIFIED DEFECT",
+        "R1-002": "VERIFIED DEFECT",
+        "R1-003": "VERIFIED DEFECT",
+        "R1-004": "VERIFIED DEFECT",
+        "R1-005": "VERIFIED DEFECT",
+        "R1-006": "VERIFIED DEFECT",
+        "R1-007": "EVIDENCE GAP",
+        "R1-008": "EVIDENCE GAP",
+        "R1-009": "EVIDENCE GAP",
+        "R1-010": "VERIFIED DEFECT",
+        "R1-011": "VERIFIED DEFECT",
+        "R1-012": "STRUCTURAL RISK",
+        "R1-013": "VERIFIED DEFECT",
+        "R1-014": "STRUCTURAL RISK",
+        "R1-015": "STRUCTURAL RISK",
+        "R1-016": "STRUCTURAL RISK",
+        "R1-017": "VERIFIED DEFECT",
+        "R1-018": "VERIFIED DEFECT",
+        "R1-019": "EVIDENCE GAP",
+        "R1-020": "INTENTIONALLY DEFERRED WORK",
+    }
 
     for text in (record, policy, quality):
         assert audited_sha in text
@@ -126,13 +157,7 @@ def test_first_r1_record_and_gate_a_disposition_are_revision_bound() -> None:
         assert "Gate A" in text
     assert "Product Gate A is not approved" in quality
     assert "CI success alone" in record
-    for category in (
-        "Verified defect", "Structural risk", "Evidence gap",
-        "Governance action", "Intentional deferral",
-    ):
-        assert category in record
-    for number in range(1, 21):
-        assert f"R1-{number:03d}" in record
+    assert classification_by_finding == expected_classifications
 
     assert items["review-r1"]["state"] == "done"
     assert items["issue-148"]["state"] == "done"
