@@ -1,5 +1,7 @@
 {
   "pythonVersion": "3.10",
+  "venvPath": ".",
+  "venv": ".venv",
   "include": [
     "woff",
     "woff_watchdog_entry.py",

@@ -5,6 +5,7 @@ import hashlib
 import importlib
 import json
 import re
+import subprocess
 import sys
 from copy import deepcopy
 from pathlib import Path
@@ -88,6 +89,51 @@ def _requirement_name(requirement: object) -> str:
     match = _REQUIREMENT_NAME_RE.match(str(requirement))
     assert match is not None, f"invalid requirement entry: {requirement!r}"
     return re.sub(r"[-_.]+", "-", match.group(1)).lower()
+
+
+def test_pyright_uses_repository_virtual_environment() -> None:
+    configuration = json.loads(
+        (REPOSITORY_ROOT / "pyrightconfig.json").read_text(encoding="utf-8")
+    )
+
+    assert configuration["pythonVersion"] == "3.10"
+    assert configuration["venvPath"] == "."
+    assert configuration["venv"] == ".venv"
+
+
+def test_byte_sensitive_ui_evidence_uses_lf_checkout_policy() -> None:
+    evidence_root = REPOSITORY_ROOT / "docs" / "ui" / "evidence"
+    manifests = tuple(sorted(evidence_root.glob("*/SHA256SUMS")))
+    byte_sensitive_text_paths: list[str] = []
+    for manifest in manifests:
+        for line in manifest.read_text(encoding="ascii").splitlines():
+            _digest, filename = line.split("  ", 1)
+            evidence_path = manifest.parent / filename
+            if evidence_path.suffix.lower() != ".jpg":
+                byte_sensitive_text_paths.append(
+                    evidence_path.relative_to(REPOSITORY_ROOT).as_posix()
+                )
+
+    assert len(byte_sensitive_text_paths) == len(set(byte_sensitive_text_paths)) == 18
+
+    result = subprocess.run(
+        ["git", "check-attr", "-z", "eol", "--", *byte_sensitive_text_paths],
+        cwd=REPOSITORY_ROOT,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        check=False,
+    )
+
+    assert result.returncode == 0, result.stderr
+    fields = result.stdout.split("\0")
+    assert fields[-1] == ""
+    attributes = {
+        path: value
+        for path, attribute, value in zip(fields[0::3], fields[1::3], fields[2::3])
+        if attribute == "eol"
+    }
+    assert attributes == {path: "lf" for path in byte_sensitive_text_paths}
 
 
 def _graph() -> dict[str, object]:

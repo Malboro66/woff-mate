@@ -217,27 +217,59 @@ def test_r1_follow_ups_are_registered_without_implicit_cycle_membership() -> Non
     graph = _graph()
     items, evals, cycles = graph["work_items"], graph["evals"], graph["cycles"]
     expected = {
-        "issue-142": ({"issue-42", "issue-122"}, {"EVAL-STARTUP-RECURSIVE-001"}),
-        "issue-143": ({"issue-34"}, {"EVAL-TXN-INTERRUPT-001"}),
-        "issue-144": ({"issue-42", "issue-75"}, {"EVAL-LIVE-COMPLETENESS-001"}),
-        "issue-145": (set(), {"EVAL-WINDOWS-VALIDATION-001", "EVAL-EVIDENCE-BYTES-001"}),
-        "issue-146": ({"issue-34", "issue-39", "issue-95"}, {"EVAL-DERIVED-RECOVERY-001"}),
-        "issue-147": ({"issue-27", "issue-42"}, {"EVAL-SNAPSHOT-BOUNDS-001"}),
+        "issue-142": (
+            {"issue-42", "issue-122"},
+            {"EVAL-STARTUP-RECURSIVE-001"},
+            "backlog",
+            "planned",
+        ),
+        "issue-143": (
+            {"issue-34"},
+            {"EVAL-TXN-INTERRUPT-001"},
+            "backlog",
+            "planned",
+        ),
+        "issue-144": (
+            {"issue-42", "issue-75"},
+            {"EVAL-LIVE-COMPLETENESS-001"},
+            "backlog",
+            "planned",
+        ),
+        "issue-145": (
+            set(),
+            {"EVAL-WINDOWS-VALIDATION-001", "EVAL-EVIDENCE-BYTES-001"},
+            "done",
+            "implemented",
+        ),
+        "issue-146": (
+            {"issue-34", "issue-39", "issue-95"},
+            {"EVAL-DERIVED-RECOVERY-001"},
+            "backlog",
+            "planned",
+        ),
+        "issue-147": (
+            {"issue-27", "issue-42"},
+            {"EVAL-SNAPSHOT-BOUNDS-001"},
+            "backlog",
+            "planned",
+        ),
     }
     cycle_members = {
         member for cycle in cycles.values() for member in cycle["members"]
     }
-    for item_id, (dependencies, eval_ids) in expected.items():
+    for item_id, (dependencies, eval_ids, state, eval_status) in expected.items():
         item = items[item_id]
-        assert item["state"] == "backlog"
+        assert item["state"] == state
         assert set(item["evals"]) == eval_ids
         assert "Q5" in item["gates"]
         assert {dep["id"] for dep in item["depends_on"]} == dependencies
         assert all(dep["status"] == "satisfied" for dep in item["depends_on"])
         assert item_id not in cycle_members
         for eval_id in eval_ids:
-            assert evals[eval_id]["status"] == "planned"
-            assert not evals[eval_id].get("enforced_by")
+            assert evals[eval_id]["status"] == eval_status
+            assert bool(evals[eval_id].get("enforced_by")) == (
+                eval_status == "implemented"
+            )
             assert evals[eval_id]["work_items"] == [item_id]
 
     record = _text(R1_RECORD)

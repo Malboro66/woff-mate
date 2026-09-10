@@ -1,2 +1,9 @@
 # Auto detect text files and perform LF normalization
 * text=auto
+
+# Immutable UI evidence is verified from raw bytes; keep hashed text payloads LF.
+docs/ui/evidence/ui-v2-site-2026-08-29/contrast-measurements.json text eol=lf
+docs/ui/evidence/ui-v2-site-2026-08-31/contrast-measurements.json text eol=lf
+docs/ui/evidence/ui-v2-site-2026-08-31-audit-3/conformance-measurements.json text eol=lf
+docs/ui/evidence/ui-v2-site-2026-09-01-audit-4/conformance-measurements.json text eol=lf
+docs/ui/evidence/ui-v2-site-2026-09-01-audit-4/source/** text eol=lf
