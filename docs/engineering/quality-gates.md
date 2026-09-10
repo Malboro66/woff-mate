@@ -160,6 +160,15 @@ evidence for the corrected integrated revision, a reproducible
 reliable-companion/recovery demonstration, and explicit maintainer approval.
 CI success alone cannot satisfy or approve this gate.
 
+The revision-bound [2026-09-10 Security Baseline](security-baseline-2026-09-10.md)
+adds two focused guardrails without changing the existing P1 correction order:
+#151 must be resolved before Gate A can claim safe operation against real WoFF
+roots, and #152 must be enforced and verified before the next Product Gate
+approval. #152 is a repository-governance control, not an application or
+data-integrity defect. #153 and #154 remain staged P3 work and are not current
+Gate A blockers; #155 is pre-release work rather than a current development
+priority. Product Gate A remains unapproved.
+
 ### Q5-UI-ARCHITECTURE: R2 production retention decision
 
 The graph tracks `review-r2` after #81, #82 and P0/#140. R2 requires the
@@ -184,6 +193,10 @@ A public release is blocked unless all of the following are true:
 - discovery logging does not copy unknown or credential-like file content
 - no external telemetry, analytics, tracking, automatic upload, or automatic crash-report transmission has been introduced without a separately approved governance change
 - `docs/security/privacy-and-local-data.md` matches delivered behavior
+- #155 has bound official artifacts to an exact approved source revision and
+  build inputs, published checksums and SBOM/provenance evidence, recorded the
+  distribution-specific code-signing decision, and prevented arbitrary
+  pull-request artifacts from becoming official releases
 
 Green CI without this evidence does not approve a public release.
 

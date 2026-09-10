@@ -1,5 +1,5 @@
 version: 1
-updated: 2026-09-07
+updated: 2026-09-10
 
 project:
   repository: Malboro66/woff-mate
@@ -776,6 +776,26 @@ evals:
     status: implemented
     evidence: R1 ownership, issue and dependency states, cycle separation, revision validity, Windows evidence limits, and the unapproved Gate A decision path agree across the review record, graph, eval catalog, milestone policy, and quality gates.
     enforced_by: [woff/tests/test_product_milestones.py]
+  EVAL-OUTPUT-PATH-ISOLATION-001:
+    work_items: [issue-151]
+    status: planned
+    evidence: Canonical Windows path and case aliases cannot place SQLite or discovery-log outputs at or beneath a monitored WoFF root, validation fails before either output is opened or created, and synthetic source bytes remain unchanged.
+  EVAL-MAIN-PROTECTION-001:
+    work_items: [issue-152]
+    status: planned
+    evidence: Read-only repository verification proves that main requires pull requests and the exact approved validation checks, blocks force pushes and deletion, and permits no ordinary-writer bypass.
+  EVAL-SUPPLY-CHAIN-001:
+    work_items: [issue-153]
+    status: planned
+    evidence: Approved dependency and build inputs resolve reproducibly, dependency vulnerability checks follow an explicit severity and exception policy, GitHub Actions use reviewed immutable full SHAs, and dependency and action updates follow a controlled policy.
+  EVAL-SECURITY-GOVERNANCE-001:
+    work_items: [issue-154]
+    status: planned
+    evidence: A maintained WoFF-specific threat model and compact security gate have explicit ownership, severity and reassessment rules and are structurally composed with Q0-Q6 without creating a parallel workflow.
+  EVAL-RELEASE-PROVENANCE-001:
+    work_items: [issue-155]
+    status: planned
+    evidence: Every official public binary is bound to an approved exact source revision and build inputs, publishes checksums and machine-readable dependency provenance, records the code-signing decision, and cannot be promoted from an arbitrary pull-request artifact.
   EVAL-CYCLE-330-001:
     work_items:
       - issue-50
@@ -1317,6 +1337,45 @@ work_items:
     depends_on:
       - {id: issue-139, status: satisfied}
       - {id: review-r1, status: satisfied}
+  issue-151:
+    title: Prevent output paths from overlapping monitored WoFF inputs
+    module: platform
+    state: backlog
+    evals: [EVAL-OUTPUT-PATH-ISOLATION-001]
+    gates: [Q0, Q1, Q3, Q4, Q5]
+    depends_on:
+      - {id: issue-45, status: satisfied}
+  issue-152:
+    title: Enforce protected main branch and required validation checks
+    module: governance
+    state: backlog
+    evals: [EVAL-MAIN-PROTECTION-001]
+    gates: [Q0, Q1, Q5]
+    depends_on: []
+  issue-153:
+    title: Establish reproducible dependency and CI action integrity policy
+    module: governance
+    state: backlog
+    evals: [EVAL-SUPPLY-CHAIN-001]
+    gates: [Q0, Q1, Q4, Q5]
+    depends_on: []
+  issue-154:
+    title: Define a permanent WoFF Mate security gate and threat-model owner
+    module: governance
+    state: backlog
+    evals: [EVAL-SECURITY-GOVERNANCE-001]
+    gates: [Q0, Q1, Q5]
+    depends_on: []
+  issue-155:
+    title: Define trusted release provenance and artifact verification before public distribution
+    module: governance
+    state: backlog
+    evals: [EVAL-RELEASE-PROVENANCE-001]
+    gates: [Q0, Q1, Q4, Q5]
+    depends_on:
+      - {id: issue-152, status: unsatisfied}
+      - {id: issue-153, status: unsatisfied}
+      - {id: issue-154, status: unsatisfied}
   review-r1:
     title: Record first R1 Integrity Baseline review and FAIL disposition
     module: governance
