@@ -117,7 +117,15 @@ def test_byte_sensitive_ui_evidence_uses_lf_checkout_policy() -> None:
     assert len(byte_sensitive_text_paths) == len(set(byte_sensitive_text_paths)) == 18
 
     result = subprocess.run(
-        ["git", "check-attr", "-z", "eol", "--", *byte_sensitive_text_paths],
+        [
+            "git",
+            "check-attr",
+            "-z",
+            "text",
+            "eol",
+            "--",
+            *byte_sensitive_text_paths,
+        ],
         cwd=REPOSITORY_ROOT,
         capture_output=True,
         text=True,
@@ -128,12 +136,15 @@ def test_byte_sensitive_ui_evidence_uses_lf_checkout_policy() -> None:
     assert result.returncode == 0, result.stderr
     fields = result.stdout.split("\0")
     assert fields[-1] == ""
-    attributes = {
-        path: value
-        for path, attribute, value in zip(fields[0::3], fields[1::3], fields[2::3])
-        if attribute == "eol"
+    attributes: dict[str, dict[str, str]] = {}
+    for path, attribute, value in zip(
+        fields[0::3], fields[1::3], fields[2::3]
+    ):
+        attributes.setdefault(path, {})[attribute] = value
+    assert attributes == {
+        path: {"text": "set", "eol": "lf"}
+        for path in byte_sensitive_text_paths
     }
-    assert attributes == {path: "lf" for path in byte_sensitive_text_paths}
 
 
 def _graph() -> dict[str, object]:
