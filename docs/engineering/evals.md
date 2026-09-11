@@ -238,6 +238,29 @@ or milestone rationale.
   `git check-attr`, and the existing strict manifest/evidence validators.
   Approved evidence bytes and manifest hashes remain unchanged.
 
+### Security Baseline governance
+
+The [2026-09-10 Security Baseline record](security-baseline-2026-09-10.md)
+audited integrated `main` at
+`736c43df86d686c07aadd549c14105feaf59f89d`. It preserves the reproduced and
+observed finding ownership without duplicating the R1 record or creating a
+parallel security roadmap. Product Gate A and public distribution remain
+unapproved.
+
+| Eval | Work item | Status | Required evidence |
+|---|---|---|---|
+| `EVAL-OUTPUT-PATH-ISOLATION-001` | #151 | Planned | Persistent outputs cannot overlap monitored WoFF inputs through Windows path/case aliases, and rejection occurs before output creation or source mutation |
+| `EVAL-MAIN-PROTECTION-001` | #152 | Planned | Read-only GitHub verification proves required PR/check enforcement and force-push/deletion protection for `main` |
+| `EVAL-SUPPLY-CHAIN-001` | #153 | Planned | Reproducible dependency/build inputs, vulnerability-audit policy, immutable full-SHA Actions, and controlled updates are executable |
+| `EVAL-SECURITY-GOVERNANCE-001` | #154 | Planned | The maintained threat model and compact Security Gate compose with Q0-Q6 and have explicit ownership and reassessment rules |
+| `EVAL-RELEASE-PROVENANCE-001` | #155 | Planned | Public binaries bind to reviewed source/build inputs and provide checksums, SBOM/provenance evidence, a signing decision, and trusted promotion |
+
+All five evals are planned and therefore have no fabricated `enforced_by`
+paths. #151–#155 are outside the existing Q6 cycles. #151 and #152 add the
+specific Gate A/product-gate guardrails recorded in `quality-gates.md`; #153
+and #154 remain staged P3 work, while #155 is required only before public
+binary distribution.
+
 ### #136 closure discrepancy
 
 Historical record verified on 2026-09-07 against integrated `main`

@@ -111,13 +111,21 @@ The current priority is to convert the strong foundation into demonstrable produ
 1. Correct or explicitly disposition the blocking findings from the failed first **R1** review.
 2. Restore deterministic native Windows/local validation through #145.
 3. Resolve the remaining cycle 3.3.0 evidence/gate decision, including #87 and maintainer approval.
-4. Repeat the affected R1 scope against the corrected integrated revision and produce the reliable-companion/recovery demonstration before Gate A consideration.
+4. After the existing P1 correction order, resolve #151's real-root output/input isolation and enforce #152's repository controls; then repeat the affected R1 scope against the corrected integrated revision and produce the reliable-companion/recovery demonstration before Gate A consideration.
 5. Complete **#81** immutable read-only presentation/query contracts after #136 and its other evidenced domain prerequisites are satisfied.
 6. Execute **#82** toolkit/packaging/scaling/accessibility spike for feasibility evidence and explicitly document the permitted fixture-only prototype path in the ADR.
 7. Implement **#140 — P0 Functional Desktop Prototype**.
 8. Use P0 as the first recurring product-demonstrability checkpoint.
 9. Perform **R2 — UI Architecture Decision** using #81/#82 and P0 evidence; decide explicitly whether the architecture/toolkit may be retained under the ADR adoption gates.
 10. Only after R2 and all applicable adoption gates, move toward **P1 — Read-only Vertical Slice**, replacing fixture-only data only through approved application query services.
+
+The [2026-09-10 Security Baseline](security-baseline-2026-09-10.md) adds those
+focused Gate A guardrails without creating a separate milestone or changing the
+existing P1 correction order. #153 supply-chain hardening and #154 permanent
+security-governance work remain staged P3 items; neither blocks current Gate A,
+P0, or P1 work. #153 becomes required before release-oriented product work is
+active. #155 remains pre-release work required before the first public binary
+distribution, not a current development priority.
 
 #82 produces feasibility evidence; P0 proves the fixture-backed product
 experience; R2 decides production retention. In particular, neither #82 nor P0

@@ -13,6 +13,7 @@ from scripts.validate_project_graph import GraphValidationError, load_graph, val
 ROOT = Path(__file__).resolve().parents[2]
 POLICY = "docs/engineering/product-milestones.md"
 R1_RECORD = "docs/engineering/r1-integrity-baseline.md"
+SECURITY_BASELINE_RECORD = "docs/engineering/security-baseline-2026-09-10.md"
 
 
 def _graph() -> dict[str, Any]:
@@ -275,6 +276,90 @@ def test_r1_follow_ups_are_registered_without_implicit_cycle_membership() -> Non
     record = _text(R1_RECORD)
     assert "not members of cycles 3.3.0 or 3.4.0" in record
     assert "Gate A disposition and engineering-cycle membership are separate decisions" in record
+
+
+def test_security_baseline_ownership_and_scheduling_are_reconciled() -> None:
+    graph = _graph()
+    items, evals, cycles = graph["work_items"], graph["evals"], graph["cycles"]
+    expected: dict[str, tuple[str, set[str], str, set[tuple[str, str]]]] = {
+        "issue-151": (
+            "platform",
+            {"Q0", "Q1", "Q3", "Q4", "Q5"},
+            "EVAL-OUTPUT-PATH-ISOLATION-001",
+            {("issue-45", "satisfied")},
+        ),
+        "issue-152": (
+            "governance", {"Q0", "Q1", "Q5"},
+            "EVAL-MAIN-PROTECTION-001", set(),
+        ),
+        "issue-153": (
+            "governance", {"Q0", "Q1", "Q4", "Q5"},
+            "EVAL-SUPPLY-CHAIN-001", set(),
+        ),
+        "issue-154": (
+            "governance", {"Q0", "Q1", "Q5"},
+            "EVAL-SECURITY-GOVERNANCE-001", set(),
+        ),
+        "issue-155": (
+            "governance",
+            {"Q0", "Q1", "Q4", "Q5"},
+            "EVAL-RELEASE-PROVENANCE-001",
+            {
+                ("issue-152", "unsatisfied"),
+                ("issue-153", "unsatisfied"),
+                ("issue-154", "unsatisfied"),
+            },
+        ),
+    }
+    cycle_members = {
+        member for cycle in cycles.values() for member in cycle["members"]
+    }
+
+    for item_id, (module, gates, eval_id, dependencies) in expected.items():
+        item = items[item_id]
+        assert item["state"] == "backlog"
+        assert item["module"] == module
+        assert set(item["gates"]) == gates
+        assert item["evals"] == [eval_id]
+        assert {
+            (dependency["id"], dependency["status"])
+            for dependency in item["depends_on"]
+        } == dependencies
+        assert item_id not in cycle_members
+        assert evals[eval_id]["work_items"] == [item_id]
+        assert evals[eval_id]["status"] == "planned"
+        assert not evals[eval_id].get("enforced_by")
+
+    record = _text(SECURITY_BASELINE_RECORD)
+    quality = _text("docs/engineering/quality-gates.md")
+    catalog = _text("docs/engineering/evals.md")
+    policy = _text(POLICY)
+    audited_sha = "736c43df86d686c07aadd549c14105feaf59f89d"
+    for phrase in (
+        "2026-09-10",
+        audited_sha,
+        "None confirmed",
+        "P1 adversarial-security defects",
+        "#96, #74, and #142",
+        "local-only privacy controls remained effective",
+        "no live credentials",
+        "Product Gate A and public distribution remain unapproved",
+    ):
+        assert phrase in record
+    for issue_number in range(151, 156):
+        assert f"#{issue_number}" in record
+        assert f"#{issue_number}" in catalog
+    assert "not added to a q6 cycle" in record.lower()
+    assert "#151 must be resolved" in quality
+    assert "#152 must be enforced and verified" in quality
+    assert "#153 and #154 remain staged P3 work" in quality
+    assert "#155 is pre-release work" in quality
+    assert "Product Gate A remains unapproved." in quality
+    assert "After the existing P1 correction order, resolve #151" in policy
+    assert "enforce #152's repository controls" in policy
+    assert "#153 supply-chain hardening and #154 permanent security-governance" in policy
+    assert "#155 remains pre-release work" in policy
+    validate_graph(ROOT, graph)
 
 
 def test_review_revision_and_priority_contract() -> None:
