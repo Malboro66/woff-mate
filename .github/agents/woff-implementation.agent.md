@@ -29,7 +29,12 @@ Before production work:
 - read the GitHub issue;
 - read `docs/engineering/spec-driven-development.md`;
 - verify the referenced `spec.md` satisfies the complete approval contract in `docs/engineering/spec-driven-development.md`: `Status: Approved`; an explicit positive `Revision`; matching `Approved revision`; a full `Approved spec commit`; a non-placeholder human maintainer in `Approved by`; and accessible, non-placeholder `Approval evidence` authored by that maintainer which explicitly approves the same spec path, revision, and commit;
-- verify the current approval payload defined by the SDD policy is byte-for-byte identical to the payload at its path in `Approved spec commit`;
+- verify the specification path has no staged or unstaged uncommitted changes;
+- retrieve the specification from committed Git content at both the current
+  checked-out commit and the full `Approved spec commit`; strictly decode UTF-8,
+  normalize only CRLF and lone CR line endings to LF, extract the approval
+  payload defined by the SDD policy, and compare it exactly without any other
+  normalization;
 - verify current `main`, issue dependencies and applicable project-graph/eval/gate state;
 - stop if the approved baseline or repository evidence materially contradicts the spec.
 

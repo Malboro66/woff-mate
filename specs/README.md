@@ -21,7 +21,8 @@ specs/<issue>-<slug>/
 - Production implementation requires the complete deterministic approval
   contract, not `Status: Approved` alone. The approval record binds the spec
   path and revision to its full Git commit and a maintainer-authored GitHub
-  approval link.
+  approval link. Exact payload comparison uses canonical committed Git content,
+  so checkout EOL conversion does not change approval identity.
 - `plan.md` explains how to implement the approved behavior without redefining it.
 - `tasks.md` decomposes the plan into small executable units and validation steps.
 - If a requirement or approval payload changes, stop the affected implementation

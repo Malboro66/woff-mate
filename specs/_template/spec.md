@@ -16,7 +16,12 @@ State the desired observable outcome.
 
 ## Current evidence
 
-Record reproduced or verified behavior from current `main`, including relevant tests, issues, PRs, commits, fixtures, or repository contracts.
+For defect/evidence-based work, record externally produced deterministic Q0
+evidence: exact full `main` commit SHA, command/procedure, observed result,
+relevant artifact/fixture/test where applicable, evidence location, and producer.
+The Spec Architect inspects this record and leaves the specification in `Draft`
+if it is absent, stale, ambiguous, inaccessible, or not baseline-bound. Include
+other relevant issues, PRs, commits, fixtures, or repository contracts.
 
 ## Required behavior
 
@@ -67,10 +72,11 @@ For `Status: Approved`, replace every placeholder above. `Approved revision`
 must equal `Revision`; `Approved spec commit` must be the full Git SHA containing
 this revision's exact approval payload; and `Approval evidence` must link to a maintainer-authored GitHub
 comment/review that explicitly approves this specification path, revision, and
-commit. The current approval payload must remain byte-for-byte identical to the
-payload at that commit. See
+commit. The canonical approval payload from current committed Git content must
+remain exactly identical to the canonical payload at that commit, and the
+specification path must have no uncommitted changes. See
 `docs/engineering/spec-driven-development.md#approval-contract` for the exact
-payload boundary and lifecycle-only exclusions.
+payload boundary, UTF-8/LF canonicalization, and lifecycle-only exclusions.
 
 If the approval payload changes, set `Status: Draft`, increment `Revision`, and
 clear this entire approval record before requesting new maintainer approval.

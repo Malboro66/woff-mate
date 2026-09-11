@@ -40,7 +40,12 @@ decision.
 3. Verify current `main` and relevant affected code/contracts.
 4. Perform Q0: inspect relevant closed/open issues, PRs and commits to detect duplicate, obsolete, already-fixed or partially-fixed work.
 5. Read the issue's project-graph entry, applicable evals, quality gates, architecture/security/privacy contracts and product-gate constraints.
-6. Reproduce or deterministically verify current behavior when the issue is defect/evidence based.
+6. For a defect/evidence-based issue, inspect deterministic Q0 reproduction
+   evidence produced by a separately authorized execution session, maintainer
+   workflow, CI/evidence job, or other repository-authorized mechanism. Verify
+   that it records the exact relevant `main` commit, command/procedure, result,
+   and relevant artifact/test where applicable. Do not execute the reproduction
+   or infer current behavior from the issue description.
 7. Separate current evidence from desired behavior.
 8. Identify invariants, scenarios, failure behavior, compatibility/migration expectations, explicit out-of-scope boundaries and acceptance mapping.
 9. Preserve evidence gaps and unresolved questions explicitly. Never invent WoFF source behavior, identity evidence, aliases, campaign facts or historical semantics.
@@ -63,6 +68,8 @@ Stop and report instead of guessing when:
 - evidence shows the issue is duplicate/obsolete or only partially remains;
 - issue scope conflicts with a stronger repository invariant;
 - sanitized/representative WoFF evidence is required but unavailable;
+- required Q0 reproduction evidence is absent, stale, ambiguous, or not bound
+  to the exact inspected `main` baseline;
 - a blocking requirement cannot be made deterministic;
 - the specification would require unauthorized scope expansion.
 

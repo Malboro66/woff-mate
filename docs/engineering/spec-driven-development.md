@@ -18,6 +18,30 @@ For existing behavior, reproduced evidence and current `main` define the current
 
 A specification may clarify an issue, but it may not silently broaden it, weaken repository invariants, or override stronger repository contracts.
 
+## Q0 reproduction evidence
+
+For a defect/evidence-based specification, deterministic reproduction evidence
+must exist for the exact relevant current `main` baseline. This preserves the
+root `AGENTS.md` Q0 requirement without giving the Spec Architect unrestricted
+terminal execution.
+
+The reproduction is produced by a separately authorized execution session,
+maintainer workflow, CI/evidence job, or other repository-authorized execution
+mechanism. Its record must identify:
+
+- the exact full `main` commit SHA tested;
+- the command or deterministic procedure;
+- the observed result;
+- the relevant artifact, fixture, or test when applicable;
+- the repository evidence location and producer.
+
+The Spec Architect inspects and consumes this evidence but does not execute the
+reproduction. An issue description alone is not current-state evidence. If the
+required record is missing, stale, ambiguous, inaccessible, or not bound to the
+inspected baseline, the architect must stop and leave the specification in
+`Draft`. The Implementation Agent's own current-state verification before
+production work remains required; this evidence handoff does not waive it.
+
 ## Lifecycle
 
 ```text
@@ -78,8 +102,10 @@ Production implementation may begin only when all of the following are true:
 5. `Approval evidence` is a direct link to a maintainer-authored GitHub issue or
    pull-request comment/review. Its text explicitly approves the specification
    path, revision, and full approved-spec commit SHA recorded above.
-6. The current approval payload is byte-for-byte identical to the payload at
-   that path in `Approved spec commit`.
+6. The specification path has no staged or unstaged uncommitted changes.
+7. The canonical approval payload from the current committed specification is
+   exactly identical to the canonical payload at that path in the full
+   `Approved spec commit`.
 
 The approval payload consists of the stable metadata (`Issue`, `Revision`,
 `Baseline`, and `Owner`) and the normative content from `Problem` through
@@ -90,16 +116,26 @@ approval without invalidating it. After the maintainer posts the approval
 evidence, a bookkeeping commit may set `Status: Approved` and populate the
 approval record; it must not change the approval payload.
 
-This Git revision and maintainer record is the pilot's minimal deterministic
-binding; it is not a signing or cryptographic approval system. The Implementation
-Agent must inspect the linked evidence and its author rather than trusting fields
-inside the mutable specification alone.
+The comparison uses committed Git content, never checkout-dependent working-tree
+bytes. Retrieve the specification at both `Approved spec commit` and the current
+checked-out commit through Git's committed-content interface. Strictly decode
+each as UTF-8, normalize CRLF and lone CR line endings to LF, then extract the
+approval payload and compare it exactly. Do not trim or collapse whitespace,
+normalize Unicode, reorder content, change field values, or perform any other
+normalization. Thus an LF/CRLF checkout difference does not invalidate approval,
+while any substantive payload change does.
+
+This canonical committed-content comparison and maintainer record are the
+pilot's minimal deterministic binding; they are not a signing or cryptographic
+approval system. The Implementation Agent must inspect the linked evidence and
+its author rather than trusting fields inside the mutable specification alone.
 
 Missing, placeholder, inaccessible, contradictory, stale, or ambiguous approval
-data blocks implementation. A mismatch between the current approval payload and
-the approved Git revision also blocks implementation even when `Status` still says
-`Approved`. The agent must stop and report the exact missing or conflicting
-evidence; it must not infer approval.
+data blocks implementation. Uncommitted changes to the specification path or a
+mismatch between the canonical current committed payload and the approved Git
+revision also block implementation even when `Status` still says `Approved`.
+The agent must stop and report the exact missing or conflicting evidence; it
+must not infer approval.
 
 ## Contradictions and evidence gaps
 
@@ -143,7 +179,9 @@ can write the issue's specification. It has no GitHub mutation, terminal
 execution, or agent-handoff capability. The current custom-agent format cannot
 restrict `edit` to a path, so the profile also explicitly limits its writes to
 `specs/<issue>-<slug>/spec.md`. It does not edit production code and cannot
-approve its own spec.
+approve its own spec. For defect work it consumes the baseline-bound Q0 record
+defined above; missing evidence keeps the specification in Draft rather than
+expanding the profile's capabilities.
 
 ### Implementation Agent
 
@@ -160,9 +198,10 @@ or merge on behalf of the maintainer.
 
 Performs a fresh capability-level read-only comparison of issue, Approved spec,
 implementation diff, tests/evals, architecture and invariants. Its tool allowlist
-contains only `read` and `search`. It has no `edit`, `execute`, GitHub mutation,
-or agent-handoff tool. The clean review bundle must make remote issue, approval,
-and PR evidence available for read-only inspection; missing evidence stops the
+contains repository `read` and `search` plus the same named, read-only GitHub
+issue, pull-request, and commit retrieval tools. It has no `edit`, `execute`,
+GitHub mutation, or agent-handoff tool. It can retrieve remote identifiers and
+links in the clean review bundle; missing or inaccessible evidence stops the
 review rather than expanding capabilities. It reports findings; corrections
 belong to the Implementation Agent or a separately authorized correction task.
 
@@ -170,8 +209,8 @@ The profiles follow the official
 [custom-agent configuration](https://docs.github.com/en/copilot/reference/custom-agents-configuration):
 the `tools` allowlist enables only named capabilities, while omission would
 enable every available tool. GitHub MCP tools use the documented
-`github/<tool-name>` syntax. Spec Architect and Implementation Agent GitHub
-access is limited to `issue_read`, `search_issues`, `pull_request_read`,
+`github/<tool-name>` syntax. All three profiles' GitHub access is limited to
+`issue_read`, `search_issues`, `pull_request_read`,
 `search_pull_requests`, `get_commit`, and `search_commits`, as documented by the
 [GitHub MCP server](https://github.com/github/github-mcp-server#tools). These
 operations are sufficient to inspect the current issue/PR and perform Q0 across

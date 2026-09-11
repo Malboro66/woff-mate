@@ -53,6 +53,10 @@ def _github_tools(frontmatter: dict[str, Any]) -> set[str]:
     }
 
 
+def _canonical_committed_payload(content: bytes) -> str:
+    return content.decode("utf-8").replace("\r\n", "\n").replace("\r", "\n")
+
+
 def test_sdd_foundation_blocks_the_first_pilot_until_integration() -> None:
     graph = cast(
         dict[str, Any],
@@ -83,8 +87,11 @@ def test_sdd_foundation_blocks_the_first_pilot_until_integration() -> None:
 
 
 def test_sdd_approval_is_bound_to_exact_spec_content_and_maintainer_evidence() -> None:
-    policy = _text(SDD_POLICY)
+    policy = " ".join(_text(SDD_POLICY).split())
     template = _text(SPEC_TEMPLATE)
+    implementation = " ".join(
+        _text(AGENTS / "woff-implementation.agent.md").split()
+    )
 
     for field in (
         "Status",
@@ -101,12 +108,56 @@ def test_sdd_approval_is_bound_to_exact_spec_content_and_maintainer_evidence() -
         "full Git commit SHA",
         "human maintainer",
         "explicitly approves the specification",
-        "current approval payload",
-        "byte-for-byte identical",
+        "current committed specification",
+        "committed Git content",
+        "Strictly decode each as UTF-8",
+        "normalize CRLF and lone CR line endings to LF",
+        "Do not trim or collapse whitespace",
+        "no staged or unstaged uncommitted changes",
         "self-referential commit",
         "must not infer approval",
     ):
         assert required_contract in policy
+
+    assert "no staged or unstaged uncommitted changes" in implementation
+    assert "current checked-out commit" in implementation
+
+
+def test_approval_payload_canonicalization_is_only_eol_insensitive() -> None:
+    lf = b"Issue: #151\nRevision: 1\n## Required behavior\nMust isolate output.\n"
+    crlf = lf.replace(b"\n", b"\r\n")
+    cr = lf.replace(b"\n", b"\r")
+
+    assert _canonical_committed_payload(lf) == _canonical_committed_payload(crlf)
+    assert _canonical_committed_payload(lf) == _canonical_committed_payload(cr)
+    assert _canonical_committed_payload(lf) != _canonical_committed_payload(
+        lf.replace(b"Must isolate", b"May isolate")
+    )
+    assert _canonical_committed_payload(lf) != _canonical_committed_payload(
+        lf.replace(b"output.", b"output. ")
+    )
+
+
+def test_defect_specs_require_external_baseline_bound_q0_evidence() -> None:
+    policy = " ".join(_text(SDD_POLICY).split())
+    architect = _text(AGENTS / "woff-spec-architect.agent.md")
+    template = " ".join(_text(SPEC_TEMPLATE).split())
+
+    for required_evidence in (
+        "separately authorized execution session",
+        "exact full `main` commit SHA tested",
+        "command or deterministic procedure",
+        "observed result",
+        "repository evidence location and producer",
+        "must stop and leave the specification in `Draft`",
+    ):
+        assert required_evidence in policy
+
+    assert "Do not execute the reproduction" in architect
+    assert "exact full `main` commit SHA" in template
+    assert "execute" not in _frontmatter(
+        AGENTS / "woff-spec-architect.agent.md"
+    )["tools"]
 
 
 def test_custom_agent_tool_boundaries_use_supported_allowlists() -> None:
@@ -127,7 +178,8 @@ def test_custom_agent_tool_boundaries_use_supported_allowlists() -> None:
         "execute",
         *READ_ONLY_GITHUB_TOOLS,
     ]
-    assert reviewer["tools"] == ["read", "search"]
+    assert reviewer["tools"] == ["read", "search", *READ_ONLY_GITHUB_TOOLS]
+    assert "issue/PR identifiers" in reviewer["argument-hint"]
 
     for profile in (architect, implementation, reviewer):
         tools = cast(list[str], profile["tools"])
@@ -135,11 +187,14 @@ def test_custom_agent_tool_boundaries_use_supported_allowlists() -> None:
 
     assert _github_tools(architect) == set(READ_ONLY_GITHUB_TOOLS)
     assert _github_tools(implementation) == set(READ_ONLY_GITHUB_TOOLS)
-    assert _github_tools(reviewer) == set()
-    assert KNOWN_GITHUB_MUTATION_TOOLS.isdisjoint(_github_tools(architect))
-    assert KNOWN_GITHUB_MUTATION_TOOLS.isdisjoint(_github_tools(implementation))
+    assert _github_tools(reviewer) == set(READ_ONLY_GITHUB_TOOLS)
+    for profile in (architect, implementation, reviewer):
+        assert KNOWN_GITHUB_MUTATION_TOOLS.isdisjoint(_github_tools(profile))
 
     assert {"edit", "execute", "agent"}.isdisjoint(reviewer["tools"])
+    assert "identifier- or link-only" in _text(
+        AGENTS / "woff-independent-reviewer.agent.md"
+    )
     assert "execute" not in architect["tools"]
     assert "agent" not in implementation["tools"]
 
