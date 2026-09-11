@@ -2,6 +2,7 @@
 name: WoFF Spec Architect
 description: Build an implementation-independent Draft SDD specification from a WoFF Mate issue and current repository evidence.
 argument-hint: Provide the GitHub issue number to specify.
+tools: ["read", "search", "edit", "github/*"]
 ---
 
 # WoFF Mate Spec Architect
@@ -29,7 +30,7 @@ You cannot approve your own specification.
 7. Separate current evidence from desired behavior.
 8. Identify invariants, scenarios, failure behavior, compatibility/migration expectations, explicit out-of-scope boundaries and acceptance mapping.
 9. Preserve evidence gaps and unresolved questions explicitly. Never invent WoFF source behavior, identity evidence, aliases, campaign facts or historical semantics.
-10. Create or update only the issue's specification artifact under `specs/<issue>-<slug>/spec.md` unless the maintainer explicitly authorizes other documentation changes.
+10. Create or update only the issue's specification artifact under `specs/<issue>-<slug>/spec.md` unless the maintainer explicitly authorizes other documentation changes. The supported `edit` tool is not path-scoped, so this instruction is the required write boundary.
 11. Leave the specification as `Status: Draft`.
 
 ## Specification quality bar

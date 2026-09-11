@@ -51,13 +51,55 @@ The specification is still being refined. The Spec Architect may update it. Prod
 
 ### Approved
 
-The maintainer has approved the specification revision for implementation. The Implementation Agent must treat its behavioral requirements as immutable.
+The maintainer has approved the exact specification revision for implementation,
+and the complete [approval contract](#approval-contract) is satisfied. The
+Implementation Agent must treat its behavioral requirements as immutable.
 
-If a requirement must change, return the specification to Draft, increment the revision, document the reason, and obtain maintainer approval again before continuing the affected implementation path.
+If a requirement must change, return the specification to Draft, increment the
+revision, document the reason, clear the prior approval record, and obtain a new
+revision-bound maintainer approval before continuing the affected implementation
+path. Status text copied from an earlier revision is not authorization.
 
 ### Implemented
 
 The approved behavior has been integrated and validated against the revision-bound evidence. This state is recorded only after merge/integration evidence exists; it is not set merely because a branch implementation exists.
+
+## Approval contract
+
+Production implementation may begin only when all of the following are true:
+
+1. `Status` is exactly `Approved`.
+2. `Revision` is an explicit positive integer, and `Approved revision` exactly
+   matches it.
+3. `Approved spec commit` is the full Git commit SHA containing the exact
+   approval payload for that revision.
+4. `Approved by` identifies a non-placeholder human maintainer with approval
+   authority for the repository.
+5. `Approval evidence` is a direct link to a maintainer-authored GitHub issue or
+   pull-request comment/review. Its text explicitly approves the specification
+   path, revision, and full approved-spec commit SHA recorded above.
+6. The current approval payload is byte-for-byte identical to the payload at
+   that path in `Approved spec commit`.
+
+The approval payload consists of the stable metadata (`Issue`, `Revision`,
+`Baseline`, and `Owner`) and the normative content from `Problem` through
+`Open questions / evidence gaps`. It excludes only mutable lifecycle metadata:
+`Status`, the `Approval record`, and the `Implementation record`. This avoids a
+self-referential commit while ensuring that requirements cannot change after
+approval without invalidating it. After the maintainer posts the approval
+evidence, a bookkeeping commit may set `Status: Approved` and populate the
+approval record; it must not change the approval payload.
+
+This Git revision and maintainer record is the pilot's minimal deterministic
+binding; it is not a signing or cryptographic approval system. The Implementation
+Agent must inspect the linked evidence and its author rather than trusting fields
+inside the mutable specification alone.
+
+Missing, placeholder, inaccessible, contradictory, stale, or ambiguous approval
+data blocks implementation. A mismatch between the current approval payload and
+the approved Git revision also blocks implementation even when `Status` still says
+`Approved`. The agent must stop and report the exact missing or conflicting
+evidence; it must not infer approval.
 
 ## Contradictions and evidence gaps
 
@@ -94,15 +136,39 @@ specs/<issue>-<slug>/
 
 ### Spec Architect
 
-Produces a Draft implementation-independent specification from issue scope and repository evidence. It may investigate and reproduce behavior, but it does not edit production code and cannot approve its own spec.
+Produces a Draft implementation-independent specification from issue scope and
+repository evidence. Its allowlist provides repository/GitHub read and search
+plus file editing so it can write the issue's specification; it has no terminal
+execution or agent-handoff capability. The current custom-agent format cannot
+restrict `edit` to a path, so the profile also explicitly limits its writes to
+`specs/<issue>-<slug>/spec.md`. It does not edit production code and cannot
+approve its own spec.
 
 ### Implementation Agent
 
-Requires an Approved specification revision, prepares/uses the technical plan and tasks, implements only authorized behavior, validates the result, and reports contradictions instead of guessing.
+Requires the complete approval contract for the exact specification revision,
+prepares/uses the technical plan and tasks, implements only authorized behavior,
+validates the result, and reports contradictions instead of guessing. It has the
+read, search, edit, and terminal capabilities required for implementation, but
+cannot approve risk or merge on behalf of the maintainer.
 
 ### Independent Reviewer
 
-Performs a fresh read-only comparison of issue, Approved spec, implementation diff, tests/evals, architecture and invariants. It reports findings rather than repairing them unless separately authorized.
+Performs a fresh capability-level read-only comparison of issue, Approved spec,
+implementation diff, tests/evals, architecture and invariants. Its tool allowlist
+contains only `read` and `search`. It has no `edit`, `execute`, GitHub mutation,
+or agent-handoff tool. The clean review bundle must make remote issue, approval,
+and PR evidence available for read-only inspection; missing evidence stops the
+review rather than expanding capabilities. It reports findings; corrections
+belong to the Implementation Agent or a separately authorized correction task.
+
+The profiles follow the official
+[custom-agent configuration](https://docs.github.com/en/copilot/reference/custom-agents-configuration):
+the `tools` allowlist enables only named capabilities, while omission would
+enable every available tool. The format does not define finer-grained path or
+command permissions. Profiles therefore use only documented aliases; host
+enforcement of the allowlist remains a prerequisite for the stated capability
+boundary.
 
 ## Human authority
 
@@ -116,6 +182,36 @@ The maintainer retains authority for:
 - promoting SDD from pilot to project-wide policy.
 
 No custom agent can approve its own output or merge its own work.
+
+## Independent pre-review isolation
+
+An official repository Independent Reviewer pass must start in a new session or
+an equivalently isolated context. Selecting, invoking, or handing off to the
+reviewer inside the implementation conversation is not an official independent
+pass because it can inherit implementation assumptions.
+
+The fresh review session receives only a clean, reproducible review bundle:
+
+- issue and acceptance criteria;
+- approved specification path, revision, full approved-spec commit, approver,
+  and approval-evidence link;
+- applicable `AGENTS.md`, architecture, project graph, evals, quality gates, and
+  other governing contracts;
+- implementation PR/diff and exact reviewed commit;
+- focused/full tests, evals, gates, and CI evidence;
+- repository state needed to reproduce or verify findings.
+
+Do not include implementation chain-of-thought, informal implementation
+discussion, discarded approaches, or the Implementation Agent's conclusions as
+reviewer assumptions. The reviewer may inspect committed `plan.md` and `tasks.md`
+as claims when relevant, but must derive findings independently from authoritative
+requirements and evidence.
+
+This Independent Reviewer is the repository's pre-review control. It runs before
+the maintainer decides that a PR is ready for the separate official Codex Review
+required by project policy. A clean Independent Reviewer result neither triggers,
+replaces, nor waives Codex Review; Codex Review findings still receive
+defect-class consolidation before the maintainer's merge decision.
 
 ## Relationship to TDD and evals
 

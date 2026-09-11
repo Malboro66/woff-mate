@@ -1,5 +1,5 @@
 version: 1
-updated: 2026-09-10
+updated: 2026-09-11
 
 project:
   repository: Malboro66/woff-mate
@@ -787,6 +787,11 @@ evals:
     status: implemented
     evidence: R1 ownership, issue and dependency states, cycle separation, revision validity, Windows evidence limits, and the unapproved Gate A decision path agree across the review record, graph, eval catalog, milestone policy, and quality gates.
     enforced_by: [woff/tests/test_product_milestones.py]
+  EVAL-SDD-GOVERNANCE-001:
+    work_items: [issue-157]
+    status: implemented
+    evidence: The SDD pilot requires maintainer approval bound to the exact specification path, revision, and Git commit; capability-level read-only independent review starts from a fresh context; and issue-151 remains blocked until issue-157 is complete.
+    enforced_by: [woff/tests/test_sdd_governance.py]
   EVAL-OUTPUT-PATH-ISOLATION-001:
     work_items: [issue-151]
     status: planned
@@ -1356,6 +1361,7 @@ work_items:
     gates: [Q0, Q1, Q3, Q4, Q5]
     depends_on:
       - {id: issue-45, status: satisfied}
+      - {id: issue-157, status: unsatisfied}
   issue-152:
     title: Enforce protected main branch and required validation checks
     module: governance
@@ -1387,6 +1393,13 @@ work_items:
       - {id: issue-152, status: unsatisfied}
       - {id: issue-153, status: unsatisfied}
       - {id: issue-154, status: unsatisfied}
+  issue-157:
+    title: Pilot Spec-Driven Development and repository custom agents
+    module: governance
+    state: in_progress
+    evals: [EVAL-SDD-GOVERNANCE-001]
+    gates: [Q0, Q1]
+    depends_on: []
   review-r1:
     title: Record first R1 Integrity Baseline review and FAIL disposition
     module: governance

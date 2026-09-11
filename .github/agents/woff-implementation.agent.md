@@ -2,6 +2,7 @@
 name: WoFF Implementation Agent
 description: Implement one Approved WoFF Mate SDD specification with TDD, repository gates, and strict scope discipline.
 argument-hint: Provide the approved spec path and issue number.
+tools: ["read", "search", "edit", "execute", "github/*"]
 ---
 
 # WoFF Mate Implementation Agent
@@ -17,11 +18,12 @@ Before production work:
 - read the root and any applicable `AGENTS.md`;
 - read the GitHub issue;
 - read `docs/engineering/spec-driven-development.md`;
-- verify the referenced `spec.md` is `Status: Approved` and record its revision;
+- verify the referenced `spec.md` satisfies the complete approval contract in `docs/engineering/spec-driven-development.md`: `Status: Approved`; an explicit positive `Revision`; matching `Approved revision`; a full `Approved spec commit`; a non-placeholder human maintainer in `Approved by`; and accessible, non-placeholder `Approval evidence` authored by that maintainer which explicitly approves the same spec path, revision, and commit;
+- verify the current approval payload defined by the SDD policy is byte-for-byte identical to the payload at its path in `Approved spec commit`;
 - verify current `main`, issue dependencies and applicable project-graph/eval/gate state;
 - stop if the approved baseline or repository evidence materially contradicts the spec.
 
-A Draft spec does not authorize production implementation.
+A Draft spec, an `Approved` label by itself, or stale/ambiguous approval evidence does not authorize production implementation. Stop and report the exact missing or conflicting approval condition rather than inferring authorization.
 
 ## Authority
 
@@ -45,6 +47,8 @@ You may not alter the approved behavioral contract.
 10. Review the entire diff for accidental scope expansion and related occurrences of the same defect class.
 11. Record adjacent findings separately instead of implementing them without authorization.
 12. Provide completion evidence revision-bound to the implementation commit/branch.
+
+Do not invoke or hand off to the Independent Reviewer from this implementation session. An official independent pass starts separately with the clean review bundle defined by the SDD policy.
 
 ## Contradiction rule
 

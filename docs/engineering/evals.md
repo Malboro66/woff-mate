@@ -261,6 +261,18 @@ specific Gate A/product-gate guardrails recorded in `quality-gates.md`; #153
 and #154 remain staged P3 work, while #155 is required only before public
 binary distribution.
 
+### SDD pilot governance
+
+`EVAL-SDD-GOVERNANCE-001` belongs to Issue #157 and is enforced by
+`woff/tests/test_sdd_governance.py`. It checks the ordinary project-graph work
+item and reciprocal eval ownership, the unsatisfied #151 -> #157 dependency,
+the exact-revision maintainer approval contract, the custom-agent tool
+allowlists, and the fresh-context Independent Reviewer handoff. Issue #157
+remains `in_progress` while PR #158 is open; the eval's structural enforcement
+does not claim that the issue is integrated or that #151 is ready. After #157
+is merged, a repository-governance update must mark #157 `done` and the #151
+dependency `satisfied` before #151 can enter implementation.
+
 ### #136 closure discrepancy
 
 Historical record verified on 2026-09-07 against integrated `main`

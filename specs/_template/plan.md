@@ -6,7 +6,8 @@ Baseline: <commit SHA>
 
 ## Preconditions
 
-- Specification status is `Approved`.
+- The exact specification revision satisfies the complete revision-bound
+  maintainer approval contract in `docs/engineering/spec-driven-development.md`.
 - Applicable `AGENTS.md` and repository governance have been read.
 - Current baseline and issue dependencies have been verified.
 

@@ -59,8 +59,21 @@ Record unresolved questions without guessing. An unresolved blocking question pr
 ## Approval record
 
 Approved revision: —
+Approved spec commit: —
 Approved by: —
 Approval evidence: —
+
+For `Status: Approved`, replace every placeholder above. `Approved revision`
+must equal `Revision`; `Approved spec commit` must be the full Git SHA containing
+this revision's exact approval payload; and `Approval evidence` must link to a maintainer-authored GitHub
+comment/review that explicitly approves this specification path, revision, and
+commit. The current approval payload must remain byte-for-byte identical to the
+payload at that commit. See
+`docs/engineering/spec-driven-development.md#approval-contract` for the exact
+payload boundary and lifecycle-only exclusions.
+
+If the approval payload changes, set `Status: Draft`, increment `Revision`, and
+clear this entire approval record before requesting new maintainer approval.
 
 ## Implementation record
 

@@ -283,11 +283,14 @@ def test_security_baseline_ownership_and_scheduling_are_reconciled() -> None:
     items, evals, cycles = graph["work_items"], graph["evals"], graph["cycles"]
     expected: dict[str, tuple[str, set[str], str, set[tuple[str, str]]]] = {
         "issue-151": (
-            "platform",
-            {"Q0", "Q1", "Q3", "Q4", "Q5"},
-            "EVAL-OUTPUT-PATH-ISOLATION-001",
-            {("issue-45", "satisfied")},
-        ),
+                "platform",
+                {"Q0", "Q1", "Q3", "Q4", "Q5"},
+                "EVAL-OUTPUT-PATH-ISOLATION-001",
+                {
+                    ("issue-45", "satisfied"),
+                    ("issue-157", "unsatisfied"),
+                },
+            ),
         "issue-152": (
             "governance", {"Q0", "Q1", "Q5"},
             "EVAL-MAIN-PROTECTION-001", set(),

@@ -38,6 +38,15 @@ The outcome controls implementation:
 
 The issue or draft pull request must record the historical references, current-main code path, and reproduction result so the Q0 decision is auditable.
 
+For an issue explicitly selected for the SDD pilot, Q0 additionally requires
+the exact specification revision to satisfy the approval contract in
+[`spec-driven-development.md`](spec-driven-development.md#approval-contract).
+An `Approved` status without the complete, current, revision-bound maintainer
+approval record does not authorize implementation. The project graph may add a
+foundation dependency that must be satisfied before the pilot issue is ready;
+Issue #151 therefore remains blocked on Issue #157 until that governance
+foundation is integrated and the graph is reconciled.
+
 ## Q1: local behavior
 
 Every change requires:
