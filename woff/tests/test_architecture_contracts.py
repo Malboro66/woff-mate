@@ -8,7 +8,7 @@ import re
 import subprocess
 import sys
 from copy import deepcopy
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 
 import pytest
 
@@ -19,9 +19,12 @@ from scripts.validate_project_graph import (
     validate_graph,
 )
 from scripts.validate_ui_v2_evidence import (
+    EvidenceError,
     SCREENS,
+    refresh_manifest_text_payloads,
     validate_evidence as validate_ui_evidence,
     verify_manifest,
+    verify_manifest_text_payloads,
 )
 
 
@@ -145,6 +148,137 @@ def test_byte_sensitive_ui_evidence_uses_lf_checkout_policy() -> None:
         path: {"text": "set", "eol": "lf"}
         for path in byte_sensitive_text_paths
     }
+
+
+def _run_fixture_git(
+    repository: Path, *arguments: str
+) -> subprocess.CompletedProcess[str]:
+    result = subprocess.run(
+        ["git", *arguments],
+        cwd=repository,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        check=False,
+    )
+    assert result.returncode == 0, result.stderr
+    return result
+
+
+def test_existing_clone_can_safely_refresh_manifest_evidence_to_lf(
+    tmp_path: Path,
+) -> None:
+    source = tmp_path / "source"
+    existing_clone = tmp_path / "existing-clone"
+    evidence_directory = source / "docs" / "ui" / "evidence" / "sample"
+    evidence_directory.mkdir(parents=True)
+    relative_payload = "docs/ui/evidence/sample/payload.json"
+    canonical_payload = b'{"message":"canonical"}\n'
+    payload_digest = hashlib.sha256(canonical_payload).hexdigest()
+    (source / ".gitattributes").write_text("* text=auto\n", encoding="utf-8")
+    (evidence_directory / "payload.json").write_bytes(canonical_payload)
+    (evidence_directory / "SHA256SUMS").write_text(
+        f"{payload_digest}  payload.json\n", encoding="ascii"
+    )
+    (source / "unrelated.txt").write_bytes(b"unrelated\n")
+
+    _run_fixture_git(source, "init")
+    _run_fixture_git(source, "config", "user.name", "Evidence transition test")
+    _run_fixture_git(
+        source, "config", "user.email", "evidence-transition@example.invalid"
+    )
+    _run_fixture_git(source, "add", "--", ".")
+    _run_fixture_git(source, "commit", "-m", "old text auto policy")
+    old_commit = _run_fixture_git(source, "rev-parse", "HEAD").stdout.strip()
+    old_blob = _run_fixture_git(
+        source, "rev-parse", f"{old_commit}:{relative_payload}"
+    ).stdout.strip()
+
+    _run_fixture_git(
+        tmp_path,
+        "clone",
+        "--no-hardlinks",
+        "--no-checkout",
+        str(source),
+        str(existing_clone),
+    )
+    _run_fixture_git(existing_clone, "config", "core.autocrlf", "true")
+    _run_fixture_git(existing_clone, "checkout", "--detach", old_commit)
+    existing_payload = existing_clone.joinpath(
+        *PurePosixPath(relative_payload).parts
+    )
+    stale_payload = canonical_payload.replace(b"\n", b"\r\n")
+    assert existing_payload.read_bytes() == stale_payload
+
+    (source / ".gitattributes").write_text(
+        "* text=auto\ndocs/ui/evidence/** text eol=lf\n",
+        encoding="utf-8",
+    )
+    _run_fixture_git(source, "add", "--", ".gitattributes")
+    _run_fixture_git(source, "commit", "-m", "require LF evidence")
+    new_commit = _run_fixture_git(source, "rev-parse", "HEAD").stdout.strip()
+    _run_fixture_git(existing_clone, "fetch", "origin", new_commit)
+    _run_fixture_git(existing_clone, "checkout", "--detach", new_commit)
+
+    new_blob = _run_fixture_git(
+        existing_clone, "rev-parse", f"{new_commit}:{relative_payload}"
+    ).stdout.strip()
+    assert new_blob == old_blob
+    attributes = _run_fixture_git(
+        existing_clone,
+        "check-attr",
+        "text",
+        "eol",
+        "--",
+        relative_payload,
+    ).stdout.splitlines()
+    assert attributes == [
+        f"{relative_payload}: text: set",
+        f"{relative_payload}: eol: lf",
+    ]
+    assert existing_payload.read_bytes() == stale_payload
+    with pytest.raises(EvidenceError, match="checksum mismatch"):
+        verify_manifest_text_payloads(existing_clone)
+
+    locally_modified = stale_payload + b"local edit\r\n"
+    existing_payload.write_bytes(locally_modified)
+    with pytest.raises(EvidenceError, match="working-tree changes"):
+        refresh_manifest_text_payloads(existing_clone)
+    assert existing_payload.read_bytes() == locally_modified
+
+    _run_fixture_git(existing_clone, "add", "--", relative_payload)
+    with pytest.raises(EvidenceError, match="staged changes"):
+        refresh_manifest_text_payloads(existing_clone)
+    assert existing_payload.read_bytes() == locally_modified
+    _run_fixture_git(
+        existing_clone, "reset", "--quiet", "HEAD", "--", relative_payload
+    )
+    existing_payload.write_bytes(stale_payload)
+
+    index_tree_before = _run_fixture_git(
+        existing_clone, "write-tree"
+    ).stdout.strip()
+    manifest_before = (
+        existing_clone / "docs" / "ui" / "evidence" / "sample" / "SHA256SUMS"
+    ).read_bytes()
+    unrelated_before = (existing_clone / "unrelated.txt").read_bytes()
+
+    assert refresh_manifest_text_payloads(existing_clone) == (relative_payload,)
+
+    assert existing_payload.read_bytes() == canonical_payload
+    assert hashlib.sha256(existing_payload.read_bytes()).hexdigest() == payload_digest
+    assert verify_manifest_text_payloads(existing_clone) == (relative_payload,)
+    assert _run_fixture_git(existing_clone, "write-tree").stdout.strip() == (
+        index_tree_before
+    )
+    assert _run_fixture_git(
+        existing_clone, "rev-parse", f":{relative_payload}"
+    ).stdout.strip() == old_blob
+    assert (
+        existing_clone / "docs" / "ui" / "evidence" / "sample" / "SHA256SUMS"
+    ).read_bytes() == manifest_before
+    assert (existing_clone / "unrelated.txt").read_bytes() == unrelated_before
+    assert _run_fixture_git(existing_clone, "status", "--porcelain").stdout == ""
 
 
 def _graph() -> dict[str, object]:

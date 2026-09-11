@@ -10,7 +10,8 @@ import hashlib
 import json
 import math
 import re
-from pathlib import Path
+import subprocess
+from pathlib import Path, PurePosixPath
 from typing import Any, Sequence
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -309,16 +310,223 @@ def verify_manifest(root: Path = EVIDENCE) -> str:
     return hashlib.sha256("".join(f"{line}\n" for line in lines).encode("ascii")).hexdigest()
 
 
+def _git_text(repository_root: Path, *arguments: str) -> str:
+    result = subprocess.run(
+        ["git", *arguments],
+        cwd=repository_root,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        check=False,
+    )
+    require(
+        result.returncode == 0,
+        f"git {' '.join(arguments)} failed: {result.stderr.strip()}",
+    )
+    return result.stdout
+
+
+def _git_bytes(repository_root: Path, *arguments: str) -> bytes:
+    result = subprocess.run(
+        ["git", *arguments],
+        cwd=repository_root,
+        capture_output=True,
+        check=False,
+    )
+    require(
+        result.returncode == 0,
+        (
+            f"git {' '.join(arguments)} failed: "
+            f"{result.stderr.decode('utf-8', errors='replace').strip()}"
+        ),
+    )
+    return result.stdout
+
+
+def _manifest_entries_from_index(
+    repository_root: Path,
+) -> tuple[dict[str, str], tuple[str, ...]]:
+    top_level = Path(
+        _git_text(repository_root, "rev-parse", "--show-toplevel").strip()
+    ).resolve()
+    require(
+        top_level == repository_root.resolve(),
+        "evidence refresh must run from the repository root",
+    )
+    manifest_paths = tuple(
+        sorted(
+            path
+            for path in _git_text(
+                repository_root,
+                "ls-files",
+                "-z",
+                "--",
+                "docs/ui/evidence/*/SHA256SUMS",
+            ).split("\0")
+            if path
+        )
+    )
+    require(bool(manifest_paths), "no tracked UI evidence manifests found")
+
+    entries: dict[str, str] = {}
+    for manifest_path in manifest_paths:
+        try:
+            manifest = _git_bytes(
+                repository_root, "cat-file", "blob", f":{manifest_path}"
+            ).decode("ascii")
+        except UnicodeDecodeError as error:
+            raise EvidenceError(
+                f"non-ASCII checksum manifest: {manifest_path}"
+            ) from error
+        manifest_parent = PurePosixPath(manifest_path).parent
+        for line in manifest.splitlines():
+            match = re.fullmatch(r"([0-9a-f]{64})  (.+)", line)
+            require(match is not None, f"malformed checksum line: {manifest_path}")
+            assert match is not None
+            digest, filename = match.groups()
+            relative_path = PurePosixPath(filename)
+            require(
+                not relative_path.is_absolute()
+                and ".." not in relative_path.parts
+                and ":" not in relative_path.parts[0],
+                f"unsafe checksum entry: {manifest_path}: {filename}",
+            )
+            payload_path = (manifest_parent / relative_path).as_posix()
+            require(
+                payload_path not in entries,
+                f"duplicate checksum payload: {payload_path}",
+            )
+            entries[payload_path] = digest
+    return entries, manifest_paths
+
+
+def _manifest_text_payloads(repository_root: Path) -> tuple[dict[str, str], tuple[str, ...]]:
+    entries, manifest_paths = _manifest_entries_from_index(repository_root)
+    text_entries = {
+        path: digest
+        for path, digest in entries.items()
+        if PurePosixPath(path).suffix.lower() != ".jpg"
+    }
+    require(bool(text_entries), "no manifest-derived text evidence payloads found")
+    paths = tuple(sorted(text_entries))
+    fields = _git_text(
+        repository_root,
+        "check-attr",
+        "-z",
+        "text",
+        "eol",
+        "--",
+        *paths,
+    ).split("\0")
+    require(fields[-1] == "", "malformed git check-attr output")
+    attributes: dict[str, dict[str, str]] = {}
+    for path, attribute, value in zip(
+        fields[0::3], fields[1::3], fields[2::3]
+    ):
+        attributes.setdefault(path, {})[attribute] = value
+    require(
+        attributes
+        == {path: {"text": "set", "eol": "lf"} for path in paths},
+        "manifest-derived text evidence must resolve to text=set and eol=lf",
+    )
+    return text_entries, manifest_paths
+
+
+def verify_manifest_text_payloads(repository_root: Path = ROOT) -> tuple[str, ...]:
+    """Verify raw working-tree bytes for every manifest-derived text payload."""
+    entries, _manifest_paths = _manifest_text_payloads(repository_root)
+    for path, digest in entries.items():
+        payload = repository_root.joinpath(*PurePosixPath(path).parts)
+        require(
+            payload.is_file()
+            and hashlib.sha256(payload.read_bytes()).hexdigest() == digest,
+            f"checksum mismatch: {path}",
+        )
+    return tuple(sorted(entries))
+
+
+def _require_clean_paths(repository_root: Path, paths: tuple[str, ...]) -> None:
+    checks = (
+        (("diff", "--quiet", "--cached", "--", *paths), "staged"),
+        (("diff", "--quiet", "--", *paths), "working-tree"),
+    )
+    for arguments, change_kind in checks:
+        result = subprocess.run(
+            ["git", *arguments],
+            cwd=repository_root,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            check=False,
+        )
+        require(
+            result.returncode in (0, 1),
+            f"git {' '.join(arguments)} failed: {result.stderr.strip()}",
+        )
+        require(
+            result.returncode == 0,
+            (
+                "refusing to refresh evidence with "
+                f"{change_kind} changes in manifest-derived paths"
+            ),
+        )
+
+
+def refresh_manifest_text_payloads(repository_root: Path = ROOT) -> tuple[str, ...]:
+    """Restore clean manifest-derived text payloads from their index blobs."""
+    repository_root = repository_root.resolve()
+    entries, manifest_paths = _manifest_text_payloads(repository_root)
+    paths = tuple(sorted(entries))
+    _require_clean_paths(repository_root, tuple(sorted((*manifest_paths, *paths))))
+
+    index_blobs: dict[str, tuple[str, bytes]] = {}
+    for path, digest in entries.items():
+        object_id = _git_text(repository_root, "rev-parse", f":{path}").strip()
+        content = _git_bytes(repository_root, "cat-file", "blob", object_id)
+        require(
+            hashlib.sha256(content).hexdigest() == digest,
+            f"index checksum mismatch: {path}",
+        )
+        index_blobs[path] = (object_id, content)
+
+    for path, (_object_id, content) in index_blobs.items():
+        repository_root.joinpath(*PurePosixPath(path).parts).write_bytes(content)
+
+    verify_manifest_text_payloads(repository_root)
+    # Update stat metadata; the object IDs below prove no index content changed.
+    _git_text(repository_root, "add", "--", *paths)
+    for path, (object_id, _content) in index_blobs.items():
+        require(
+            _git_text(repository_root, "rev-parse", f":{path}").strip()
+            == object_id,
+            f"index changed while refreshing: {path}",
+        )
+    return paths
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "--refresh-checkout",
+        action="store_true",
+        help="safely restore manifest-derived text evidence from the Git index",
+    )
     parser.add_argument("path", nargs="?", type=Path, default=EVIDENCE / "conformance-measurements.json")
     args = parser.parse_args(argv)
     try:
+        refreshed_paths = (
+            refresh_manifest_text_payloads() if args.refresh_checkout else ()
+        )
         validate_evidence(json.loads(args.path.read_text(encoding="utf-8")))
         verify_manifest(args.path.parent)
     except (OSError, json.JSONDecodeError, EvidenceError) as error:
         print(f"UI V2 evidence invalid: {error}")
         return 1
+    if refreshed_paths:
+        print(
+            "UI V2 evidence checkout refreshed: "
+            f"{len(refreshed_paths)} manifest-derived text payloads"
+        )
     print("UI V2 evidence valid: 60 screen/profile captures, 14 states, 12 statuses, 28 complete keyboard sequences")
     return 0
 
