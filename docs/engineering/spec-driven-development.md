@@ -137,9 +137,10 @@ specs/<issue>-<slug>/
 ### Spec Architect
 
 Produces a Draft implementation-independent specification from issue scope and
-repository evidence. Its allowlist provides repository/GitHub read and search
-plus file editing so it can write the issue's specification; it has no terminal
-execution or agent-handoff capability. The current custom-agent format cannot
+repository evidence. Its allowlist provides named, read-only GitHub issue,
+pull-request, and commit tools plus repository read/search and file editing so it
+can write the issue's specification. It has no GitHub mutation, terminal
+execution, or agent-handoff capability. The current custom-agent format cannot
 restrict `edit` to a path, so the profile also explicitly limits its writes to
 `specs/<issue>-<slug>/spec.md`. It does not edit production code and cannot
 approve its own spec.
@@ -150,7 +151,10 @@ Requires the complete approval contract for the exact specification revision,
 prepares/uses the technical plan and tasks, implements only authorized behavior,
 validates the result, and reports contradictions instead of guessing. It has the
 read, search, edit, and terminal capabilities required for implementation, but
-cannot approve risk or merge on behalf of the maintainer.
+only named, read-only GitHub issue, pull-request, and commit tools. Draft-PR
+creation or updates use a separately authorized host workflow or a human
+maintainer; the profile receives no GitHub mutation tool and cannot approve risk
+or merge on behalf of the maintainer.
 
 ### Independent Reviewer
 
@@ -165,10 +169,28 @@ belong to the Implementation Agent or a separately authorized correction task.
 The profiles follow the official
 [custom-agent configuration](https://docs.github.com/en/copilot/reference/custom-agents-configuration):
 the `tools` allowlist enables only named capabilities, while omission would
-enable every available tool. The format does not define finer-grained path or
-command permissions. Profiles therefore use only documented aliases; host
-enforcement of the allowlist remains a prerequisite for the stated capability
-boundary.
+enable every available tool. GitHub MCP tools use the documented
+`github/<tool-name>` syntax. Spec Architect and Implementation Agent GitHub
+access is limited to `issue_read`, `search_issues`, `pull_request_read`,
+`search_pull_requests`, `get_commit`, and `search_commits`, as documented by the
+[GitHub MCP server](https://github.com/github/github-mcp-server#tools). These
+operations are sufficient to inspect the current issue/PR and perform Q0 across
+related issues, PRs, and commits. They cannot create or update a PR, write a
+review, approve, merge, or mutate repository state.
+
+Role prohibitions must also be reflected in tool capabilities wherever the host
+supports enforcement. Server-wide wildcards such as `github/*` are prohibited
+when the server can expose maintainer-only or other mutation operations. Prose
+restrictions remain defense in depth; they are not a substitute for a
+least-privilege allowlist.
+
+The current custom-agent format does not define finer-grained path restrictions
+for `edit` or command restrictions for `execute`. The Implementation Agent needs
+`execute` for tests, static analysis, and local Git operations, so a host must not
+expose maintainer-capable GitHub credentials through that terminal. The agent
+must not use a shell or alternate client to bypass its GitHub tool allowlist.
+Profiles otherwise use only documented aliases, and host enforcement of the
+allowlist remains a prerequisite for the stated capability boundary.
 
 ## Human authority
 

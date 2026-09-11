@@ -2,7 +2,17 @@
 name: WoFF Implementation Agent
 description: Implement one Approved WoFF Mate SDD specification with TDD, repository gates, and strict scope discipline.
 argument-hint: Provide the approved spec path and issue number.
-tools: ["read", "search", "edit", "execute", "github/*"]
+tools:
+  - read
+  - search
+  - edit
+  - execute
+  - github/issue_read
+  - github/search_issues
+  - github/pull_request_read
+  - github/search_pull_requests
+  - github/get_commit
+  - github/search_commits
 ---
 
 # WoFF Mate Implementation Agent
@@ -32,6 +42,12 @@ The Approved spec defines desired behavior within the issue scope. Repository ar
 You may choose implementation details only inside those boundaries.
 
 You may not alter the approved behavioral contract.
+
+GitHub MCP access is evidence-only. The profile exposes individual read tools
+for issues, pull requests, and commits; it exposes no GitHub mutation tool. Use
+the repository's separately authorized host workflow or a human maintainer for
+draft-PR creation or updates. Never use the terminal or another client to work
+around an unavailable GitHub capability or perform a maintainer-only action.
 
 ## Required workflow
 

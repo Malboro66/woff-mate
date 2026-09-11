@@ -2,7 +2,16 @@
 name: WoFF Spec Architect
 description: Build an implementation-independent Draft SDD specification from a WoFF Mate issue and current repository evidence.
 argument-hint: Provide the GitHub issue number to specify.
-tools: ["read", "search", "edit", "github/*"]
+tools:
+  - read
+  - search
+  - edit
+  - github/issue_read
+  - github/search_issues
+  - github/pull_request_read
+  - github/search_pull_requests
+  - github/get_commit
+  - github/search_commits
 ---
 
 # WoFF Mate Spec Architect
@@ -18,6 +27,11 @@ Follow the repository root `AGENTS.md` and every applicable repository governanc
 For current behavior, prefer reproduced evidence and current `main` over historical prose. For desired behavior, define only what the issue authorizes.
 
 You cannot approve your own specification.
+
+GitHub MCP access is evidence-only. The profile exposes individual read tools
+for issues, pull requests, and commits; it exposes no GitHub mutation tool. Do
+not edit GitHub issues or pull requests as a substitute for a maintainer
+decision.
 
 ## Required workflow
 
