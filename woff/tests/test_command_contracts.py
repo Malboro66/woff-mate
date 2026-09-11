@@ -55,6 +55,7 @@ def _run(
         env=environment,
         capture_output=True,
         text=True,
+        encoding="utf-8",
         check=False,
     )
 
@@ -93,6 +94,30 @@ def _write_config(
 def _empty_database(path: Path) -> None:
     database = DatabaseManager(str(path))
     database.close()
+
+
+def test_command_runner_uses_explicit_utf8_subprocess_contract(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    options: dict[str, object] = {}
+
+    def fake_run(
+        command: list[str],
+        **kwargs: object,
+    ) -> subprocess.CompletedProcess[str]:
+        options.update(kwargs)
+        return subprocess.CompletedProcess(command, 0, "", "")
+
+    monkeypatch.setattr(subprocess, "run", fake_run)
+
+    _run([sys.executable, "--version"], cwd=tmp_path)
+
+    environment = options["env"]
+    assert isinstance(environment, dict)
+    assert environment["PYTHONIOENCODING"] == "utf-8"
+    assert options["encoding"] == "utf-8"
+    assert options["text"] is True
 
 
 @pytest.mark.parametrize("format_name", ["json", "csv", "md"])
@@ -775,7 +800,7 @@ def test_export_backup_fsync_uses_a_write_capable_descriptor(
 
     def tracking_open(path: os.PathLike[str] | str, flags: int, *args: int) -> int:
         if "export-backup" in Path(path).name:
-            temporary_access_modes.append(flags & os.O_ACCMODE)
+            temporary_access_modes.append(flags & (os.O_WRONLY | os.O_RDWR))
         return real_open(path, flags, *args)
 
     monkeypatch.setattr(os, "open", tracking_open)

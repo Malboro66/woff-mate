@@ -214,8 +214,8 @@ claims that the defects are fixed or that Gate A has passed.
 | `EVAL-STARTUP-RECURSIVE-001` | #142 | Planned | Recursive positive startup inventory matches live observation and defers incomplete scans safely |
 | `EVAL-TXN-INTERRUPT-001` | #143 | Planned | Process-level interruption rolls back composable transactions without masking the primary failure |
 | `EVAL-LIVE-COMPLETENESS-001` | #144 | Planned | Incomplete live sources cannot persist a partial generation and return ordinary success |
-| `EVAL-WINDOWS-VALIDATION-001` | #145 | Planned | Native Windows full-suite/Pyright use deterministic interpreter, file-mode and subprocess-encoding contracts |
-| `EVAL-EVIDENCE-BYTES-001` | #145 | Planned | Supported Windows checkouts preserve byte-sensitive immutable evidence hashes |
+| `EVAL-WINDOWS-VALIDATION-001` | #145 | Implemented | Native Windows full-suite/Pyright use deterministic interpreter, file-mode and subprocess-encoding contracts |
+| `EVAL-EVIDENCE-BYTES-001` | #145 | Implemented | Supported Windows checkouts preserve byte-sensitive immutable evidence hashes |
 | `EVAL-DERIVED-RECOVERY-001` | #146 | Planned | Mission and required derived state converge through an atomic or durable recovery contract |
 | `EVAL-SNAPSHOT-BOUNDS-001` | #147 | Planned | Snapshot acquisition and retry retention obey an explicit composable byte bound |
 | `EVAL-R1-REVIEW-001` | `review-r1` | Implemented | Exact audited SHA, FAIL verdict, classifications, owners and Gate A status are recorded |
@@ -225,6 +225,18 @@ claims that the defects are fixed or that Gate A has passed.
 does not silently rewrite historical engineering-cycle membership. Any later
 cycle assignment requires its own explicit governance change and architecture
 or milestone rationale.
+
+### Implemented native Windows validation evals
+
+- `EVAL-WINDOWS-VALIDATION-001` is enforced by the repository-local Pyright
+  environment configuration, the command/query subprocess regressions, and the
+  native validation recipe in `CONTRIBUTING.md`. Python 3.10 file-mode
+  instrumentation uses only portable `os` flags, and UTF-8 producer and
+  consumer settings are explicit without requiring `PYTHONUTF8`.
+- `EVAL-EVIDENCE-BYTES-001` is enforced by `.gitattributes`, the architecture
+  contract that resolves every raw-hashed text payload through
+  `git check-attr`, and the existing strict manifest/evidence validators.
+  Approved evidence bytes and manifest hashes remain unchanged.
 
 ### Security Baseline governance
 

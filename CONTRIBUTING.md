@@ -37,12 +37,32 @@ pip install -e ".[dev]"
 
 ## Validation
 
-Run the core checks before opening a pull request:
+On native Windows, run the canonical validation recipe from the repository root.
+It uses only repository-local Python tooling and does not require UTF-8 mode to
+be set globally:
+
+Existing clones first created under the former automatic EOL policy may retain
+stale CRLF bytes in immutable text evidence after pulling the current
+`.gitattributes`. Refresh those manifest-derived payloads once from their clean,
+approved Git index content, then validate them:
 
 ```powershell
-python scripts/validate_project_graph.py
-python -m pytest -q
-pyright
+.\.venv\Scripts\python.exe scripts\validate_ui_v2_evidence.py --refresh-checkout
+.\.venv\Scripts\python.exe scripts\validate_ui_v2_evidence.py
+```
+
+The refresh aborts if an affected payload or manifest has staged or
+working-tree changes. It does not delete or regenerate evidence, change
+manifests or hashes, alter unrelated files, enable `PYTHONUTF8`, or modify Git
+configuration.
+
+```powershell
+Remove-Item Env:PYTHONUTF8 -ErrorAction SilentlyContinue
+.\.venv\Scripts\python.exe scripts\validate_project_graph.py
+.\.venv\Scripts\python.exe scripts\validate_ui_v2_evidence.py
+.\.venv\Scripts\python.exe -m pytest -q
+.\.venv\Scripts\pyright.exe
+git diff --check
 ```
 
 The CI workflow additionally validates packaging, installed entry points, module imports, and a Windows PyInstaller smoke build.

@@ -752,12 +752,23 @@ evals:
     evidence: Live ingestion cannot acknowledge a declared-count mismatch as ordinary success or replace authoritative state with an incomplete generation, while valid complete zero-record sources remain accepted.
   EVAL-WINDOWS-VALIDATION-001:
     work_items: [issue-145]
-    status: planned
+    status: implemented
     evidence: Repository-local native Windows full-suite and Pyright validation use the intended Python environment and explicit portable subprocess and file-mode behavior without depending on PATH ordering or the legacy locale.
+    enforced_by:
+      - .github/workflows/ci.yml
+      - pyrightconfig.json
+      - woff/tests/test_architecture_contracts.py
+      - woff/tests/test_command_contracts.py
+      - woff/tests/test_woff_query.py
   EVAL-EVIDENCE-BYTES-001:
     work_items: [issue-145]
-    status: planned
+    status: implemented
     evidence: Checkout policy preserves the approved raw bytes and hashes of byte-sensitive immutable evidence across supported Windows Git configurations without weakening checksum validation.
+    enforced_by:
+      - .gitattributes
+      - scripts/validate_ui_v2_evidence.py
+      - woff/tests/test_architecture_contracts.py
+      - woff/tests/test_ui_v2_evidence.py
   EVAL-DERIVED-RECOVERY-001:
     work_items: [issue-146]
     status: planned
@@ -1305,7 +1316,7 @@ work_items:
   issue-145:
     title: Make native Windows validation deterministic for WoFF Mate
     module: governance
-    state: backlog
+    state: done
     evals: [EVAL-WINDOWS-VALIDATION-001, EVAL-EVIDENCE-BYTES-001]
     gates: [Q0, Q1, Q4, Q5]
     depends_on: []

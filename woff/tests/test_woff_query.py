@@ -95,8 +95,39 @@ def _run_query(
         env=environment,
         capture_output=True,
         text=True,
+        encoding="utf-8",
         check=False,
     )
+
+
+def test_query_runner_uses_explicit_utf8_subprocess_contract(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    options: dict[str, object] = {}
+
+    def fake_run(
+        command: list[str],
+        **kwargs: object,
+    ) -> subprocess.CompletedProcess[str]:
+        options.update(kwargs)
+        return subprocess.CompletedProcess(command, 0, "", "")
+
+    monkeypatch.setattr(subprocess, "run", fake_run)
+
+    _run_query(
+        tmp_path / "unused.sqlite",
+        selector_flag="--pilot-id",
+        selector_value="synthetic-pilot",
+        detail_flag="--missions",
+        format_name="json",
+    )
+
+    environment = options["env"]
+    assert isinstance(environment, dict)
+    assert environment["PYTHONIOENCODING"] == "utf-8"
+    assert options["encoding"] == "utf-8"
+    assert options["text"] is True
 
 
 @pytest.mark.parametrize(

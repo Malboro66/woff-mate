@@ -45,4 +45,3 @@ live credentials. Product Gate A and public distribution remain unapproved.
 Security adds guardrails and justified blockers; it does not create a second
 roadmap. Registration in the graph is separate from engineering-cycle
 membership, and this audit creates no security milestone.
-
