@@ -5,6 +5,7 @@ from unittest.mock import patch
 
 import pytest
 
+from .. import config as config_module
 from ..config import InvalidConfigurationError, WatchdogConfig
 from ..woff_watchdog import WoFFWatchdog
 
@@ -103,6 +104,92 @@ def test_overlapping_diagnostic_is_field_specific_and_sanitized(tmp_path: Path) 
     assert str(root) not in diagnostic
 
 
+@pytest.mark.parametrize("field", ["export_path", "discovery_log_path"])
+def test_identity_failure_diagnostic_is_field_specific_and_sanitized(
+    field: str, tmp_path: Path
+) -> None:
+    root = tmp_path / "private-campaign-root"
+    root.mkdir()
+    values = {
+        "watch_paths": [str(root)],
+        "export_path": str(tmp_path / "external.db"),
+        "discovery_log_path": str(tmp_path / "external.log"),
+        "backup_export": False,
+    }
+    values[field] = str(tmp_path / "private-output-alias")
+
+    real_identity = config_module._filesystem_identity
+
+    def fail_selected_identity(path: str) -> str:
+        if path == values[field]:
+            raise InvalidConfigurationError("output path identity could not be established")
+        return real_identity(path)
+
+    with patch.object(config_module, "_filesystem_identity", side_effect=fail_selected_identity):
+        with pytest.raises(InvalidConfigurationError) as failure:
+            WatchdogConfig(**values)
+
+    diagnostic = str(failure.value)
+    assert field in diagnostic
+    assert "filesystem identity could not be established" in diagnostic
+    assert str(root) not in diagnostic
+    assert str(values[field]) not in diagnostic
+
+
+def test_watched_root_identity_failure_keeps_output_field_context(
+    tmp_path: Path,
+) -> None:
+    root = tmp_path / "private-watched-root"
+    root.mkdir()
+    external_output = tmp_path / "external.db"
+    external_log = tmp_path / "external.log"
+    real_identity = config_module._filesystem_identity
+
+    def fail_watched_root(path: str) -> str:
+        if path == str(root):
+            raise InvalidConfigurationError("output path identity could not be established")
+        return real_identity(path)
+
+    with patch.object(config_module, "_filesystem_identity", side_effect=fail_watched_root):
+        with pytest.raises(
+            InvalidConfigurationError,
+            match="export_path watched-root filesystem identity could not be established",
+        ):
+            WatchdogConfig(
+                watch_paths=[str(root)],
+                export_path=str(external_output),
+                discovery_log_path=str(external_log),
+                backup_export=False,
+            )
+
+
+def test_watchdog_rejects_discovery_output_before_logger_construction(
+    tmp_path: Path,
+) -> None:
+    root = tmp_path / "woff-source"
+    root.mkdir()
+    source = root / "Mission.log"
+    original = b"SYNTHETIC-MISSION-SOURCE\r\n"
+    source.write_bytes(original)
+    external = tmp_path / "outputs"
+    external.mkdir()
+    config = WatchdogConfig(
+        watch_paths=[str(root)],
+        export_path=str(external / "export.sqlite"),
+        discovery_log_path=str(external / "discovery.log"),
+        backup_export=False,
+    )
+    config.discovery_log_path = str(root / "nested" / "discovery.log")
+
+    with patch("woff.woff_watchdog.DiscoveryLogger") as discovery_logger:
+        with pytest.raises(InvalidConfigurationError, match="discovery_log_path"):
+            WoFFWatchdog(config, discovery=True)
+
+    discovery_logger.assert_not_called()
+    assert source.read_bytes() == original
+    assert not (root / "nested" / "discovery.log").exists()
+
+
 def _make_junction(link: Path, target: Path) -> None:
     if os.name != "nt":
         pytest.skip("ordinary directory junctions are Windows-only")
@@ -145,17 +232,26 @@ def test_watched_root_through_directory_junction_is_rejected(tmp_path: Path) -> 
         )
 
 
-def test_broken_directory_junction_fails_closed(tmp_path: Path) -> None:
+@pytest.mark.parametrize("field", ["export_path", "discovery_log_path"])
+def test_broken_directory_junction_fails_closed(
+    field: str, tmp_path: Path
+) -> None:
     target = tmp_path / "junction-target"
     alias = tmp_path / "broken-alias"
     target.mkdir()
     _make_junction(alias, target)
     target.rmdir()
 
-    with pytest.raises(InvalidConfigurationError, match="identity"):
-        WatchdogConfig(
-            watch_paths=[str(tmp_path / "external-source")],
-            export_path=str(alias / "output.db"),
-            discovery_log_path=str(tmp_path / "external.log"),
-            backup_export=False,
-        )
+    values = {
+        "watch_paths": [str(tmp_path / "external-source")],
+        "export_path": str(tmp_path / "external.db"),
+        "discovery_log_path": str(tmp_path / "external.log"),
+        "backup_export": False,
+    }
+    values[field] = str(alias / "output.db")
+
+    with pytest.raises(
+        InvalidConfigurationError,
+        match=rf"{field} .*filesystem identity could not be established",
+    ):
+        WatchdogConfig(**values)

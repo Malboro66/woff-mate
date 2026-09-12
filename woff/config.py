@@ -95,9 +95,19 @@ def _is_same_or_descendant(root: str, candidate: str) -> bool:
 
 
 def _validate_output_isolation(watch_paths: List[str], field: str, output: str) -> None:
-    output_identity = _filesystem_identity(output)
+    try:
+        output_identity = _filesystem_identity(output)
+    except InvalidConfigurationError as error:
+        raise InvalidConfigurationError(
+            f"{field} filesystem identity could not be established"
+        ) from error
     for watch_path in watch_paths:
-        watch_identity = _filesystem_identity(watch_path)
+        try:
+            watch_identity = _filesystem_identity(watch_path)
+        except InvalidConfigurationError as error:
+            raise InvalidConfigurationError(
+                f"{field} watched-root filesystem identity could not be established"
+            ) from error
         if _is_same_or_descendant(watch_identity, output_identity):
             raise InvalidConfigurationError(f"{field} overlaps a watched root")
 
