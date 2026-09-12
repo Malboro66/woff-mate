@@ -744,8 +744,9 @@ evals:
     evidence: Positive startup reconciliation covers the same approved recursive namespace as live observation, admits every supported pre-existing source through bounded snapshot processing, and fails or defers incomplete scans without fabricating absence.
   EVAL-TXN-INTERRUPT-001:
     work_items: [issue-143]
-    status: planned
+    status: implemented
     evidence: KeyboardInterrupt and SystemExit roll back outer and nested composable transactions, preserve the primary interruption, and restore transaction state even when rollback also fails.
+    enforced_by: [woff/tests/test_transaction_interruptions.py]
   EVAL-LIVE-COMPLETENESS-001:
     work_items: [issue-144]
     status: planned
@@ -1304,7 +1305,7 @@ work_items:
   issue-143:
     title: Roll back composable transactions on process-level interruption
     module: persistence
-    state: backlog
+    state: done
     evals: [EVAL-TXN-INTERRUPT-001]
     gates: [Q0, Q1, Q2, Q5]
     depends_on:
