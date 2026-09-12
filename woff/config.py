@@ -302,8 +302,8 @@ def load_config(path: str) -> WatchdogConfig:
             return default_cfg
     except ImportError:
         log.warning("Módulo de registo não disponível. A usar valores padrão.")
-    except InvalidConfigurationError as error:
-        log.error("Falha na auto-deteção: configuração inválida (%s)", error)
+    except InvalidConfigurationError:
+        raise
     except Exception as e:
         log.error(f"Falha na auto-deteção: {e}")
         

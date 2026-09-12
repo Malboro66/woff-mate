@@ -68,7 +68,7 @@ def test_invalid_existing_config_is_preserved(tmp_path, content):
     assert path.read_bytes() == content
 
 
-def test_autodetected_configuration_is_revalidated_before_persistence(tmp_path):
+def test_invalid_autodetected_configuration_is_raised_before_persistence(tmp_path):
     base = tmp_path / "game"
     pilots = base / "campaigns" / "CampaignData" / "Pilots"
     logs = base / "Logs"
@@ -80,12 +80,21 @@ def test_autodetected_configuration_is_revalidated_before_persistence(tmp_path):
     try:
         os.chdir(pilots)
         with patch("woff.win_registry.get_woff_install_path", return_value=str(base)):
-            config = load_config(str(config_path))
+            with pytest.raises(InvalidConfigurationError, match="discovery_log_path overlaps a watched root"):
+                load_config(str(config_path))
     finally:
         os.chdir(original_cwd)
 
-    assert config.watch_paths == []
     assert not config_path.exists()
+
+
+def test_autodetection_falls_back_for_non_validation_failures(tmp_path):
+    path = tmp_path / "missing.json"
+    with patch("woff.win_registry.get_woff_install_path", side_effect=OSError("registry unavailable")):
+        config = load_config(str(path))
+
+    assert config == WatchdogConfig()
+    assert not path.exists()
 
 
 def test_valid_autodetected_configuration_is_persisted_after_validation(tmp_path):
