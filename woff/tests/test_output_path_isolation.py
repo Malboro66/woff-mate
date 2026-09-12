@@ -1,4 +1,5 @@
 from pathlib import Path
+import os
 import subprocess
 from unittest.mock import patch
 
@@ -103,6 +104,8 @@ def test_overlapping_diagnostic_is_field_specific_and_sanitized(tmp_path: Path) 
 
 
 def _make_junction(link: Path, target: Path) -> None:
+    if os.name != "nt":
+        pytest.skip("ordinary directory junctions are Windows-only")
     result = subprocess.run(
         ["cmd", "/c", "mklink", "/J", str(link), str(target)],
         stdout=subprocess.DEVNULL,

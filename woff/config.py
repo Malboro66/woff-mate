@@ -18,6 +18,7 @@ from __future__ import annotations
 import json
 import logging
 import math
+import ntpath
 import os
 import stat
 from dataclasses import dataclass, asdict, field
@@ -88,7 +89,7 @@ def _filesystem_identity(path: str) -> str:
 
 def _is_same_or_descendant(root: str, candidate: str) -> bool:
     try:
-        return os.path.commonpath((root, candidate)) == root
+        return ntpath.commonpath((root, candidate)) == root
     except ValueError:
         return False
 
