@@ -18,12 +18,15 @@ from __future__ import annotations
 import json
 import logging
 import math
+import os
+import stat
 from dataclasses import dataclass, asdict, field
 from pathlib import Path
 from typing import Any, List, Tuple
 
 from .campaign_namespace import (
     CampaignNamespaceConflict,
+    canonical_windows_path,
     campaign_namespaces_for_roots,
 )
 from .version import CONFIG_VERSION
@@ -31,6 +34,8 @@ from .version import CONFIG_VERSION
 log = logging.getLogger("WoFFWatch")
 
 SUPPORTED_WATCHED_EXTENSIONS = frozenset({".xml", ".txt", ".log"})
+_REPARSE_TAG_MOUNT_POINT = 0xA0000003
+_REPARSE_TAG_SYMLINK = 0xA000000C
 
 
 class InvalidConfigurationError(ValueError):
@@ -39,6 +44,61 @@ class InvalidConfigurationError(ValueError):
 
 class UnsupportedConfigVersion(InvalidConfigurationError):
     """Raised when a config was written by a newer, unsupported release."""
+
+
+def _validate_reparse_components(path: str) -> None:
+    """Reject aliases whose filesystem identity cannot be established safely."""
+    candidate = Path(path)
+    current = candidate
+    while True:
+        try:
+            metadata = os.lstat(current)
+        except FileNotFoundError:
+            if current == current.parent:
+                break
+            current = current.parent
+            continue
+        except OSError as error:
+            raise InvalidConfigurationError("output path identity could not be established") from error
+
+        tag = getattr(metadata, "st_reparse_tag", None)
+        is_link = stat.S_ISLNK(metadata.st_mode)
+        if tag or is_link:
+            if tag not in (None, _REPARSE_TAG_MOUNT_POINT, _REPARSE_TAG_SYMLINK) and not is_link:
+                raise InvalidConfigurationError("output path uses an unsupported filesystem alias")
+            try:
+                current.resolve(strict=True)
+            except (OSError, RuntimeError) as error:
+                raise InvalidConfigurationError("output path identity could not be established") from error
+
+        if current == current.parent:
+            break
+        current = current.parent
+
+
+def _filesystem_identity(path: str) -> str:
+    """Return a canonical identity after resolving supported filesystem aliases."""
+    _validate_reparse_components(path)
+    try:
+        resolved = Path(path).resolve(strict=False)
+    except (OSError, RuntimeError) as error:
+        raise InvalidConfigurationError("output path identity could not be established") from error
+    return canonical_windows_path(str(resolved))
+
+
+def _is_same_or_descendant(root: str, candidate: str) -> bool:
+    try:
+        return os.path.commonpath((root, candidate)) == root
+    except ValueError:
+        return False
+
+
+def _validate_output_isolation(watch_paths: List[str], field: str, output: str) -> None:
+    output_identity = _filesystem_identity(output)
+    for watch_path in watch_paths:
+        watch_identity = _filesystem_identity(watch_path)
+        if _is_same_or_descendant(watch_identity, output_identity):
+            raise InvalidConfigurationError(f"{field} overlaps a watched root")
 
 
 @dataclass
@@ -72,6 +132,7 @@ class WatchdogConfig:
             value = getattr(self, name)
             if not isinstance(value, str) or not value.strip():
                 raise InvalidConfigurationError(f"{name} must be a nonblank string")
+            _validate_output_isolation(self.watch_paths, name, value)
         if not isinstance(self.watched_extensions, list) or not self.watched_extensions:
             raise InvalidConfigurationError("watched_extensions must be a nonempty list")
         self._validate_strings(self.watched_extensions, "watched_extensions")
