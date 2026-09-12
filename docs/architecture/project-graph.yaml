@@ -1,5 +1,5 @@
 version: 1
-updated: 2026-09-11
+updated: 2026-09-12
 
 project:
   repository: Malboro66/woff-mate
@@ -790,7 +790,7 @@ evals:
   EVAL-SDD-GOVERNANCE-001:
     work_items: [issue-157]
     status: implemented
-    evidence: The SDD pilot requires maintainer approval bound to the exact specification path, revision, and Git commit; capability-level read-only independent review starts from a fresh context; and issue-151 remains blocked until issue-157 is complete.
+    evidence: The SDD pilot requires maintainer approval bound to the exact specification path, revision, and Git commit; capability-level read-only independent review starts from a fresh context; and issue-151 may enter only its specification/Q0 phase after issue-157 is complete.
     enforced_by: [woff/tests/test_sdd_governance.py]
   EVAL-OUTPUT-PATH-ISOLATION-001:
     work_items: [issue-151]
@@ -1361,7 +1361,7 @@ work_items:
     gates: [Q0, Q1, Q3, Q4, Q5]
     depends_on:
       - {id: issue-45, status: satisfied}
-      - {id: issue-157, status: unsatisfied}
+      - {id: issue-157, status: satisfied}
   issue-152:
     title: Enforce protected main branch and required validation checks
     module: governance
@@ -1396,7 +1396,7 @@ work_items:
   issue-157:
     title: Pilot Spec-Driven Development and repository custom agents
     module: governance
-    state: in_progress
+    state: done
     evals: [EVAL-SDD-GOVERNANCE-001]
     gates: [Q0, Q1]
     depends_on: []

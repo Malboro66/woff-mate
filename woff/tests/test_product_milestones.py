@@ -288,7 +288,7 @@ def test_security_baseline_ownership_and_scheduling_are_reconciled() -> None:
                 "EVAL-OUTPUT-PATH-ISOLATION-001",
                 {
                     ("issue-45", "satisfied"),
-                    ("issue-157", "unsatisfied"),
+                    ("issue-157", "satisfied"),
                 },
             ),
         "issue-152": (

@@ -265,13 +265,14 @@ binary distribution.
 
 `EVAL-SDD-GOVERNANCE-001` belongs to Issue #157 and is enforced by
 `woff/tests/test_sdd_governance.py`. It checks the ordinary project-graph work
-item and reciprocal eval ownership, the unsatisfied #151 -> #157 dependency,
-the exact-revision maintainer approval contract, the custom-agent tool
-allowlists, and the fresh-context Independent Reviewer handoff. Issue #157
-remains `in_progress` while PR #158 is open; the eval's structural enforcement
-does not claim that the issue is integrated or that #151 is ready. After #157
-is merged, a repository-governance update must mark #157 `done` and the #151
-dependency `satisfied` before #151 can enter implementation.
+item and reciprocal eval ownership, the #151 -> #157 dependency, the
+exact-revision maintainer approval contract, the custom-agent tool allowlists,
+and the fresh-context Independent Reviewer handoff. PR #158 integrated the SDD
+foundation in `main` commit
+`6d136097c80a3aad9b7a6c339746a7ee28a1168f`. Issue #157 is therefore `done`,
+and the #151 dependency on #157 is `satisfied`. This unlocks only the #151 SDD
+specification/Q0 phase. Production implementation of #151 still requires an
+`Approved` specification satisfying the SDD approval contract.
 
 ### #136 closure discrepancy
 
