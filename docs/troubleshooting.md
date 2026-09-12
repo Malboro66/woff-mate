@@ -95,6 +95,25 @@ stable snapshot was acquired but its format could not be parsed. Share only the
 state and a synthetic reproduction—never campaign contents, personal paths, or
 complete records.
 
+## Incomplete pilot sources
+
+For `Pilot{N}Log.txt`, `Pilot{N}Claims.txt`, and `Pilot{N}Squads.txt`, a stable
+byte snapshot can still be semantically incomplete. A declared Log or Claims
+count that does not match the observed physical records, or any record rejected
+by the supported parser, produces the permanent reason `incomplete-source`.
+The live path makes this decision before persistence, so the rejected
+generation cannot replace or extend the last authoritative database state.
+
+This outcome is distinct from `parser-rejected` (stable bytes that do not form
+a supported source) and `snapshot-rejected` (bytes that could not be verified
+as one stable generation). It does not enter SQLite retry. A later filesystem
+event with a complete generation is processed normally, and an unchanged
+success is suppressed by the existing generation identity. Numeric zero-count
+Log and Claims sources remain valid and are acknowledged without clearing
+historical data. Diagnostics contain only the source filename, sanitized
+category, and bounded parser counters; do not share raw source records or
+personal paths.
+
 ## Deferred pilot identity
 
 `Pilot{N}Log.txt`, `Pilot{N}Claims.txt`, and `Pilot{N}Squads.txt` depend on the

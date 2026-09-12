@@ -213,7 +213,7 @@ claims that the defects are fixed or that Gate A has passed.
 |---|---|---|---|
 | `EVAL-STARTUP-RECURSIVE-001` | #142 | Planned | Recursive positive startup inventory matches live observation and defers incomplete scans safely |
 | `EVAL-TXN-INTERRUPT-001` | #143 | Implemented | Process-level interruption rolls back outer and nested composable transactions without masking the primary failure; transaction state remains reusable after interruption |
-| `EVAL-LIVE-COMPLETENESS-001` | #144 | Planned | Incomplete live sources cannot persist a partial generation and return ordinary success |
+| `EVAL-LIVE-COMPLETENESS-001` | #144 | Implemented | Parser-proven incomplete Log, Claims, and Squads generations are rejected before persistence; complete and valid zero-record generations remain idempotent |
 | `EVAL-WINDOWS-VALIDATION-001` | #145 | Implemented | Native Windows full-suite/Pyright use deterministic interpreter, file-mode and subprocess-encoding contracts |
 | `EVAL-EVIDENCE-BYTES-001` | #145 | Implemented | Supported Windows checkouts preserve byte-sensitive immutable evidence hashes |
 | `EVAL-DERIVED-RECOVERY-001` | #146 | Planned | Mission and required derived state converge through an atomic or durable recovery contract |
@@ -225,6 +225,28 @@ claims that the defects are fixed or that Gate A has passed.
 does not silently rewrite historical engineering-cycle membership. Any later
 cycle assignment requires its own explicit governance change and architecture
 or milestone rationale.
+
+### Implemented live-ingestion completeness eval
+
+`EVAL-LIVE-COMPLETENESS-001` is enforced by
+`woff/tests/test_live_ingestion_completeness.py`. The production
+`FileProcessor` evaluates the existing parser completeness metadata before the
+first persistence call. Declared-count mismatches and rejected records in Log,
+Claims, and Squads sources return the typed permanent-rejection reason
+`incomplete-source`, preserve all authoritative SQLite state, and remain
+eligible for a later complete filesystem generation. Complete Log and Claims
+sources, valid zero-record generations, and supported PilotLog records that do
+not create a mission remain accepted. Same-generation replay is still
+suppressed by the stable-snapshot generation contract.
+
+Q0 reproduced the defect on `main` at
+`9601ec29dc6640e1c932d156c9860406a0775205`: a synthetic Pilot Log declared two
+records, physically contained one valid record, exposed `is_complete=False`,
+then returned live `success` and persisted that mission. The equivalent
+command path from #75/PR #108 returned runtime failure. The correction adds the
+missing live application-boundary check; it does not change parser formats,
+stable snapshot acquisition, retry/deferred scheduling, vacancy semantics, or
+the database schema.
 
 ### Implemented native Windows validation evals
 

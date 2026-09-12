@@ -546,7 +546,7 @@ def test_permanent_parser_rejection_is_typed_and_never_retried(
     retry_ingestion, monkeypatch
 ):
     handler, _database, _database_path, log_path, _dossier_path = retry_ingestion
-    log_path.write_text("not a supported pilot record\n", encoding="cp1252")
+    log_path.write_text("\n", encoding="cp1252")
     outcomes = []
     original_process = handler.processor.process
 
