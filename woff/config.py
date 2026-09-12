@@ -18,12 +18,16 @@ from __future__ import annotations
 import json
 import logging
 import math
+import ntpath
+import os
+import stat
 from dataclasses import dataclass, asdict, field
 from pathlib import Path
 from typing import Any, List, Tuple
 
 from .campaign_namespace import (
     CampaignNamespaceConflict,
+    canonical_windows_path,
     campaign_namespaces_for_roots,
 )
 from .version import CONFIG_VERSION
@@ -31,6 +35,8 @@ from .version import CONFIG_VERSION
 log = logging.getLogger("WoFFWatch")
 
 SUPPORTED_WATCHED_EXTENSIONS = frozenset({".xml", ".txt", ".log"})
+_REPARSE_TAG_MOUNT_POINT = 0xA0000003
+_REPARSE_TAG_SYMLINK = 0xA000000C
 
 
 class InvalidConfigurationError(ValueError):
@@ -39,6 +45,85 @@ class InvalidConfigurationError(ValueError):
 
 class UnsupportedConfigVersion(InvalidConfigurationError):
     """Raised when a config was written by a newer, unsupported release."""
+
+
+def _validate_reparse_components(path: str) -> None:
+    """Reject aliases whose filesystem identity cannot be established safely."""
+    try:
+        candidate = Path(path)
+    except ValueError as error:
+        raise InvalidConfigurationError(
+            "output path identity could not be established"
+        ) from error
+    current = candidate
+    while True:
+        try:
+            metadata = os.lstat(current)
+        except FileNotFoundError:
+            if current == current.parent:
+                break
+            current = current.parent
+            continue
+        except ValueError as error:
+            raise InvalidConfigurationError(
+                "output path identity could not be established"
+            ) from error
+        except OSError as error:
+            raise InvalidConfigurationError("output path identity could not be established") from error
+
+        tag = getattr(metadata, "st_reparse_tag", None)
+        is_link = stat.S_ISLNK(metadata.st_mode)
+        if tag or is_link:
+            if tag not in (None, _REPARSE_TAG_MOUNT_POINT, _REPARSE_TAG_SYMLINK) and not is_link:
+                raise InvalidConfigurationError("output path uses an unsupported filesystem alias")
+            try:
+                current.resolve(strict=True)
+            except (OSError, RuntimeError, ValueError) as error:
+                raise InvalidConfigurationError("output path identity could not be established") from error
+
+        if current == current.parent:
+            break
+        current = current.parent
+
+
+def _filesystem_identity(path: str) -> str:
+    """Return a canonical identity after resolving supported filesystem aliases."""
+    _validate_reparse_components(path)
+    try:
+        resolved = Path(path).resolve(strict=False)
+    except (OSError, RuntimeError, ValueError) as error:
+        raise InvalidConfigurationError("output path identity could not be established") from error
+    try:
+        return canonical_windows_path(str(resolved))
+    except ValueError as error:
+        raise InvalidConfigurationError(
+            "output path identity could not be established"
+        ) from error
+
+
+def _is_same_or_descendant(root: str, candidate: str) -> bool:
+    try:
+        return ntpath.commonpath((root, candidate)) == root
+    except ValueError:
+        return False
+
+
+def _validate_output_isolation(watch_paths: List[str], field: str, output: str) -> None:
+    try:
+        output_identity = _filesystem_identity(output)
+    except InvalidConfigurationError as error:
+        raise InvalidConfigurationError(
+            f"{field} filesystem identity could not be established"
+        ) from error
+    for watch_path in watch_paths:
+        try:
+            watch_identity = _filesystem_identity(watch_path)
+        except InvalidConfigurationError as error:
+            raise InvalidConfigurationError(
+                f"{field} watched-root filesystem identity could not be established"
+            ) from error
+        if _is_same_or_descendant(watch_identity, output_identity):
+            raise InvalidConfigurationError(f"{field} overlaps a watched root")
 
 
 @dataclass
@@ -72,6 +157,7 @@ class WatchdogConfig:
             value = getattr(self, name)
             if not isinstance(value, str) or not value.strip():
                 raise InvalidConfigurationError(f"{name} must be a nonblank string")
+            _validate_output_isolation(self.watch_paths, name, value)
         if not isinstance(self.watched_extensions, list) or not self.watched_extensions:
             raise InvalidConfigurationError("watched_extensions must be a nonempty list")
         self._validate_strings(self.watched_extensions, "watched_extensions")
@@ -197,6 +283,8 @@ def load_config(path: str) -> WatchdogConfig:
             
             default_cfg.watch_paths = [str(pilots_path), str(logs_path)]
             default_cfg.export_path = str(Path.home() / "Documents" / "WoFFBase" / "woff_data.db")
+
+            default_cfg.validate()
             
             # Guarda o config para o utilizador poder editar no futuro
             with open(p, "w", encoding="utf-8") as f:
@@ -214,6 +302,8 @@ def load_config(path: str) -> WatchdogConfig:
             return default_cfg
     except ImportError:
         log.warning("Módulo de registo não disponível. A usar valores padrão.")
+    except InvalidConfigurationError as error:
+        log.error("Falha na auto-deteção: configuração inválida (%s)", error)
     except Exception as e:
         log.error(f"Falha na auto-deteção: {e}")
         

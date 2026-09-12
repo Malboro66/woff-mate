@@ -48,7 +48,9 @@ def _pilot_log(day: int, note: str) -> str:
 
 @pytest.fixture
 def retry_ingestion(tmp_path, monkeypatch):
-    database_path = tmp_path / "retry.sqlite"
+    output_dir = tmp_path.parent / f"{tmp_path.name}-outputs"
+    output_dir.mkdir()
+    database_path = output_dir / "retry.sqlite"
     config = WatchdogConfig(
         watch_paths=[str(tmp_path)],
         export_path=str(database_path),
