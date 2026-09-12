@@ -105,12 +105,17 @@ supported canonical alias of a watched root or descendant must be rejected.
 The contract covers both equality and containment and must not depend on the
 output file already existing.
 
-When a supported filesystem alias is present, the comparison must use its
-filesystem-resolved identity as well as lexical identity. This includes
-ordinary directory junctions and symbolic links when the operating system can
-resolve them successfully and unambiguously. The policy is bounded by the
-alias classes and reparse tags whose semantics are established by repository
-evidence; it does not claim that every Windows reparse tag is equivalent.
+For every output-versus-watch-root comparison, the supported filesystem
+identity of both sides must be resolved and compared: the configured
+`watch_path` and the candidate output. The comparison must not rely only on
+the lexical configured spelling of either side. This includes ordinary
+directory junctions and symbolic links when the operating system can resolve
+them successfully and unambiguously. If a configured watched root is an alias
+of a physical directory, an output using that direct physical spelling or
+another supported alias to the same physical tree must still be rejected.
+The policy is bounded by the alias classes and reparse tags whose semantics
+are established by repository evidence; it does not claim that every Windows
+reparse tag is equivalent.
 
 If resolving an alias needed to establish output/source safety fails, is
 ambiguous, or cannot distinguish an absent output suffix safely, validation
@@ -169,10 +174,12 @@ unchanged. The issue's applicable gates are Q0, Q1, Q3, Q4, and Q5.
 
 An output reached through an ordinary directory junction or ordinary symbolic
 link is invalid when its filesystem-resolved identity equals or is contained
-by a monitored root. The same invariant applies whether the output already
-exists or would be created beneath an existing alias. A resolution failure or
-ambiguous alias identity is itself an invalid configuration and must be
-reported before SQLite or discovery-log creation, opening, or mutation.
+by the filesystem-resolved identity of a monitored root. The same invariant
+applies whether the output already exists or would be created beneath an
+existing alias, and whether the alias is on the watched-root side, the output
+side, or both. A resolution failure or ambiguous alias identity on either side
+is itself an invalid configuration and must be reported before SQLite or
+discovery-log creation, opening, or mutation.
 
 The implementation and regression evidence must distinguish supported junction
 and symbolic-link semantics from other reparse-point tags. It must not treat
@@ -251,7 +258,19 @@ Then filesystem resolution identifies the physical monitored root and
 validation rejects the output before SQLite or discovery-log activity, with
 the synthetic target bytes unchanged.
 
-### S-07 — Ambiguous or unresolvable alias fails closed
+### S-07 — Watched root alias resolves to the physical tree
+
+Given a configured `watch_path` that is an outside ordinary directory junction
+to a synthetic physical monitored directory, and an `export_path` or
+`discovery_log_path` using the direct physical target spelling or another
+supported alias to that same directory,
+When the configuration is validated,
+Then validation resolves the configured watched root and the candidate output,
+recognizes the equality or descendant relationship in the physical tree, and
+rejects the output before persistent output activity, with the physical
+monitored source bytes unchanged.
+
+### S-08 — Ambiguous or unresolvable alias fails closed
 
 Given a synthetic broken junction or another supported alias for which
 resolution needed to decide overlap fails or remains ambiguous,
@@ -260,7 +279,7 @@ Then validation rejects the configuration before persistent output creation,
 opening, or mutation. It does not accept a non-strict unresolved spelling as
 proof of safety, and it does not defer the error to database or log setup.
 
-### S-08 — External output locations continue to work
+### S-09 — External output locations continue to work
 
 Given valid watched roots and export and discovery-log paths outside all of
 them, including non-existing paths in an external temporary output directory,
@@ -268,7 +287,7 @@ When the watchdog is constructed under its existing modes,
 Then the configuration remains accepted and the existing output lifecycle is
 available without changing the watched source bytes.
 
-### S-09 — Similar prefix is not containment
+### S-10 — Similar prefix is not containment
 
 Given a watched root `C:\data\woff` and an external candidate such as
 `C:\data\woff-backup\output.db`,
@@ -276,7 +295,7 @@ When canonical containment is evaluated,
 Then the candidate is not rejected solely because its text shares a prefix;
 component boundaries determine containment.
 
-### S-10 — Rejected configuration preserves synthetic source bytes
+### S-11 — Rejected configuration preserves synthetic source bytes
 
 Given synthetic monitored files and an output candidate rejected by direct,
 case-alias, descendant, or junction-overlap validation,
@@ -285,7 +304,7 @@ Then every monitored source's bytes, size, and digest remain unchanged, no
 rejected output file is created or mutated, and no discovery header or SQLite
 signature appears at the rejected target.
 
-### S-11 — Diagnostic is actionable but sanitized
+### S-12 — Diagnostic is actionable but sanitized
 
 Given an output candidate that overlaps a watched root,
 When validation rejects it,
@@ -345,10 +364,10 @@ regression fixtures and diagnostics use synthetic or sanitized data only.
 | Reject `discovery_log_path` equal to or contained by a watched root | R-01, R-02, R-03, S-02 |
 | Prevent supported WoFF input filenames from being persistent output targets inside monitored roots | R-09, S-03, S-04 |
 | Cover Windows case-insensitive/canonical aliases deterministically | R-04, S-03, S-04, S-05 |
-| Explicitly define and test symlink/reparse-point policy where practical | R-04, R-11, S-06, S-07; Q-01 and Q-02 preserve native symlink and unsupported-tag limitations |
-| Validate before SQLite/log creation or mutation | R-05, R-08, R-11, S-01, S-02, S-06, S-07 |
-| Preserve existing valid external output locations | R-06, S-08 |
-| Reproduce audit scenarios with temporary/synthetic files and prove no source-byte changes | R-08, S-03, S-04, S-06, S-07, S-10 |
+| Explicitly define and test symlink/reparse-point policy where practical | R-04, R-11, S-06, S-07, S-08; Q-01 and Q-02 preserve native symlink and unsupported-tag limitations |
+| Validate before SQLite/log creation or mutation | R-05, R-08, R-11, S-01, S-02, S-06, S-07, S-08 |
+| Preserve existing valid external output locations | R-06, S-09 |
+| Reproduce audit scenarios with temporary/synthetic files and prove no source-byte changes | R-08, S-03, S-04, S-06, S-07, S-08, S-11 |
 | Preserve Python 3.10 compatibility | R-10, Compatibility and migration |
 | Pass focused/full tests, Pyright, graph validation, applicable gates/eval, and `git diff --check` | R-10 and Open questions / evidence gaps Q-06 |
 
