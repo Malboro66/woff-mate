@@ -1,5 +1,7 @@
 import math
+import os
 from dataclasses import asdict
+from pathlib import Path
 from unittest.mock import patch
 
 import pytest
@@ -64,3 +66,40 @@ def test_invalid_existing_config_is_preserved(tmp_path, content):
             load_config(str(path))
     detection.assert_not_called()
     assert path.read_bytes() == content
+
+
+def test_autodetected_configuration_is_revalidated_before_persistence(tmp_path):
+    base = tmp_path / "game"
+    pilots = base / "campaigns" / "CampaignData" / "Pilots"
+    logs = base / "Logs"
+    pilots.mkdir(parents=True)
+    logs.mkdir()
+    config_path = tmp_path / "generated.json"
+    original_cwd = Path.cwd()
+
+    try:
+        os.chdir(pilots)
+        with patch("woff.win_registry.get_woff_install_path", return_value=str(base)):
+            config = load_config(str(config_path))
+    finally:
+        os.chdir(original_cwd)
+
+    assert config.watch_paths == []
+    assert not config_path.exists()
+
+
+def test_valid_autodetected_configuration_is_persisted_after_validation(tmp_path):
+    base = tmp_path / "game"
+    pilots = base / "campaigns" / "CampaignData" / "Pilots"
+    logs = base / "Logs"
+    pilots.mkdir(parents=True)
+    logs.mkdir()
+    config_path = tmp_path / "generated.json"
+
+    with patch("woff.win_registry.get_woff_install_path", return_value=str(base)):
+        config = load_config(str(config_path))
+
+    persisted = load_config(str(config_path))
+    assert config.watch_paths == [str(pilots), str(logs)]
+    assert persisted.to_dict() == config.to_dict()
+    assert config_path.is_file()

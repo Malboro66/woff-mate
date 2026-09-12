@@ -190,6 +190,50 @@ def test_watchdog_rejects_discovery_output_before_logger_construction(
     assert not (root / "nested" / "discovery.log").exists()
 
 
+@pytest.mark.parametrize("field", ["export_path", "discovery_log_path"])
+def test_nul_path_is_a_sanitized_configuration_failure(
+    field: str, tmp_path: Path
+) -> None:
+    root = tmp_path / "woff-source"
+    root.mkdir()
+    source = root / "Mission.log"
+    original = b"SYNTHETIC-MISSION-SOURCE\r\n"
+    source.write_bytes(original)
+    values = {
+        "watch_paths": [str(root)],
+        "export_path": str(tmp_path / "external.sqlite"),
+        "discovery_log_path": str(tmp_path / "external.log"),
+        "backup_export": False,
+    }
+    values[field] = "bad\x00path"
+
+    with pytest.raises(InvalidConfigurationError) as failure:
+        WatchdogConfig(**values)
+
+    assert field in str(failure.value)
+    assert "bad" not in str(failure.value)
+    assert "embedded null" not in str(failure.value)
+    assert source.read_bytes() == original
+    assert not (tmp_path / "external.sqlite").exists()
+    assert not (tmp_path / "external.log").exists()
+
+
+def test_nul_watched_root_is_a_sanitized_configuration_failure(
+    tmp_path: Path,
+) -> None:
+    with pytest.raises(InvalidConfigurationError) as failure:
+        WatchdogConfig(
+            watch_paths=["bad\x00root"],
+            export_path=str(tmp_path / "external.sqlite"),
+            discovery_log_path=str(tmp_path / "external.log"),
+            backup_export=False,
+        )
+
+    assert "filesystem identity could not be established" in str(failure.value)
+    assert "bad" not in str(failure.value)
+    assert "embedded null" not in str(failure.value)
+
+
 def _make_junction(link: Path, target: Path) -> None:
     if os.name != "nt":
         pytest.skip("ordinary directory junctions are Windows-only")

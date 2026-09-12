@@ -49,7 +49,12 @@ class UnsupportedConfigVersion(InvalidConfigurationError):
 
 def _validate_reparse_components(path: str) -> None:
     """Reject aliases whose filesystem identity cannot be established safely."""
-    candidate = Path(path)
+    try:
+        candidate = Path(path)
+    except ValueError as error:
+        raise InvalidConfigurationError(
+            "output path identity could not be established"
+        ) from error
     current = candidate
     while True:
         try:
@@ -59,6 +64,10 @@ def _validate_reparse_components(path: str) -> None:
                 break
             current = current.parent
             continue
+        except ValueError as error:
+            raise InvalidConfigurationError(
+                "output path identity could not be established"
+            ) from error
         except OSError as error:
             raise InvalidConfigurationError("output path identity could not be established") from error
 
@@ -69,7 +78,7 @@ def _validate_reparse_components(path: str) -> None:
                 raise InvalidConfigurationError("output path uses an unsupported filesystem alias")
             try:
                 current.resolve(strict=True)
-            except (OSError, RuntimeError) as error:
+            except (OSError, RuntimeError, ValueError) as error:
                 raise InvalidConfigurationError("output path identity could not be established") from error
 
         if current == current.parent:
@@ -82,9 +91,14 @@ def _filesystem_identity(path: str) -> str:
     _validate_reparse_components(path)
     try:
         resolved = Path(path).resolve(strict=False)
-    except (OSError, RuntimeError) as error:
+    except (OSError, RuntimeError, ValueError) as error:
         raise InvalidConfigurationError("output path identity could not be established") from error
-    return canonical_windows_path(str(resolved))
+    try:
+        return canonical_windows_path(str(resolved))
+    except ValueError as error:
+        raise InvalidConfigurationError(
+            "output path identity could not be established"
+        ) from error
 
 
 def _is_same_or_descendant(root: str, candidate: str) -> bool:
@@ -269,6 +283,8 @@ def load_config(path: str) -> WatchdogConfig:
             
             default_cfg.watch_paths = [str(pilots_path), str(logs_path)]
             default_cfg.export_path = str(Path.home() / "Documents" / "WoFFBase" / "woff_data.db")
+
+            default_cfg.validate()
             
             # Guarda o config para o utilizador poder editar no futuro
             with open(p, "w", encoding="utf-8") as f:
@@ -286,6 +302,8 @@ def load_config(path: str) -> WatchdogConfig:
             return default_cfg
     except ImportError:
         log.warning("Módulo de registo não disponível. A usar valores padrão.")
+    except InvalidConfigurationError as error:
+        log.error("Falha na auto-deteção: configuração inválida (%s)", error)
     except Exception as e:
         log.error(f"Falha na auto-deteção: {e}")
         
