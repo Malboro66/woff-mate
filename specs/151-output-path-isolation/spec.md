@@ -1,7 +1,7 @@
 # Specification
 
 Issue: #151
-Status: Draft
+Status: Approved
 Revision: 1
 Baseline: 9601ec29dc6640e1c932d156c9860406a0775205
 Owner: maintainer
@@ -430,10 +430,10 @@ existing Q0 validation results.
 
 ## Approval record
 
-Approved revision: —
-Approved spec commit: —
-Approved by: —
-Approval evidence: —
+Approved revision: 1
+Approved spec commit: 241f050abbbdf2f71f13549ac0b5214144ab2bca
+Approved by: HansPilot
+Approval evidence: https://github.com/Malboro66/woff-mate/pull/160#issuecomment-5647261439
 
 For `Status: Approved`, replace every placeholder above. `Approved revision`
 must equal `Revision`; `Approved spec commit` must be the full Git SHA containing
