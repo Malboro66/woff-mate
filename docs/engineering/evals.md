@@ -212,7 +212,7 @@ claims that the defects are fixed or that Gate A has passed.
 | Eval | Work item | Status | Required evidence or recorded result |
 |---|---|---|---|
 | `EVAL-STARTUP-RECURSIVE-001` | #142 | Planned | Recursive positive startup inventory matches live observation and defers incomplete scans safely |
-| `EVAL-TXN-INTERRUPT-001` | #143 | Planned | Process-level interruption rolls back composable transactions without masking the primary failure |
+| `EVAL-TXN-INTERRUPT-001` | #143 | Implemented | Process-level interruption rolls back outer and nested composable transactions without masking the primary failure; transaction state remains reusable after interruption |
 | `EVAL-LIVE-COMPLETENESS-001` | #144 | Implemented | Parser-proven incomplete Log, Claims, and Squads generations are rejected before persistence; complete and valid zero-record generations remain idempotent |
 | `EVAL-WINDOWS-VALIDATION-001` | #145 | Implemented | Native Windows full-suite/Pyright use deterministic interpreter, file-mode and subprocess-encoding contracts |
 | `EVAL-EVIDENCE-BYTES-001` | #145 | Implemented | Supported Windows checkouts preserve byte-sensitive immutable evidence hashes |

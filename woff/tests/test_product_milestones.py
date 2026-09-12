@@ -227,8 +227,8 @@ def test_r1_follow_ups_are_registered_without_implicit_cycle_membership() -> Non
         "issue-143": (
             {"issue-34"},
             {"EVAL-TXN-INTERRUPT-001"},
-            "backlog",
-            "planned",
+            "done",
+            "implemented",
         ),
         "issue-144": (
             {"issue-42", "issue-75"},
