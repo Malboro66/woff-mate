@@ -155,7 +155,7 @@ class TestLatestMissionIntegration(unittest.TestCase):
                 campaign_namespace_for_root(tmp_dir),
             ),
         )
-        log_text = "Header\n" + "\n".join([
+        log_text = "2\n" + "\n".join([
             "01;01;1917;8;00;A;B;Patrol;SE.5a;X;45;Y;Z;No. 56 Squadron RFC;;;;;;Old mission",
             "15;06;1917;14;30;A;B;Patrol;SE.5a;X;45;Y;Z;No. 56 Squadron RFC;;;;;;Latest mission",
         ])

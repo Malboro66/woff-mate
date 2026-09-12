@@ -233,8 +233,8 @@ def test_r1_follow_ups_are_registered_without_implicit_cycle_membership() -> Non
         "issue-144": (
             {"issue-42", "issue-75"},
             {"EVAL-LIVE-COMPLETENESS-001"},
-            "backlog",
-            "planned",
+            "done",
+            "implemented",
         ),
         "issue-145": (
             set(),

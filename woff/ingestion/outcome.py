@@ -33,6 +33,7 @@ class ProcessingReason(str, Enum):
     SNAPSHOT_REJECTED = "snapshot-rejected"
     IDENTITY_REJECTED = "identity-rejected"
     IDENTITY_PENDING = "identity-pending"
+    INCOMPLETE_SOURCE = "incomplete-source"
     PARSER_REJECTED = "parser-rejected"
     PERSISTENCE_REJECTED = "persistence-rejected"
     RETRY_TERMINATED = "retry-terminated"

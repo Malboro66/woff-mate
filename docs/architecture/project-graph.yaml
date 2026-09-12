@@ -748,8 +748,10 @@ evals:
     evidence: KeyboardInterrupt and SystemExit roll back outer and nested composable transactions, preserve the primary interruption, and restore transaction state even when rollback also fails.
   EVAL-LIVE-COMPLETENESS-001:
     work_items: [issue-144]
-    status: planned
-    evidence: Live ingestion cannot acknowledge a declared-count mismatch as ordinary success or replace authoritative state with an incomplete generation, while valid complete zero-record sources remain accepted.
+    status: implemented
+    evidence: Live ingestion rejects parser-proven incomplete Log, Claims, and Squads generations before persistence, preserves authoritative state, and accepts complete and valid zero-record generations idempotently.
+    enforced_by:
+      - woff/tests/test_live_ingestion_completeness.py
   EVAL-WINDOWS-VALIDATION-001:
     work_items: [issue-145]
     status: implemented
@@ -1312,7 +1314,7 @@ work_items:
   issue-144:
     title: Reject incomplete live-ingestion sources instead of acknowledging success
     module: ingestion
-    state: backlog
+    state: done
     evals: [EVAL-LIVE-COMPLETENESS-001]
     gates: [Q0, Q1, Q2, Q3, Q5]
     depends_on:
