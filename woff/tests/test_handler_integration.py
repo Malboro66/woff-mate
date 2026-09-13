@@ -629,7 +629,7 @@ class TestWatchdogStartup(unittest.TestCase):
             source.write("synthetic")
         config = WatchdogConfig(
             watch_paths=[tmp_dir],
-            export_path=os.path.join(tmp_dir, "retry-budget.db"),
+            export_path=os.path.join(tmp_dir + "-outputs", "retry-budget.db"),
             watched_extensions=[".txt"],
             stability_timeout_sec=0.05,
             stability_check_interval_sec=0.001,
@@ -682,7 +682,7 @@ class TestWatchdogStartup(unittest.TestCase):
         self.addCleanup(shutil.rmtree, tmp_dir)
         path = os.path.join(tmp_dir, "Pilot1Log.txt")
         config = WatchdogConfig(
-            watch_paths=[tmp_dir], export_path=os.path.join(tmp_dir, "live.db"),
+            watch_paths=[tmp_dir], export_path=os.path.join(tmp_dir + "-outputs", "live.db"),
             watched_extensions=[".txt"], max_workers=2, max_pending_events=2,
         )
         processing_started = threading.Event()
@@ -772,7 +772,7 @@ class TestWatchdogStartup(unittest.TestCase):
         tmp_dir = tempfile.mkdtemp()
         self.addCleanup(shutil.rmtree, tmp_dir)
         config = WatchdogConfig(
-            watch_paths=[tmp_dir], export_path=os.path.join(tmp_dir, "partial.db")
+            watch_paths=[tmp_dir], export_path=os.path.join(tmp_dir + "-outputs", "partial.db")
         )
         calls = []
 
@@ -819,7 +819,7 @@ class TestWatchdogStartup(unittest.TestCase):
             )
         }
         config = WatchdogConfig(
-            watch_paths=[tmp_dir], export_path=os.path.join(tmp_dir, "ordered.db"),
+            watch_paths=[tmp_dir], export_path=os.path.join(tmp_dir + "-outputs", "ordered.db"),
             watched_extensions=[".txt"], max_workers=4, max_pending_events=8,
         )
         completed = []
@@ -869,7 +869,7 @@ class TestWatchdogStartup(unittest.TestCase):
         tmp_dir = tempfile.mkdtemp()
         self.addCleanup(shutil.rmtree, tmp_dir)
         config = WatchdogConfig(
-            watch_paths=[tmp_dir], export_path=os.path.join(tmp_dir, "rollback.db")
+            watch_paths=[tmp_dir], export_path=os.path.join(tmp_dir + "-outputs", "rollback.db")
         )
         observer = MagicMock()
         handler = MagicMock()
@@ -898,7 +898,7 @@ class TestWatchdogStartup(unittest.TestCase):
         os.mkdir(os.path.join(tmp_dir, "Scratchpad"))
         config = WatchdogConfig(
             watch_paths=[tmp_dir],
-            export_path=os.path.join(tmp_dir, "test.db"),
+            export_path=os.path.join(tmp_dir + "-outputs", "test.db"),
             watched_extensions=watched_extensions,
         )
 
@@ -951,7 +951,7 @@ class TestWatchdogStartup(unittest.TestCase):
             source.write("synthetic")
         config = WatchdogConfig(
             watch_paths=[tmp_dir],
-            export_path=os.path.join(tmp_dir, "startup.db"),
+            export_path=os.path.join(tmp_dir + "-outputs", "startup.db"),
             watched_extensions=[".txt"],
             max_workers=1,
             max_pending_events=1,

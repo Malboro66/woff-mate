@@ -205,12 +205,14 @@ def test_unknown_supported_file_is_metadata_only_before_ingestion(
     tmp_path: Path, monkeypatch
 ) -> None:
     log_path = tmp_path / "woff_discovery.log"
+    output_dir = tmp_path.parent / f"{tmp_path.name}-outputs"
+    output_dir.mkdir()
     unknown = tmp_path / "notes.txt"
     unknown.write_text("PRIVATE-CONTENT-MUST-NOT-BE-READ", encoding="utf-8")
-    database = DatabaseManager(str(tmp_path / "privacy.db"))
+    database = DatabaseManager(str(output_dir / "privacy.db"))
     discovery = DiscoveryLogger(str(log_path))
     handler = WoFFEventHandler(
-        WatchdogConfig(watch_paths=[str(tmp_path)], export_path=str(tmp_path / "privacy.db")),
+        WatchdogConfig(watch_paths=[str(tmp_path)], export_path=str(output_dir / "privacy.db")),
         database, CampaignEngine(database), discovery,
     )
     handler.processor.guard = MagicMock()

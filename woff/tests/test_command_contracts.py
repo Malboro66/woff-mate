@@ -83,9 +83,14 @@ def _write_config(
     export_path: Path,
     backup_export: bool = False,
 ) -> None:
+    if watch_paths and export_path.resolve().is_relative_to(watch_paths[0].resolve()):
+        output_dir = watch_paths[0].parent / f"{watch_paths[0].name}-outputs"
+        output_dir.mkdir(exist_ok=True)
+        export_path = output_dir / export_path.name
     config = WatchdogConfig(
         watch_paths=[str(item) for item in watch_paths],
         export_path=str(export_path),
+        discovery_log_path=str(export_path.with_name("discovery.log")),
         backup_export=backup_export,
     )
     path.write_text(json.dumps(config.to_dict()), encoding="utf-8")
@@ -670,7 +675,9 @@ def test_report_failure_preserves_the_previous_complete_artifact(
 def test_backup_export_creates_a_verified_preprocessing_snapshot(
     tmp_path: Path,
 ) -> None:
-    database_path = tmp_path / "campaign.sqlite"
+    output_dir = tmp_path.parent / f"{tmp_path.name}-outputs"
+    output_dir.mkdir()
+    database_path = output_dir / "campaign.sqlite"
     database = DatabaseManager(str(database_path))
     with database.transaction() as connection:
         connection.execute(
@@ -698,7 +705,9 @@ def test_backup_export_creates_a_verified_preprocessing_snapshot(
 
 
 def test_disabled_backup_export_creates_no_snapshot(tmp_path: Path) -> None:
-    database_path = tmp_path / "campaign.sqlite"
+    output_dir = tmp_path.parent / f"{tmp_path.name}-outputs"
+    output_dir.mkdir()
+    database_path = output_dir / "campaign.sqlite"
     _empty_database(database_path)
     config = WatchdogConfig(
         watch_paths=[str(tmp_path)],
@@ -718,7 +727,9 @@ def test_disabled_backup_export_creates_no_snapshot(tmp_path: Path) -> None:
 def test_first_start_with_backup_enabled_creates_no_empty_snapshot(
     tmp_path: Path,
 ) -> None:
-    database_path = tmp_path / "first-start.sqlite"
+    output_dir = tmp_path.parent / f"{tmp_path.name}-outputs"
+    output_dir.mkdir()
+    database_path = output_dir / "first-start.sqlite"
     config = WatchdogConfig(
         watch_paths=[str(tmp_path)],
         export_path=str(database_path),
@@ -740,7 +751,9 @@ def test_export_backup_failure_aborts_before_observer_startup(
     monkeypatch: pytest.MonkeyPatch,
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    database_path = tmp_path / "existing.sqlite"
+    output_dir = tmp_path.parent / f"{tmp_path.name}-outputs"
+    output_dir.mkdir()
+    database_path = output_dir / "existing.sqlite"
     _empty_database(database_path)
     config_path = tmp_path / "selected.json"
     _write_config(
