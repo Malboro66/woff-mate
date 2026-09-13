@@ -107,7 +107,9 @@ class WoFFVictory:
     enemyType:   str  = ""
     victoryType: str  = ""
     location:    str  = ""
-    confirmed:   bool = False
+    # ``None`` means the source supplied no authoritative confirmation value.
+    # Explicit negative evidence remains distinct as ``False``.
+    confirmed:   Optional[bool] = None
     witnesses:   str  = ""
     notes:       str  = ""
     sector:      str  = ""

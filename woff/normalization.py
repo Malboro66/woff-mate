@@ -17,6 +17,7 @@ import logging
 import re
 import xml.etree.ElementTree as ET
 from datetime import date, time
+from enum import Enum
 from typing import Iterable, Literal, Optional, Tuple
 
 # Importar as tabelas estáticas e regex do maps.py
@@ -26,6 +27,65 @@ from .maps import (
 )
 
 log = logging.getLogger("WoFFWatch")
+
+
+class ConfirmationState(Enum):
+    """Semantic outcome of parsing claim-confirmation evidence."""
+
+    POSITIVE = "positive"
+    NEGATIVE = "negative"
+    MISSING = "missing"
+    UNKNOWN = "unknown"
+
+    @property
+    def authoritative_value(self) -> Optional[bool]:
+        if self is ConfirmationState.POSITIVE:
+            return True
+        if self is ConfirmationState.NEGATIVE:
+            return False
+        return None
+
+
+def parse_confirmation(
+    raw: Optional[str], *, embedded_marker: bool = False
+) -> ConfirmationState:
+    """Classify exact structured values or a verified trailing Claims marker.
+
+    A Claims record combines the victory description and confirmation marker
+    in one field.  The supported text layout places ``Confirmed`` or
+    ``Unconfirmed`` at the end of that field.  Other non-empty structured
+    values are unknown; ordinary Claims descriptions without a marker are
+    missing confirmation evidence.
+    """
+    value = str(raw or "").strip()
+    if not value:
+        return ConfirmationState.MISSING
+    normalized = value.casefold()
+
+    if embedded_marker:
+        negative = re.search(
+            r"(?:^|\s)(?:unconfirmed|\(unconfirmed\)|not\s+confirmed)[.!]?\Z",
+            normalized,
+        )
+        if negative is not None:
+            return ConfirmationState.NEGATIVE
+        positive = re.search(
+            r"(?:^|\s)(?:confirmed|\(confirmed\))[.!]?\Z",
+            normalized,
+        )
+        if positive is not None:
+            return ConfirmationState.POSITIVE
+        if re.search(r"(?<!\w)\w*confirm\w*(?!\w)", normalized):
+            return ConfirmationState.UNKNOWN
+        return ConfirmationState.MISSING
+
+    if normalized in {"true", "1", "yes", "confirmed"}:
+        return ConfirmationState.POSITIVE
+    if normalized in {"false", "0", "no", "unconfirmed"}:
+        return ConfirmationState.NEGATIVE
+    if normalized == "none":
+        return ConfirmationState.MISSING
+    return ConfirmationState.UNKNOWN
 
 
 def _match_token_alias(raw: str, mapping: dict) -> Optional[str]:

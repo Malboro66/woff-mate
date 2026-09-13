@@ -589,12 +589,14 @@ evals:
     evidence: Closing-element text inside a comment or CDATA does not truncate Mission XML.
   EVAL-PARSE-SEM-001:
     work_items: [issue-74]
-    status: planned
+    status: implemented
     evidence: Negative or unknown confirmation text never becomes confirmed through substring matching.
+    enforced_by: [woff/tests/test_normalization.py, woff/tests/test_pilot_data_parser.py, woff/tests/test_xml_parser.py, woff/tests/test_victory_decoration_merge.py]
   EVAL-PARSE-SEM-002:
     work_items: [issue-74]
-    status: planned
+    status: implemented
     evidence: Missing mission duration remains missing and start time is never reused as duration.
+    enforced_by: [woff/tests/test_pilot_data_parser.py, woff/tests/test_xml_parser.py]
   EVAL-NARR-001:
     work_items: [issue-43]
     status: planned
@@ -1104,7 +1106,7 @@ work_items:
   issue-74:
     title: Parse claim confirmation and mission duration without fabricated values
     module: ingestion
-    state: backlog
+    state: done
     evals: [EVAL-PARSE-SEM-001, EVAL-PARSE-SEM-002]
     gates: [Q0, Q1, Q3, Q6-CYCLE-3.4.0]
     depends_on: []

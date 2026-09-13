@@ -29,12 +29,14 @@ from ..models import (
     stable_source_record_key,
 )
 from ..normalization import (
+    ConfirmationState,
     normalize_nation,
     normalize_mission_type,
     normalize_status,
     normalize_victory_type,
     normalize_date,
     normalize_time,
+    parse_confirmation,
 )
 from .numeric import (
     UNSIGNED_SQLITE_INTEGER,
@@ -240,18 +242,24 @@ class WoFFXMLParser:
             elem, "MissionTime", "StartTime", "ClockTime", "Uhrzeit"
         ) or ""
         generic_time = self._find(elem, "Time", "time") or ""
-        explicit_duration = self._find(
-            elem, "Duration", "FlightTime", "Hours", "Dauer"
-        ) or ""
+        explicit_duration = self._find(elem, "Duration") or ""
         duration_fallback = ""
         if explicit_time:
             raw_time = explicit_time
-            duration_fallback = generic_time
+            if generic_time and self._is_decimal_duration(generic_time):
+                duration_fallback = generic_time
         elif generic_time and self._is_decimal_duration(generic_time):
             raw_time = ""
             duration_fallback = generic_time
         else:
             raw_time = generic_time
+        for unsupported_duration_tag in ("FlightTime", "Hours", "Dauer"):
+            if self._find(elem, unsupported_duration_tag):
+                log.warning(
+                    "[XML] Mission duration ignored: "
+                    "category=unverified-duration-field field=%s",
+                    unsupported_duration_tag,
+                )
         canonical_date = normalize_date(raw_date)
         canonical_time = normalize_time(raw_time)
 
@@ -368,8 +376,14 @@ class WoFFXMLParser:
         raw_type      = self._find(elem, "Type","VictoryType","Result","outcome","Ergebnis") or ""
         v.victoryType = normalize_victory_type(raw_type)
         v.location    = self._find(elem, "Location","Where","Area","Place","Ort") or ""
-        raw_conf      = self._find(elem, "Confirmed","Status","Validation","Bestaetigt") or "0"
-        v.confirmed   = raw_conf.lower() in ("true","1","yes","confirmed","ok","ja","oui")
+        raw_conf      = self._find(elem, "Confirmed","Status","Validation","Bestaetigt")
+        confirmation  = parse_confirmation(raw_conf)
+        v.confirmed   = confirmation.authoritative_value
+        if confirmation is ConfirmationState.UNKNOWN:
+            log.warning(
+                "[XML] Victory confirmation unresolved: "
+                "category=unknown-confirmation"
+            )
         v.witnesses   = self._find(elem, "Witnesses","ConfirmedBy","Observer","Zeugen") or ""
         v.notes       = self._find(elem, "Notes","Comment","Remarks") or ""
         if not v.date and not v.enemyType:

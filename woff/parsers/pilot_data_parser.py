@@ -12,10 +12,12 @@ from ..models import (
     stable_source_record_key,
 )
 from ..normalization import (
+    ConfirmationState,
     normalize_date,
     normalize_mission_type,
     normalize_time,
     normalize_victory_type,
+    parse_confirmation,
 )
 
 log = logging.getLogger("WoFFWatch")
@@ -330,7 +332,17 @@ class WoFFPilotDataParser:
                     v.aircraft = parts[8]
                     v.enemyType = parts[10]
                     v.victoryType = normalize_victory_type(parts[11])
-                    v.confirmed = "confirmed" in parts[11].lower()
+                    confirmation = parse_confirmation(
+                        parts[11], embedded_marker=True
+                    )
+                    v.confirmed = confirmation.authoritative_value
+                    if confirmation is ConfirmationState.UNKNOWN:
+                        log.warning(
+                            "[TXT] PilotClaims confirmation unresolved: "
+                            "source=%s line=%d category=unknown-confirmation",
+                            os.path.basename(path),
+                            line_number,
+                        )
                     if len(parts) > 20: v.witnesses = f"{parts[18]} - {parts[19]} {parts[20]}".strip()
                     self.victories.append(v)
                 except (ValueError, IndexError) as exc:

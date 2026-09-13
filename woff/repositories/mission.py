@@ -211,7 +211,10 @@ def _is_legacy_unknown_victory_replay(
 
 
 def _victory_merge_updates(
-    stored: Dict[str, Any], incoming: WoFFVictory
+    stored: Dict[str, Any],
+    incoming: WoFFVictory,
+    *,
+    exact_source_replay: bool = False,
 ) -> Tuple[Dict[str, Any], bool]:
     """Return safe field updates and whether equal-authority data conflicted."""
     updates: Dict[str, Any] = {}
@@ -247,8 +250,24 @@ def _victory_merge_updates(
     ):
         conflict = True
 
-    if incoming.confirmed and not bool(stored.get("confirmed")):
-        updates["confirmed"] = 1
+    stored_confirmation = stored.get("confirmed")
+    if (
+        exact_source_replay
+        and _same_source(stored_source, incoming_source)
+        and incoming.confirmed != (
+            None
+            if stored_confirmation is None
+            else bool(stored_confirmation)
+        )
+    ):
+        updates["confirmed"] = (
+            None if incoming.confirmed is None else int(incoming.confirmed)
+        )
+    elif incoming.confirmed is not None and (
+        stored_confirmation is None
+        or (incoming.confirmed and not bool(stored_confirmation))
+    ):
+        updates["confirmed"] = int(incoming.confirmed)
     if incoming_source and (
         not stored_source or incoming_priority > stored_priority
     ):
@@ -765,6 +784,7 @@ class MissionRepository(BaseRepository):
                 victory.missionId = resolved_mission
 
             target_id: Optional[str] = None
+            exact_source_replay = False
             if source_record_key:
                 alias = cursor.execute(
                     """
@@ -775,6 +795,7 @@ class MissionRepository(BaseRepository):
                 ).fetchone()
                 if alias is not None:
                     target_id = str(alias[0])
+                    exact_source_replay = True
 
             id_row = _victory_row(cursor, str(victory.id))
             if target_id is None and id_row is not None:
@@ -825,7 +846,11 @@ class MissionRepository(BaseRepository):
                     raise sqlite3.IntegrityError(
                         "resolved victory identity disappeared"
                     )
-                updates, conflict = _victory_merge_updates(stored, victory)
+                updates, conflict = _victory_merge_updates(
+                    stored,
+                    victory,
+                    exact_source_replay=exact_source_replay,
+                )
                 if conflict:
                     log.warning(
                         "Victory merge unresolved: "
