@@ -747,6 +747,21 @@ class FileProcessor:
         # Ficheiros de piloto (Log, Claims, Squads)
         parser = WoFFPilotDataParser()
         parsed = parser.parse_bytes(data, name)
+        if getattr(parser, "is_complete", True) is False:
+            log.warning(
+                "Incomplete source rejected: source=%s category=%s "
+                "declared=%s observed=%d rejected=%d",
+                _safe_filename(name),
+                ProcessingReason.INCOMPLETE_SOURCE.value,
+                (
+                    parser.declared_records
+                    if parser.declared_records is not None
+                    else "unknown"
+                ),
+                parser.observed_records,
+                parser.rejected_records,
+            )
+            return ProcessingReason.INCOMPLETE_SOURCE
         if getattr(parser, "valid_empty", False) is True:
             # A verified zero-count source is present and valid. Acknowledge
             # its bytes without inferring occupancy or clearing prior history.

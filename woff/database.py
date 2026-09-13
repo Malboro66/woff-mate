@@ -313,7 +313,7 @@ class DatabaseManager:
             exception_propagating = False
             try:
                 yield conn
-            except Exception:
+            except BaseException:
                 exception_propagating = True
                 self._local.transaction_rollback_only = True
                 raise
