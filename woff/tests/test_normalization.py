@@ -51,14 +51,17 @@ class TestNormalization(unittest.TestCase):
         cases = (
             ("Forced to land Confirmed", ConfirmationState.POSITIVE, True),
             ("Forced to land (Confirmed)", ConfirmationState.POSITIVE, True),
+            ("Driven Down Unconfirmed", ConfirmationState.NEGATIVE, False),
             ("Driven Down (Unconfirmed)", ConfirmationState.NEGATIVE, False),
-            ("Driven Down not confirmed", ConfirmationState.NEGATIVE, False),
+            ("Driven Down not confirmed", ConfirmationState.UNKNOWN, None),
             ("Destroyed in flames", ConfirmationState.MISSING, None),
             ("Confirmation pending", ConfirmationState.UNKNOWN, None),
             ("Confirmed by pending review", ConfirmationState.UNKNOWN, None),
             ("Reconfirmed", ConfirmationState.UNKNOWN, None),
             ("Driven Down (Confirmed", ConfirmationState.UNKNOWN, None),
             ("Driven Down Unconfirmed)", ConfirmationState.UNKNOWN, None),
+            ("Forced to land Confirmed.", ConfirmationState.UNKNOWN, None),
+            ("Driven Down (Unconfirmed)!", ConfirmationState.UNKNOWN, None),
         )
 
         for raw, expected_state, expected_value in cases:

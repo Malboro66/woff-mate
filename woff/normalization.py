@@ -63,14 +63,16 @@ def parse_confirmation(
     normalized = value.casefold()
 
     if embedded_marker:
+        if re.search(r"(?:^|\s)not\s+confirmed\Z", normalized):
+            return ConfirmationState.UNKNOWN
         negative = re.search(
-            r"(?:^|\s)(?:unconfirmed|\(unconfirmed\)|not\s+confirmed)[.!]?\Z",
+            r"(?:^|\s)(?:unconfirmed|\(unconfirmed\))\Z",
             normalized,
         )
         if negative is not None:
             return ConfirmationState.NEGATIVE
         positive = re.search(
-            r"(?:^|\s)(?:confirmed|\(confirmed\))[.!]?\Z",
+            r"(?:^|\s)(?:confirmed|\(confirmed\))\Z",
             normalized,
         )
         if positive is not None:
