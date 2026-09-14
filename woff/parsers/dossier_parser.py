@@ -21,7 +21,8 @@ from enum import Enum
 from typing import Optional, List
 from ..models import WoFFPilot, WoFFWingman, WoFFDecoration
 # FIX: Importa as funções de normalização para aplicar aos dados do Dossier.
-from ..normalization import normalize_date, resolve_nation_alias
+from ..normalization import normalize_date
+from ..nation import normalize_nation_evidence
 from .numeric import (
     SIGNED_SQLITE_INTEGER,
     UNSIGNED_SQLITE_INTEGER,
@@ -297,6 +298,9 @@ class WoFFDossierParser:
             self.pilot.fName = first_name
             self.pilot.sName = last_name
             self.pilot.name = f"{self.pilot.fName} {self.pilot.sName}".strip()
+            # fixed-index-v1: index 1 is covered by current/short sanitized
+            # fixtures and #38 alias tests. Never scan names or birthplaces.
+            self.pilot.nation = normalize_nation_evidence(safe_get(1))
             self.pilot.rank = safe_get(3)
             self.pilot.squadron = safe_get(83)
             self.pilot.aircraft = safe_get(84)
@@ -342,10 +346,6 @@ class WoFFDossierParser:
                 if not s_clean:
                     continue
                 
-                canonical_nation = resolve_nation_alias(s_clean)
-                if not self.pilot.nation and canonical_nation is not None:
-                    self.pilot.nation = canonical_nation
-                    continue
                 if self.pilot.status is None and s_clean in (
                     "Active", "In Service", "Wounded", "KIA", "Leave",
                     "Prisoner", "Dead", "Retired",

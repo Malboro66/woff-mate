@@ -308,7 +308,7 @@ implementing or closing #136. No merged nation/service implementation was found.
 The earlier [PR #120](https://github.com/Malboro66/woff-mate/pull/120) implemented
 #38's exact aliases and raw unknown preservation, not #136's closed domain.
 
-| #136 eval | Current-main evidence and remaining gap | Disposition |
+| #136 eval | Historical audited-main evidence and remaining gap | Historical disposition |
 |---|---|---|
 | `EVAL-NATION-DOMAIN-001` | `woff/maps.py` still maps Britain to RFC; `woff/models.py` exposes one `nation` string. `test_normalize_nation_known` in `woff/tests/test_normalization.py` expects RFC/French/etc., not separate GB/FR identities and services | Planned |
 | `EVAL-NATION-PARSER-PARITY-001` | `woff/parsers/xml_parser.py` uses `normalize_nation`, retaining unknown text; `woff/parsers/dossier_parser.py` uses `resolve_nation_alias`, accepting only recognized aliases. No shared known/missing/unsupported nation-service contract | Planned |
@@ -316,14 +316,26 @@ The earlier [PR #120](https://github.com/Malboro66/woff-mate/pull/120) implement
 | `EVAL-NATION-MIGRATION-001` | `woff/database.py` retains `pilots.nation TEXT`; no nation/service migration or corresponding reopen/rollback evidence exists | Planned |
 | `EVAL-NATION-PRESENTATION-001` | The immutable UI V2 evidence's `source/app/view-models.ts` still exposes `serviceOrNationLabel`; no production canonical nation/service consumer exists | Planned |
 
-The graph therefore preserves #136 as `backlog`, all five evals as `planned`
+At that audit, the graph preserved #136 as `backlog`, all five evals as `planned`
 without fabricated `enforced_by` paths, and #81's dependency as `unsatisfied`.
 This was an explicitly documented GitHub/repository inconsistency, not proof of
 completion or an instruction to reimplement completed behavior. R1 later
 confirmed the missing implementation on audited `main` `f8da6c3d` and #136 was
-reopened on 2026-09-08 for its actual acceptance criteria. The graph remains
-`backlog`, all five evals remain `planned`, and #81 remains blocked. Update those
-states only from real implementation and passing evidence.
+reopened on 2026-09-08 for its actual acceptance criteria.
+
+The #136 implementation now registers all five evals as `implemented`, enforced
+by `woff/tests/test_nation_domain.py`: five closed nation codes, three separate
+British services, all existing exact aliases, XML/Dossier/Mission.log parity,
+missing/unsupported states, recoverable raw evidence, and independent safe
+presentation labels in actual CLI/report consumers. Parser and normalization
+regressions also use the canonical nation/service semantics.
+`EVAL-NATION-MIGRATION-001` tests deterministic legacy interpretation with no
+schema migration: original rows and schema remain unchanged, parsed evidence
+survives reopen, and failed writes roll back. It does not claim migration DDL.
+See [the domain and persistence decision](../architecture/nation-service.md).
+The implementation is `in_progress` pending review/integration; #81's dependency
+remains unsatisfied until post-merge reconciliation. Product gates and cycle
+completion remain separate decisions.
 
 Issue #79 is complete. Its repository design artifacts are
 `docs/ui/ui-v2-reference.md`, `docs/ui/ui-v2-visual-system.md`, and

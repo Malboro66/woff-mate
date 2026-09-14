@@ -93,6 +93,13 @@ Product Gates and the aggregate cycle remain separate decisions.
 
 ## Q2: database and data
 
+For #136, `woff/tests/test_nation_domain.py` enforces the schema-3.4
+compatibility decision, legacy/raw preservation, composing-transaction rollback,
+integrity, foreign keys and reopen. No schema migration or bulk data mutation
+is required. The five nation evals have executable evidence; integration and
+#81 dependency reconciliation remain pending. See
+[the domain contract](../architecture/nation-service.md).
+
 Apply Q2 to writes, transactions, schemas, and migrations:
 
 - backup behavior is tested

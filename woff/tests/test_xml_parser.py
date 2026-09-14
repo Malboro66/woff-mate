@@ -162,7 +162,7 @@ class TestWoFFXMLParser(unittest.TestCase):
         
         self.assertIsInstance(p, WoFFPilot)
         self.assertEqual(p.name, "James Percival Hartley")
-        self.assertEqual(p.nation, "RFC")
+        self.assertEqual(p.nation_code, "GB")
         self.assertEqual(p.status, "Active")
         self.assertEqual(p.startDate, "1917-04-01") # Já estava normalizado
         self.assertTrue(p.id) # Tem de ter um ID gerado
@@ -177,7 +177,7 @@ class TestWoFFXMLParser(unittest.TestCase):
         self.assertTrue(self._write_and_parse(xml))
         self.assertIsNotNone(self.parser.pilot)
         assert self.parser.pilot is not None
-        self.assertEqual(self.parser.pilot.nation, "Austria")
+        self.assertEqual(self.parser.pilot.nation_raw, "Austria")
 
     def test_mission_data_normalization(self):
         """Testa a extração e normalização da missão."""
@@ -437,7 +437,7 @@ class TestWoFFXMLParser(unittest.TestCase):
         assert self.parser.pilot is not None
         
         self.assertEqual(self.parser.pilot.status, "KIA")
-        self.assertEqual(self.parser.pilot.nation, "American")
+        self.assertEqual(self.parser.pilot.nation_code, "US")
 
     def test_status_severe_wound_normalization(self):
         """Testa se 'In Hospital' + 'Serious' vira 'Seriously Wounded'."""
@@ -448,7 +448,7 @@ class TestWoFFXMLParser(unittest.TestCase):
         assert self.parser.pilot is not None
         
         self.assertEqual(self.parser.pilot.status, "Seriously Wounded")
-        self.assertEqual(self.parser.pilot.nation, "RNAS")
+        self.assertEqual(self.parser.pilot.service_code, "RNAS")
 
     # ── Testes de Falha / Edge Cases ──
 

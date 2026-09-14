@@ -1,5 +1,16 @@
 # Read-only UI foundation
 
+## Nation/service prerequisite (#136)
+
+New #81 contracts consume the frozen `NationServicePresentation` defined in
+the [canonical domain contract](../architecture/nation-service.md). Nation
+and service have independent codes, states and labels. `serviceOrNationLabel`
+is deprecated in new contracts; the historical Site evidence is immutable.
+Unsupported source values have no playable code and an explicit unsupported
+label; raw evidence and private source paths are excluded from this value.
+Future nation choices enumerate exactly GB, FR, DE, US, BE, with a separate
+controlled service choice. This does not implement #81, pilot creation or UI.
+
 ## Status and reference boundary
 
 Issue #56 captured the original Figma file and established this future

@@ -16,3 +16,8 @@ path, or game narrative is stored here.
 The exact WoFF build remains unconfirmed. These fixtures define regression
 coverage for the existing supported layout and do not authorize inference of
 another layout.
+
+The full and short valid fixtures place the nation/service observation at
+zero-based index 1, also exercised by the existing #38 alias tests. #136 uses
+that field in `fixed-index-v1`, preserving unsupported text and the `Null`
+missing sentinel without scanning names or birthplaces for country aliases.
