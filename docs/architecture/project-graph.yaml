@@ -41,6 +41,7 @@ modules:
       - woff/identity.py
       - woff/maps.py
       - woff/models.py
+      - woff/nation.py
       - woff/narrative_generator.py
       - woff/normalization.py
       - woff/rpg_system.py
@@ -522,24 +523,29 @@ evals:
       - woff/tests/test_mission_log_parser.py
   EVAL-NATION-DOMAIN-001:
     work_items: [issue-136]
-    status: planned
+    status: implemented
     evidence: The canonical playable-nation domain contains exactly GB, FR, DE, US, and BE, while RFC, RNAS, and RAF remain distinct British services rather than nation identities.
+    enforced_by: [woff/tests/test_nation_domain.py]
   EVAL-NATION-PARSER-PARITY-001:
     work_items: [issue-136]
-    status: planned
+    status: implemented
     evidence: XML and Dossier resolve known, missing, and unsupported nation or service evidence through the same canonical contract without substring inference or fabricated fallback.
+    enforced_by: [woff/tests/test_nation_domain.py]
   EVAL-NATION-PROVENANCE-001:
     work_items: [issue-136]
-    status: planned
+    status: implemented
     evidence: Unsupported raw nation values remain recoverable and distinguishable from supported nation identities and missing values.
+    enforced_by: [woff/tests/test_nation_domain.py]
   EVAL-NATION-MIGRATION-001:
     work_items: [issue-136]
-    status: planned
-    evidence: Existing RFC, RNAS, RAF, French, German, American, and Belgian values migrate deterministically while unknown legacy values are preserved without guessing.
+    status: implemented
+    evidence: Legacy RFC, RNAS, RAF, French, German, American and Belgian evidence is interpreted deterministically without DDL or row mutation; unknown values, rollback and reopen are verified under schema 3.4.
+    enforced_by: [woff/tests/test_nation_domain.py]
   EVAL-NATION-PRESENTATION-001:
     work_items: [issue-136]
-    status: planned
+    status: implemented
     evidence: Presentation and downstream nation-dependent rules consume canonical nation and service values without inferring identity from arbitrary display or raw strings.
+    enforced_by: [woff/tests/test_nation_domain.py]
   EVAL-NORM-MISSION-001:
     work_items: [issue-38]
     status: implemented
@@ -1265,9 +1271,9 @@ work_items:
   issue-136:
     title: Separate playable nation from military service and define the WoFF nation domain
     module: domain
-    state: backlog
-    # GitHub was closed after governance-only PR #137, then reopened after R1.
-    # No implementation evidence exists on audited main f8da6c3; see evals.md.
+    state: in_progress
+    # Implementation/evals are reviewable; integrated completion is not claimed.
+    # Keep issue-81 unsatisfied until merge/governance reconciliation.
     evals:
       - EVAL-NATION-DOMAIN-001
       - EVAL-NATION-PARSER-PARITY-001

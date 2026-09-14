@@ -28,9 +28,9 @@ from ..models import (
     WoFFVictory,
     stable_source_record_key,
 )
+from ..nation import normalize_nation_evidence
 from ..normalization import (
     ConfirmationState,
-    normalize_nation,
     normalize_mission_type,
     normalize_status,
     normalize_victory_type,
@@ -187,7 +187,7 @@ class WoFFXMLParser:
         # Corrigido: Removido "Title" da lista de rank (Title é o título da missão)
         p.rank      = self._find(root, "Rank","CurrentRank","Grade","rank") or ""
         
-        p.nation    = normalize_nation(
+        p.nation    = normalize_nation_evidence(
             self._find(root, "Nation","Country","Side","Service","Pays","nation") or ""
         )
         p.squadron  = self._find(root, "Squadron","Unit","SquadronNumber","Sqd","Escadrille") or ""

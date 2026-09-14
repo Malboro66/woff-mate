@@ -22,6 +22,7 @@ from ..identity import (
     pilot_slot,
 )
 from ..models import WoFFMission, WoFFPilot, WoFFVictory
+from ..nation import NationService
 from ..normalization import normalize_date
 from .base import BaseRepository
 from .mission import canonicalized_mission_mapping
@@ -34,6 +35,12 @@ _VACANCY_EPOCH_PREFIX = "pilot_slot_vacancy:"
 
 class PilotRepository(BaseRepository):
     """Repository specialized in one persistent WoFF career at a time."""
+
+    def get_nation_service(self, pilot_id: str) -> Optional[NationService]:
+        """Interpret current or legacy evidence without rewriting stored rows."""
+        with self._lock:
+            row = self._fetch_one("SELECT nation FROM pilots WHERE id=?", (pilot_id,))
+            return NationService(row[0] or "") if row else None
 
     def upsert_pilot(
         self,
@@ -287,7 +294,7 @@ class PilotRepository(BaseRepository):
                 pilot.name,
                 pilot.fName,
                 pilot.sName,
-                pilot.nation,
+                pilot.nation_raw,
                 pilot.rank,
                 pilot.squadron,
                 pilot.aircraft,
@@ -354,7 +361,7 @@ class PilotRepository(BaseRepository):
                 name,
                 pilot.fName,
                 pilot.sName,
-                pilot.nation,
+                pilot.nation_raw,
                 pilot.rank,
                 pilot.squadron,
                 pilot.aircraft,

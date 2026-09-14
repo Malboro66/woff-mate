@@ -22,9 +22,10 @@ from typing import Iterable, Literal, Optional, Tuple
 
 # Importar as tabelas estáticas e regex do maps.py
 from .maps import (
-    NATION_MAP, MISSION_TYPE_MAP, STATUS_PATTERNS, WOUND_RE, SEVERE_RE,
+    MISSION_TYPE_MAP, STATUS_PATTERNS, WOUND_RE, SEVERE_RE,
     VICTORY_TYPE_MAP, MONTHS_MAP
 )
+from .nation import NationService, normalize_nation_evidence
 
 log = logging.getLogger("WoFFWatch")
 
@@ -103,15 +104,14 @@ def _match_token_alias(raw: str, mapping: dict) -> Optional[str]:
 
 
 def resolve_nation_alias(raw: str) -> Optional[str]:
-    """Return the canonical nation for an exact known alias."""
-    value = raw.strip() if raw else ""
-    if not value:
-        return None
-    return NATION_MAP.get(value.casefold())
+    """Return only a playable code; use NationService to retain service/raw."""
+    code = NationService(raw).nation_code
+    return code.value if code else None
 
 
 def normalize_nation(raw: str) -> str:
-    value = raw.strip() if raw else ""
+    """Compatibility normalizer, not domain validation or a storage encoder."""
+    value = normalize_nation_evidence(raw)
     return resolve_nation_alias(value) or value
 
 

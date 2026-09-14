@@ -10,6 +10,8 @@ import uuid
 from dataclasses import dataclass, field
 from typing import List, Optional
 
+from .nation import NationCode, NationService, NationState, ServiceCode
+
 def _uid() -> str:
     return uuid.uuid4().hex[:12]
 
@@ -43,6 +45,8 @@ class WoFFPilot:
     name:         str = ""
     fName:        str = ""
     sName:        str = ""
+    # Deprecated name retained for storage/constructor compatibility. This is
+    # source evidence, not an identity. Rules consume the properties below.
     nation:       str = ""
     rank:         str = ""
     squadron:     str = ""
@@ -72,6 +76,26 @@ class WoFFPilot:
     
     source_file:  str = ""
     last_updated: str = ""
+
+    @property
+    def affiliation(self) -> NationService:
+        return NationService(self.nation)
+
+    @property
+    def nation_code(self) -> Optional[NationCode]:
+        return self.affiliation.nation_code
+
+    @property
+    def service_code(self) -> Optional[ServiceCode]:
+        return self.affiliation.service_code
+
+    @property
+    def nation_raw(self) -> str:
+        return self.affiliation.nation_raw
+
+    @property
+    def nation_state(self) -> NationState:
+        return self.affiliation.nation_state
 
 @dataclass
 class WoFFMission:

@@ -22,6 +22,7 @@ from woff.career_selection import (
     list_careers,
     resolve_career,
 )
+from woff.nation import NationService
 from woff.command_contract import ExitCode, emit_diagnostic
 from woff.config import InvalidConfigurationError, WatchdogConfig
 
@@ -191,7 +192,9 @@ def show_pilot_details(
     print(f"{c.BOLD}ID da carreira:{c.RESET} {career.pilot_id}")
     print(f"{c.BOLD}Slot:{c.RESET} {slot}")
     print(f"{c.BOLD}Nome:{c.RESET} {p['name']}")
-    print(f"{c.BOLD}Nação:{c.RESET} {p['nation']}")
+    affiliation = NationService(p["nation"] or "").presentation()
+    print(f"{c.BOLD}Nação:{c.RESET} {affiliation.nation_label or 'Vazio'}")
+    print(f"{c.BOLD}Serviço:{c.RESET} {affiliation.service_label or 'Vazio'}")
     print(f"{c.BOLD}Patente:{c.RESET} {p['rank']}")
     print(f"{c.BOLD}Esquadrão:{c.RESET} {p['squadron']}")
     print(f"{c.BOLD}Aeronave:{c.RESET} {p['aircraft']}")

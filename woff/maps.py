@@ -9,22 +9,31 @@ dos ficheiros do WoFF BHaH II.
 """
 
 import re
+from types import MappingProxyType
 
 # ──────────────────────────────────────────────────────────────
 # MAPEAMENTO DE NAÇÕES
 # ──────────────────────────────────────────────────────────────
 
-NATION_MAP = {
-    "rfc": "RFC", "royal flying corps": "RFC", "britain": "RFC",
-    "british": "RFC", "uk": "RFC",
-    "rnas": "RNAS", "royal naval air service": "RNAS", "naval": "RNAS",
-    "raf": "RAF", "royal air force": "RAF",
-    "french": "French", "france": "French", "aeronautique": "French", "fr": "French",
-    "german": "German", "germany": "German", "luftstreitkrafte": "German",
-    "deutsche": "German", "de": "German",
-    "american": "American", "usas": "American", "usa": "American", "us": "American",
-    "belgian": "Belgian", "belgium": "Belgian", "belge": "Belgian",
-}
+# One exact alias authority: (playable nation, evidence-backed service).
+# Existing #38 aliases are retained; GB/BE complete the closed code domain.
+# Country-only evidence never fabricates a British service.
+NATION_MAP = MappingProxyType({
+    "gb": ("GB", None), "britain": ("GB", None),
+    "british": ("GB", None), "uk": ("GB", None),
+    "rfc": ("GB", "RFC"), "royal flying corps": ("GB", "RFC"),
+    "rnas": ("GB", "RNAS"), "royal naval air service": ("GB", "RNAS"),
+    "naval": ("GB", "RNAS"),
+    "raf": ("GB", "RAF"), "royal air force": ("GB", "RAF"),
+    "french": ("FR", None), "france": ("FR", None),
+    "aeronautique": ("FR", None), "fr": ("FR", None),
+    "german": ("DE", None), "germany": ("DE", None),
+    "luftstreitkrafte": ("DE", None), "deutsche": ("DE", None), "de": ("DE", None),
+    "american": ("US", None), "usas": ("US", None),
+    "usa": ("US", None), "us": ("US", None),
+    "belgian": ("BE", None), "belgium": ("BE", None),
+    "belge": ("BE", None), "be": ("BE", None),
+})
 
 # ──────────────────────────────────────────────────────────────
 # MAPEAMENTO DE TIPOS DE MISSÃO

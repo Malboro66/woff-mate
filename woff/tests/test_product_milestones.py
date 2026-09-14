@@ -99,15 +99,16 @@ def test_product_path_and_cycle_ownership_are_executable() -> None:
     validate_graph(ROOT, graph)
 
 
-def test_unimplemented_nation_contract_cannot_be_closed_by_github_status() -> None:
+def test_nation_contract_requires_executable_evidence_before_completion() -> None:
     graph = _graph()
     nation = graph["work_items"]["issue-136"]
-    assert nation["state"] == "backlog"
+    assert nation["state"] == "in_progress"
     assert {"id": "issue-136", "status": "unsatisfied"} in graph["work_items"]["issue-81"]["depends_on"]
     for eval_id in nation["evals"]:
-        assert graph["evals"][eval_id]["status"] == "planned"
-        assert not graph["evals"][eval_id].get("enforced_by")
+        assert graph["evals"][eval_id]["status"] == "implemented"
+        assert graph["evals"][eval_id]["enforced_by"] == ["woff/tests/test_nation_domain.py"]
     assert "#136 closure discrepancy" in _text("docs/engineering/evals.md")
+    graph["evals"]["EVAL-NATION-DOMAIN-001"]["status"] = "planned"
     graph["work_items"]["issue-136"]["state"] = "done"
     with pytest.raises(GraphValidationError):
         validate_graph(ROOT, graph)
@@ -210,7 +211,7 @@ def test_first_r1_record_and_gate_a_disposition_are_revision_bound() -> None:
     assert evals["EVAL-CAREER-REUSE-EVIDENCE-001"]["status"] == "planned"
     assert graph["cycles"]["cycle-3.3.0"]["state"] == "active"
     assert evals["EVAL-CYCLE-330-001"]["status"] == "planned"
-    assert items["issue-136"]["state"] == "backlog"
+    assert items["issue-136"]["state"] == "in_progress"
     assert {"id": "issue-136", "status": "unsatisfied"} in items["issue-81"]["depends_on"]
 
 

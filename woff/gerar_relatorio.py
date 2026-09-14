@@ -77,9 +77,11 @@ def _write_report(report: TextIO, valid_paths: list[str]) -> None:
                 )
             pilot = parser.pilot
             if pilot:
+                affiliation = pilot.affiliation.presentation()
                 data = [
                     ("Nome Completo", pilot.name, "Índices 4, 5"),
-                    ("Nação", pilot.nation, "Mapeamento Dinâmico"),
+                    ("Nação", affiliation.nation_label, "Índice 1"),
+                    ("Serviço", affiliation.service_label, "Índice 1"),
                     ("Patente", pilot.rank, "Índice 3"),
                     ("Status RPG", pilot.status, "Mapeamento Dinâmico"),
                     ("Data de Nascimento", pilot.birthDate, "Mapeamento Dinâmico"),

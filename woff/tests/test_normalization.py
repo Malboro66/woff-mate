@@ -74,14 +74,14 @@ class TestNormalization(unittest.TestCase):
 
     def test_normalize_nation_known(self):
         cases = (
-            ("RFC", "RFC"),
-            ("Britain", "RFC"),
-            ("RNAS", "RNAS"),
-            ("RAF", "RAF"),
-            ("france", "French"),
-            ("German", "German"),
-            ("USA", "American"),
-            ("Belgium", "Belgian"),
+            ("RFC", "GB"),
+            ("Britain", "GB"),
+            ("RNAS", "GB"),
+            ("RAF", "GB"),
+            ("france", "FR"),
+            ("German", "DE"),
+            ("USA", "US"),
+            ("Belgium", "BE"),
         )
 
         for raw, expected in cases:
