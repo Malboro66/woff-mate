@@ -99,7 +99,14 @@ records with at least 26 fields are ignored as valid confirmations; this permits
 semicolons in the free-form claim narrative to create additional fragments.
 Signature-bearing records with fewer than 26 fields are logged as truncated and
 skipped, so they can never fall through to mission parsing. Victory parsing and
-the separate claims parser are outside this format change.
+the separate claims parser are outside the historical PilotLog format change.
+
+The separate PilotClaims parser treats confirmation as independent source
+evidence. A verified trailing `Confirmed` marker is authoritative positive and
+a trailing `Unconfirmed` marker is authoritative negative. A victory
+description without either marker has missing confirmation; confirmation-like
+text in any other form is unknown. Missing and unknown values remain
+non-authoritative and are never promoted through substring matching.
 
 ## Victory merge identity and claim-count consistency
 

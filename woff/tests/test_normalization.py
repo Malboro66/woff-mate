@@ -8,15 +8,67 @@ import unittest
 import xml.etree.ElementTree as ET
 
 from ..normalization import (
+    ConfirmationState,
     normalize_nation,
     normalize_mission_type,
     normalize_status,
     normalize_victory_type,
     normalize_date,
     normalize_time,
+    parse_confirmation,
 )
 
 class TestNormalization(unittest.TestCase):
+
+    def test_structured_confirmation_values_are_exact(self):
+        cases = (
+            ("true", ConfirmationState.POSITIVE, True),
+            ("1", ConfirmationState.POSITIVE, True),
+            ("yes", ConfirmationState.POSITIVE, True),
+            ("confirmed", ConfirmationState.POSITIVE, True),
+            ("false", ConfirmationState.NEGATIVE, False),
+            ("0", ConfirmationState.NEGATIVE, False),
+            ("no", ConfirmationState.NEGATIVE, False),
+            ("unconfirmed", ConfirmationState.NEGATIVE, False),
+            (None, ConfirmationState.MISSING, None),
+            ("none", ConfirmationState.MISSING, None),
+            ("confirmation pending", ConfirmationState.UNKNOWN, None),
+            ("reconfirmed", ConfirmationState.UNKNOWN, None),
+            ("ok", ConfirmationState.UNKNOWN, None),
+            ("ja", ConfirmationState.UNKNOWN, None),
+            ("oui", ConfirmationState.UNKNOWN, None),
+            ("nein", ConfirmationState.UNKNOWN, None),
+            ("non", ConfirmationState.UNKNOWN, None),
+        )
+
+        for raw, expected_state, expected_value in cases:
+            with self.subTest(raw=raw):
+                state = parse_confirmation(raw)
+                self.assertIs(state, expected_state)
+                self.assertIs(state.authoritative_value, expected_value)
+
+    def test_claims_confirmation_requires_a_trailing_explicit_marker(self):
+        cases = (
+            ("Forced to land Confirmed", ConfirmationState.POSITIVE, True),
+            ("Forced to land (Confirmed)", ConfirmationState.POSITIVE, True),
+            ("Driven Down Unconfirmed", ConfirmationState.NEGATIVE, False),
+            ("Driven Down (Unconfirmed)", ConfirmationState.NEGATIVE, False),
+            ("Driven Down not confirmed", ConfirmationState.UNKNOWN, None),
+            ("Destroyed in flames", ConfirmationState.MISSING, None),
+            ("Confirmation pending", ConfirmationState.UNKNOWN, None),
+            ("Confirmed by pending review", ConfirmationState.UNKNOWN, None),
+            ("Reconfirmed", ConfirmationState.UNKNOWN, None),
+            ("Driven Down (Confirmed", ConfirmationState.UNKNOWN, None),
+            ("Driven Down Unconfirmed)", ConfirmationState.UNKNOWN, None),
+            ("Forced to land Confirmed.", ConfirmationState.UNKNOWN, None),
+            ("Driven Down (Unconfirmed)!", ConfirmationState.UNKNOWN, None),
+        )
+
+        for raw, expected_state, expected_value in cases:
+            with self.subTest(raw=raw):
+                state = parse_confirmation(raw, embedded_marker=True)
+                self.assertIs(state, expected_state)
+                self.assertIs(state.authoritative_value, expected_value)
 
     # ── Testes de Nação ──
 

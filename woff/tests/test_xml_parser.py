@@ -318,6 +318,74 @@ class TestWoFFXMLParser(unittest.TestCase):
             ],
         )
 
+    def test_duration_uses_only_verified_fields_and_never_reuses_a_clock(self):
+        xml = """<?xml version="1.0" encoding="UTF-8"?>
+<Campaign>
+  <Pilot><PilotName>Duration Semantics Pilot</PilotName></Pilot>
+  <Missions>
+    <Mission><Date>1917-04-01</Date><Time>10:00</Time></Mission>
+    <Mission><Date>1917-04-02</Date><MissionTime>09:30</MissionTime><Time>10:00</Time></Mission>
+    <Mission><Date>1917-04-03</Date><Time>10:00</Time><Duration>1.5</Duration></Mission>
+    <Mission><Date>1917-04-04</Date><Time>2.0</Time></Mission>
+    <Mission><Date>1917-04-05</Date><MissionTime>09:30</MissionTime><Time>2.5</Time></Mission>
+    <Mission><Date>1917-04-06</Date><FlightTime>3.0</FlightTime></Mission>
+    <Mission><Date>1917-04-07</Date><Hours>4.0</Hours></Mission>
+    <Mission><Date>1917-04-08</Date><Dauer>5.0</Dauer></Mission>
+  </Missions>
+</Campaign>
+"""
+
+        with self.assertLogs("WoFFWatch", level="WARNING") as captured:
+            self.assertTrue(self._write_and_parse(xml))
+        self.assertEqual(
+            [
+                (mission.date, mission.time, mission.duration)
+                for mission in self.parser.missions
+            ],
+            [
+                ("1917-04-01", "10:00", ""),
+                ("1917-04-02", "09:30", ""),
+                ("1917-04-03", "10:00", "1.5"),
+                ("1917-04-04", "", "2.0"),
+                ("1917-04-05", "09:30", "2.5"),
+                ("1917-04-06", "", ""),
+                ("1917-04-07", "", ""),
+                ("1917-04-08", "", ""),
+            ],
+        )
+        logged = " ".join(captured.output)
+        self.assertIn("category=unverified-duration-field", logged)
+        for field in ("FlightTime", "Hours", "Dauer"):
+            self.assertIn(f"field={field}", logged)
+        for raw_value in ("3.0", "4.0", "5.0"):
+            self.assertNotIn(raw_value, logged)
+
+    def test_xml_confirmation_distinguishes_positive_negative_missing_and_unknown(self):
+        xml = """<?xml version="1.0" encoding="UTF-8"?>
+<Campaign>
+  <Pilot><PilotName>Confirmation Semantics Pilot</PilotName></Pilot>
+  <Victories>
+    <Victory><Date>1917-04-01</Date><EnemyType>Type A</EnemyType><Confirmed>true</Confirmed></Victory>
+    <Victory><Date>1917-04-02</Date><EnemyType>Type B</EnemyType><Confirmed>false</Confirmed></Victory>
+    <Victory><Date>1917-04-03</Date><EnemyType>Type C</EnemyType></Victory>
+    <Victory><Date>1917-04-04</Date><EnemyType>Type D</EnemyType><Confirmed>confirmation pending</Confirmed></Victory>
+  </Victories>
+</Campaign>
+"""
+
+        with self.assertLogs("WoFFWatch", level="WARNING") as captured:
+            self.assertTrue(
+                self.parser.parse_bytes(xml.encode("utf-8"), "campaign.xml")
+            )
+
+        self.assertEqual(
+            [victory.confirmed for victory in self.parser.victories],
+            [True, False, None, None],
+        )
+        logged = " ".join(captured.output)
+        self.assertIn("category=unknown-confirmation", logged)
+        self.assertNotIn("confirmation pending", logged)
+
     def test_victory_data_normalization(self):
         """Testa a extração e normalização da vitória."""
         self._write_and_parse(MOCK_XML_VALID)

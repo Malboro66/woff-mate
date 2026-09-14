@@ -35,6 +35,27 @@ strings and are not guessed as a nation. All parser paths use the alias tables
 in `woff/maps.py`; new aliases require a sanitized representative sample or an
 existing regression fixture that establishes the value.
 
+## Claim confirmation and mission duration
+
+Confirmation is a four-state source contract: explicit positive, explicit
+negative, missing, or unknown. PilotClaims supports only the verified trailing
+`Confirmed` and `Unconfirmed` markers (including their parenthesized forms).
+Structured XML confirmation accepts exact `true`, `1`, `yes`, and `confirmed`
+positive values and exact `false`, `0`, `no`, and `unconfirmed` negative values.
+`none` represents missing evidence. Case and surrounding whitespace do not
+matter, but substrings never do. Missing and unknown confirmation persist as
+SQL `NULL`; explicit negative persists as `0`. Unknown values produce a bounded
+category-only diagnostic without logging claim text.
+
+Mission start time and duration are separate. In XML, a clock-shaped `Time` is
+the mission start time. The fixture-backed `Duration` element and the decimal
+`Time` form retained by the canonical temporal contract are duration sources;
+when an explicit start-time field is present, only a decimal generic `Time` can
+act as duration. `FlightTime`, `Hours`, and `Dauer` have no sanitized
+representative evidence and are ignored with a bounded diagnostic until such
+evidence exists. In the verified PilotLog fixed layout, the date/time components
+and the observed duration-like field at index 10 remain independent.
+
 ## Dossier layout validation
 
 WoFF Mate names the existing fixed-index contract `fixed-index-v1`. This name

@@ -721,9 +721,9 @@ roster-generation, transfer-baseline, and incomplete-input policy.
 | #139 | `EVAL-PRODUCT-POLICY-001` |
 | #140 | `EVAL-P0-FLOW-001`, `EVAL-P0-BOUNDARY-001`, `EVAL-P0-DEMO-001` |
 
-Cycle 3.4.0 is `active`. Issues #28, #35, #37, #38, #41, #75, #79, #80, #97,
-and #139 are complete. Issue #101 remains blocked by #96 after #37 satisfied its
-roster-lifecycle dependency.
+Cycle 3.4.0 is `active`. Issues #28, #35, #37, #38, #41, #74, #75, #79, #80,
+#97, and #139 are complete. Issue #101 remains blocked by #96 after #37
+satisfied its roster-lifecycle dependency.
 `EVAL-CYCLE-340-001` aggregates all twenty members and remains planned until
 every member acceptance criterion, applicable eval, and `Q6-CYCLE-3.4.0`
 condition passes.
@@ -790,6 +790,33 @@ condition passes.
   canonical while unknown text survives parsing. Legacy OOC replay is limited
   to one compatible same-source row with a validated stable source key, so the
   stable victory identity is preserved without rewriting unrelated records.
+
+### Implemented confirmation and duration semantic evals
+
+- `EVAL-PARSE-SEM-001` is enforced by
+  `woff/tests/test_normalization.py`, `woff/tests/test_pilot_data_parser.py`,
+  `woff/tests/test_xml_parser.py`, and
+  `woff/tests/test_victory_decoration_merge.py`. One canonical classifier
+  distinguishes explicit positive, explicit negative, missing, and unknown
+  confirmation evidence. The verified PilotClaims trailing markers and exact
+  structured XML values cannot match through a positive substring. Explicit
+  negative evidence persists as `0`; missing and unknown evidence persist as
+  SQL `NULL`, with category-only diagnostics for unknown text. Exact source
+  replay corrects confirmation values fabricated by the previous parser while
+  preserving the stable victory ID and source-record alias.
+- `EVAL-PARSE-SEM-002` is enforced by
+  `woff/tests/test_pilot_data_parser.py` and `woff/tests/test_xml_parser.py`.
+  XML keeps clock-shaped `Time` as mission start time, retains the previously
+  supported decimal `Time` duration form, and accepts the fixture-backed
+  `Duration` element. A second clock is never reused as duration. `FlightTime`,
+  `Hours`, and `Dauer` remain unverified and are ignored with bounded
+  diagnostics. The sanitized PilotLog fixed-layout duration field remains
+  independent from its date/time components.
+
+Issue #74 changes no schema, XML document-boundary extraction, victory merge
+identity, or narrative behavior. Legacy rows without a #73 source-record alias
+cannot be rewritten automatically because their occurrence provenance is not
+strong enough to identify an exact replay.
 
 ### Implemented numeric parsing evals
 

@@ -24,6 +24,7 @@ class TestWoFFPilotDataParser(unittest.TestCase):
         m = parser.missions[0]
         self.assertEqual(m.date, "1917-04-06")
         self.assertEqual(m.time, "10:30")  # Testa a extração da hora!
+        self.assertEqual(m.duration, "45")
         self.assertEqual(m.sector, "Arras")
         self.assertEqual(m.aircraft, "SE.5a")
         self.assertEqual(m.squadron, "No. 56 Sqn RFC")
@@ -84,9 +85,9 @@ class TestWoFFPilotDataParser(unittest.TestCase):
 
     def test_parse_claims_file(self):
         """Testa parsing de ficheiro de vitórias (Claims) e confirmação."""
-        # Usar 2 registos para testar vitória confirmada e não confirmada
+        # Usar 2 registos para testar confirmação explícita e ausente.
         mock_content = "2\n"
-        # 1: Destruído em chamas (não contém "confirmed" -> False)
+        # 1: Destruído em chamas não fornece estado de confirmação.
         mock_content += "6;4;1917;10;30;Arras;Filescamp;OP;SE.5a;1;Albatros D.III;Destroyed in flames;Albatros\n"
         # 2: Forçado a aterrar (contém "Confirmed" -> True)
         mock_content += "7;4;1917;12;00;Arras;Filescamp;OP;SE.5a;1;DFW C.V;Forced to land Confirmed;DFW\n"
@@ -98,14 +99,13 @@ class TestWoFFPilotDataParser(unittest.TestCase):
         self.assertTrue(ok)
         self.assertEqual(len(parser.victories), 2)
         
-        # Vitória 1 (Não confirmada)
+        # Vitória 1 (confirmação ausente)
         v1 = parser.victories[0]
         self.assertEqual(v1.date, "1917-04-06")
         self.assertEqual(v1.time, "10:30")
         self.assertEqual(v1.enemyType, "Albatros D.III")
         self.assertEqual(v1.victoryType, "Destroyed — In Flames") # Normalizado pelo maps.py
-        # FIX: "Destroyed in flames" não contém a palavra "confirmed"
-        self.assertFalse(v1.confirmed) 
+        self.assertIsNone(v1.confirmed)
         
         # Vitória 2 (Confirmada)
         v2 = parser.victories[1]
@@ -113,7 +113,33 @@ class TestWoFFPilotDataParser(unittest.TestCase):
         self.assertEqual(v2.time, "12:00")
         self.assertEqual(v2.enemyType, "DFW C.V")
         self.assertEqual(v2.victoryType, "Forced to Land") # Normalizado
-        self.assertTrue(v2.confirmed) # Contém "Confirmed"
+        self.assertTrue(v2.confirmed) # Marcador final explícito "Confirmed"
+
+    def test_claim_confirmation_semantics_are_explicit_and_non_authoritative_when_unknown(self):
+        mock_content = (
+            "4\n"
+            "6;4;1917;10;30;Arras;Filescamp;OP;SE.5a;1;"
+            "Albatros D.III;Driven Down (Unconfirmed);Albatros\n"
+            "7;4;1917;11;30;Arras;Filescamp;OP;SE.5a;1;"
+            "DFW C.V;Forced to land Confirmed;DFW\n"
+            "8;4;1917;12;30;Arras;Filescamp;OP;SE.5a;1;"
+            "Pfalz D.III;Destroyed in flames;Pfalz\n"
+            "9;4;1917;13;30;Arras;Filescamp;OP;SE.5a;1;"
+            "Fokker D.VII;Confirmation pending;Fokker\n"
+        )
+
+        parser = WoFFPilotDataParser()
+        with self.assertLogs("WoFFWatch", level="WARNING") as captured:
+            ok = parser.parse_bytes(mock_content, "Pilot1Claims.txt")
+
+        self.assertTrue(ok)
+        self.assertEqual(
+            [victory.confirmed for victory in parser.victories],
+            [False, True, None, None],
+        )
+        logged = " ".join(captured.output)
+        self.assertIn("category=unknown-confirmation", logged)
+        self.assertNotIn("Confirmation pending", logged)
 
     def test_pilotclaims_preserves_unknown_victory_text(self):
         mock_content = (

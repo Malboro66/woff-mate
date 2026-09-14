@@ -149,6 +149,65 @@ def test_claims_parser_identity_keeps_identical_occurrences_and_replay_stable(
         database.close()
 
 
+def test_claims_confirmation_semantics_survive_the_production_persistence_path(
+    tmp_path,
+):
+    database = DatabaseManager(str(tmp_path / "claim-confirmation.sqlite"))
+    try:
+        pilot = _persist_pilot(database)
+        claims = (
+            "4\n"
+            "6;4;1917;10h;35;Arras;x;x;SE.5a;x;Type A;Driven Down (Unconfirmed)\n"
+            "7;4;1917;10h;35;Arras;x;x;SE.5a;x;Type B;Forced to land Confirmed\n"
+            "8;4;1917;10h;35;Arras;x;x;SE.5a;x;Type C;Destroyed in flames\n"
+            "9;4;1917;10h;35;Arras;x;x;SE.5a;x;Type D;Confirmation pending\n"
+        ).encode("cp1252")
+
+        parser = WoFFPilotDataParser()
+        assert parser.parse_bytes(claims, "Pilot1Claims.txt")
+        for victory in parser.victories:
+            victory.pilotId = pilot.id
+
+        assert database.merge_and_write(None, [], parser.victories, []) == pilot.id
+        assert database._get_conn().execute(
+            "SELECT enemyType, confirmed FROM victories ORDER BY date"
+        ).fetchall() == [
+            ("Type A", 0),
+            ("Type B", 1),
+            ("Type C", None),
+            ("Type D", None),
+        ]
+
+        # Reproduce the values persisted by the pre-#74 parser, then prove
+        # that an exact source replay repairs semantics without changing rows.
+        database._get_conn().executemany(
+            "UPDATE victories SET confirmed=? WHERE enemyType=?",
+            [
+                (1, "Type A"),
+                (1, "Type B"),
+                (0, "Type C"),
+                (1, "Type D"),
+            ],
+        )
+        database._get_conn().commit()
+
+        replay = WoFFPilotDataParser()
+        assert replay.parse_bytes(claims, "Pilot1Claims.txt")
+        for victory in replay.victories:
+            victory.pilotId = pilot.id
+        assert database.merge_and_write(None, [], replay.victories, []) == pilot.id
+        assert database._get_conn().execute(
+            "SELECT enemyType, confirmed FROM victories ORDER BY date"
+        ).fetchall() == [
+            ("Type A", 0),
+            ("Type B", 1),
+            ("Type C", None),
+            ("Type D", None),
+        ]
+    finally:
+        database.close()
+
+
 def test_xml_source_positions_are_distinct_stable_and_privacy_safe():
     xml = b"""<Campaign>
       <Pilot><PilotName>Synthetic Pilot</PilotName></Pilot>
