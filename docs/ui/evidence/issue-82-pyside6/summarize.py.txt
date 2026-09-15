@@ -1,0 +1,28 @@
+"""From build/issue82, summarize final raw results without discarding samples."""
+import json
+from pathlib import Path
+import statistics
+
+summary = {}
+for name in ['source310', 'source314', 'packaged310', 'packaged314']:
+    rows = json.loads(Path(f'final-{name}.json').read_text(encoding='utf-8'))
+    launch = [r['launch_to_paint_seconds'] for r in rows]
+    imports = [r['result']['import_seconds'] for r in rows]
+    summary[name] = {
+        'samples': len(rows), 'launch_seconds': launch,
+        'launch_median_seconds': statistics.median(launch),
+        'warm_restart_max_seconds': max(launch[1:]),
+        'import_seconds': imports, 'import_median_seconds': statistics.median(imports),
+        'rss_max_mb': max(r['result']['rss_bytes'] for r in rows) / 1e6,
+        'private_max_mb': max(r['result']['private_bytes'] for r in rows) / 1e6,
+    }
+summary['artifacts_mb'] = {r['python']: r['total_bytes'] / 1e6
+                           for r in json.loads(Path('build-inventory.json').read_text())}
+summary['dependencies_mb'] = {minor: sum(r['bytes'] for r in json.loads(Path(f'inventory{minor}.json').read_text())[
+    'distribution_record_footprints']) / 1e6 for minor in ['10', '14']}
+summary['audit_runs'] = sum(len(json.loads(p.read_text())) for p in Path('.').glob('final-*-audit.json'))
+summary['audit_checks'] = sum(len(r['result']['checks']) for p in Path('.').glob('final-*-audit.json')
+                            for r in json.loads(p.read_text()))
+summary['cold_verified'] = False
+Path('summary.json').write_text(json.dumps(summary, indent=2) + '\n', encoding='utf-8')
+print(json.dumps(summary, indent=2))
