@@ -1,0 +1,45 @@
+"""Run with production-env/Scripts/python.exe from the repository root.
+
+Build unchanged production wheel/spec in a Qt-free environment; record only
+sanitized inventory and process return codes. No campaign inputs are opened.
+"""
+import importlib.metadata as metadata
+import json
+from pathlib import Path
+import subprocess
+import sys
+from zipfile import ZipFile
+
+root = Path('build/issue82')
+qt = [d.metadata['Name'] for d in metadata.distributions()
+      if d.metadata['Name'].lower().startswith(('pyside', 'pyqt', 'shiboken'))]
+assert not qt
+commands = [
+    [sys.executable, '-m', 'build', '--wheel', '--no-isolation', '--outdir', str(root / 'production-wheel')],
+    [sys.executable, '-m', 'PyInstaller', '--clean', '--noconfirm',
+     '--distpath', str(root / 'production-dist'), '--workpath', str(root / 'production-work'), 'build.spec'],
+]
+for index, command in enumerate(commands):
+    result = subprocess.run(command, capture_output=True)
+    (root / f'production-build-{index}.log').write_bytes(result.stdout + result.stderr)
+    assert result.returncode == 0, f'Production build {index} failed'
+wheel = next((root / 'production-wheel').glob('*.whl'))
+with ZipFile(wheel) as archive:
+    entries = archive.namelist()
+    meta = archive.read(next(n for n in entries if n.endswith('/METADATA'))).decode()
+forbidden = ('pyside', 'pyqt', 'shiboken', 'issue82', 'issue-82', 'catalog.json', 'woff/tests/', 'docs/')
+dist = root / 'production-dist/WoFFWatchdog'
+dist_entries = sorted(p.relative_to(dist).as_posix() for p in dist.rglob('*') if p.is_file())
+help_result = subprocess.run([str((dist / 'WoFFWatchdog.exe').resolve()), '--help'], capture_output=True, timeout=30)
+result = {
+    'qt_distributions': qt, 'wheel': wheel.name, 'wheel_entries': entries,
+    'requires_dist': [line for line in meta.splitlines() if line.startswith('Requires-Dist:')],
+    'forbidden_wheel_entries': [n for n in entries if any(word in n.lower() for word in forbidden)],
+    'executable_entries': dist_entries,
+    'forbidden_executable_entries': [n for n in dist_entries if any(word in n.lower() for word in forbidden)],
+    'executable_help_exit_code': help_result.returncode,
+}
+(root / 'production-isolation.json').write_text(json.dumps(result, indent=2) + '\n', encoding='utf-8')
+assert not result['forbidden_wheel_entries'] and not result['forbidden_executable_entries']
+assert help_result.returncode == 0
+print('Production wheel, unchanged PyInstaller spec and --help: PASS; Qt-free')

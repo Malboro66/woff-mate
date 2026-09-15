@@ -1,0 +1,31 @@
+# Development probe scoped to the disposable shell's window, not the desktop.
+# Run from ignored build/issue82. This does not claim screen-reader speech.
+$ErrorActionPreference = 'Stop'
+Add-Type -AssemblyName UIAutomationClient
+Add-Type -AssemblyName UIAutomationTypes
+$spikeProcess = Start-Process -FilePath (Resolve-Path 'py310/Scripts/python.exe') -ArgumentList 'shell.py --uia' -WindowStyle Hidden -PassThru -RedirectStandardOutput 'uia-local-stdout.txt' -RedirectStandardError 'uia-local-stderr.txt'
+$spikeWindow = [IntPtr]::Zero
+for ($attempt = 0; $attempt -lt 80; $attempt++) {
+    $spikeProcess.Refresh()
+    if (Test-Path 'uia-local-stdout.txt') {
+        foreach ($spikeLine in Get-Content 'uia-local-stdout.txt') {
+            if ($spikeLine.StartsWith('{')) {
+                $spikeEvent = $spikeLine | ConvertFrom-Json
+                if ($spikeEvent.event -eq 'window') { $spikeWindow = [IntPtr]$spikeEvent.hwnd }
+            }
+        }
+    }
+    if ($spikeWindow -ne [IntPtr]::Zero -or $spikeProcess.HasExited) { break }
+    Start-Sleep -Milliseconds 100
+}
+$spikeElements = @()
+if ($spikeWindow -ne [IntPtr]::Zero) {
+    $spikeRoot = [System.Windows.Automation.AutomationElement]::FromHandle($spikeWindow)
+    $spikeChildren = $spikeRoot.FindAll([System.Windows.Automation.TreeScope]::Descendants, [System.Windows.Automation.Condition]::TrueCondition)
+    foreach ($spikeChild in $spikeChildren) {
+        $spikeCurrent = $spikeChild.Current
+        $spikeElements += @{ name=$spikeCurrent.Name; role=$spikeCurrent.ControlType.ProgrammaticName; keyboard_focusable=$spikeCurrent.IsKeyboardFocusable; offscreen=$spikeCurrent.IsOffscreen }
+    }
+}
+$spikeProcess.WaitForExit()
+@{ window_found=($spikeWindow -ne [IntPtr]::Zero); elements=$spikeElements; exit_code=$spikeProcess.ExitCode; announcements_verified=$false } | ConvertTo-Json -Depth 5 | Set-Content -Encoding UTF8 'uia.json'

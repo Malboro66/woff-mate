@@ -1,0 +1,62 @@
+[
+  {
+    "python": "310",
+    "exit_code": 0,
+    "message_count": 25,
+    "warning_kinds": [],
+    "discovered_dll_basenames": [
+      "qdirect2d.dll",
+      "qminimal.dll",
+      "qmodernwindowsstyle.dll",
+      "qoffscreen.dll",
+      "qwindows.dll"
+    ],
+    "loaded_dll_basenames": [
+      "qmodernwindowsstyle.dll",
+      "qwindows.dll"
+    ],
+    "stderr_nonempty": false,
+    "stderr_only_library_unload": true,
+    "platform_plugin": "windows"
+  },
+  {
+    "python": "310",
+    "exit_code": 0,
+    "message_count": 25,
+    "warning_kinds": [],
+    "discovered_dll_basenames": [
+      "qdirect2d.dll",
+      "qminimal.dll",
+      "qmodernwindowsstyle.dll",
+      "qoffscreen.dll",
+      "qwindows.dll"
+    ],
+    "loaded_dll_basenames": [
+      "qmodernwindowsstyle.dll",
+      "qwindows.dll"
+    ],
+    "stderr_nonempty": false,
+    "stderr_only_library_unload": true,
+    "platform_plugin": "windows"
+  },
+  {
+    "python": "310",
+    "exit_code": 0,
+    "message_count": 25,
+    "warning_kinds": [],
+    "discovered_dll_basenames": [
+      "qdirect2d.dll",
+      "qminimal.dll",
+      "qmodernwindowsstyle.dll",
+      "qoffscreen.dll",
+      "qwindows.dll"
+    ],
+    "loaded_dll_basenames": [
+      "qmodernwindowsstyle.dll",
+      "qwindows.dll"
+    ],
+    "stderr_nonempty": false,
+    "stderr_only_library_unload": true,
+    "platform_plugin": "windows"
+  }
+]

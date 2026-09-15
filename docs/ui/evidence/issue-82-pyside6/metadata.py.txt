@@ -1,0 +1,49 @@
+"""Offline installation inventory, or --pypi for authoritative wheel metadata.
+
+This observer is not imported into or bundled with the shell.
+"""
+import hashlib
+import importlib.metadata as metadata
+import json
+from pathlib import Path
+import sys
+
+packages = ['PySide6', 'PySide6_Essentials', 'PySide6_Addons', 'shiboken6']
+if '--pypi' in sys.argv:
+    import urllib.request
+    from packaging.specifiers import SpecifierSet
+    from packaging.tags import cpython_tags
+    from packaging.utils import parse_wheel_filename
+
+    records = []
+    for name in packages:
+        url = f'https://pypi.org/pypi/{name}/6.11.2/json'
+        with urllib.request.urlopen(url, timeout=30) as response:
+            data = json.load(response)
+        wheels = [f for f in data['urls'] if f['filename'].endswith('win_amd64.whl')]
+        for minor in range(10, 15):
+            tags = set(cpython_tags((3, minor), platforms=['win_amd64']))
+            compatible = [f for f in wheels if parse_wheel_filename(f['filename'])[3] & tags
+                          and f'3.{minor}' in SpecifierSet(f['requires_python'])]
+            records.append({'package': name, 'version': data['info']['version'],
+                            'python': f'3.{minor}', 'metadata_url': url,
+                            'requires_python': data['info']['requires_python'],
+                            'compatible_wheels': [{'filename': f['filename'], 'sha256': f['digests']['sha256'],
+                                                   'bytes': f['size'], 'uploaded': f['upload_time_iso_8601']}
+                                                  for f in compatible],
+                            'runtime_smoke': 'not performed by metadata probe'})
+    Path('wheel-metadata.json').write_text(json.dumps(records, indent=2) + '\n', encoding='utf-8')
+else:
+    distributions = sorted(({'name': d.metadata['Name'], 'version': d.version}
+                            for d in metadata.distributions()), key=lambda d: d['name'].lower())
+    bindings = [d['name'] for d in distributions if d['name'].lower() in
+                {'pyside6', 'pyside2', 'pyqt5', 'pyqt6'}]
+    assert bindings == ['PySide6'], bindings
+    footprints = []
+    for name in packages:
+        d = metadata.distribution(name)
+        paths = {Path(d.locate_file(f)).resolve() for f in d.files or []}
+        footprints.append({'package': name, 'bytes': sum(p.stat().st_size for p in paths if p.is_file())})
+    result = {'python': sys.version.split()[0], 'bindings': bindings,
+              'distributions': distributions, 'distribution_record_footprints': footprints}
+    Path(f'inventory{sys.version_info.minor}.json').write_text(json.dumps(result, indent=2) + '\n', encoding='utf-8')
