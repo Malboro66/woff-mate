@@ -170,7 +170,7 @@ claim Q5 or approval of Product Gate A or Gate B.
 | `EVAL-UI-DESIGN-001` | #79 | Implemented | The V2 reference and Site version 18 pass the bounded rendered audit: measured logical reflow, semantic states, lossless status labels, complete Tab sequences, per-control targets, read-only inventory, contrast and stable sparse-slot identity; CI replays immutable observations, not the live Site or Windows DPI | `woff/tests/test_architecture_contracts.py`, `woff/tests/test_ui_v2_evidence.py` |
 | `EVAL-UI-STATES-001` | #80 | Implemented | Thirty synthetic fixtures and the 15-screen matrix enforce six shared states, separate global/list/detail contexts, explicit subject selection, retained career context, owner identity field placement, consistent identity, partial/conflicting fields, safe freshness, redacted settings, closed text and sanitized failures without production dependencies | `scripts/validate_ui_fixtures.py`, `tests/test_ui_state_fixtures.py`, `woff/tests/test_architecture_contracts.py` |
 | `EVAL-UI-POLICY-001` | #135 | Implemented | The canonical UI development standard preserves repository authority, V2 accessibility, privacy, provenance, reduced motion, and toolkit-independent runtime boundaries | `woff/tests/test_ui_development_standard.py` |
-| `EVAL-UI-CONTRACTS-001` | #81 | Planned | Immutable toolkit-independent view models and query protocols preserve stable identity, state, freshness, warnings, and sanitized failures | — |
+| `EVAL-UI-CONTRACTS-001` | #81 | Implemented | Six frozen toolkit-independent screen snapshots share a closed envelope, canonical nation/service presentation, explicit stable identities, defensive immutable collections, sanitized failures and bounded request lifecycle protocols, exercised only by #80 fixtures | `tests/test_ui_contracts.py`, `woff/tests/test_architecture_contracts.py` |
 | `EVAL-UI-SPIKE-001` | #82 | Planned | One PySide6 line passes the supported Python and Windows packaging and measured resource matrix | — |
 | `EVAL-UI-SPIKE-002` | #82 | Planned | Scaling, keyboard use, accessibility, plugin behavior, and licensing evidence support a Go, Conditional Go, or No-go recommendation | — |
 | `EVAL-P0-FLOW-001` | #140 | Planned | Seven primary destinations, two synthetic careers, six shared states, immutable #81 values, isolation, keyboard/focus and scaling | — |
@@ -181,7 +181,7 @@ claim Q5 or approval of Product Gate A or Gate B.
 The executable sequence is #81 -> #82 -> P0/#140 -> R2 -> retained production
 architecture/P1. #82 now belongs to cycle 3.4.0, and its #81 dependency records
 this near-term order; earlier disposable exploration is not completion of that
-sequence. #140 depends on #79/#80/#139 (satisfied) and #81/#82 (unsatisfied).
+sequence. #140 depends on #79/#80/#81/#139 (satisfied) and #82 (unsatisfied).
 Its planned evals prove neither live data integration nor production toolkit
 acceptance. `review-r2` is a repository review work item outside engineering
 cycle membership, not a newly numbered GitHub issue. Future retained production
@@ -333,9 +333,11 @@ regressions also use the canonical nation/service semantics.
 schema migration: original rows and schema remain unchanged, parsed evidence
 survives reopen, and failed writes roll back. It does not claim migration DDL.
 See [the domain and persistence decision](../architecture/nation-service.md).
-The implementation is `in_progress` pending review/integration; #81's dependency
-remains unsatisfied until post-merge reconciliation. Product gates and cycle
-completion remain separate decisions.
+PR #164 subsequently merged that implementation into `main` at
+`143226d0f1752686efa25f9db45efaac88b34c10`. The historical discrepancy is
+therefore resolved: #136 is `done`, and #81 consumes its canonical presentation
+value instead of the deprecated combined label.
+Product gates and aggregate cycle completion remain separate decisions.
 
 Issue #79 is complete. Its repository design artifacts are
 `docs/ui/ui-v2-reference.md`, `docs/ui/ui-v2-visual-system.md`, and
@@ -361,7 +363,9 @@ not the mutable public Site. Audit 1–3 remain immutable historical evidence.
 
 Issue #80 is complete. Its [state matrix](../ui/screen-state-matrix.md) and
 [fixture inventory](../../woff/tests/fixtures/ui_states/README.md) satisfy the
-fixture prerequisite for #81 and #82. Both remain unimplemented backlog work.
+fixture prerequisite for #81 and #82. Issue #81 is now implemented by the
+[immutable application contracts](../ui/application-contracts.md); #82 remains
+independent toolkit-feasibility work.
 The isolated fixture suite runs outside `woff/tests` to avoid its persistence
 setup; the validator also runs under `python -I -S` with integration imports
 and events blocked by a regression test. None of these items adopts Qt,
@@ -734,7 +738,7 @@ roster-generation, transfer-baseline, and incomplete-input policy.
 | #140 | `EVAL-P0-FLOW-001`, `EVAL-P0-BOUNDARY-001`, `EVAL-P0-DEMO-001` |
 
 Cycle 3.4.0 is `active`. Issues #28, #35, #37, #38, #41, #74, #75, #79, #80,
-#97, and #139 are complete. Issue #101 remains blocked by #96 after #37
+#81, #97, #136, and #139 are complete. Issue #101 remains blocked by #96 after #37
 satisfied its roster-lifecycle dependency.
 `EVAL-CYCLE-340-001` aggregates all twenty members and remains planned until
 every member acceptance criterion, applicable eval, and `Q6-CYCLE-3.4.0`
