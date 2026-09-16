@@ -15,6 +15,19 @@ def read_json(name):
     return json.loads((EVIDENCE / name).read_text(encoding='utf-8-sig'))
 
 
+def load_recipe_functions(name, *function_names):
+    path = EVIDENCE / name
+    tree = ast.parse(path.read_text(encoding='utf-8'))
+    selected: list[ast.stmt] = []
+    for node in tree.body:
+        if isinstance(node, (ast.Import, ast.ImportFrom)) or (
+                isinstance(node, ast.FunctionDef) and node.name in function_names):
+            selected.append(node)
+    namespace = {}
+    exec(compile(ast.Module(body=selected, type_ignores=[]), str(path), 'exec'), namespace)
+    return namespace
+
+
 def test_evidence_digest_and_synthetic_provenance():
     names = set()
     for line in (EVIDENCE / 'SHA256SUMS').read_text(encoding='utf-8').splitlines():
@@ -107,6 +120,65 @@ def test_packaging_evidence_preserves_distribution_blocker():
     assert isolation['executable_help_exit_code'] == 0
 
 
+def test_production_recipe_removes_stale_wheels_and_fails_closed(tmp_path):
+    recipe = (EVIDENCE / 'production_check.py.txt').read_text(encoding='utf-8')
+    assert "wheel_output = recreate_output_directory(root / 'production-wheel', root)" in recipe
+    assert 'wheel = select_single_wheel(wheel_output)' in recipe
+    assert "help_result.returncode == 0 and not help_result.stderr.strip()" in recipe
+    helpers = load_recipe_functions(
+        'production_check.py.txt', 'recreate_output_directory', 'select_single_wheel')
+    root = tmp_path / 'issue82'
+    root.mkdir()
+    output = root / 'production-wheel'
+    output.mkdir()
+    (output / 'stale.whl').write_bytes(b'stale')
+
+    recreated = helpers['recreate_output_directory'](output, root)
+    assert list(recreated.iterdir()) == []
+    current = recreated / 'current.whl'
+    current.write_bytes(b'current')
+    assert helpers['select_single_wheel'](recreated) == current
+    (recreated / 'ambiguous.whl').write_bytes(b'ambiguous')
+    with pytest.raises(AssertionError):
+        helpers['select_single_wheel'](recreated)
+
+
+def test_relocation_recipe_binds_artifact_inventory_and_historical_results(tmp_path):
+    recipe = (EVIDENCE / 'relocate.py.txt').read_text(encoding='utf-8')
+    assert 'destination = copy_and_verify(' in recipe
+    assert 'completed = subprocess.run(command, cwd=relocation_root)' in recipe
+    assert "assert completed.returncode == 0 and local_result.is_file()" in recipe
+    helpers = load_recipe_functions(
+        'relocate.py.txt', 'inventory', 'inventory_sha256', 'json_sha256', 'copy_and_verify')
+    builds = {build['python']: build for build in read_json('build-inventory.json')}
+    provenance = read_json('relocation-provenance.json')
+    assert [record['python'] for record in provenance] == ['310', '314']
+    for record in provenance:
+        build = builds[record['python']]
+        assert record['source_artifact'] == f"dist{record['python']}/Issue82"
+        assert record['relocated_artifact'] == f"relocation with spaces/package{record['python']}"
+        assert record['source_sha256'] == build['source_sha256']
+        assert record['artifact_inventory_sha256'] == helpers['inventory_sha256'](build['files'])
+        assert record['artifact_files'] == len(build['files'])
+        assert record['artifact_bytes'] == build['total_bytes']
+        assert record['result_json_sha256'] == helpers['json_sha256'](EVIDENCE / record['result'])
+        rows = read_json(record['result'])
+        assert [(row['configuration'], row['repetition']) for row in rows] == [
+            (f"relocated{record['python']}", repeat) for repeat in [1, 2, 3]]
+        assert all(row['exit_code'] == 0 and not row['stderr_nonempty'] and
+                   not row['qt_messages'] for row in rows)
+
+    source = tmp_path / 'source'
+    source.mkdir()
+    (source / 'Issue82.exe').write_bytes(b'executable')
+    expected = helpers['inventory'](source)
+    relocation_root = tmp_path / 'relocation with spaces'
+    relocation_root.mkdir()
+    destination = helpers['copy_and_verify'](
+        source, relocation_root / 'package310', expected, relocation_root)
+    assert helpers['inventory'](destination) == expected
+
+
 def test_native_exposure_is_not_reported_as_speech():
     exposure = read_json('uia.json')
     assert exposure['window_found'] is True
@@ -117,6 +189,12 @@ def test_native_exposure_is_not_reported_as_speech():
         assert controls[name]['role'] == 'ControlType.Button'
         assert controls[name]['keyboard_focusable'] and not controls[name]['offscreen']
     assert controls['Synthetic fixture state']['role'] == 'ControlType.ComboBox'
+    recipe = (EVIDENCE / 'uia.ps1.txt').read_text(encoding='utf-8')
+    assert "@('uia-local-stdout.txt', 'uia-local-stderr.txt', 'uia.json')" in recipe
+    assert 'Start-Process -FilePath $env:ComSpec' in recipe
+    assert '$spikeProcess.Refresh()' in recipe
+    assert '-not $spikeResult.window_found' in recipe
+    assert '$spikeResult.exit_code -ne 0' in recipe
 
 
 def test_debug_logging_teardown_correction_is_verified():
@@ -124,5 +202,26 @@ def test_debug_logging_teardown_correction_is_verified():
     assert len(original) == 2 and all(r['exit_code'] == 0xC0000005 for r in original)
     final = read_json('plugin-discovery.json')
     assert len(final) == 6
-    assert all(r['exit_code'] == 0 and not r['warning_kinds'] for r in final)
+    assert all(r['exit_code'] == 0 and not r['warning_kinds'] and
+               (not r['stderr_nonempty'] or r['stderr_only_library_unload']) for r in final)
     assert all('qwindows.dll' in r['loaded_dll_basenames'] for r in final)
+
+
+@pytest.mark.parametrize(('stderr', 'accepted'), [
+    ('', True),
+    ('qt.core.library: "C:/temp/qwindows.dll" unloaded library\n', True),
+    ('unexpected loader diagnostic\n', False),
+    ('qt.core.library: "C:/temp/qwindows.dll" unloaded library\nunexpected\n', False),
+])
+def test_plugin_probe_stderr_contract(stderr, accepted):
+    recipe = (EVIDENCE / 'plugin_probe.py.txt').read_text(encoding='utf-8')
+    assert 'stderr_accepted = stderr_is_accepted(result.stderr)' in recipe
+    assert "not r['stderr_nonempty'] or r['stderr_only_library_unload']" in recipe
+    helpers = load_recipe_functions('plugin_probe.py.txt', 'stderr_is_accepted')
+    assert helpers['stderr_is_accepted'](stderr) is accepted
+
+
+def test_summary_recipe_names_exact_final_inputs():
+    recipe = (EVIDENCE / 'summarize.py.txt').read_text(encoding='utf-8')
+    assert "glob('final-*-audit.json')" not in recipe
+    assert "['source310', 'source314', 'packaged310', 'packaged314']" in recipe

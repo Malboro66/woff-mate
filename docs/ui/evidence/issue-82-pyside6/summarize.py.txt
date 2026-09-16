@@ -20,8 +20,11 @@ summary['artifacts_mb'] = {r['python']: r['total_bytes'] / 1e6
                            for r in json.loads(Path('build-inventory.json').read_text())}
 summary['dependencies_mb'] = {minor: sum(r['bytes'] for r in json.loads(Path(f'inventory{minor}.json').read_text())[
     'distribution_record_footprints']) / 1e6 for minor in ['10', '14']}
-summary['audit_runs'] = sum(len(json.loads(p.read_text())) for p in Path('.').glob('final-*-audit.json'))
-summary['audit_checks'] = sum(len(r['result']['checks']) for p in Path('.').glob('final-*-audit.json')
+audit_paths = [Path(f'final-{name}-audit.json') for name in
+               ['source310', 'source314', 'packaged310', 'packaged314']]
+assert all(path.is_file() for path in audit_paths)
+summary['audit_runs'] = sum(len(json.loads(p.read_text())) for p in audit_paths)
+summary['audit_checks'] = sum(len(r['result']['checks']) for p in audit_paths
                             for r in json.loads(p.read_text()))
 summary['cold_verified'] = False
 Path('summary.json').write_text(json.dumps(summary, indent=2) + '\n', encoding='utf-8')

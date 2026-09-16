@@ -6,6 +6,14 @@ import re
 import subprocess
 import sys
 
+
+def stderr_is_accepted(stderr):
+    """Accept only Qt's explicit library-unload debug diagnostics."""
+    lines = [line.strip() for line in stderr.splitlines() if line.strip()]
+    pattern = re.compile(r'^qt\.core\.library: "[^"\r\n]+" unloaded library$')
+    return not lines or all(pattern.fullmatch(line) for line in lines)
+
+
 results = []
 for suffix in (['310', '310', '310'] if '--source' in sys.argv else ['310', '310', '310', '314', '314', '314']):
     env = {k: v for k, v in os.environ.items() if not k.startswith(('QT_', 'QML_', 'PYTHON'))}
@@ -23,12 +31,15 @@ for suffix in (['310', '310', '310'] if '--source' in sys.argv else ['310', '310
     loaded = sorted({match for message in messages if 'loaded library' in message['message']
                      for match in re.findall(r'([A-Za-z0-9_-]+\.dll)', message['message'])})
     warning_kinds = [m['kind'] for m in messages if m['kind'] not in ('QtDebugMsg', 'QtInfoMsg')]
+    stderr_nonempty = bool(result.stderr.strip())
+    stderr_accepted = stderr_is_accepted(result.stderr)
     results.append({'python': suffix, 'exit_code': result.returncode,
                     'message_count': len(messages), 'warning_kinds': warning_kinds,
                     'discovered_dll_basenames': names, 'loaded_dll_basenames': loaded,
-                    'stderr_nonempty': bool(result.stderr.strip()),
-                    'stderr_only_library_unload': all('unloaded library' in line for line in result.stderr.splitlines()),
+                    'stderr_nonempty': stderr_nonempty,
+                    'stderr_only_library_unload': stderr_nonempty and stderr_accepted,
                     'platform_plugin': record['platform_plugin']})
 Path('source-plugin-discovery.json' if '--source' in sys.argv else 'plugin-discovery.json').write_text(
     json.dumps(results, indent=2) + '\n', encoding='utf-8')
-assert all(r['exit_code'] == 0 and not r['warning_kinds'] for r in results)
+assert all(r['exit_code'] == 0 and not r['warning_kinds'] and
+           (not r['stderr_nonempty'] or r['stderr_only_library_unload']) for r in results)

@@ -174,7 +174,12 @@ containing spaces and runs each three times from a different working directory,
 again with only System32 on PATH. Both render and exit successfully; these are
 same-host relocation checks, not clean-machine evidence. The first relocated
 launch exceeded five seconds, reinforcing the unresolved startup variability.
-Raw `relocated310.json` and `relocated314.json` preserve every sample.
+Raw `relocated310.json` and `relocated314.json` preserve every historical sample.
+The archived `relocate.py.txt` now provides the omitted deterministic replay:
+it verifies the source inventory, copies and re-verifies the relocated bundle,
+runs the same measurement, and binds artifact/source/result identities in
+`relocation-provenance.json`. That provenance is a post-review verification of
+the retained artifacts; the historical timing observations were not regenerated.
 
 [Build inventory](evidence/issue-82-pyside6/build-inventory.json) lists every
 relative file, size and SHA-256. Stock hooks collected Core, Gui, Widgets, Test,
@@ -245,6 +250,9 @@ offscreen elements. The first probe could not find the window through the venv
 redirector process; using the shell's explicitly emitted HWND fixed discovery.
 The HWND and process IDs are not archived. The probe's process exit code is
 unavailable (`null`); normal measurement runs separately verify exit status.
+The corrected archived replay now refreshes and requires the process exit code,
+window discovery and a nonempty exposed-element set, while preserving this
+historical result unchanged.
 [Native exposure result](evidence/issue-82-pyside6/uia.json).
 
 UIA exposure and Qt NameChanged events do not establish spoken announcements.

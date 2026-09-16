@@ -28,6 +28,7 @@ py310/Scripts/python.exe metadata.py
 py314/Scripts/python.exe metadata.py
 py310/Scripts/python.exe metadata.py --pypi
 py310/Scripts/python.exe run.py
+py310/Scripts/python.exe relocate.py
 py310/Scripts/python.exe plugin_probe.py --source
 py310/Scripts/python.exe plugin_probe.py
 ./uia.ps1
@@ -36,7 +37,11 @@ py310/Scripts/python.exe plugin_probe.py
 The metadata probe's `--pypi` mode is the only network consumer; it is an
 external compatibility observer, never imported or bundled in the shell.
 `run.py` builds from `shell.py` with stock hooks and executes 60 sequential
-processes. A nonzero exit or failed check must be investigated. Do not run
+processes. `relocate.py` verifies each source bundle against `build-inventory.json`,
+copies it to `relocation with spaces/package<python>`, verifies the copy, runs
+the ordinary measurement from that different working directory, and emits
+`relocated<python>.json` plus `relocation-provenance.json`. A nonzero exit or
+failed check must be investigated. Do not run
 other GUI probes concurrently with its keyboard audit. A fixture-only capture
 can be produced with `shell.py --audit --capture` after creating `captures/`;
 captures and local logs are not part of this textual archive.
@@ -49,18 +54,31 @@ build/issue82/production-env/Scripts/python.exe -m pip install . build wheel PyI
 build/issue82/production-env/Scripts/python.exe build/issue82/production_check.py
 ```
 
-The production observer builds the unchanged wheel and `build.spec`, inventories
-them and runs only the executable's `--help`. It imports no campaign inputs.
+The production observer recreates its three known disposable output directories,
+builds the unchanged wheel and `build.spec`, requires exactly one newly built
+wheel, inventories both artifacts and runs only the executable's `--help`. It
+imports no campaign inputs.
 Run repository tests/Pyright in the ordinary Qt-free development environment.
 The archived replay suite imports neither the experiment nor Qt.
+The production `--help`, plugin and UIA observers fail closed on their expected
+exit/diagnostic contracts; PyInstaller analysis notices remain a separately
+archived, reviewed build-analysis surface.
 
 Initial records preserve the 10-point/ampersand implementation and the
 12-point width-check failure. `pre-teardown-fix-*` records are the subsequently
 passing 12-point shell before its debug-logging teardown correction. Final
 records describe the source pinned in `provenance.json` and `build-inventory.json`.
+The historical `relocated*.json` bytes were not regenerated for this replay
+correction. `relocation-provenance.json` records the later, explicit verification
+that the retained source bundles and their retained path-with-spaces copies were
+byte-for-byte equal to the archived build inventory and binds the historical
+JSON observations by a line-ending-independent semantic digest.
 The first debug probe's access-violation exit and the failed first UIA window
-lookup are preserved separately. No old experiment is a production defect or
-an additional selected Qt line.
+lookup are preserved separately. The retained final UIA result predates the
+fail-closed recipe and has an unavailable process exit code; ordinary runs
+separately established normal exit, while future UIA replays now require a
+window, exposed elements and exit zero. No old experiment is a production
+defect or an additional selected Qt line.
 
 Missing Windows 11, clean machines, native DPI switching, cold-boot observations
 and assistive-technology speech are explicit gaps, not passing configurations.
