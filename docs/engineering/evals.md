@@ -337,9 +337,7 @@ PR #164 subsequently merged that implementation into `main` at
 `143226d0f1752686efa25f9db45efaac88b34c10`. The historical discrepancy is
 therefore resolved: #136 is `done`, and #81 consumes its canonical presentation
 value instead of the deprecated combined label.
-The implementation is `in_progress` pending review/integration; #81's dependency
-remains unsatisfied until post-merge reconciliation. Product gates and cycle
-completion remain separate decisions.
+Product gates and aggregate cycle completion remain separate decisions.
 
 Issue #79 is complete. Its repository design artifacts are
 `docs/ui/ui-v2-reference.md`, `docs/ui/ui-v2-visual-system.md`, and
