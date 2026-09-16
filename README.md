@@ -173,6 +173,7 @@ Current work and planned features are tracked in the [WoFF Mate Development Proj
 - [UI toolkit ADR](docs/architecture/adr-ui-toolkit.md)
 - [Read-only UI foundation](docs/ui/read-only-foundation.md)
 - [Shared screen-state matrix](docs/ui/screen-state-matrix.md)
+- [Immutable UI application contracts](docs/ui/application-contracts.md)
 - [UI/UX development standard](docs/ui/ui-development-standard.md)
 - [Synthetic UI fixture inventory](woff/tests/fixtures/ui_states/README.md)
 - [Published UI V2 prototype](https://woff-mate-ui-v2.pilotohans.chatgpt.site/)

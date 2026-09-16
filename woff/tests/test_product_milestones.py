@@ -82,7 +82,7 @@ def test_product_path_and_cycle_ownership_are_executable() -> None:
     assert "Q5-UI-ARCHITECTURE" not in items["issue-140"]["gates"]
     assert items["issue-139"]["state"] == "done"
     assert {"id": "issue-139", "status": "satisfied"} in items["issue-140"]["depends_on"]
-    assert {"id": "issue-81", "status": "unsatisfied"} in items["issue-140"]["depends_on"]
+    assert {"id": "issue-81", "status": "satisfied"} in items["issue-140"]["depends_on"]
     assert {"id": "issue-82", "status": "unsatisfied"} in items["issue-140"]["depends_on"]
     members = set(cycles["cycle-3.4.0"]["members"])
     assert {"issue-136", "issue-139", "issue-140", "issue-81", "issue-82"} <= members
@@ -99,11 +99,11 @@ def test_product_path_and_cycle_ownership_are_executable() -> None:
     validate_graph(ROOT, graph)
 
 
-def test_nation_contract_requires_executable_evidence_before_completion() -> None:
+def test_nation_contract_is_integrated_before_ui_contract_completion() -> None:
     graph = _graph()
     nation = graph["work_items"]["issue-136"]
-    assert nation["state"] == "in_progress"
-    assert {"id": "issue-136", "status": "unsatisfied"} in graph["work_items"]["issue-81"]["depends_on"]
+    assert nation["state"] == "done"
+    assert {"id": "issue-136", "status": "satisfied"} in graph["work_items"]["issue-81"]["depends_on"]
     for eval_id in nation["evals"]:
         assert graph["evals"][eval_id]["status"] == "implemented"
         assert graph["evals"][eval_id]["enforced_by"] == ["woff/tests/test_nation_domain.py"]
@@ -211,8 +211,8 @@ def test_first_r1_record_and_gate_a_disposition_are_revision_bound() -> None:
     assert evals["EVAL-CAREER-REUSE-EVIDENCE-001"]["status"] == "planned"
     assert graph["cycles"]["cycle-3.3.0"]["state"] == "active"
     assert evals["EVAL-CYCLE-330-001"]["status"] == "planned"
-    assert items["issue-136"]["state"] == "in_progress"
-    assert {"id": "issue-136", "status": "unsatisfied"} in items["issue-81"]["depends_on"]
+    assert items["issue-136"]["state"] == "done"
+    assert {"id": "issue-136", "status": "satisfied"} in items["issue-81"]["depends_on"]
 
 
 def test_r1_follow_ups_are_registered_without_implicit_cycle_membership() -> None:
