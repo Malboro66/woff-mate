@@ -7,7 +7,7 @@ cross it.  Live query implementations are outside Issue #81.
 
 from __future__ import annotations
 
-from dataclasses import dataclass, fields, is_dataclass
+from dataclasses import dataclass, fields, is_dataclass, replace
 from datetime import datetime, timedelta
 from enum import Enum
 import re
@@ -45,6 +45,12 @@ class Completeness(str, Enum):
     PARTIAL = "partial"
 
 
+class MissionOrderPolicy(str, Enum):
+    """Deterministic presentation order established by the mission contract."""
+
+    NEWEST_FIRST_STABLE_ID = "newest-first-stable-id"
+
+
 class SnapshotReason(str, Enum):
     REQUEST_PENDING = "request_pending"
     CAREER_NOT_SELECTED = "career_not_selected"
@@ -75,11 +81,24 @@ class SourceAuthority(str, Enum):
     APPLICATION_RECORDS = "application-records"
     APPLICATION_DERIVED = "application-derived"
     APPLICATION_SETTINGS = "application-settings"
+    APPLICATION_QUERY = "application-query"
     SYNTHETIC_RECORDS = "synthetic-records"
     SYNTHETIC_DERIVED = "synthetic-derived"
     SYNTHETIC_SETTINGS = "synthetic-settings"
     SYNTHETIC_QUERY = "synthetic-query"
     UNRESOLVED = "unresolved"
+
+
+_PAYLOAD_AUTHORITIES = frozenset(
+    {
+        SourceAuthority.APPLICATION_RECORDS,
+        SourceAuthority.APPLICATION_DERIVED,
+        SourceAuthority.APPLICATION_SETTINGS,
+        SourceAuthority.SYNTHETIC_RECORDS,
+        SourceAuthority.SYNTHETIC_DERIVED,
+        SourceAuthority.SYNTHETIC_SETTINGS,
+    }
+)
 
 
 class WarningCode(str, Enum):
@@ -302,7 +321,7 @@ class FieldUnavailable:
 
 @dataclass(frozen=True)
 class SnapshotEnvelope:
-    """Metadata shared unchanged by every screen-specific snapshot."""
+    """Shared metadata schema normalized against each screen payload."""
 
     state: ScreenState
     reason: Optional[SnapshotReason]
@@ -378,6 +397,48 @@ class SnapshotEnvelope:
         if self.state in {ScreenState.LOADING, ScreenState.MISSING, ScreenState.ERROR}:
             if self.observed_at.value is not None:
                 raise ValueError("transient, missing and error states have no observation")
+        if self.reason is SnapshotReason.SNAPSHOT_EXPIRED:
+            if self.freshness is not Freshness.STALE:
+                raise ValueError("expired snapshots require stale freshness")
+            if self.source_authority not in _PAYLOAD_AUTHORITIES:
+                raise ValueError("expired snapshots require retained data authority")
+        elif self.state is ScreenState.STALE_OR_UNAVAILABLE:
+            if self.freshness is not Freshness.UNKNOWN:
+                raise ValueError(
+                    "unavailable snapshots require unknown freshness unless expired"
+                )
+        elif self.freshness is Freshness.STALE:
+            raise ValueError("stale freshness requires an expired snapshot state")
+        if self.state in {ScreenState.READY, ScreenState.EMPTY}:
+            if self.source_authority not in _PAYLOAD_AUTHORITIES:
+                raise ValueError("successful snapshots require a resolved data authority")
+
+    def _with_payload(self, **payload: object) -> "SnapshotEnvelope":
+        """Return metadata derived from the immutable payload's field values.
+
+        Nested ``FieldValue`` instances are authoritative additions to the
+        sanitized summary. The summary cannot accidentally claim completeness
+        after an adapter omits a nested unavailable field; supplemental gaps
+        for deliberately unexposed fields remain preserved.
+        """
+
+        unavailable = set(self.unavailable_fields)
+        for name, value in payload.items():
+            if _FIELD_NAME.fullmatch(name) is None:
+                raise ValueError("payload roots must use stable field names")
+            unavailable.update(_collect_unavailable_fields(value, name))
+        ordered_unavailable = tuple(
+            sorted(unavailable, key=lambda item: (item.field, item.reason.value))
+        )
+        return replace(
+            self,
+            completeness=(
+                Completeness.PARTIAL
+                if ordered_unavailable
+                else Completeness.COMPLETE
+            ),
+            unavailable_fields=ordered_unavailable,
+        )
 
 
 @dataclass(frozen=True)
@@ -458,21 +519,149 @@ _SYSTEM_DIAGNOSTIC_MESSAGES = {
 }
 
 
+def _collect_unavailable_fields(value: object, path: str) -> list[FieldUnavailable]:
+    if isinstance(value, FieldValue):
+        if value.reason is None:
+            return []
+        return [FieldUnavailable(path, value.reason)]
+    if value is None:
+        return []
+    if isinstance(value, tuple):
+        unavailable: list[FieldUnavailable] = []
+        for item in value:
+            unavailable.extend(_collect_unavailable_fields(item, path))
+        return unavailable
+    if is_dataclass(value) and not isinstance(value, type):
+        unavailable = []
+        for item in fields(value):
+            nested_path = f"{path}.{item.name}"
+            unavailable.extend(
+                _collect_unavailable_fields(getattr(value, item.name), nested_path)
+            )
+        return unavailable
+    return []
+
+
+def _require_unique_ids(records: Tuple[object, ...], attribute: str, label: str) -> None:
+    seen: set[object] = set()
+    for record in records:
+        identifier = getattr(record, attribute)
+        if identifier in seen:
+            raise ValueError(f"{label} contain duplicate stable IDs")
+        seen.add(identifier)
+
+
+def _require_owned_records(
+    pilot_id: Optional[PilotId], records: Tuple[object, ...], label: str
+) -> None:
+    for record in records:
+        if pilot_id is None or getattr(record, "pilot_id") != pilot_id:
+            raise ValueError(f"{label} owner must match the snapshot pilot context")
+
+
+def _require_pilot_payload_owner(
+    pilot_id: Optional[PilotId], pilot: Optional[PilotIdentityView]
+) -> None:
+    if pilot is not None and (pilot_id is None or pilot.pilot_id != pilot_id):
+        raise ValueError("pilot payload owner must match the snapshot pilot context")
+
+
+def _require_career_context(
+    envelope: SnapshotEnvelope, pilot_id: Optional[PilotId]
+) -> None:
+    no_career = (
+        envelope.state is ScreenState.MISSING
+        and envelope.reason is SnapshotReason.CAREER_NOT_SELECTED
+    )
+    if no_career != (pilot_id is None):
+        raise ValueError(
+            "career-scoped snapshots require a stable pilot context except when unselected"
+        )
+
+
+def _validate_payload_context(
+    envelope: SnapshotEnvelope, has_payload: bool
+) -> None:
+    if has_payload and envelope.source_authority not in _PAYLOAD_AUTHORITIES:
+        raise ValueError("retained payload requires a resolved data authority")
+    if has_payload and envelope.state in {
+        ScreenState.LOADING,
+        ScreenState.MISSING,
+        ScreenState.ERROR,
+    }:
+        raise ValueError("transient, missing and error snapshots cannot carry payload")
+
+
+def _selection_must_resolve(
+    envelope: SnapshotEnvelope, records: Tuple[object, ...]
+) -> bool:
+    return bool(records) or envelope.state in {ScreenState.READY, ScreenState.EMPTY}
+
+
+def _ordered_missions(
+    values: Iterable[MissionSummary], policy: MissionOrderPolicy, label: str
+) -> Tuple[MissionSummary, ...]:
+    if not isinstance(policy, MissionOrderPolicy):
+        raise TypeError("mission order policy must be a closed contract value")
+    records = _copied_immutable_tuple(values, MissionSummary, label)
+    _require_unique_ids(records, "mission_id", label)
+    for mission in records:
+        occurred_at = mission.occurred_at.value
+        if occurred_at is None:
+            raise ValueError("mission ordering requires a known event time")
+        if occurred_at.tzinfo is None or occurred_at.utcoffset() is None:
+            raise ValueError("mission ordering requires timezone-aware event times")
+
+    def event_time(mission: MissionSummary) -> datetime:
+        value = mission.occurred_at.value
+        if value is None:  # guarded above; keeps the sort key statically total
+            raise AssertionError("validated mission event time became unavailable")
+        return value
+
+    stable_ties = sorted(records, key=lambda mission: mission.mission_id.value)
+    return tuple(
+        sorted(
+            stable_ties,
+            key=event_time,
+            reverse=True,
+        )
+    )
+
+
 @dataclass(frozen=True)
 class OperationsSnapshot:
     """Dashboard/Operations (`OPR-01`) read model."""
 
     envelope: SnapshotEnvelope
+    pilot_id: Optional[PilotId]
     pilot: Optional[PilotIdentityView]
     statistics: Optional[PilotStatistics]
     recent_missions: Tuple[MissionSummary, ...]
+    mission_order_policy: MissionOrderPolicy
 
     def __post_init__(self) -> None:
+        _require_career_context(self.envelope, self.pilot_id)
+        missions = _ordered_missions(
+            self.recent_missions, self.mission_order_policy, "recent missions"
+        )
         object.__setattr__(
             self,
             "recent_missions",
-            _copied_immutable_tuple(
-                self.recent_missions, MissionSummary, "recent missions"
+            missions,
+        )
+        _require_pilot_payload_owner(self.pilot_id, self.pilot)
+        _require_owned_records(self.pilot_id, missions, "recent missions")
+        _validate_payload_context(
+            self.envelope,
+            self.pilot is not None or self.statistics is not None or bool(missions),
+        )
+        object.__setattr__(
+            self,
+            "envelope",
+            self.envelope._with_payload(
+                pilot=self.pilot,
+                statistics=self.statistics,
+                recent_missions=missions,
             ),
         )
 
@@ -482,8 +671,21 @@ class PilotDossierSnapshot:
     """Pilot Dossier (`DOS-01`) read model."""
 
     envelope: SnapshotEnvelope
+    pilot_id: Optional[PilotId]
     pilot: Optional[PilotIdentityView]
     statistics: Optional[PilotStatistics]
+
+    def __post_init__(self) -> None:
+        _require_career_context(self.envelope, self.pilot_id)
+        _require_pilot_payload_owner(self.pilot_id, self.pilot)
+        _validate_payload_context(
+            self.envelope, self.pilot is not None or self.statistics is not None
+        )
+        object.__setattr__(
+            self,
+            "envelope",
+            self.envelope._with_payload(pilot=self.pilot, statistics=self.statistics),
+        )
 
 
 @dataclass(frozen=True)
@@ -494,17 +696,33 @@ class MissionsSnapshot:
     pilot_id: Optional[PilotId]
     missions: Tuple[MissionSummary, ...]
     selected_mission_id: Optional[MissionId]
+    mission_order_policy: MissionOrderPolicy
 
     def __post_init__(self) -> None:
+        _require_career_context(self.envelope, self.pilot_id)
+        missions = _ordered_missions(
+            self.missions, self.mission_order_policy, "missions"
+        )
         object.__setattr__(
             self,
             "missions",
-            _copied_immutable_tuple(self.missions, MissionSummary, "missions"),
+            missions,
         )
-        if self.selected_mission_id is not None and not any(
-            mission.mission_id == self.selected_mission_id for mission in self.missions
+        _require_owned_records(self.pilot_id, missions, "missions")
+        _validate_payload_context(self.envelope, bool(missions))
+        if (
+            self.selected_mission_id is not None
+            and _selection_must_resolve(self.envelope, missions)
+            and not any(
+                mission.mission_id == self.selected_mission_id for mission in missions
+            )
         ):
             raise ValueError("selected mission must resolve by stable ID in the snapshot")
+        object.__setattr__(
+            self,
+            "envelope",
+            self.envelope._with_payload(missions=missions),
+        )
 
 
 @dataclass(frozen=True)
@@ -516,10 +734,20 @@ class WarDiarySnapshot:
     entries: Tuple[DiaryEntryView, ...]
 
     def __post_init__(self) -> None:
+        _require_career_context(self.envelope, self.pilot_id)
+        entries = _copied_immutable_tuple(
+            self.entries, DiaryEntryView, "diary entries"
+        )
         object.__setattr__(
             self,
             "entries",
-            _copied_immutable_tuple(self.entries, DiaryEntryView, "diary entries"),
+            entries,
+        )
+        _require_unique_ids(entries, "diary_entry_id", "diary entries")
+        _require_owned_records(self.pilot_id, entries, "diary entries")
+        _validate_payload_context(self.envelope, bool(entries))
+        object.__setattr__(
+            self, "envelope", self.envelope._with_payload(entries=entries)
         )
 
 
@@ -529,14 +757,43 @@ class SquadronSnapshot:
 
     envelope: SnapshotEnvelope
     pilot_id: Optional[PilotId]
+    selected_squadron_id: Optional[SquadronId]
     squadron: Optional[SquadronIdentityView]
     members: Tuple[SquadronMemberView, ...]
+    selected_member_id: Optional[SquadronMemberId]
 
     def __post_init__(self) -> None:
+        _require_career_context(self.envelope, self.pilot_id)
+        members = _copied_immutable_tuple(
+            self.members, SquadronMemberView, "squadron members"
+        )
         object.__setattr__(
             self,
             "members",
-            _copied_immutable_tuple(self.members, SquadronMemberView, "squadron members"),
+            members,
+        )
+        _require_unique_ids(members, "member_id", "squadron members")
+        _require_owned_records(self.pilot_id, members, "squadron members")
+        _validate_payload_context(
+            self.envelope, self.squadron is not None or bool(members)
+        )
+        if self.squadron is not None and self.squadron.squadron_id.value is not None:
+            if self.selected_squadron_id != self.squadron.squadron_id.value:
+                raise ValueError(
+                    "squadron payload owner must match the selected squadron context"
+                )
+        if (
+            self.selected_member_id is not None
+            and _selection_must_resolve(self.envelope, members)
+            and not any(
+                member.member_id == self.selected_member_id for member in members
+            )
+        ):
+            raise ValueError("selected member must resolve by stable ID in the snapshot")
+        object.__setattr__(
+            self,
+            "envelope",
+            self.envelope._with_payload(squadron=self.squadron, members=members),
         )
 
 
@@ -549,11 +806,23 @@ class SystemStatusSnapshot:
     diagnostics: Tuple[SystemDiagnosticView, ...]
 
     def __post_init__(self) -> None:
+        diagnostics = _copied_immutable_tuple(
+            self.diagnostics, SystemDiagnosticView, "system diagnostics"
+        )
         object.__setattr__(
             self,
             "diagnostics",
-            _copied_immutable_tuple(
-                self.diagnostics, SystemDiagnosticView, "system diagnostics"
+            diagnostics,
+        )
+        _require_unique_ids(diagnostics, "diagnostic_id", "system diagnostics")
+        _validate_payload_context(
+            self.envelope, self.profile.value is not None or bool(diagnostics)
+        )
+        object.__setattr__(
+            self,
+            "envelope",
+            self.envelope._with_payload(
+                profile=self.profile, diagnostics=diagnostics
             ),
         )
 

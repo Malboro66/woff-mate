@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import ast
-from dataclasses import FrozenInstanceError
+from dataclasses import FrozenInstanceError, replace
 from datetime import datetime, timedelta, timezone
 import json
 from pathlib import Path
@@ -25,6 +25,7 @@ from woff.ui_contracts import (
     Freshness,
     FreshnessPolicyId,
     MissionId,
+    MissionOrderPolicy,
     MissionSelection,
     MissionSummary,
     MissionsQueryService,
@@ -75,6 +76,7 @@ def _fixtures() -> dict[str, dict[str, Any]]:
 
 
 FIXTURES = _fixtures()
+MISSION_ORDER = MissionOrderPolicy.NEWEST_FIRST_STABLE_ID
 
 
 def _time(value: str) -> datetime:
@@ -181,6 +183,51 @@ def _mission_records(fixture_id: str = "missions-ready") -> tuple[MissionSummary
             ),
         )
         for record in fixture["data"]["records"]
+    )
+
+
+def _diary_records() -> tuple[DiaryEntryView, ...]:
+    fixture = FIXTURES["diary-ready"]
+    return tuple(
+        DiaryEntryView(
+            diary_entry_id=DiaryEntryId(record["id"]),
+            pilot_id=PilotId(record["career_id"]),
+            mission_id=FieldValue.known(MissionId(record["fields"]["mission_id"]["value"])),
+            occurred_at=FieldValue.known(_time(record["occurred_at"])),
+            narrative=FieldValue.known(record["fields"]["narrative"]["value"]),
+        )
+        for record in fixture["data"]["records"]
+    )
+
+
+def _squadron_members() -> tuple[SquadronMemberView, ...]:
+    fixture = FIXTURES["squadron-ready"]
+    return tuple(
+        SquadronMemberView(
+            member_id=SquadronMemberId(record["id"]),
+            pilot_id=PilotId(record["career_id"]),
+            display_name=FieldValue.known(record["fields"]["display_name"]["value"]),
+            role=FieldValue.known(record["fields"]["role"]["value"]),
+            transfer_status=(
+                FieldValue.known(record["fields"]["transfer_status"]["value"])
+                if record["fields"]["transfer_status"]["unavailable_reason"] is None
+                else FieldValue.unavailable(
+                    _field_reason(record["fields"]["transfer_status"]["unavailable_reason"])
+                )
+            ),
+        )
+        for record in fixture["data"]["records"]
+    )
+
+
+def _system_diagnostics() -> tuple[SystemDiagnosticView, ...]:
+    record = FIXTURES["settings-ready"]["data"]["records"][0]
+    return (
+        SystemDiagnosticView(
+            diagnostic_id=SystemDiagnosticId(record["id"]),
+            observed_at=FieldValue.known(_time(record["occurred_at"])),
+            code=SystemDiagnosticCode.NO_LIVE_SERVICE,
+        ),
     )
 
 
@@ -357,14 +404,15 @@ def test_fixture_backed_screen_values_are_frozen_and_nested_collections_are_tupl
     pilot = _pilot()
     stats = _statistics()
     operations = OperationsSnapshot(
-        _envelope("pilot-ready"), pilot, stats, cast(Any, [])
+        _envelope("pilot-ready"), pilot.pilot_id, pilot, stats, cast(Any, []), MISSION_ORDER
     )
-    dossier = PilotDossierSnapshot(_envelope("pilot-ready"), pilot, stats)
+    dossier = PilotDossierSnapshot(_envelope("pilot-ready"), pilot.pilot_id, pilot, stats)
     missions = MissionsSnapshot(
         _envelope("missions-ready"),
         pilot.pilot_id,
         cast(Any, list(_mission_records())),
         None,
+        MISSION_ORDER,
     )
 
     diary_fixture = FIXTURES["diary-ready"]
@@ -402,11 +450,13 @@ def test_fixture_backed_screen_values_are_frozen_and_nested_collections_are_tupl
     squadron = SquadronSnapshot(
         _envelope("squadron-ready"),
         pilot.pilot_id,
+        None,
         SquadronIdentityView(
             squadron_id=FieldValue.unavailable(UnavailableReason.NOT_SUPPLIED),
             display_name=_field("squadron-ready", "squadron"),
         ),
         cast(Any, members),
+        None,
     )
 
     settings_record = FIXTURES["settings-ready"]["data"]["records"][0]
@@ -429,7 +479,8 @@ def test_fixture_backed_screen_values_are_frozen_and_nested_collections_are_tupl
     )
 
     assert operations.recent_missions == ()
-    assert operations.envelope == _envelope("pilot-ready")
+    assert operations.envelope.state is ScreenState.READY
+    assert operations.envelope.completeness is Completeness.PARTIAL
     assert dossier.pilot == pilot
     assert dossier.envelope == operations.envelope
     assert isinstance(missions.missions, tuple)
@@ -452,9 +503,375 @@ def test_selected_mission_is_an_explicit_stable_id_not_list_position() -> None:
         PilotId(fixture["career_id"]),
         _mission_records("mission-detail-ready"),
         selected,
+        MISSION_ORDER,
     )
     assert snapshot.selected_mission_id == MissionId("synthetic-mission-02")
     assert snapshot.missions[1].mission_id == snapshot.selected_mission_id
+
+
+def test_child_records_cannot_cross_their_snapshot_owner_context() -> None:
+    pilot = _pilot()
+    missions = _mission_records()
+    foreign_mission = replace(missions[0], pilot_id=PilotId("synthetic-career-foreign"))
+    with pytest.raises(ValueError, match="owner"):
+        MissionsSnapshot(
+            _envelope("missions-ready"),
+            pilot.pilot_id,
+            (foreign_mission,),
+            None,
+            MISSION_ORDER,
+        )
+    with pytest.raises(ValueError, match="owner"):
+        OperationsSnapshot(
+            _envelope("pilot-ready"),
+            pilot.pilot_id,
+            pilot,
+            _statistics(),
+            (foreign_mission,),
+            MISSION_ORDER,
+        )
+
+    foreign_diary = replace(
+        _diary_records()[0], pilot_id=PilotId("synthetic-career-foreign")
+    )
+    with pytest.raises(ValueError, match="owner"):
+        WarDiarySnapshot(_envelope("diary-ready"), pilot.pilot_id, (foreign_diary,))
+
+    foreign_member = replace(
+        _squadron_members()[0], pilot_id=PilotId("synthetic-career-foreign")
+    )
+    with pytest.raises(ValueError, match="owner"):
+        SquadronSnapshot(
+            _envelope("squadron-ready"),
+            pilot.pilot_id,
+            None,
+            None,
+            (foreign_member,),
+            None,
+        )
+
+    foreign_pilot = replace(pilot, pilot_id=PilotId("synthetic-career-foreign"))
+    with pytest.raises(ValueError, match="owner"):
+        OperationsSnapshot(
+            _envelope("pilot-ready"),
+            pilot.pilot_id,
+            foreign_pilot,
+            _statistics(),
+            (),
+            MISSION_ORDER,
+        )
+    with pytest.raises(ValueError, match="owner"):
+        PilotDossierSnapshot(
+            _envelope("pilot-ready"), pilot.pilot_id, foreign_pilot, _statistics()
+        )
+
+
+def test_career_selection_is_independent_of_optional_payload_during_transitions() -> None:
+    selected = PilotId(FIXTURES["loading-selected"]["career_id"])
+    operations = OperationsSnapshot(
+        _envelope("loading-selected"), selected, None, None, (), MISSION_ORDER
+    )
+    dossier = PilotDossierSnapshot(
+        _envelope("error-query-selected"), selected, None, None
+    )
+    assert operations.pilot_id == selected
+    assert dossier.pilot_id == selected
+    assert operations.pilot is None and dossier.pilot is None
+
+    unavailable = PilotDossierSnapshot(
+        _envelope("unavailable-source-selected"), selected, None, None
+    )
+    assert unavailable.pilot_id == selected
+
+    with pytest.raises(ValueError, match="stable pilot context"):
+        PilotDossierSnapshot(_envelope("pilot-ready"), None, None, _statistics())
+
+    unselected = OperationsSnapshot(
+        _envelope("missing-career"), None, None, None, (), MISSION_ORDER
+    )
+    assert unselected.pilot_id is None
+
+
+def test_selected_detail_ids_survive_payload_free_transitions() -> None:
+    pilot_id = PilotId(FIXTURES["loading-selected"]["career_id"])
+    mission_id = MissionId(FIXTURES["mission-detail-ready"]["subject_id"])
+    mission = MissionsSnapshot(
+        _envelope("loading-selected"), pilot_id, (), mission_id, MISSION_ORDER
+    )
+    assert mission.selected_mission_id == mission_id
+
+    member_id = _squadron_members()[1].member_id
+    squadron_id = SquadronId("synthetic-squadron-01")
+    squadron = SquadronSnapshot(
+        _envelope("unavailable-source-selected"),
+        pilot_id,
+        squadron_id,
+        None,
+        (),
+        member_id,
+    )
+    assert squadron.selected_member_id == member_id
+    assert squadron.selected_squadron_id == squadron_id
+
+
+def test_selected_detail_ids_must_resolve_when_authoritative_payload_is_usable() -> None:
+    pilot_id = PilotId(FIXTURES["missions-ready"]["career_id"])
+    with pytest.raises(ValueError, match="selected mission"):
+        MissionsSnapshot(
+            _envelope("missions-ready"),
+            pilot_id,
+            _mission_records(),
+            MissionId("synthetic-mission-not-present"),
+            MISSION_ORDER,
+        )
+    with pytest.raises(ValueError, match="selected member"):
+        SquadronSnapshot(
+            _envelope("squadron-ready"),
+            pilot_id,
+            None,
+            None,
+            _squadron_members(),
+            SquadronMemberId("synthetic-member-not-present"),
+        )
+    with pytest.raises(ValueError, match="squadron payload owner"):
+        SquadronSnapshot(
+            _envelope("squadron-ready"),
+            pilot_id,
+            SquadronId("synthetic-squadron-other"),
+            SquadronIdentityView(
+                squadron_id=FieldValue.known(SquadronId("synthetic-squadron-01")),
+                display_name=FieldValue.known("Synthetic Squadron Cedar"),
+            ),
+            _squadron_members(),
+            None,
+        )
+
+
+def test_expired_snapshot_and_freshness_semantics_are_cross_field_coherent() -> None:
+    expired = _envelope("pilot-stale")
+    with pytest.raises(ValueError, match="expired"):
+        replace(expired, freshness=Freshness.CURRENT)
+    with pytest.raises(ValueError, match="authority"):
+        replace(expired, source_authority=SourceAuthority.UNRESOLVED)
+    with pytest.raises(ValueError, match="stale"):
+        replace(_envelope("pilot-ready"), freshness=Freshness.STALE)
+    with pytest.raises(ValueError, match="observation"):
+        replace(
+            expired,
+            observed_at=FieldValue.unavailable(UnavailableReason.UNKNOWN),
+        )
+    with pytest.raises(ValueError, match="unknown freshness"):
+        replace(
+            _envelope("unavailable-source-selected"),
+            observed_at=FieldValue.known(datetime(2026, 1, 1, tzinfo=timezone.utc)),
+            freshness=Freshness.CURRENT,
+        )
+
+
+def test_nested_unavailable_fields_are_authoritative_for_completeness() -> None:
+    partial_pilot = _pilot("pilot-partial-conflict")
+    source_envelope = _envelope("pilot-partial-conflict")
+    snapshot = PilotDossierSnapshot(
+        source_envelope,
+        partial_pilot.pilot_id,
+        partial_pilot,
+        _statistics("pilot-partial-conflict"),
+    )
+    assert snapshot.envelope.completeness is Completeness.PARTIAL
+    assert FieldUnavailable(
+        "pilot.affiliation", UnavailableReason.SOURCE_CONFLICT
+    ) in snapshot.envelope.unavailable_fields
+    assert snapshot.envelope.observed_at == source_envelope.observed_at
+    assert snapshot.envelope.source_authority is source_envelope.source_authority
+    assert snapshot.envelope.contract_version == source_envelope.contract_version
+    assert snapshot.envelope.warnings == source_envelope.warnings
+
+
+def test_nested_collection_gaps_drive_completeness_across_every_screen_contract() -> None:
+    pilot = _pilot()
+    mission = replace(
+        _mission_records()[0], title=FieldValue.unavailable(UnavailableReason.UNKNOWN)
+    )
+    diary = replace(
+        _diary_records()[0],
+        narrative=FieldValue.unavailable(UnavailableReason.TRUNCATED),
+    )
+    member = replace(
+        _squadron_members()[0],
+        transfer_status=FieldValue.unavailable(UnavailableReason.UNKNOWN),
+    )
+    snapshots = (
+        OperationsSnapshot(
+            _envelope("pilot-ready"),
+            pilot.pilot_id,
+            pilot,
+            _statistics(),
+            (mission,),
+            MISSION_ORDER,
+        ),
+        MissionsSnapshot(
+            _envelope("missions-ready"),
+            pilot.pilot_id,
+            (mission,),
+            None,
+            MISSION_ORDER,
+        ),
+        WarDiarySnapshot(
+            _envelope("diary-ready"), pilot.pilot_id, (diary,)
+        ),
+        SquadronSnapshot(
+            _envelope("squadron-ready"),
+            pilot.pilot_id,
+            None,
+            None,
+            (member,),
+            None,
+        ),
+        SystemStatusSnapshot(
+            _envelope("pilot-ready"),
+            FieldValue.unavailable(UnavailableReason.NOT_SUPPLIED),
+            (),
+        ),
+    )
+    expected_paths = (
+        "recent_missions.title",
+        "missions.title",
+        "entries.narrative",
+        "members.transfer_status",
+        "profile",
+    )
+    for snapshot, expected_path in zip(snapshots, expected_paths):
+        assert snapshot.envelope.completeness is Completeness.PARTIAL
+        assert expected_path in {
+            item.field for item in snapshot.envelope.unavailable_fields
+        }
+
+
+@pytest.mark.parametrize("fixture_id", ["pilot-ready", "empty-records"])
+@pytest.mark.parametrize(
+    "authority",
+    [
+        SourceAuthority.UNRESOLVED,
+        SourceAuthority.APPLICATION_QUERY,
+        SourceAuthority.SYNTHETIC_QUERY,
+    ],
+)
+def test_successful_snapshots_reject_non_data_authority(
+    fixture_id: str, authority: SourceAuthority
+) -> None:
+    with pytest.raises(ValueError, match="authority"):
+        replace(_envelope(fixture_id), source_authority=authority)
+
+
+def test_retained_payload_rejects_unresolved_authority() -> None:
+    pilot = _pilot()
+    envelope = replace(
+        _envelope("unavailable-source-selected"),
+        source_authority=SourceAuthority.UNRESOLVED,
+    )
+    with pytest.raises(ValueError, match="authority"):
+        PilotDossierSnapshot(envelope, pilot.pilot_id, pilot, _statistics())
+
+
+def test_mission_collections_have_deterministic_ordering_and_stable_ties() -> None:
+    pilot_id = PilotId(FIXTURES["missions-ready"]["career_id"])
+    reversed_records = tuple(reversed(_mission_records()))
+    snapshot = MissionsSnapshot(
+        _envelope("missions-ready"), pilot_id, reversed_records, None, MISSION_ORDER
+    )
+    assert tuple(item.mission_id.value for item in snapshot.missions) == (
+        "synthetic-mission-01",
+        "synthetic-mission-02",
+    )
+    assert snapshot.mission_order_policy.value == "newest-first-stable-id"
+
+    later = replace(
+        reversed_records[0],
+        mission_id=MissionId("synthetic-mission-00-later"),
+        occurred_at=FieldValue.known(
+            cast(datetime, reversed_records[0].occurred_at.value) + timedelta(days=1)
+        ),
+    )
+    operations = OperationsSnapshot(
+        _envelope("pilot-ready"),
+        pilot_id,
+        None,
+        None,
+        (later, *reversed_records),
+        MISSION_ORDER,
+    )
+    assert tuple(item.mission_id.value for item in operations.recent_missions) == (
+        "synthetic-mission-00-later",
+        "synthetic-mission-01",
+        "synthetic-mission-02",
+    )
+
+    unavailable_b = replace(
+        reversed_records[0],
+        mission_id=MissionId("synthetic-mission-unavailable-b"),
+        occurred_at=FieldValue.unavailable(UnavailableReason.UNKNOWN),
+    )
+    with pytest.raises(ValueError, match="known event time"):
+        MissionsSnapshot(
+            _envelope("missions-ready"),
+            pilot_id,
+            (unavailable_b, reversed_records[0]),
+            None,
+            MISSION_ORDER,
+        )
+
+
+@pytest.mark.parametrize(
+    "collection_name",
+    ["operations missions", "missions", "diary entries", "squadron members", "diagnostics"],
+)
+def test_every_identifiable_snapshot_collection_rejects_duplicate_ids(
+    collection_name: str,
+) -> None:
+    pilot = _pilot()
+    if collection_name == "operations missions":
+        item = _mission_records()[0]
+        build = lambda: OperationsSnapshot(  # noqa: E731
+            _envelope("pilot-ready"),
+            pilot.pilot_id,
+            pilot,
+            _statistics(),
+            (item, item),
+            MISSION_ORDER,
+        )
+    elif collection_name == "missions":
+        item = _mission_records()[0]
+        build = lambda: MissionsSnapshot(  # noqa: E731
+            _envelope("missions-ready"),
+            pilot.pilot_id,
+            (item, item),
+            None,
+            MISSION_ORDER,
+        )
+    elif collection_name == "diary entries":
+        item = _diary_records()[0]
+        build = lambda: WarDiarySnapshot(  # noqa: E731
+            _envelope("diary-ready"), pilot.pilot_id, (item, item)
+        )
+    elif collection_name == "squadron members":
+        item = _squadron_members()[0]
+        build = lambda: SquadronSnapshot(  # noqa: E731
+            _envelope("squadron-ready"),
+            pilot.pilot_id,
+            None,
+            None,
+            (item, item),
+            None,
+        )
+    else:
+        item = _system_diagnostics()[0]
+        build = lambda: SystemStatusSnapshot(  # noqa: E731
+            _envelope("settings-ready"),
+            _field("settings-ready", "profile"),
+            (item, item),
+        )
+    with pytest.raises(ValueError, match="duplicate"):
+        build()
 
 
 def test_sanitized_failures_are_closed_and_discard_exception_details() -> None:
@@ -516,6 +933,7 @@ def test_query_protocols_return_snapshots_without_direct_presentation_access() -
                 request.selection.pilot_id,
                 _mission_records(),
                 request.selection.mission_id,
+                MISSION_ORDER,
             )
 
         def cancel(self, request: CancellationRequest) -> None:
