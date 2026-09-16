@@ -1,0 +1,247 @@
+"""Disposable #82 experiment recipe. Copy to ignored build/issue82/shell.py.
+
+Never import this into woff. Reads only the adjacent validated fixture catalog.
+"""
+import time
+
+SCRIPT_START = time.perf_counter()
+import json
+import os
+import sys
+from pathlib import Path
+
+IMPORT_START = time.perf_counter()
+import PySide6
+from PySide6 import QtCore, QtGui, QtWidgets
+
+IMPORT_SECONDS = time.perf_counter() - IMPORT_START
+from PySide6.QtTest import QTest
+
+NAV = ['Operations', 'Pilot Dossier', 'Missions', 'Squadron', 'War Diary', 'Reports']
+FIXTURES = ['pilot-ready', 'loading-selected', 'empty-records', 'error-query-selected']
+catalog = json.loads(Path(__file__).with_name('catalog.json').read_text(encoding='utf-8'))
+fixtures = {f['id']: f for f in catalog['fixtures'] if f['id'] in FIXTURES}
+assert set(fixtures) == set(FIXTURES)
+assert all(f['synthetic'] and f['label'] == 'Synthetic' for f in fixtures.values())
+messages = []
+
+
+def message_handler(kind, context, message):
+    # Keep original text in the local result; the parent sanitizes before archive.
+    messages.append({'kind': kind.name, 'message': message})
+
+
+QtCore.qInstallMessageHandler(message_handler)
+app = QtWidgets.QApplication([])
+app.setApplicationName('Synthetic issue 82 spike')
+app.setStyle('Fusion')
+app.setFont(QtGui.QFont('Segoe UI', 12))
+app.setStyleSheet('''
+QWidget { background: #18231F; color: #F4EFE2; }
+QPushButton, QComboBox { padding: 6px; border: 2px solid #C2BCAF; }
+QPushButton:focus, QComboBox:focus, QLabel:focus {
+    border: 3px solid #F7F2E6; background: #46534C;
+}
+''')
+
+
+class Shell(QtWidgets.QWidget):
+    def __init__(self):
+        super().__init__()
+        self.first_paint = None
+        self.setWindowTitle('Synthetic | disposable Qt Widgets spike #82')
+        self.setAccessibleName('Synthetic fixture navigation experiment')
+        layout = QtWidgets.QHBoxLayout(self)
+        rail = QtWidgets.QVBoxLayout()
+        layout.addLayout(rail)
+        self.buttons = []
+        for name in NAV + ['Data & System Status']:
+            if name == 'Data & System Status':
+                rail.addStretch()
+            button = QtWidgets.QPushButton(name.replace('&', '&&'))
+            button.setAccessibleName(name)
+            button.setMinimumWidth(button.fontMetrics().horizontalAdvance(name) + 24)
+            button.clicked.connect(lambda checked=False, n=name: self.navigate(n))
+            rail.addWidget(button)
+            self.buttons.append(button)
+        content = QtWidgets.QVBoxLayout()
+        layout.addLayout(content, 1)
+        self.heading = QtWidgets.QLabel('Operations')
+        self.heading.setFocusPolicy(QtCore.Qt.FocusPolicy.ClickFocus)
+        self.heading.setAccessibleName('Operations heading')
+        content.addWidget(self.heading)
+        self.selector = QtWidgets.QComboBox()
+        self.selector.setAccessibleName('Synthetic fixture state')
+        self.selector.addItems(FIXTURES)
+        self.selector.currentTextChanged.connect(self.render)
+        content.addWidget(self.selector)
+        self.identity = QtWidgets.QLabel()
+        self.identity.setWordWrap(True)
+        content.addWidget(self.identity)
+        self.body = QtWidgets.QLabel()
+        self.body.setWordWrap(True)
+        content.addWidget(self.body)
+        self.retry = QtWidgets.QPushButton('Retry view')
+        self.retry.setAccessibleName('Retry view')
+        self.retry.clicked.connect(self.retry_view)
+        content.addWidget(self.retry)
+        content.addStretch()
+        chain = self.buttons + [self.selector, self.retry]
+        for left, right in zip(chain, chain[1:]):
+            QtWidgets.QWidget.setTabOrder(left, right)
+        area = app.primaryScreen().availableGeometry()
+        self.resize(min(960, area.width() - 40), min(680, area.height() - 60))
+        self.move(area.topLeft() + QtCore.QPoint(12, 12))
+        self.render(FIXTURES[0])
+
+    def paintEvent(self, event):
+        super().paintEvent(event)
+        if self.first_paint is None:
+            # Completion of QWidget paint handling, not photon/display latency.
+            self.first_paint = time.perf_counter()
+            print(json.dumps({'event': 'first_paint', 'clock': self.first_paint}), flush=True)
+
+    def navigate(self, name):
+        self.heading.setText(name)
+        self.heading.setAccessibleName(name + ' heading')
+        self.render(self.selector.currentText())
+        self.heading.setFocus(QtCore.Qt.FocusReason.OtherFocusReason)
+
+    def render(self, fixture_id):
+        f = fixtures[fixture_id]
+        self.identity.setText(f"Synthetic | {fixture_id} | {f['state']}\n{f['career_id']}")
+        self.identity.setAccessibleName(self.identity.text())
+        dashboard = self.heading.text() == 'Operations'
+        self.selector.setEnabled(dashboard)
+        self.retry.setVisible(dashboard and f['state'] == 'error')
+        if not dashboard:
+            text = 'Synthetic navigation placeholder. No service connected.'
+        elif f['state'] == 'ready':
+            fields = f['data']['fields']
+            text = '\n'.join(f"{key}: {fields[key]['value']}" for key in
+                             ['display_name', 'source_slot', 'squadron', 'missions', 'confirmed_victories'])
+            text += f"\nObserved: {f['observed_at']} | Freshness: {f['freshness']}\nAuthority: {f['source_authority']}"
+        elif f['state'] == 'loading':
+            text = 'Loading Operations. Synthetic request pending.'
+        elif f['state'] == 'empty':
+            text = 'No records in this successful synthetic query.'
+        else:
+            text = '\n'.join(w['message'] for w in f['warnings'])
+        self.body.setText(text)
+        self.body.setAccessibleName(text)
+        QtGui.QAccessible.updateAccessibility(
+            QtGui.QAccessibleEvent(self.body, QtGui.QAccessible.Event.NameChanged))
+
+    def retry_view(self):
+        # Deterministic fixture transition only; no service/query/retry implementation.
+        self.selector.setCurrentIndex(1)
+        QtCore.QTimer.singleShot(100, lambda: self.selector.setCurrentIndex(0))
+
+
+window = Shell()
+if '--uia' in sys.argv:
+    window.selector.setCurrentIndex(3)
+window.show()
+if '--uia' in sys.argv:
+    print(json.dumps({'event': 'window', 'hwnd': int(window.winId())}), flush=True)
+
+
+def audit():
+    """Qt event-level checks; these do not certify native AT announcements."""
+    records = []
+    controls = window.buttons + [window.selector, window.retry]
+    window.activateWindow()
+    window.raise_()
+    QTest.qWait(100)
+    window.selector.setCurrentIndex(3)
+    window.buttons[0].setFocus()
+    QTest.qWait(30)
+    observed = []
+    for expected in controls:
+        focused = app.focusWidget()
+        observed.append(focused.accessibleName() if focused else None)
+        QTest.keyClick(focused or window, QtCore.Qt.Key.Key_Tab)
+    expected_order = [w.accessibleName() for w in controls]
+    records.append({'check': 'tab_order', 'observed': observed,
+                    'expected': expected_order, 'passed': observed == expected_order})
+    reverse = []
+    for expected in reversed(controls):
+        QTest.keyClick(app.focusWidget() or window, QtCore.Qt.Key.Key_Tab,
+                       QtCore.Qt.KeyboardModifier.ShiftModifier)
+        focused = app.focusWidget()
+        reverse.append(focused.accessibleName() if focused else None)
+    records.append({'check': 'reverse_tab_order', 'observed': reverse,
+                    'passed': reverse == list(reversed(expected_order))})
+    for i, button in enumerate(window.buttons):
+        # Reach each navigation target through Tab events, starting at first nav.
+        window.buttons[0].setFocus()
+        for _ in range(i):
+            QTest.keyClick(app.focusWidget() or window, QtCore.Qt.Key.Key_Tab)
+        QTest.keyClick(app.focusWidget() or window, QtCore.Qt.Key.Key_Space)
+        records.append({'check': 'navigation', 'name': button.accessibleName(),
+                        'passed': window.heading.text() == button.accessibleName() and window.heading.hasFocus()})
+    window.buttons[0].setFocus()
+    QTest.keyClick(window.buttons[0], QtCore.Qt.Key.Key_Space)
+    window.selector.setCurrentIndex(3)
+    window.buttons[0].setFocus()
+    for _ in range(8):
+        QTest.keyClick(app.focusWidget() or window, QtCore.Qt.Key.Key_Tab)
+    retry_focus = window.retry.hasFocus()
+    QTest.keyClick(app.focusWidget() or window, QtCore.Qt.Key.Key_Space)
+    loading = window.selector.currentText() == 'loading-selected'
+    QTest.qWait(150)
+    records.append({'check': 'keyboard_retry', 'passed': retry_focus and loading and
+                    window.selector.currentText() == 'pilot-ready'})
+    for index, fixture_id in enumerate(FIXTURES):
+        window.selector.setCurrentIndex(index)
+        QTest.qWait(30)
+        visible = [w for w in controls + [window.identity, window.body, window.heading] if w.isVisible()]
+        for widget in visible:
+            top = widget.mapTo(window, QtCore.QPoint(0, 0))
+            rect = QtCore.QRect(top, widget.size())
+            interface = QtGui.QAccessible.queryAccessibleInterface(widget)
+            fits = window.rect().contains(rect)
+            if isinstance(widget, QtWidgets.QPushButton):
+                fits = fits and widget.fontMetrics().horizontalAdvance(widget.accessibleName()) + 18 <= widget.width()
+            if isinstance(widget, QtWidgets.QLabel) and widget.wordWrap():
+                fits = fits and widget.heightForWidth(widget.width()) <= widget.height()
+            records.append({'check': 'geometry_and_semantics', 'fixture': fixture_id,
+                            'name': widget.accessibleName(), 'role': interface.role().name if interface else None,
+                            'rect': [rect.x(), rect.y(), rect.width(), rect.height()],
+                            'passed': fits and interface is not None and bool(interface.text(QtGui.QAccessible.Text.Name))})
+        if '--capture' in sys.argv:
+            window.buttons[0].setFocus()
+            QTest.qWait(30)
+            window.grab().save(str(Path('captures') / (fixture_id + '.png')))
+    window.selector.setCurrentIndex(0)
+    return records
+
+
+def finish():
+    import psutil
+    memory = psutil.Process().memory_info()
+    result = {
+        'python': sys.version.split()[0], 'pyside': PySide6.__version__,
+        'qt': QtCore.qVersion(), 'os_build': sys.getwindowsversion().build,
+        'platform_plugin': app.platformName(), 'dpr': window.devicePixelRatioF(),
+        'logical_window': [window.width(), window.height()],
+        'logical_screen': [app.primaryScreen().size().width(), app.primaryScreen().size().height()],
+        'import_seconds': IMPORT_SECONDS,
+        'script_to_paint_seconds': window.first_paint - SCRIPT_START if window.first_paint else None,
+        'rss_bytes': memory.rss, 'private_bytes': memory.private,
+        'checks': audit() if '--audit' in sys.argv else [],
+        'messages': messages,
+        'forbidden_imports': sorted(n for n in sys.modules if n.split('.')[0] in
+            {'woff', 'sqlite3', '_sqlite3', 'watchdog', 'PyQt6', 'PyQt5', 'PySide2'}),
+    }
+    print(json.dumps({'event': 'result', 'result': result}), flush=True)
+    app.exit(0 if window.first_paint and not result['forbidden_imports'] else 2)
+
+
+QtCore.QTimer.singleShot(12000 if '--uia' in sys.argv else 3000, finish)
+QtCore.QTimer.singleShot(20000, lambda: app.exit(3))
+exit_code = app.exec()
+# Qt may log plugin unloads after Python globals have been finalized. Do not
+# leave a Python callback registered during native Qt teardown.
+QtCore.qInstallMessageHandler(None)
+sys.exit(exit_code)

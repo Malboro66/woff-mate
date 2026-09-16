@@ -1,0 +1,27 @@
+{
+  "310": [
+    "missing module named pep517",
+    "missing module named org",
+    "missing module named pwd",
+    "missing module named grp",
+    "missing module named 'org.python'",
+    "missing module named posix",
+    "missing module named resource",
+    "missing module named _frozen_importlib_external",
+    "excluded module named _frozen_importlib",
+    "missing module named _posixsubprocess",
+    "missing module named fcntl"
+  ],
+  "314": [
+    "missing module named 'collections.abc'",
+    "missing module named pwd",
+    "missing module named grp",
+    "missing module named posix",
+    "missing module named resource",
+    "missing module named _frozen_importlib_external",
+    "excluded module named _frozen_importlib",
+    "missing module named _posixsubprocess",
+    "missing module named fcntl",
+    "missing module named _scproxy"
+  ]
+}

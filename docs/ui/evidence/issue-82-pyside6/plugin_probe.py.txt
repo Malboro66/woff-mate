@@ -1,0 +1,45 @@
+"""Explicit plugin diagnostics, outside benchmark series; no raw paths archived."""
+import json
+import os
+from pathlib import Path
+import re
+import subprocess
+import sys
+
+
+def stderr_is_accepted(stderr):
+    """Accept only Qt's explicit library-unload debug diagnostics."""
+    lines = [line.strip() for line in stderr.splitlines() if line.strip()]
+    pattern = re.compile(r'^qt\.core\.library: "[^"\r\n]+" unloaded library$')
+    return not lines or all(pattern.fullmatch(line) for line in lines)
+
+
+results = []
+for suffix in (['310', '310', '310'] if '--source' in sys.argv else ['310', '310', '310', '314', '314', '314']):
+    env = {k: v for k, v in os.environ.items() if not k.startswith(('QT_', 'QML_', 'PYTHON'))}
+    env.update(QT_DEBUG_PLUGINS='1', QT_QPA_PLATFORM='windows', QT_SCALE_FACTOR='1',
+               PATH=str(Path(os.environ['SystemRoot']) / 'System32'))
+    command = ([str(Path('py310/Scripts/python.exe').resolve()), 'shell.py'] if '--source' in sys.argv
+               else [str(Path(f'dist{suffix}/Issue82/Issue82.exe').resolve())])
+    result = subprocess.run(command,
+                            capture_output=True, text=True, encoding='utf-8', env=env, timeout=30)
+    events = [json.loads(line) for line in result.stdout.splitlines() if line.startswith('{')]
+    record = next(e['result'] for e in events if e.get('event') == 'result')
+    messages = record['messages']
+    names = sorted({match for message in messages for match in
+                    re.findall(r'([A-Za-z0-9_-]+\.dll)', message['message'])})
+    loaded = sorted({match for message in messages if 'loaded library' in message['message']
+                     for match in re.findall(r'([A-Za-z0-9_-]+\.dll)', message['message'])})
+    warning_kinds = [m['kind'] for m in messages if m['kind'] not in ('QtDebugMsg', 'QtInfoMsg')]
+    stderr_nonempty = bool(result.stderr.strip())
+    stderr_accepted = stderr_is_accepted(result.stderr)
+    results.append({'python': suffix, 'exit_code': result.returncode,
+                    'message_count': len(messages), 'warning_kinds': warning_kinds,
+                    'discovered_dll_basenames': names, 'loaded_dll_basenames': loaded,
+                    'stderr_nonempty': stderr_nonempty,
+                    'stderr_only_library_unload': stderr_nonempty and stderr_accepted,
+                    'platform_plugin': record['platform_plugin']})
+Path('source-plugin-discovery.json' if '--source' in sys.argv else 'plugin-discovery.json').write_text(
+    json.dumps(results, indent=2) + '\n', encoding='utf-8')
+assert all(r['exit_code'] == 0 and not r['warning_kinds'] and
+           (not r['stderr_nonempty'] or r['stderr_only_library_unload']) for r in results)

@@ -1,0 +1,26 @@
+[
+  {
+    "python": "310",
+    "source_artifact": "dist310/Issue82",
+    "relocated_artifact": "relocation with spaces/package310",
+    "source_sha256": "9eca49013b91d38db43ce93330f5faf560b57129fd11128cba90ce86e16a6518",
+    "artifact_inventory_sha256": "4b5a4f278ef944d9a2859ebf40067eb58a062fdebac280e052396aee67dc06ff",
+    "artifact_files": 167,
+    "artifact_bytes": 110079991,
+    "result": "relocated310.json",
+    "result_json_sha256": "5c3793118e9975b6a79662300f351042341420d462c652d7b4dbbc45dd27dbb4",
+    "binding": "post-review verification of retained source/relocated artifacts and historical observation"
+  },
+  {
+    "python": "314",
+    "source_artifact": "dist314/Issue82",
+    "relocated_artifact": "relocation with spaces/package314",
+    "source_sha256": "9eca49013b91d38db43ce93330f5faf560b57129fd11128cba90ce86e16a6518",
+    "artifact_inventory_sha256": "089bfac50e70dd14a8dbe97285ff8791556d2263f5c61d2b579f78bad3b4081f",
+    "artifact_files": 170,
+    "artifact_bytes": 116825433,
+    "result": "relocated314.json",
+    "result_json_sha256": "0a37feacff6dd46bdfa8e9990a6ab326f7a638f83fb21cd9adf2a2f8310c380a",
+    "binding": "post-review verification of retained source/relocated artifacts and historical observation"
+  }
+]

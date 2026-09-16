@@ -1,0 +1,79 @@
+"""Copy each exact frozen build to a path with spaces and measure it.
+
+Run from ignored build/issue82 after run.py has produced build-inventory.json.
+Historical relocated*.json observations remain archived; rerunning this recipe
+creates new observations and relocation-provenance.json for comparison.
+"""
+import hashlib
+import json
+from pathlib import Path
+import shutil
+import subprocess
+import sys
+
+
+def inventory(root):
+    return [{'path': path.relative_to(root).as_posix(), 'bytes': path.stat().st_size,
+             'sha256': hashlib.sha256(path.read_bytes()).hexdigest()}
+            for path in sorted(root.rglob('*')) if path.is_file()]
+
+
+def inventory_sha256(files):
+    payload = json.dumps(files, sort_keys=True, separators=(',', ':')).encode()
+    return hashlib.sha256(payload).hexdigest()
+
+
+def json_sha256(path):
+    payload = json.dumps(json.loads(path.read_text(encoding='utf-8-sig')),
+                         sort_keys=True, separators=(',', ':')).encode()
+    return hashlib.sha256(payload).hexdigest()
+
+
+def copy_and_verify(source, destination, expected_files, relocation_root):
+    source = source.resolve()
+    destination = destination.resolve()
+    assert destination.parent == relocation_root.resolve(), destination
+    assert inventory(source) == expected_files
+    if destination.exists():
+        shutil.rmtree(destination)
+    shutil.copytree(source, destination)
+    assert inventory(destination) == expected_files
+    return destination
+
+
+builds = json.loads(Path('build-inventory.json').read_text(encoding='utf-8'))
+assert [build['python'] for build in builds] == ['310', '314']
+shell_sha256 = hashlib.sha256(Path('shell.py').read_bytes()).hexdigest()
+relocation_root = (Path.cwd() / 'relocation with spaces').resolve()
+relocation_root.mkdir(exist_ok=True)
+provenance = []
+for build in builds:
+    suffix = build['python']
+    assert build['exit_code'] == 0 and build['source_sha256'] == shell_sha256
+    expected_files = build['files']
+    source = Path(f'dist{suffix}/Issue82')
+    destination = copy_and_verify(source, relocation_root / f'package{suffix}',
+                                  expected_files, relocation_root)
+    label = f'relocated{suffix}'
+    local_result = relocation_root / f'{label}.json'
+    if local_result.exists():
+        local_result.unlink()
+    command = [sys.executable, str(Path('measure.py').resolve()),
+               str((destination / 'Issue82.exe').resolve()), label]
+    completed = subprocess.run(command, cwd=relocation_root)
+    assert completed.returncode == 0 and local_result.is_file()
+    archived_result = Path(f'{label}.json')
+    shutil.copyfile(local_result, archived_result)
+    provenance.append({
+        'python': suffix,
+        'source_artifact': f'dist{suffix}/Issue82',
+        'relocated_artifact': f'relocation with spaces/package{suffix}',
+        'source_sha256': build['source_sha256'],
+        'artifact_inventory_sha256': inventory_sha256(expected_files),
+        'artifact_files': len(expected_files),
+        'artifact_bytes': sum(item['bytes'] for item in expected_files),
+        'result': archived_result.name,
+        'result_json_sha256': json_sha256(archived_result),
+    })
+Path('relocation-provenance.json').write_text(
+    json.dumps(provenance, indent=2) + '\n', encoding='utf-8')
