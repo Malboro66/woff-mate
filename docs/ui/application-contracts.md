@@ -21,13 +21,13 @@ dimensions prevent unlike conditions from being collapsed:
 | Dimension | Values and rule |
 |---|---|
 | Screen state | `loading`, `ready`, `empty`, `missing`, `stale/unavailable`, `error` |
-| Freshness | `current`, `stale`, `unknown`; current and stale require an aware observation time, `snapshot_expired` requires `stale`, and other unavailable outcomes require `unknown` |
+| Freshness | `current`, `stale`, `unknown`; current and stale require an aware observation time, `snapshot_expired` requires `stale`, and other unavailable outcomes require `unknown`. Retained payload always requires a known, valid, timezone-aware observation, even when freshness is unknown |
 | Completeness | `complete` or `partial`; this is content status, not a seventh screen state, and snapshots derive it from their nested field gaps |
 | Observation | A known timezone-aware value or a `FieldValue` unavailable reason |
 | Policy | A stable `FreshnessPolicyId` or an explicit unavailable reason; #80 supplies no policy ID, so fixture tests do not invent one |
 | Authority | A closed application/synthetic authority, independent from a path or implementation object; successful and retained payloads require records, derived or settings authority, while query/unresolved authority is limited to no-result or transitional outcomes |
 | Version | A validated `ContractVersion`, preserving the fixture contract version during conversion |
-| Warnings | Immutable `WarningCode` values whose safe display text is repository-owned |
+| Warnings | Defensively copied, unique by `WarningCode`, sorted by the code's value; duplicate and unordered inputs are normalized. Safe display text is repository-owned |
 | Field gaps | Nested `FieldValue` values are authoritative. `FieldUnavailable` is the immutable summary, augmented from the entire payload (including records in collections), preserving `unknown`, `not_supplied`, `source_conflict`, `redacted`, `unsupported`, `unreadable` and `truncated` |
 | Failure | `SanitizedFailure` exposes only a closed code, fixed message and retryability; source exceptions are discarded |
 
@@ -36,12 +36,29 @@ as missing, unknown or unavailable. `error` requires a sanitized failure;
 non-error states cannot carry one. All nested collections are tuples and all
 field values are checked for deep immutability.
 
+Known integer fields require `type(value) is int`: booleans, floats, strings
+and integer subclasses are rejected. This applies to the source slot, every
+`PilotStatistics` field, and both `MissionSummary` count fields. Zero remains
+known, and unavailable reasons remain valid without a numeric substitute.
+Warning, failure and diagnostic codes are closed at runtime as well as in
+annotations; validation errors never echo rejected diagnostic values.
+
 The envelope fields are validated as one semantic unit. In particular, an
 expired snapshot cannot be labelled current, a stale freshness value cannot be
 attached to a successful state, and a usable result cannot leave source
 authority unresolved. Screen construction augments the unavailable-field
 summary from every nested `FieldValue` and derives completeness, so an omitted
 manual summary cannot turn a partial payload into a complete one.
+
+`loading`, `missing` and `error` never carry payload. A payload-free snapshot
+cannot declare partial completeness or field gaps. Whole-source rejection
+(`source_truncated`, `source_unsupported`, `source_unreadable`) cannot carry
+unvalidated data. Retention is limited to `source_unavailable` and
+`snapshot_expired`, with resolved authority and a known aware observation.
+Unknown freshness remains usable for a newly supplied successful result or
+for a safely timestamped retained result; it never excuses an undatable cache.
+The query service owns observation age and policy evaluation; constructors
+do not substitute the wall clock, event dates or a production expiry policy.
 
 ## Six screen contracts
 
@@ -69,6 +86,24 @@ required to resolve only when an authoritative or retained collection is
 present (and for successful `ready`/`empty` results); payload-free transitions
 do not fabricate records merely to preserve selection.
 
+State/cardinality checks depend on the screen context:
+
+| Context | Successful-state rule |
+|---|---|
+| `MIS-01`, `JRN-01`, `SQD-01` | The primary mission, diary or roster tuple is nonempty for `ready` and empty for `empty`. A roster header cannot make an empty roster ready. |
+| `MIS-02`, `SQD-02` | An explicit selected subject must resolve. A valid subject may remain visible in `empty` while its related child collection has no content; the parent subject is not erased. |
+| `OPR-01`, `DOS-01` | `ready` needs actual overview/dossier payload. Optional recent missions may be empty. `empty` may retain known subject/statistics context, but cannot carry recent missions. |
+| `SYS-01` | `ready` needs settings or diagnostic payload. `empty` requires no diagnostics and may retain a settings header; it never implies healthy status. |
+
+`SystemStatusSnapshot.profile` is optional: `None` means no settings payload.
+`FieldValue.unavailable(...)` instead denotes a real settings field gap, so it
+can produce partial completeness only in a payload-bearing state. It is
+rejected as fabricated payload in loading, missing and error states. Global
+system status uses `source_missing`, never `career_not_selected`.
+
+Clearing a career also clears mission, squadron and member selection IDs.
+An unselected snapshot cannot retain a subject from the previous career.
+
 Every child record that carries `pilot_id` must match its snapshot's standalone
 career context. Every identifiable collection rejects duplicate stable IDs.
 This applies to Operations/Missions mission summaries, diary entries, squadron
@@ -95,7 +130,7 @@ part of this contract.
 Six protocols correspond to the six snapshot types. A `QueryRequest` carries:
 
 - a new opaque `RequestId`;
-- a stable typed selection;
+- a stable typed selection, or explicit `None` when no career is selected;
 - `initial`, `refresh` or `retry` intent;
 - a positive timeout;
 - the superseded request for refresh, or failed request for retry.
@@ -106,6 +141,18 @@ storage refresh method to presentation. Cancellation is a separate immutable
 timeouts, cancellation and other failures into the closed sanitized envelope;
 they must not leak the originating exception. Live repository adapters remain
 deferred to the issues that stabilize their source semantics.
+
+The five career-scoped protocols accept `QueryRequest[Optional[Selection]]`,
+using the appropriate `PilotSelection`, `MissionSelection` or
+`SquadronSelection` type. `None` requests a payload-free
+`missing/career_not_selected` snapshot with no pilot or subject IDs; widgets
+must not invent IDs or construct that result outside the service boundary.
+For example, use `QueryRequest[Optional[MissionSelection]].initial(...)` for
+either a selected or unselected mission request. The immutable generic request
+remains invariant, so callers declare the protocol's optional type explicitly.
+Refresh and retry may carry `None` too, with the same new-ID, linkage, positive
+timeout and cancellation rules. `SystemStatusQueryService` remains global and
+accepts `QueryRequest[None]` independently of career selection.
 
 ## Fixture-backed proof and limits
 

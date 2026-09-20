@@ -1,5 +1,5 @@
 version: 1
-updated: 2026-09-16
+updated: 2026-09-19
 
 project:
   repository: Malboro66/woff-mate
@@ -712,7 +712,7 @@ evals:
   EVAL-UI-CONTRACTS-001:
     work_items: [issue-81]
     status: implemented
-    evidence: Six frozen toolkit-independent screen snapshots share a closed envelope, canonical nation/service presentation, explicit stable identities, deeply immutable values, defensive tuple copies, sanitized closed failures and bounded refresh/retry/timeout/cancellation request protocols. Deterministic Issue #80 fixtures exercise every contract without live data or toolkit dependencies.
+    evidence: Six frozen toolkit-independent screen snapshots enforce context-specific cardinality, safe retained observations, payload-free transitions, exact integer runtime types, warnings unique and sorted by code, canonical nation/service presentation, stable identities, deep immutability and sanitized closed diagnostics. Optional career selection preserves bounded refresh/retry/timeout/cancellation protocols. Deterministic Issue #80 fixtures exercise every contract without live data or toolkit dependencies.
     enforced_by: [tests/test_ui_contracts.py, woff/tests/test_architecture_contracts.py]
   EVAL-UI-SPIKE-001:
     work_items: [issue-82]

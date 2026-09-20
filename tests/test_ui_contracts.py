@@ -3,11 +3,11 @@
 from __future__ import annotations
 
 import ast
-from dataclasses import FrozenInstanceError, replace
+from dataclasses import FrozenInstanceError, fields, replace
 from datetime import datetime, timedelta, timezone
 import json
 from pathlib import Path
-from typing import Any, cast
+from typing import Any, cast, get_args, get_type_hints
 
 import pytest
 
@@ -918,16 +918,21 @@ def test_refresh_retry_timeout_and_cancellation_are_request_contracts() -> None:
         )
 
 
-def test_query_protocols_return_snapshots_without_direct_presentation_access() -> None:
+@pytest.mark.parametrize("selected", [True, False])
+def test_query_protocols_return_snapshots_without_direct_presentation_access(selected: bool) -> None:
     class FakeMissions:
         def __init__(self) -> None:
-            self.requests: list[QueryRequest[MissionSelection]] = []
+            self.requests: list[QueryRequest[MissionSelection | None]] = []
             self.cancellations: list[CancellationRequest] = []
 
         def request_snapshot(
-            self, request: QueryRequest[MissionSelection]
+            self, request: QueryRequest[MissionSelection | None]
         ) -> MissionsSnapshot:
             self.requests.append(request)
+            if request.selection is None:
+                return MissionsSnapshot(
+                    _envelope("missing-career"), None, (), None, MISSION_ORDER
+                )
             return MissionsSnapshot(
                 _envelope("missions-ready"),
                 request.selection.pilot_id,
@@ -940,14 +945,14 @@ def test_query_protocols_return_snapshots_without_direct_presentation_access() -
             self.cancellations.append(request)
 
     service: MissionsQueryService = FakeMissions()
-    request = QueryRequest.initial(
+    request = QueryRequest[MissionSelection | None].initial(
         RequestId("request-01"),
-        MissionSelection(PilotId("synthetic-career-02"), None),
+        MissionSelection(PilotId("synthetic-career-02"), None) if selected else None,
         timedelta(seconds=5),
     )
     snapshot = service.request_snapshot(request)
     service.cancel(CancellationRequest(request.request_id, CancellationReason.USER_NAVIGATED))
-    assert snapshot.envelope == _envelope("missions-ready")
+    assert snapshot.envelope == _envelope("missions-ready" if selected else "missing-career")
     assert cast(FakeMissions, service).requests == [request]
     assert cast(FakeMissions, service).cancellations[0].request_id == request.request_id
 
@@ -1007,3 +1012,371 @@ def test_contract_module_has_no_forbidden_runtime_or_toolkit_boundary_imports() 
     for qt_name in ("pyside2", "pyside6", "pyqt5", "pyqt6"):
         assert qt_name not in pyproject
         assert qt_name not in requirements
+
+
+SCREEN_NAMES = ("operations", "dossier", "missions", "diary", "squadron", "system")
+
+
+def _screen_snapshot(screen: str, envelope: SnapshotEnvelope, populated: bool):
+    """Build only from #80 values; absent payload never invents field values."""
+    pilot = _pilot()
+    pilot_id = (
+        None if envelope.reason is SnapshotReason.CAREER_NOT_SELECTED else pilot.pilot_id
+    )
+    if screen == "operations":
+        return OperationsSnapshot(
+            envelope, pilot_id, pilot if populated else None,
+            _statistics() if populated else None,
+            _mission_records() if populated else (), MISSION_ORDER,
+        )
+    if screen == "dossier":
+        return PilotDossierSnapshot(
+            envelope, pilot_id, pilot if populated else None,
+            _statistics() if populated else None,
+        )
+    if screen == "missions":
+        return MissionsSnapshot(
+            envelope, pilot_id, _mission_records() if populated else (), None, MISSION_ORDER
+        )
+    if screen == "diary":
+        return WarDiarySnapshot(envelope, pilot_id, _diary_records() if populated else ())
+    if screen == "squadron":
+        return SquadronSnapshot(
+            envelope, pilot_id, None, None, _squadron_members() if populated else (), None
+        )
+    assert screen == "system"
+    return SystemStatusSnapshot(
+        envelope, _field("settings-ready", "profile") if populated else None,
+        _system_diagnostics() if populated else (),
+    )
+
+
+@pytest.mark.parametrize("screen", ["missions", "diary", "squadron"])
+@pytest.mark.parametrize("populated", [False, True])
+def test_primary_collection_cardinality_matches_state(screen: str, populated: bool) -> None:
+    matching = _envelope("missions-ready" if populated else "empty-records")
+    assert _screen_snapshot(screen, matching, populated).envelope.state is matching.state
+    contradictory = replace(
+        matching, state=ScreenState.EMPTY if populated else ScreenState.READY
+    )
+    with pytest.raises(ValueError, match="primary collection"):
+        _screen_snapshot(screen, contradictory, populated)
+
+
+@pytest.mark.parametrize("screen", SCREEN_NAMES)
+def test_ready_requires_actual_payload(screen: str) -> None:
+    with pytest.raises(ValueError, match="payload|primary collection"):
+        _screen_snapshot(screen, _envelope("pilot-ready"), False)
+
+
+@pytest.mark.parametrize("screen", ["operations", "system"])
+def test_empty_rejects_nonempty_activity_or_diagnostics(screen: str) -> None:
+    with pytest.raises(ValueError, match="collection"):
+        _screen_snapshot(screen, _envelope("empty-records"), True)
+
+
+@pytest.mark.parametrize("state", [ScreenState.READY, ScreenState.EMPTY])
+def test_selected_details_keep_valid_subjects_in_successful_states(state: ScreenState) -> None:
+    envelope = replace(_envelope("mission-detail-ready"), state=state)
+    missions = _mission_records()
+    snapshot = MissionsSnapshot(
+        envelope, missions[0].pilot_id, missions, missions[1].mission_id, MISSION_ORDER
+    )
+    members = _squadron_members()
+    roster = SquadronSnapshot(
+        envelope, members[0].pilot_id, None, None, members, members[1].member_id
+    )
+    assert snapshot.selected_mission_id == missions[1].mission_id
+    assert roster.selected_member_id == members[1].member_id
+
+
+@pytest.mark.parametrize("screen", SCREEN_NAMES)
+@pytest.mark.parametrize("fixture_id", [
+    "loading-selected", "missing-source-selected", "error-query-selected",
+    "unavailable-source-selected", "source-truncated-selected",
+    "source-unsupported-selected", "source-unreadable-selected",
+])
+def test_payload_free_states_remain_complete(screen: str, fixture_id: str) -> None:
+    envelope = _envelope(fixture_id)
+    snapshot = _screen_snapshot(screen, envelope, False)
+    assert snapshot.envelope == envelope
+    assert snapshot.envelope.completeness is Completeness.COMPLETE
+    assert snapshot.envelope.unavailable_fields == ()
+
+
+@pytest.mark.parametrize("screen", SCREEN_NAMES)
+@pytest.mark.parametrize("authority", [
+    SourceAuthority.APPLICATION_RECORDS, SourceAuthority.SYNTHETIC_RECORDS,
+])
+def test_retained_unavailable_payload_requires_observation(
+    screen: str, authority: SourceAuthority
+) -> None:
+    envelope = replace(
+        _envelope("unavailable-source-selected"), source_authority=authority
+    )
+    with pytest.raises(ValueError, match="observation"):
+        _screen_snapshot(screen, envelope, True)
+    observed = FieldValue.known(_time(FIXTURES["pilot-ready"]["observed_at"]))
+    snapshot = _screen_snapshot(screen, replace(envelope, observed_at=observed), True)
+    assert snapshot.envelope.observed_at == observed
+    assert snapshot.envelope.freshness is Freshness.UNKNOWN
+
+
+@pytest.mark.parametrize("screen", SCREEN_NAMES)
+@pytest.mark.parametrize("authority", [
+    SourceAuthority.UNRESOLVED, SourceAuthority.APPLICATION_QUERY,
+    SourceAuthority.SYNTHETIC_QUERY,
+])
+def test_retained_payload_requires_authority_on_every_screen(
+    screen: str, authority: SourceAuthority
+) -> None:
+    envelope = replace(
+        _envelope("unavailable-source-selected"), source_authority=authority,
+        observed_at=_envelope("pilot-ready").observed_at,
+    )
+    with pytest.raises(ValueError, match="authority"):
+        _screen_snapshot(screen, envelope, True)
+
+
+@pytest.mark.parametrize("value", [True, False, 1, "2026-01-01T12:00:00Z", ()])
+def test_observation_rejects_non_datetime_runtime_values(value: object) -> None:
+    with pytest.raises(TypeError, match="observation"):
+        replace(_envelope("pilot-ready"), observed_at=FieldValue.known(cast(Any, value)))
+
+
+def test_observation_rejects_naive_and_accepts_aware_non_utc_time() -> None:
+    observed = _time(FIXTURES["pilot-ready"]["observed_at"])
+    with pytest.raises(ValueError, match="timezone-aware"):
+        replace(_envelope("pilot-ready"), observed_at=FieldValue.known(observed.replace(tzinfo=None)))
+    offset_time = observed.astimezone(timezone(timedelta(hours=-3)))
+    assert replace(
+        _envelope("pilot-ready"), observed_at=FieldValue.known(offset_time)
+    ).observed_at.value == observed
+
+
+@pytest.mark.parametrize("fixture_id", ["loading", "missing-source", "error-query"])
+def test_system_transients_do_not_use_unavailable_profile_as_payload(fixture_id: str) -> None:
+    envelope = _envelope(fixture_id)
+    snapshot = SystemStatusSnapshot(envelope, None, ())
+    assert snapshot.envelope == envelope
+    with pytest.raises(ValueError, match="cannot carry payload"):
+        SystemStatusSnapshot(envelope, FieldValue.unavailable(UnavailableReason.UNKNOWN), ())
+
+
+def test_system_partial_requires_real_payload_and_preserves_field_gap() -> None:
+    snapshot = SystemStatusSnapshot(
+        _envelope("settings-ready"), FieldValue.unavailable(UnavailableReason.UNKNOWN),
+        _system_diagnostics(),
+    )
+    assert snapshot.envelope.completeness is Completeness.PARTIAL
+    assert FieldUnavailable("profile", UnavailableReason.UNKNOWN) in snapshot.envelope.unavailable_fields
+    with pytest.raises(ValueError, match="payload"):
+        SystemStatusSnapshot(snapshot.envelope, None, ())
+
+
+@pytest.mark.parametrize("screen", SCREEN_NAMES)
+def test_payload_free_snapshot_cannot_claim_partial_fields(screen: str) -> None:
+    with pytest.raises(ValueError, match="payload"):
+        envelope = replace(
+            _envelope("missing-source-selected"), completeness=Completeness.PARTIAL,
+            unavailable_fields=(FieldUnavailable("status", UnavailableReason.UNKNOWN),),
+        )
+        _screen_snapshot(screen, envelope, False)
+
+
+NUMERIC_FIELDS = (
+    ("pilot", "source_slot"),
+    *(("statistics", name) for name in (
+        "missions", "flight_minutes", "claims", "confirmed_victories", "skill", "reputation"
+    )),
+    ("mission", "claims"), ("mission", "confirmed_victories"),
+)
+
+
+def _numeric_record(record: str):
+    if record == "pilot":
+        return _pilot()
+    if record == "statistics":
+        return _statistics()
+    return _mission_records()[0]
+
+
+def test_numeric_regression_inventory_covers_every_integer_field() -> None:
+    classes = {"pilot": PilotIdentityView, "statistics": PilotStatistics, "mission": MissionSummary}
+    assert set(NUMERIC_FIELDS) == {
+        (name, field.name) for name, cls in classes.items() for field in fields(cls)
+        if get_type_hints(cls)[field.name] == FieldValue[int]
+    }
+
+
+@pytest.mark.parametrize("record,field", NUMERIC_FIELDS)
+@pytest.mark.parametrize("value", [True, False, 1.0, "1", b"1", (1,)])
+def test_integer_fields_reject_invalid_runtime_types(record: str, field: str, value: object) -> None:
+    with pytest.raises(TypeError, match="integer"):
+        replace(_numeric_record(record), **{field: FieldValue.known(value)})
+
+
+@pytest.mark.parametrize("record,field", NUMERIC_FIELDS)
+@pytest.mark.parametrize("value", [0, 1, 42])
+def test_integer_fields_preserve_known_values_and_unavailable_reasons(
+    record: str, field: str, value: int
+) -> None:
+    known = replace(_numeric_record(record), **{field: FieldValue.known(value)})
+    assert getattr(known, field).value == value
+    for reason in UnavailableReason:
+        missing = replace(_numeric_record(record), **{field: FieldValue.unavailable(reason)})
+        assert getattr(missing, field).reason is reason
+
+
+def test_warnings_normalize_duplicates_order_and_defensive_copy_across_refreshes() -> None:
+    from itertools import permutations
+
+    warnings = [Warning(WarningCode.SOURCE_CONFLICT), Warning(WarningCode.PARTIAL_RECORD)]
+    expected = tuple(sorted(warnings, key=lambda item: item.code.value))
+    snapshots = [
+        replace(_envelope("pilot-ready"), warnings=cast(Any, [*order, order[0]]))
+        for order in permutations(warnings)
+    ]
+    copied = replace(_envelope("pilot-ready"), warnings=cast(Any, warnings))
+    warnings.clear()
+    assert copied.warnings == expected
+    assert all(snapshot.warnings == expected for snapshot in snapshots)
+    assert all(tuple(warning.message for warning in snapshot.warnings) ==
+               tuple(warning.message for warning in expected) for snapshot in snapshots)
+
+
+@pytest.mark.parametrize("protocol,selection", [
+    (OperationsQueryService, PilotSelection), (PilotDossierQueryService, PilotSelection),
+    (MissionsQueryService, MissionSelection), (WarDiaryQueryService, PilotSelection),
+    (SquadronQueryService, SquadronSelection),
+])
+def test_every_career_query_protocol_accepts_explicit_no_selection(protocol: type, selection: type) -> None:
+    request_type = get_type_hints(protocol.request_snapshot)["request"]
+    assert set(get_args(get_args(request_type)[0])) == {selection, type(None)}
+
+
+@pytest.mark.parametrize("screen", SCREEN_NAMES[:-1])
+def test_no_selection_snapshots_clear_all_context_without_fabricated_identity(screen: str) -> None:
+    snapshot = _screen_snapshot(screen, _envelope("missing-career"), False)
+    assert not isinstance(snapshot, SystemStatusSnapshot)
+    assert snapshot.pilot_id is None
+    assert snapshot.envelope.state is ScreenState.MISSING
+    assert snapshot.envelope.reason is SnapshotReason.CAREER_NOT_SELECTED
+    if isinstance(snapshot, MissionsSnapshot):
+        with pytest.raises(ValueError, match="unselected"):
+            replace(snapshot, selected_mission_id=_mission_records()[0].mission_id)
+    if isinstance(snapshot, SquadronSnapshot):
+        with pytest.raises(ValueError, match="unselected"):
+            replace(snapshot, selected_member_id=_squadron_members()[0].member_id)
+        with pytest.raises(ValueError, match="unselected"):
+            replace(snapshot, selected_squadron_id=SquadronId("synthetic-squadron-01"))
+
+
+@pytest.mark.parametrize("selection", [
+    None, PilotSelection(PilotId("synthetic-career-02")),
+    MissionSelection(PilotId("synthetic-career-02"), MissionId("synthetic-mission-02")),
+    SquadronSelection(PilotId("synthetic-career-02"), None, None),
+])
+def test_optional_selection_preserves_request_lifecycle(selection: object) -> None:
+    initial = QueryRequest.initial(RequestId("initial"), selection, timedelta(seconds=5))
+    refresh = QueryRequest.refresh(
+        RequestId("refresh"), selection, initial.timeout, initial.request_id
+    )
+    retry = QueryRequest.retry(RequestId("retry"), selection, initial.timeout, refresh.request_id)
+    cleared = QueryRequest[MissionSelection | None].refresh(
+        RequestId("cleared"), None, initial.timeout, retry.request_id
+    )
+    assert initial.selection == refresh.selection == retry.selection == selection
+    assert refresh.supersedes == initial.request_id
+    assert retry.retry_of == refresh.request_id
+    assert cleared.selection is None
+    cancellation = CancellationRequest(retry.request_id, CancellationReason.REPLACED_REQUEST)
+    assert cancellation.request_id == retry.request_id
+    for timeout in (timedelta(0), timedelta(seconds=-1)):
+        with pytest.raises(ValueError, match="positive"):
+            QueryRequest.initial(RequestId("invalid-timeout"), selection, timeout)
+    with pytest.raises(ValueError, match="new request ID"):
+        QueryRequest.refresh(initial.request_id, selection, initial.timeout, initial.request_id)
+    with pytest.raises(ValueError, match="new request ID"):
+        QueryRequest.retry(initial.request_id, selection, initial.timeout, initial.request_id)
+
+
+@pytest.mark.parametrize("screen", SCREEN_NAMES)
+@pytest.mark.parametrize("fixture_id", [
+    "source-truncated-selected", "source-unsupported-selected", "source-unreadable-selected",
+])
+def test_rejected_sources_cannot_retain_unvalidated_payload(screen: str, fixture_id: str) -> None:
+    envelope = replace(
+        _envelope(fixture_id), source_authority=SourceAuthority.SYNTHETIC_RECORDS,
+        observed_at=_envelope("pilot-ready").observed_at,
+    )
+    with pytest.raises(ValueError, match="source rejection"):
+        _screen_snapshot(screen, envelope, True)
+
+
+def test_system_status_never_requires_a_career_selection() -> None:
+    with pytest.raises(ValueError, match="career"):
+        SystemStatusSnapshot(_envelope("missing-career"), None, ())
+    assert SystemStatusSnapshot(_envelope("missing-source"), None, ()).envelope.reason is SnapshotReason.SOURCE_MISSING
+
+
+@pytest.mark.parametrize("screen,field", [
+    ("operations", "pilot"), ("operations", "statistics"),
+    ("dossier", "pilot"), ("dossier", "statistics"),
+    ("squadron", "squadron"), ("system", "profile"),
+])
+def test_singleton_payloads_cannot_smuggle_mutable_values(screen: str, field: str) -> None:
+    snapshot = _screen_snapshot(screen, _envelope("pilot-ready"), True)
+    if field == "pilot":
+        value = replace(_pilot(), display_name=cast(Any, ["mutable"]))
+    elif field == "squadron":
+        value = SquadronIdentityView(
+            FieldValue.unavailable(UnavailableReason.UNKNOWN), cast(Any, ["mutable"])
+        )
+    else:
+        value = ["mutable"]
+    with pytest.raises(TypeError, match="immutable"):
+        replace(snapshot, **{field: value})
+
+
+@pytest.mark.parametrize("record,field", NUMERIC_FIELDS)
+def test_integer_fields_reject_integer_subclasses(record: str, field: str) -> None:
+    class Count(int):
+        pass
+
+    with pytest.raises(TypeError, match="integer"):
+        replace(_numeric_record(record), **{field: FieldValue.known(Count(1))})
+
+
+def test_warnings_are_unique_by_code_even_for_frozen_subclasses() -> None:
+    class SpecializedWarning(Warning):
+        pass
+
+    code = WarningCode.PARTIAL_RECORD
+    snapshot = replace(_envelope("pilot-ready"), warnings=(Warning(code), SpecializedWarning(code)))
+    assert tuple(warning.code for warning in snapshot.warnings) == (code,)
+
+
+@pytest.mark.parametrize("kind", ["warning", "failure", "diagnostic"])
+def test_diagnostic_codes_reject_arbitrary_runtime_values_without_echoing(kind: str) -> None:
+    rejected = r"SELECT private FROM campaign; C:\Users\Private\campaign.sqlite"
+    with pytest.raises(TypeError, match="closed contract") as error:
+        if kind == "warning":
+            Warning(cast(Any, rejected))
+        elif kind == "failure":
+            SanitizedFailure(cast(Any, rejected))
+        else:
+            replace(_system_diagnostics()[0], code=cast(Any, rejected))
+    assert rejected not in str(error.value)
+
+
+@pytest.mark.parametrize("fixture_id", sorted(FIXTURES))
+def test_every_fixture_envelope_survives_conversion(fixture_id: str) -> None:
+    source = FIXTURES[fixture_id]
+    envelope = _envelope(fixture_id)
+    assert envelope.state.value == source["state"]
+    assert envelope.freshness.value == source["freshness"]
+    assert envelope.source_authority.value == source["source_authority"]
+    assert [warning.code.value for warning in envelope.warnings] == [
+        warning["code"] for warning in source["warnings"]
+    ]

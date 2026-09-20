@@ -144,6 +144,10 @@ class Warning:
 
     code: WarningCode
 
+    def __post_init__(self) -> None:
+        if not isinstance(self.code, WarningCode):
+            raise TypeError("warning code must be a closed contract value")
+
     @property
     def message(self) -> str:
         return _WARNING_MESSAGES[self.code]
@@ -167,6 +171,10 @@ class SanitizedFailure:
     """Failure information whose text is fixed and cannot contain exception data."""
 
     code: FailureCode
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.code, FailureCode):
+            raise TypeError("failure code must be a closed contract value")
 
     @property
     def message(self) -> str:
@@ -336,10 +344,14 @@ class SnapshotEnvelope:
     failure: Optional[SanitizedFailure]
 
     def __post_init__(self) -> None:
+        warnings = _copied_immutable_tuple(self.warnings, Warning, "warnings")
         object.__setattr__(
             self,
             "warnings",
-            _copied_immutable_tuple(self.warnings, Warning, "warnings"),
+            tuple(
+                Warning(code)
+                for code in sorted({warning.code for warning in warnings}, key=lambda code: code.value)
+            ),
         )
         object.__setattr__(
             self,
@@ -350,6 +362,8 @@ class SnapshotEnvelope:
         )
         if self.observed_at.value is not None:
             value = self.observed_at.value
+            if not isinstance(value, datetime):
+                raise TypeError("observation time must be a datetime")
             if value.tzinfo is None or value.utcoffset() is None:
                 raise ValueError("observation time must be timezone-aware")
         if self.state is ScreenState.ERROR and self.failure is None:
@@ -426,6 +440,8 @@ class SnapshotEnvelope:
         for name, value in payload.items():
             if _FIELD_NAME.fullmatch(name) is None:
                 raise ValueError("payload roots must use stable field names")
+            if not _is_deeply_immutable(value):
+                raise TypeError("snapshot payload must contain only deeply immutable values")
             unavailable.update(_collect_unavailable_fields(value, name))
         ordered_unavailable = tuple(
             sorted(unavailable, key=lambda item: (item.field, item.reason.value))
@@ -441,6 +457,15 @@ class SnapshotEnvelope:
         )
 
 
+def _require_integer_field(value: FieldValue[int]) -> None:
+    """Annotations alone accept bool as int; presentation counts never do."""
+
+    if not isinstance(value, FieldValue) or (
+        value.value is not None and type(value.value) is not int
+    ):
+        raise TypeError("integer fields require an exact integer or unavailable value")
+
+
 @dataclass(frozen=True)
 class PilotIdentityView:
     pilot_id: PilotId
@@ -450,6 +475,9 @@ class PilotIdentityView:
     squadron_id: FieldValue[SquadronId]
     squadron_label: FieldValue[str]
     status: FieldValue[str]
+
+    def __post_init__(self) -> None:
+        _require_integer_field(self.source_slot)
 
 
 @dataclass(frozen=True)
@@ -461,6 +489,10 @@ class PilotStatistics:
     skill: FieldValue[int]
     reputation: FieldValue[int]
 
+    def __post_init__(self) -> None:
+        for item in fields(self):
+            _require_integer_field(getattr(self, item.name))
+
 
 @dataclass(frozen=True)
 class MissionSummary:
@@ -471,6 +503,10 @@ class MissionSummary:
     result: FieldValue[str]
     claims: FieldValue[int]
     confirmed_victories: FieldValue[int]
+
+    def __post_init__(self) -> None:
+        _require_integer_field(self.claims)
+        _require_integer_field(self.confirmed_victories)
 
 
 @dataclass(frozen=True)
@@ -502,6 +538,10 @@ class SystemDiagnosticView:
     diagnostic_id: SystemDiagnosticId
     observed_at: FieldValue[datetime]
     code: "SystemDiagnosticCode"
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.code, SystemDiagnosticCode):
+            raise TypeError("diagnostic code must be a closed contract value")
 
     @property
     def message(self) -> str:
@@ -582,14 +622,37 @@ def _require_career_context(
 def _validate_payload_context(
     envelope: SnapshotEnvelope, has_payload: bool
 ) -> None:
-    if has_payload and envelope.source_authority not in _PAYLOAD_AUTHORITIES:
-        raise ValueError("retained payload requires a resolved data authority")
     if has_payload and envelope.state in {
         ScreenState.LOADING,
         ScreenState.MISSING,
         ScreenState.ERROR,
     }:
         raise ValueError("transient, missing and error snapshots cannot carry payload")
+    if has_payload and envelope.source_authority not in _PAYLOAD_AUTHORITIES:
+        raise ValueError("retained payload requires a resolved data authority")
+    if has_payload and envelope.state is ScreenState.STALE_OR_UNAVAILABLE:
+        if envelope.reason not in {
+            SnapshotReason.SOURCE_UNAVAILABLE, SnapshotReason.SNAPSHOT_EXPIRED
+        }:
+            raise ValueError("source rejection cannot retain unvalidated payload")
+        if envelope.observed_at.value is None:
+            raise ValueError("retained payload requires a known observation time")
+    if not has_payload:
+        if envelope.state is ScreenState.READY:
+            raise ValueError("ready snapshots require payload")
+        if envelope.completeness is Completeness.PARTIAL or envelope.unavailable_fields:
+            raise ValueError("partial completeness requires real payload with field gaps")
+
+
+def _validate_primary_collection(
+    envelope: SnapshotEnvelope, records: Tuple[object, ...]
+) -> None:
+    """Apply cardinality only to a primary list, never optional/detail records."""
+
+    if envelope.state is ScreenState.EMPTY and records:
+        raise ValueError("empty primary collection cannot contain records")
+    if envelope.state is ScreenState.READY and not records:
+        raise ValueError("ready primary collection must contain records")
 
 
 def _selection_must_resolve(
@@ -651,6 +714,8 @@ class OperationsSnapshot:
         )
         _require_pilot_payload_owner(self.pilot_id, self.pilot)
         _require_owned_records(self.pilot_id, missions, "recent missions")
+        if self.envelope.state is ScreenState.EMPTY and missions:
+            raise ValueError("empty activity collection cannot contain missions")
         _validate_payload_context(
             self.envelope,
             self.pilot is not None or self.statistics is not None or bool(missions),
@@ -709,6 +774,10 @@ class MissionsSnapshot:
             missions,
         )
         _require_owned_records(self.pilot_id, missions, "missions")
+        if self.pilot_id is None and self.selected_mission_id is not None:
+            raise ValueError("unselected career cannot carry a selected mission")
+        if self.selected_mission_id is None:
+            _validate_primary_collection(self.envelope, missions)
         _validate_payload_context(self.envelope, bool(missions))
         if (
             self.selected_mission_id is not None
@@ -745,6 +814,7 @@ class WarDiarySnapshot:
         )
         _require_unique_ids(entries, "diary_entry_id", "diary entries")
         _require_owned_records(self.pilot_id, entries, "diary entries")
+        _validate_primary_collection(self.envelope, entries)
         _validate_payload_context(self.envelope, bool(entries))
         object.__setattr__(
             self, "envelope", self.envelope._with_payload(entries=entries)
@@ -774,6 +844,12 @@ class SquadronSnapshot:
         )
         _require_unique_ids(members, "member_id", "squadron members")
         _require_owned_records(self.pilot_id, members, "squadron members")
+        if self.pilot_id is None and (
+            self.selected_squadron_id is not None or self.selected_member_id is not None
+        ):
+            raise ValueError("unselected career cannot carry squadron selection")
+        if self.selected_member_id is None:
+            _validate_primary_collection(self.envelope, members)
         _validate_payload_context(
             self.envelope, self.squadron is not None or bool(members)
         )
@@ -802,10 +878,12 @@ class SystemStatusSnapshot:
     """Settings/Data & System Status (`SYS-01`) read model; no mutation API."""
 
     envelope: SnapshotEnvelope
-    profile: FieldValue[str]
+    profile: Optional[FieldValue[str]]
     diagnostics: Tuple[SystemDiagnosticView, ...]
 
     def __post_init__(self) -> None:
+        if self.envelope.reason is SnapshotReason.CAREER_NOT_SELECTED:
+            raise ValueError("system status never requires career selection")
         diagnostics = _copied_immutable_tuple(
             self.diagnostics, SystemDiagnosticView, "system diagnostics"
         )
@@ -815,8 +893,10 @@ class SystemStatusSnapshot:
             diagnostics,
         )
         _require_unique_ids(diagnostics, "diagnostic_id", "system diagnostics")
+        if self.envelope.state is ScreenState.EMPTY and diagnostics:
+            raise ValueError("empty diagnostic collection cannot contain records")
         _validate_payload_context(
-            self.envelope, self.profile.value is not None or bool(diagnostics)
+            self.envelope, self.profile is not None or bool(diagnostics)
         )
         object.__setattr__(
             self,
@@ -935,7 +1015,7 @@ class CancellationRequest:
 
 class OperationsQueryService(Protocol):
     def request_snapshot(
-        self, request: QueryRequest[PilotSelection]
+        self, request: QueryRequest[Optional[PilotSelection]]
     ) -> OperationsSnapshot: ...
 
     def cancel(self, request: CancellationRequest) -> None: ...
@@ -943,7 +1023,7 @@ class OperationsQueryService(Protocol):
 
 class PilotDossierQueryService(Protocol):
     def request_snapshot(
-        self, request: QueryRequest[PilotSelection]
+        self, request: QueryRequest[Optional[PilotSelection]]
     ) -> PilotDossierSnapshot: ...
 
     def cancel(self, request: CancellationRequest) -> None: ...
@@ -951,7 +1031,7 @@ class PilotDossierQueryService(Protocol):
 
 class MissionsQueryService(Protocol):
     def request_snapshot(
-        self, request: QueryRequest[MissionSelection]
+        self, request: QueryRequest[Optional[MissionSelection]]
     ) -> MissionsSnapshot: ...
 
     def cancel(self, request: CancellationRequest) -> None: ...
@@ -959,7 +1039,7 @@ class MissionsQueryService(Protocol):
 
 class WarDiaryQueryService(Protocol):
     def request_snapshot(
-        self, request: QueryRequest[PilotSelection]
+        self, request: QueryRequest[Optional[PilotSelection]]
     ) -> WarDiarySnapshot: ...
 
     def cancel(self, request: CancellationRequest) -> None: ...
@@ -967,7 +1047,7 @@ class WarDiaryQueryService(Protocol):
 
 class SquadronQueryService(Protocol):
     def request_snapshot(
-        self, request: QueryRequest[SquadronSelection]
+        self, request: QueryRequest[Optional[SquadronSelection]]
     ) -> SquadronSnapshot: ...
 
     def cancel(self, request: CancellationRequest) -> None: ...
