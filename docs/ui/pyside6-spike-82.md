@@ -16,7 +16,7 @@ its observations do not describe the synchronized branch. [Provenance](evidence/
 baseline, fixture digest, environment and experiment recipe.
 During original finalization, main advanced through #136/PR #164 (`143226d`).
 The current branch now includes that change and the #81 squash merge,
-`18faf9cd31be90ea5d74738e5cf299dfdbb9e832`, through merge `c3152f6`.
+`18faf9cd31be90ea5d74738e5cf299dfdbb9e832`, through source merge `0684805e6926b3d923d4017023b178ce8b198114`.
 The #80 catalog and every historical JSON observation remain unchanged.
 The following Q0 paragraph records the original investigation, not current issue states.
 
@@ -296,18 +296,23 @@ experiment additionally checks installed distributions and bundle filenames.
 
 ## Acceptance accounting and remaining blockers
 
-| #82 criterion group | Evidence / disposition |
-|---|---|
-| One binding; selected line/rationale | Verified in both isolated Qt environments; production remains Qt-free. |
-| Wheel/smoke matrix | All five wheel rows evaluated; two locally executed, three runtime gaps explicitly recorded. |
-| Windows 10 and 11; clean packaged render | Windows 10 developer host passed; Windows 11 and clean-machine runs **unmet**. |
-| Reproducible import/startup/memory/footprint/package results | Recipes and raw samples supplied; true cold baseline **unmet**. |
-| Four scaling values | Qt override runs passed; native Windows DPI changes **unmet**. |
-| Keyboard, focus, names, roles, announcements | Automated Qt/UIA evidence supplied; speech and manual Windows validation **unmet**. |
-| #80-only fixture shell, no live integrations | Verified by fixture digest, source inspection and imported-module observations. |
-| No mandatory Qt dependency or shipped spike artifact | Unchanged production dependencies/spec; separate Qt-free wheel/executable build and inventory checks. |
-| Licensing notices/actions | Identified, with actual GPL/commercial component and missing-notice blockers. No distribution clearance. |
-| Report recommendation; ADR Proposed | Conditional Go for further investigation; ADR and all Product Gates remain unapproved. |
+| #82 acceptance criterion | Classification | Evidence / limit |
+|---|---|---|
+| Exactly one Qt binding | Satisfied | Historical isolated environments contain PySide6 only; source and artifact inventories exclude alternative bindings. |
+| Candidate version and rationale | Satisfied | PySide6/Qt/shiboken 6.11.2 and original metadata rationale preserved. No refreshed vendor policy claim. |
+| Wheel availability and smoke for every Python | Partially satisfied | Five historical wheel rows; native execution only 3.10 and 3.14. |
+| Representative Windows 10/11 | Partially satisfied | Historical Windows 10 developer host; Windows 11 pending. |
+| Clean-machine packaged render | Blocked | No clean representative Windows machine is available in this session. |
+| Reproducible performance/resource measurements | Partially satisfied | Historical samples/recipes preserved; true cold baseline and authenticated native relocation remain pending. |
+| 100/125/150/200% scaling | Partially satisfied | Historical Qt overrides; native DPI transitions pending. |
+| Keyboard/focus/order/names/roles/announcements | Partially satisfied | Historical Qt checks and limited UIA exposure; corrected native UIA and actual AT speech pending. |
+| Synthetic #80 fixtures only | Satisfied | Catalog and shell digests unchanged; deterministic fixture gate. |
+| No forbidden application/live integrations | Satisfied | Shell import boundary and final #81 architecture checks. |
+| No mandatory production Qt dependency | Satisfied | Unchanged dependency files; regenerated wheel/executable inventory and clean `--help` stderr in separate Qt-free environment. Linux filename adaptation disclosed. |
+| Licensing notices and distribution actions | Partially satisfied | GPL/commercial plugin and missing notices preserved; final version-bound licensing/distribution confirmation pending. |
+| Explicit recommendation | Satisfied | Conditional Go for further evidence collection. |
+| ADR remains Proposed | Satisfied | Status unchanged; no gate approval. |
+| No shipped temporary spike artifact | Satisfied | Only documentation, text recipes/results and deterministic tests enter the PR; builds/environments/logs remain external. |
 
 Before production adoption: complete the remaining formal #82/P0/R2 sequence;
 #81 is integrated and requires no reimplementation;
@@ -354,6 +359,12 @@ records exit zero but omits stderr evidence and used incomplete Qt detection.
 It is superseded for isolation acceptance; its bytes remain historical.
 The separate current production result uses the stricter observer on Linux,
 with exact interpreter/tool versions and build inputs. It does not certify Windows.
+The unchanged spec first failed on Linux because EXE and COLLECT target the
+same suffix-less name. The observer explicitly applies only a temporary `.exe`
+filename suffix on Linux; the archived result declares this variant and its
+effective spec hash. Production `build.spec` is unchanged; native Windows CI
+uses that exact spec separately. No failure is reclassified as a successful
+unchanged-spec Linux build.
 No campaign/configuration file or schema was modified. All environments,
 executables, intermediate specs, local diagnostic logs and images remain under
 ignored build directories; only sanitized text is staged. Root-worktree
@@ -399,14 +410,63 @@ implements none of #140 or the production query path.
 
 ## Current branch validation
 
-The current command/results table is populated only after executing final gates.
-Historical counts above must never be used as current test totals. The PR body
+Historical counts above must never be used as current test totals.
+The final commands below use `V` for the external temporary validation root
+(path redaction only); `P=$V/.venv/bin/python` is CPython 3.12.14 on Linux.
+Both development and production environments are Qt-free. Pyright is 1.1.414;
+pytest is 9.1.1. The production environment separately uses PyInstaller 6.22.3,
+hooks 2026.7, build 1.6.1, setuptools 84.0.0 and wheel 0.48.0. The PR body
 records the final validated commit and remote CI run. The production result binds
 its actual build revision, observer hashes and every production build input;
 replay checks those inputs against this tree even after documentation-only commits.
 
 <!-- current-validation -->
-Final validation pending while consolidated corrections are in progress.
+All commands below were executed after all code corrections and are repeated at
+the exact final publication commit; the PR records that SHA and the remote CI.
+Exit status is **0** for each successful row. Test counts are not inferred from
+historical totals. Non-test commands have no test count or skips.
+
+| Exact command (`P`/`V` as defined above) | Result | Classification |
+|---|---|---|
+| `P -m pytest tests/test_ui_spike_evidence.py -q -ra --basetemp=$V/spike-final -o cache_dir=$V/pytest-cache` | **131 passed**, no skips | Current branch validation, including manifest/replay and negative cases |
+| `P -m pytest tests/test_ui_contracts.py tests/test_ui_state_fixtures.py woff/tests/test_architecture_contracts.py woff/tests/test_product_milestones.py woff/tests/test_ui_development_standard.py woff/tests/test_privacy_contracts.py -q -ra --basetemp=$V/focused-final -o cache_dir=$V/pytest-cache` | **665 passed**, no skips | Current architecture, immutable contracts, fixtures and related gates |
+| `P -m pytest -q -ra --tb=short --basetemp=$V/full-final -o cache_dir=$V/pytest-cache` | **1,862 passed, 4 skipped, 175 subtests passed** | Current full suite; all four skips are existing Windows-only ordinary directory-junction cases |
+| `$V/.venv/bin/pyright --venvpath $V` | **0 errors, 0 warnings** | Current static analysis |
+| `P scripts/validate_project_graph.py` | Graph valid | Current branch validation |
+| `P -I -S scripts/validate_ui_fixtures.py` | **30 synthetic cases, 6 shared states** | Current fixture validation |
+| `P scripts/validate_ui_v2_evidence.py` | **60 captures, 14 states, 12 statuses, 28 complete keyboard sequences** | Replay of existing UI V2 evidence; no new native measurement |
+| `$V/production-env/bin/python $V/recipes/production_check.py --repository $V/source-revision --scratch $V/production-results --linux-executable-suffix` | Wheel/build/help exit **0/0/0**, `executable_help_stderr_nonempty: false`; no forbidden entries; **52 wheel entries, 16 executable entries** | Regenerated on Linux/Python 3.12.14 at source merge `0684805e6926b3d923d4017023b178ce8b198114`; final input/hash equality checked by replay |
+| `P $V/replay_summary.py` (recipe below) | Every historical summary value reproduced | Historical derived replay, no new timing measurement |
+| `P $V/check_syntax.py` (recipe below) | **105 tracked Python files + 9 archived recipes** satisfy Python 3.10 grammar | Current syntax validation, not execution on Python 3.10 |
+| `git diff --check`; `git diff origin/main --check` | Passed | Current whitespace/full-diff validation |
+
+The temporary `check_syntax.py` recipe is:
+
+```python
+import ast, subprocess
+from pathlib import Path
+paths = [Path(p) for p in subprocess.check_output(
+    ['git', 'ls-files', '*.py'], text=True).splitlines()]
+recipes = sorted(Path('docs/ui/evidence/issue-82-pyside6').glob('*.py.txt'))
+for path in paths + recipes:
+    ast.parse(path.read_text(encoding='utf-8-sig'), filename=str(path),
+              feature_version=(3, 10))
+print(len(paths), len(recipes))
+```
+
+The temporary `replay_summary.py` copies archived JSON and the current
+`summarize.py.txt` / `evidence_contract.py.txt` recipes into a new external
+scratch directory, removes `.txt` from recipe names, executes
+`[P, 'summarize.py', '--historical']` there, and asserts parsed JSON equality
+between the generated and archived `summary.json`. It never overwrites history.
+
+The complete diff was manually reviewed against authoritative `main`: all
+production modules, dependencies, schema, fixtures and #81 contracts remain
+identical. Exactly **49 spike payloads** plus **18 prior Site payloads** remain
+under the strict byte-sensitive manifest/LF check. All **36 historical JSONs**
+and the archived shell retain their original hashes. No private path or raw log
+is included in the regenerated evidence. Remote CI is recorded separately in
+the PR and must pass at the published head.
 <!-- /current-validation -->
 
 ## External evidence still required
@@ -429,3 +489,71 @@ revision/date/platform/interpreter; do not reuse historical result files as new 
 Recommendation remains **Conditional Go** for further evidence collection.
 Issue #82 and both spike evals remain open/planned, PR #165 remains Draft,
 the ADR remains Proposed, and no Product Gate or production adoption is approved.
+
+
+## Consolidated correction and verification record
+
+| Review finding | Correction and principal regression |
+|---|---|
+| UIA accepted unexpected stderr | Actual stderr and shell diagnostic collection; explicit false flags/zero Qt-message count; malformed/missing input fails. `test_uia_collector_reads_redirected_stderr`, `test_uia_missing_or_malformed_diagnostics_fail`, `test_uia_collector_rejects_incomplete_or_unexpected_diagnostics`. Native UIA regeneration remains pending. |
+| Old production JSON accepted without stderr | Old JSON is rejected and preserved; new observer records explicit false plus actual environment/build identities. `test_production_stderr_evidence_fails_closed`, `test_explicit_false_production_stderr_passes_other_valid_invariants`, `test_regenerated_production_evidence_matches_current_build_inputs`. |
+| Raw Qt artifacts missed | Component-aware normalized DLL/library/tool/framework/plugin matching; scan wheel, executable, embedded entries and directories. `test_raw_qt_artifact_is_detected`, `test_unrelated_artifact_names_are_allowed`, `test_production_replay_recomputes_qt_inventory`, `test_executable_inventory_includes_empty_qt_plugin_directories`. |
+| Retained bundle deleted before authentication | Inventory first; reject/preserve mismatches; reuse authentic retained copies; verify new copies; write observations into unique directories. `test_retained_relocation_mismatch_is_preserved`, `test_verified_retained_relocation_is_not_replaced`, `test_relocation_rejects_links_and_preserves_outside_target`. Historical attribution explicitly superseded. |
+| Stale validation and inventory totals | Re-execute final gates; 49 exact spike payloads plus 18 prior Site payloads, with all 36 historical JSON hashes pinned. `test_evidence_digest_and_synthetic_provenance`, `test_historical_observations_and_provenance_are_not_rewritten`, existing raw-LF architecture gate. |
+
+Root causes: A — permissive diagnostic collection/replay; B — incomplete
+artifact identity/isolation/provenance; C — revision-unbound evidence reporting.
+Equivalent-case review also tightened measurement first-paint/stdout handling,
+plugin boolean/stdout replay, and summary input validation. Explicit historical
+mode preserves only recorded invariants and cannot produce current acceptance.
+
+Q0 rechecked both completed Codex Reviews (a93f040 and a632e61), all eight
+threads and both original PR commits, closed #81/#136, and authoritative main.
+Current main contains the final contracts but no #82 evidence implementation;
+the remaining observer defects were reproduced on the synchronized PR tree.
+The worktrees contained no unrelated changes. No third review is requested.
+
+Development validation (not final-head totals):
+
+| Command / environment | Exit and exact result | Classification / correction |
+|---|---|---|
+| `git fetch origin` | 128; configured #81 remote branch had been deleted | Preflight; explicit `git fetch origin refs/heads/main:refs/remotes/origin/main refs/heads/codex/issue-82-pyside6-spike:refs/remotes/origin/codex/issue-82-pyside6-spike` passed. |
+| `git merge --no-ff --no-commit origin/main`; sync spike/contracts/fixtures/architecture pytest selection | 0; no conflicts; 652 passed, no skips | Current branch synchronization; both main integrations preserved. |
+| `P -m pytest tests/test_ui_spike_evidence.py -q -ra --tb=short -k 'uia_recipe_collects or archived_production_result_requires or raw_qt or retained_relocation'` | 1; 18 failed, 4 passed, 36 deselected, no skips | Expected pre-fix reproductions. |
+| Focused corrections excluding not-yet-regenerated records | 0; 110 passed, 3 deselected, no skips | Initial focused correction. |
+| Expanded focused corrections | 1; 2 failed, 124 passed, 3 deselected; then 0, 126 passed, 3 deselected | Discovered historical empty-stderr/unload flag inconsistency; retained only under explicit historical replay. |
+| Linux filename adaptation focused rerun | 0; 127 passed, 3 deselected, no skips | Temporary observer adaptation covered by regression. |
+| First unchanged production observer, separate Linux environment | 1; wheel build 0, PyInstaller build 1 | Exact production spec EXE/COLLECT filename collision; no passing claim. |
+| Observer with `--linux-executable-suffix`, first successful candidate | 0; both builds 0, help 0, stderr false | Regenerated Linux candidate, replaced by final regeneration after directory-inventory correction. |
+| Candidate Pyright before package installation finished | 1; 5 missing-watchdog-import errors | Environment setup; installed built wheel/watchdog, rerun 0 errors/0 warnings. |
+| Candidate spike / related gates / full suite | 0; 130 passed / 665 passed / 1,861 passed, 4 Windows-only junction skips, 175 subtests | Pre-final candidate; superseded by final validation after the additional directory case. |
+| `P -m pytest tests/test_ui_spike_evidence.py -q -k empty_qt_plugin_directories` | 1; 1 failed, 130 deselected; after correction 0, 1 passed, 130 deselected | Empty plugin directories were omitted from executable inventory; now included. |
+| `git -c credential.interactive=false push --dry-run origin HEAD:refs/heads/codex/issue-82-pyside6-spike` | 128; terminal has no write credential | Publication uses the already connected GitHub app, exact Git blob/tree hashes, and a non-force fast-forward ref update. |
+
+The GitHub source merge has the original PR tip and authoritative main as
+parents. It preserves the published history. Local unpublished commits were
+aligned to the identical GitHub tree with compare-and-swap `git update-ref`;
+no worktree content or unrelated branch was replaced. Final result publication
+uses the same identity checks, followed by tests at the exact publication commit.
+
+
+## Files changed by this consolidation
+
+- `docs/architecture/adr-ui-toolkit.md`
+- `docs/ui/evidence/issue-82-pyside6/README.md`
+- `docs/ui/evidence/issue-82-pyside6/SHA256SUMS`
+- `docs/ui/evidence/issue-82-pyside6/evidence-status.json`
+- `docs/ui/evidence/issue-82-pyside6/evidence_contract.py.txt`
+- `docs/ui/evidence/issue-82-pyside6/measure.py.txt`
+- `docs/ui/evidence/issue-82-pyside6/plugin_probe.py.txt`
+- `docs/ui/evidence/issue-82-pyside6/production-isolation-current.json`
+- `docs/ui/evidence/issue-82-pyside6/production_check.py.txt`
+- `docs/ui/evidence/issue-82-pyside6/relocate.py.txt`
+- `docs/ui/evidence/issue-82-pyside6/summarize.py.txt`
+- `docs/ui/evidence/issue-82-pyside6/uia.ps1.txt`
+- `docs/ui/pyside6-spike-82.md`
+- `tests/test_ui_spike_evidence.py`
+- `woff/tests/test_architecture_contracts.py`
+
+The cumulative PR also retains its original historical JSON archive, `.gitattributes`
+rule and eval-catalog link. Those historical payloads are preserved, not regenerated.

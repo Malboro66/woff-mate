@@ -59,7 +59,11 @@ py -3.10 -m venv <external-temp>/production-env
 <external-temp>/production-env/Scripts/python.exe <external-temp>/production_check.py --repository <clean-checkout> --scratch <external-temp>/production-results
 ```
 
-On Linux use the venv's `bin/python` spelling. The observer copies committed
+On Linux use the venv's `bin/python` spelling and explicit
+`--linux-executable-suffix`. The unchanged Windows spec first failed on Linux
+because EXE and COLLECT share a suffix-less name. This flag changes only the
+executable filename in an external copy; the result records the variant/hash.
+It is not an unchanged-spec or native Windows build claim. The observer copies committed
 production build inputs into a unique external directory, builds the unchanged
 wheel and `build.spec`, requires exactly one new wheel, inspects raw Qt/binding
 artifacts in wheel, collected files and embedded executable inventory, and runs
