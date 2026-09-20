@@ -44,6 +44,7 @@ from .campaign_namespace import (
 from .identity import PilotIdentityError, PilotIdentityEvidence, PilotSlotBinding, pilot_slot
 from .models import WoFFPilot, WoFFMission, WoFFVictory, WoFFDecoration, WoFFWingman
 from .repositories import PilotRepository, MissionRepository, RpgRepository, WingmanRepository
+from .nation import NationService
 from .version import SCHEMA_VERSION, __version__
 
 log = logging.getLogger("WoFFWatch")
@@ -2301,6 +2302,9 @@ class DatabaseManager:
 
     def get_pilot_state(self, pilot_name: str) -> Tuple[Optional[str], Optional[str]]:
         return self._pilots.get_pilot_state(pilot_name)
+
+    def get_pilot_nation_service(self, pilot_id: str) -> Optional[NationService]:
+        return self._pilots.get_nation_service(pilot_id)
 
     def get_slot_epoch(self, campaign_namespace: str, slot: int) -> int:
         return self._pilots.get_slot_epoch(campaign_namespace, slot)

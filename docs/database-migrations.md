@@ -19,6 +19,13 @@ The application persists the new schema version in the same transaction as the s
 
 ## Schema 3.4 victory occurrence migration
 
+Issue #136 retains this schema unchanged. `pilots.nation` is the recoverable
+source evidence; `NationService` derives the closed playable nation, separate
+service and known/missing/unsupported state on read. Existing rows are not
+rewritten, and no migration backup is created for this semantic interpretation.
+Legacy compatibility, transaction rollback and reopen are tested. See
+[the nation/service storage decision](architecture/nation-service.md).
+
 Schema 3.4 removes the lossy victory uniqueness rule on
 `(pilotId, date, time, enemyType)`. Those values describe a visible claim but
 cannot identify one occurrence: two valid claims may share every value in that

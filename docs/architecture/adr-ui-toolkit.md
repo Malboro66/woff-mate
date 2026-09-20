@@ -68,7 +68,11 @@ Default packaging also collected the GPLv3/commercial Qt Virtual Keyboard
 module and omitted distribution notices. These are unresolved distribution
 conditions, not an approved LGPL-only package. The report preserves raw
 results and reproduction recipes; it does not satisfy the full adoption matrix
-or the graph's still-unsatisfied #81 prerequisite.
+or the remaining external #82 criteria. The #81 immutable contracts are now
+integrated through PR #166 and its graph prerequisite is satisfied. Historical
+UIA/relocation authentication limits and the separate Linux production-isolation
+regeneration are recorded in the report; no historical measurement is promoted
+to current platform validation.
 
 ## Adoption gates
 

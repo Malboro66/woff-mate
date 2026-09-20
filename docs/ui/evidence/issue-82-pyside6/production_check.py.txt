@@ -1,69 +1,169 @@
-"""Run with production-env/Scripts/python.exe from the repository root.
+"""Build a committed production revision in fresh external scratch directories.
 
-Build unchanged production wheel/spec in a Qt-free environment; record only
-sanitized inventory and process return codes. No campaign inputs are opened.
+Run with a Qt-free environment. No installation, package download, campaign
+input, or change to the worktree occurs inside this observer.
 """
+import argparse
+from datetime import datetime, timezone
+import hashlib
 import importlib.metadata as metadata
 import json
 from pathlib import Path
+import platform
+import runpy
 import shutil
 import subprocess
 import sys
+import tempfile
 from zipfile import ZipFile
 
 
 def recreate_output_directory(path, expected_parent):
-    """Remove one known disposable output and recreate it empty."""
-    resolved = path.resolve()
-    assert resolved.parent == expected_parent.resolve(), resolved
-    if resolved.exists():
-        shutil.rmtree(resolved)
-    resolved.mkdir()
-    return resolved
+    """Only exact disposable build outputs, never linked/user-selected targets."""
+    if (path.name not in {'production-wheel', 'production-dist', 'production-work'}
+            or path.parent != expected_parent or path.is_symlink()
+            or expected_parent.is_symlink()
+            or path.resolve().parent != expected_parent.resolve()):
+        raise ValueError('unsafe production output')
+    if path.exists():
+        shutil.rmtree(path)
+    path.mkdir()
+    return path
 
 
 def select_single_wheel(path):
     wheels = sorted(path.glob('*.whl'))
-    assert len(wheels) == 1, [wheel.name for wheel in wheels]
+    assert len(wheels) == 1, 'current build must produce exactly one wheel'
     return wheels[0]
 
 
-root = Path('build/issue82')
-qt = [d.metadata['Name'] for d in metadata.distributions()
-      if d.metadata['Name'].lower().startswith(('pyside', 'pyqt', 'shiboken'))]
-assert not qt
-wheel_output = recreate_output_directory(root / 'production-wheel', root)
-recreate_output_directory(root / 'production-dist', root)
-recreate_output_directory(root / 'production-work', root)
-commands = [
-    [sys.executable, '-m', 'build', '--wheel', '--no-isolation', '--outdir', str(wheel_output)],
-    [sys.executable, '-m', 'PyInstaller', '--clean', '--noconfirm',
-     '--distpath', str(root / 'production-dist'), '--workpath', str(root / 'production-work'), 'build.spec'],
-]
-for index, command in enumerate(commands):
-    result = subprocess.run(command, capture_output=True)
-    (root / f'production-build-{index}.log').write_bytes(result.stdout + result.stderr)
-    assert result.returncode == 0, f'Production build {index} failed'
-wheel = select_single_wheel(wheel_output)
-with ZipFile(wheel) as archive:
-    entries = archive.namelist()
-    metadata_entries = [n for n in entries if n.endswith('.dist-info/METADATA')]
-    assert len(metadata_entries) == 1, metadata_entries
-    meta = archive.read(metadata_entries[0]).decode()
-forbidden = ('pyside', 'pyqt', 'shiboken', 'issue82', 'issue-82', 'catalog.json', 'woff/tests/', 'docs/')
-dist = root / 'production-dist/WoFFWatchdog'
-dist_entries = sorted(p.relative_to(dist).as_posix() for p in dist.rglob('*') if p.is_file())
-help_result = subprocess.run([str((dist / 'WoFFWatchdog.exe').resolve()), '--help'], capture_output=True, timeout=30)
-result = {
-    'qt_distributions': qt, 'wheel': wheel.name, 'wheel_entries': entries,
-    'requires_dist': [line for line in meta.splitlines() if line.startswith('Requires-Dist:')],
-    'forbidden_wheel_entries': [n for n in entries if any(word in n.lower() for word in forbidden)],
-    'executable_entries': dist_entries,
-    'forbidden_executable_entries': [n for n in dist_entries if any(word in n.lower() for word in forbidden)],
-    'executable_help_exit_code': help_result.returncode,
-    'executable_help_stderr_nonempty': bool(help_result.stderr.strip()),
-}
-(root / 'production-isolation.json').write_text(json.dumps(result, indent=2) + '\n', encoding='utf-8')
-assert not result['forbidden_wheel_entries'] and not result['forbidden_executable_entries']
-assert help_result.returncode == 0 and not help_result.stderr.strip()
-print('Production wheel, unchanged PyInstaller spec and --help: PASS; Qt-free')
+def file_record(path, relative_name):
+    return {'path': relative_name, 'bytes': path.stat().st_size,
+            'sha256': hashlib.sha256(path.read_bytes()).hexdigest()}
+
+
+def artifact_entries(root):
+    return sorted(p.relative_to(root).as_posix() + ('/' if p.is_dir() else '')
+                  for p in root.rglob('*') if p.is_file() or p.is_dir())
+
+
+def observer_spec(source_text, linux_executable_suffix):
+    """Optional Linux filename-only adjustment; never change production spec."""
+    if not linux_executable_suffix:
+        return source_text
+    needle = "    name='WoFFWatchdog',"
+    if source_text.count(needle) != 2:
+        raise ValueError('unexpected production spec layout')
+    return source_text.replace(needle, "    name='WoFFWatchdog.exe',", 1)
+
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--repository', type=Path, required=True)
+    parser.add_argument('--scratch', type=Path, required=True)
+    parser.add_argument('--linux-executable-suffix', action='store_true')
+    args = parser.parse_args()
+    if args.linux_executable_suffix and sys.platform != 'linux':
+        raise ValueError('filename adjustment is Linux-only')
+    repo = args.repository.resolve()
+    scratch = args.scratch.resolve()
+    if scratch == repo or repo in scratch.parents or scratch in repo.parents:
+        raise ValueError('production scratch must be external to the worktree')
+    scratch.mkdir(parents=True, exist_ok=True)
+    def git(*args):
+        return subprocess.check_output(['git', '-C', str(repo), *args]).decode('utf-8').strip()
+    if git('status', '--porcelain', '--untracked-files=no'):
+        raise ValueError('production evidence requires a clean committed tree')
+    revision = git('rev-parse', 'HEAD')
+    source_tree = git('rev-parse', 'HEAD^{tree}')
+    contract_path = Path(__file__).with_name('evidence_contract.py')
+    contract = runpy.run_path(str(contract_path))
+    forbidden_entry = contract['is_forbidden_entry']
+    distributions = sorted((d.metadata['Name'], d.version) for d in metadata.distributions())
+    qt = [name for name, _ in distributions if forbidden_entry(name)]
+    if qt:
+        raise ValueError('production observer requires a Qt-free environment')
+    # A unique job directory prevents stale-wheel selection without deleting
+    # any prior build/evidence. Build-system side effects stay in this copy.
+    root = Path(tempfile.mkdtemp(prefix='production-', dir=scratch))
+    source = root / 'source'
+    source.mkdir()
+    build_inputs = []
+    for name in git('ls-tree', '-r', '--name-only', 'HEAD').splitlines():
+        if name in {'pyproject.toml', 'setup.cfg', 'setup.py', 'requirements.txt',
+                    'README.md', 'LICENSE', 'build.spec', 'woff_watchdog_entry.py', 'woff_query.py'} or (
+                    name.startswith('woff/') and not name.startswith('woff/tests/')):
+            data = subprocess.check_output(['git', '-C', str(repo), 'show', revision + ':' + name])
+            target = source / name
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_bytes(data)
+            build_inputs.append(file_record(target, name))
+    wheel_output = recreate_output_directory(root / 'production-wheel', root)
+    dist_output = recreate_output_directory(root / 'production-dist', root)
+    work_output = recreate_output_directory(root / 'production-work', root)
+    spec_text = observer_spec((source / 'build.spec').read_text(encoding='utf-8'), args.linux_executable_suffix)
+    spec_name = 'observer-build.spec' if args.linux_executable_suffix else 'build.spec'
+    if args.linux_executable_suffix:
+        (source / spec_name).write_text(spec_text, encoding='utf-8')
+    commands = [
+        [sys.executable, '-m', 'build', '--wheel', '--no-isolation', '--outdir', str(wheel_output)],
+        [sys.executable, '-m', 'PyInstaller', '--clean', '--noconfirm',
+         '--distpath', str(dist_output), '--workpath', str(work_output), spec_name],
+    ]
+    for index, command in enumerate(commands):
+        completed = subprocess.run(command, cwd=source, capture_output=True, timeout=300)
+        (root / f'production-build-{index}.log').write_bytes(completed.stdout + completed.stderr)
+        if completed.returncode != 0:
+            raise ValueError(f'Production build {index} failed; inspect local log')
+    wheel = select_single_wheel(wheel_output)
+    with ZipFile(wheel) as archive:
+        entries = sorted(archive.namelist())
+        metadata_entries = [n for n in entries if n.endswith('.dist-info/METADATA')]
+        if len(metadata_entries) != 1:
+            raise ValueError('wheel metadata is ambiguous')
+        meta = archive.read(metadata_entries[0]).decode('utf-8')
+        wheel_inventory = [{'path': n, 'bytes': len(archive.read(n)),
+                            'sha256': hashlib.sha256(archive.read(n)).hexdigest()} for n in entries]
+    dist = dist_output / 'WoFFWatchdog'
+    dist_inventory = [file_record(p, p.relative_to(dist).as_posix())
+                      for p in sorted(dist.rglob('*')) if p.is_file()]
+    executable = dist / ('WoFFWatchdog.exe' if sys.platform == 'win32' or args.linux_executable_suffix else 'WoFFWatchdog')
+    help_result = subprocess.run([str(executable), '--help'], cwd=root, capture_output=True, timeout=30)
+    # The unchanged spec embeds binaries in EXE as well as collecting files.
+    # Inspect its embedded archive too, so on-disk inventory is not the only proof.
+    from PyInstaller.archive.readers import CArchiveReader
+    embedded_entries = sorted(CArchiveReader(str(executable)).toc)
+    dist_entries = sorted(set(artifact_entries(dist)) | {'embedded/' + n for n in embedded_entries})
+    result = {
+        'evidence_kind': 'regenerated production isolation',
+        'source_commit': revision, 'source_tree': source_tree,
+        'observed_at': datetime.now(timezone.utc).isoformat(),
+        'platform': platform.system(), 'python': platform.python_version(),
+        'spec_variant': 'linux-executable-suffix' if args.linux_executable_suffix else 'unchanged-production-spec',
+        'effective_spec_sha256': hashlib.sha256(spec_text.encode('utf-8')).hexdigest(),
+        'native_windows_validation': sys.platform == 'win32',
+        'observer_sha256': hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
+        'contract_sha256': hashlib.sha256(contract_path.read_bytes()).hexdigest(),
+        'environment': [{'name': name, 'version': version} for name, version in distributions],
+        'build_inputs': build_inputs,
+        'build_inputs_sha256': hashlib.sha256(json.dumps(build_inputs, sort_keys=True, separators=(',', ':')).encode()).hexdigest(),
+        'build_exit_codes': [0, 0],
+        'qt_distributions': qt, 'wheel': wheel.name,
+        'wheel_sha256': hashlib.sha256(wheel.read_bytes()).hexdigest(),
+        'wheel_entries': entries, 'wheel_inventory': wheel_inventory,
+        'requires_dist': [line for line in meta.splitlines() if line.startswith('Requires-Dist:')],
+        'forbidden_wheel_entries': [n for n in entries if forbidden_entry(n)],
+        'executable_entries': dist_entries, 'executable_inventory': dist_inventory,
+        'executable_directories': [n for n in artifact_entries(dist) if n.endswith('/')],
+        'embedded_entries': embedded_entries,
+        'forbidden_executable_entries': [n for n in dist_entries if forbidden_entry(n)],
+        'executable_help_exit_code': help_result.returncode,
+        'executable_help_stderr_nonempty': bool(help_result.stderr.strip()),
+    }
+    (root / 'production-isolation.json').write_text(json.dumps(result, indent=2) + '\n', encoding='utf-8')
+    contract['validate_production_result'](result)
+    print('Production wheel/executable validated; result:', root / 'production-isolation.json')
+
+
+if __name__ == '__main__':
+    main()

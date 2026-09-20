@@ -3,6 +3,9 @@ from pathlib import Path
 import ast
 import hashlib
 import json
+import runpy
+import subprocess
+import sys
 
 import pytest
 
@@ -113,18 +116,15 @@ def test_packaging_evidence_preserves_distribution_blocker():
         assert any(p.endswith('/qwindows.dll') for p in paths)
         # Default hooks included a GPL/commercial module; never erase this evidence.
         assert any(p.endswith('/Qt6VirtualKeyboard.dll') for p in paths)
-    isolation = read_json('production-isolation.json')
-    assert isolation['qt_distributions'] == []
-    assert isolation['forbidden_wheel_entries'] == []
-    assert isolation['forbidden_executable_entries'] == []
-    assert isolation['executable_help_exit_code'] == 0
+    isolation = read_json('production-isolation-current.json')
+    evidence_contract()['validate_production_result'](isolation)
 
 
 def test_production_recipe_removes_stale_wheels_and_fails_closed(tmp_path):
     recipe = (EVIDENCE / 'production_check.py.txt').read_text(encoding='utf-8')
     assert "wheel_output = recreate_output_directory(root / 'production-wheel', root)" in recipe
     assert 'wheel = select_single_wheel(wheel_output)' in recipe
-    assert "help_result.returncode == 0 and not help_result.stderr.strip()" in recipe
+    assert "contract['validate_production_result'](result)" in recipe
     helpers = load_recipe_functions(
         'production_check.py.txt', 'recreate_output_directory', 'select_single_wheel')
     root = tmp_path / 'issue82'
@@ -146,7 +146,7 @@ def test_production_recipe_removes_stale_wheels_and_fails_closed(tmp_path):
 def test_relocation_recipe_binds_artifact_inventory_and_historical_results(tmp_path):
     recipe = (EVIDENCE / 'relocate.py.txt').read_text(encoding='utf-8')
     assert 'destination = copy_and_verify(' in recipe
-    assert 'completed = subprocess.run(command, cwd=relocation_root)' in recipe
+    assert 'completed = subprocess.run(command, cwd=observation_root, timeout=120)' in recipe
     assert "assert completed.returncode == 0 and local_result.is_file()" in recipe
     helpers = load_recipe_functions(
         'relocate.py.txt', 'inventory', 'inventory_sha256', 'json_sha256', 'copy_and_verify')
@@ -216,7 +216,7 @@ def test_debug_logging_teardown_correction_is_verified():
 def test_plugin_probe_stderr_contract(stderr, accepted):
     recipe = (EVIDENCE / 'plugin_probe.py.txt').read_text(encoding='utf-8')
     assert 'stderr_accepted = stderr_is_accepted(result.stderr)' in recipe
-    assert "not r['stderr_nonempty'] or r['stderr_only_library_unload']" in recipe
+    assert "'validate_plugin_results'](results)" in recipe
     helpers = load_recipe_functions('plugin_probe.py.txt', 'stderr_is_accepted')
     assert helpers['stderr_is_accepted'](stderr) is accepted
 
@@ -225,3 +225,280 @@ def test_summary_recipe_names_exact_final_inputs():
     recipe = (EVIDENCE / 'summarize.py.txt').read_text(encoding='utf-8')
     assert "glob('final-*-audit.json')" not in recipe
     assert "['source310', 'source314', 'packaged310', 'packaged314']" in recipe
+
+
+def evidence_contract():
+    return runpy.run_path(str(EVIDENCE / 'evidence_contract.py.txt'))
+
+
+def test_uia_recipe_collects_diagnostics_before_acceptance():
+    recipe = (EVIDENCE / 'uia.ps1.txt').read_text(encoding='utf-8')
+    assert '--uia-result' in recipe and '--stderr' in recipe and '--stdout' in recipe
+    assert '$LASTEXITCODE -ne 0' in recipe
+
+
+@pytest.mark.parametrize('stderr', [None, True, 0, 1, '', 'false', [], {}])
+def test_production_stderr_evidence_fails_closed(stderr):
+    result = read_json('production-isolation.json')
+    if stderr is not None:
+        result['executable_help_stderr_nonempty'] = stderr
+    with pytest.raises(ValueError, match='stderr'):
+        evidence_contract()['validate_production_result'](result)
+
+
+def test_archived_production_result_requires_explicit_clean_stderr():
+    # The original Windows result is preserved, but is not current proof.
+    with pytest.raises(ValueError, match='stderr'):
+        evidence_contract()['validate_production_result'](read_json('production-isolation.json'))
+    result = read_json('production-isolation-current.json')
+    assert result['executable_help_stderr_nonempty'] is False
+    evidence_contract()['validate_production_result'](result)
+
+
+@pytest.mark.parametrize('path', [
+    'Qt6Core.dll', '_internal/Qt6Widgets.dll', 'vendor\\Qt6Network.DLL',
+    './vendor/Qt6Gui.dll', 'plugins/platforms/qwindows.dll',
+    '_internal\\plugins\\platforms\\qwindows.dll', 'lib/libQt6Core.so.6.11.2',
+    'lib/QtCore.framework/Versions/A/QtCore', 'lib/libQt6Gui.6.dylib',
+    'plugins/imageformats/qjpeg.dll', 'platforms/libqxcb.so',
+    'PySide6/QtCore.pyd', 'PySide6_Essentials-6.11.2.dist-info/METADATA',
+    'PyQt6/Qt6/bin/Qt6Core.dll', 'shiboken6/Shiboken.pyd', 'bin/qtpaths6.exe',
+    'bin/qmake.exe', 'plugins/platforms/',
+])
+def test_raw_qt_artifact_is_detected(path):
+    assert evidence_contract()['is_forbidden_entry'](path)
+
+
+@pytest.mark.parametrize('path', [
+    'woff/ui_contracts.py', 'acquireQt6Core.dll.txt', 'docs-of-third-party.txt',
+    'vendor/notqt6core.dll', 'plugins/platforms_notes.txt', 'my_pyside_notes.txt',
+    'lib/equator.so', 'tools/qmake_notes.md', 'Qt6Core.dll.backup.txt',
+    'application/platforms/windows.py', 'photos/qwindows.png',
+])
+def test_unrelated_artifact_names_are_allowed(path):
+    assert not evidence_contract()['is_forbidden_entry'](path)
+
+
+def test_retained_relocation_mismatch_is_preserved(tmp_path):
+    helpers = load_recipe_functions('relocate.py.txt', 'inventory', 'copy_and_verify')
+    source = tmp_path / 'source'
+    source.mkdir()
+    (source / 'Issue82.exe').write_bytes(b'current')
+    root = tmp_path / 'relocation with spaces'
+    root.mkdir()
+    retained = root / 'package310'
+    retained.mkdir()
+    (retained / 'Issue82.exe').write_bytes(b'historical-unverified')
+    before = helpers['inventory'](retained)
+    with pytest.raises((AssertionError, ValueError), match='retained'):
+        helpers['copy_and_verify'](source, retained, helpers['inventory'](source), root)
+    assert helpers['inventory'](retained) == before
+
+
+def test_verified_retained_relocation_is_not_replaced(tmp_path, monkeypatch):
+    helpers = load_recipe_functions('relocate.py.txt', 'inventory', 'copy_and_verify')
+    source = tmp_path / 'source'
+    source.mkdir()
+    (source / 'Issue82.exe').write_bytes(b'verified')
+    root = tmp_path / 'relocation with spaces'
+    root.mkdir()
+    expected = helpers['inventory'](source)
+    destination = helpers['copy_and_verify'](source, root / 'package310', expected, root)
+    def forbid_delete(*args, **kwargs):
+        pytest.fail('authenticated retained bundle must not be destroyed')
+    monkeypatch.setattr(helpers['shutil'], 'rmtree', forbid_delete)
+    assert helpers['copy_and_verify'](source, destination, expected, root) == destination
+    assert helpers['inventory'](destination) == expected
+
+
+def uia_observation():
+    return {'window_found': True, 'elements': [{'name': 'Retry view',
+            'role': 'ControlType.Button', 'keyboard_focusable': True, 'offscreen': False}],
+            'exit_code': 0, 'announcements_verified': False, 'stderr_nonempty': False,
+            'stdout_unexpected': False, 'qt_message_count': 0}
+
+
+@pytest.mark.parametrize('field', ['stderr_nonempty', 'stdout_unexpected', 'qt_message_count', 'exit_code'])
+@pytest.mark.parametrize('value', [None, True, 'false', '', [], {}, 1])
+def test_uia_missing_or_malformed_diagnostics_fail(field, value):
+    result = uia_observation()
+    if value is None:
+        del result[field]
+    else:
+        result[field] = value
+    with pytest.raises(ValueError):
+        evidence_contract()['validate_uia_result'](result)
+
+
+def test_uia_clean_observation_passes():
+    evidence_contract()['validate_uia_result'](uia_observation())
+
+
+@pytest.mark.parametrize(('stderr', 'exit_code'), [('', 0), ('Qt plugin warning\n', 1)])
+def test_uia_collector_reads_redirected_stderr(tmp_path, stderr, exit_code):
+    result = tmp_path / 'uia.json'
+    result.write_text(json.dumps(uia_observation()), encoding='utf-8')
+    err = tmp_path / 'stderr.txt'
+    err.write_text(stderr, encoding='utf-8')
+    out = tmp_path / 'stdout.txt'
+    events = [{'event': 'window'}, {'event': 'first_paint'},
+              {'event': 'result', 'result': {'messages': [], 'forbidden_imports': []}}]
+    out.write_text('\n'.join(json.dumps(e) for e in events), encoding='utf-8')
+    completed = subprocess.run([sys.executable, str(EVIDENCE / 'evidence_contract.py.txt'),
+                               '--uia-result', str(result), '--stderr', str(err),
+                               '--stdout', str(out)], capture_output=True)
+    assert completed.returncode == exit_code
+    recorded = json.loads(result.read_text(encoding='utf-8'))
+    assert recorded['stderr_nonempty'] is bool(stderr)
+    assert stderr.strip() not in recorded.values() if stderr else True
+
+
+@pytest.mark.parametrize('failure', ['missing_stderr', 'invalid_utf8', 'missing_messages',
+                                    'qt_warning', 'unexpected_stdout', 'duplicate_event'])
+def test_uia_collector_rejects_incomplete_or_unexpected_diagnostics(tmp_path, failure):
+    err, out = tmp_path / 'stderr.txt', tmp_path / 'stdout.txt'
+    if failure != 'missing_stderr':
+        err.write_bytes(b'\xff' if failure == 'invalid_utf8' else b'')
+    payload = {'messages': [], 'forbidden_imports': []}
+    if failure == 'missing_messages':
+        del payload['messages']
+    if failure == 'qt_warning':
+        payload['messages'] = [{'kind': 'QtWarningMsg', 'message': 'local diagnostic'}]
+    events = [{'event': 'window'}, {'event': 'first_paint'}, {'event': 'result', 'result': payload}]
+    if failure == 'duplicate_event':
+        events.append(events[-1])
+    out.write_text('\n'.join(json.dumps(e) for e in events) +
+                   ('\nunexpected loader output' if failure == 'unexpected_stdout' else ''), encoding='utf-8')
+    helper = evidence_contract()
+    with pytest.raises((ValueError, OSError, UnicodeError)):
+        result = helper['collect_uia_diagnostics'](uia_observation(), err, out)
+        helper['validate_uia_result'](result)
+
+
+def test_explicit_false_production_stderr_passes_other_valid_invariants():
+    result = read_json('production-isolation.json')
+    result['executable_help_stderr_nonempty'] = False
+    evidence_contract()['validate_production_result'](result)
+
+
+@pytest.mark.parametrize('kind', ['wheel', 'executable'])
+@pytest.mark.parametrize('path', ['Qt6Core.dll', 'plugins\\platforms\\qwindows.dll'])
+def test_production_replay_recomputes_qt_inventory(kind, path):
+    result = read_json('production-isolation.json')
+    result['executable_help_stderr_nonempty'] = False
+    result[kind + '_entries'].append(path)
+    with pytest.raises(ValueError, match='classification'):
+        evidence_contract()['validate_production_result'](result)
+
+
+@pytest.mark.parametrize('field,value', [('stderr_nonempty', None), ('stderr_nonempty', 0),
+    ('exit_code', False), ('launch_to_paint_seconds', None), ('launch_to_paint_seconds', float('nan')),
+    ('qt_messages', None), ('stdout_unexpected', None), ('stdout_unexpected', True)])
+def test_measurement_replay_rejects_incomplete_observations(field, value):
+    rows = read_json('final-source310.json')
+    for row in rows:
+        row['stdout_unexpected'] = False
+    rows[0][field] = value
+    with pytest.raises(ValueError):
+        evidence_contract()['validate_measurements'](rows, 'final-source310', [1])
+
+
+@pytest.mark.parametrize('configuration', ['source310', 'source314', 'packaged310', 'packaged314'])
+def test_historical_measurements_require_explicit_limited_replay(configuration):
+    helper = evidence_contract()
+    for audit in (False, True):
+        label = 'final-' + configuration + ('-audit' if audit else '')
+        rows = read_json(label + '.json')
+        scales = [1, 1.25, 1.5, 2] if audit else [1]
+        with pytest.raises(ValueError, match='stdout'):
+            helper['validate_measurements'](rows, label, scales)
+        helper['validate_measurements'](rows, label, scales, historical=True)
+
+
+def test_relocation_rejects_links_and_preserves_outside_target(tmp_path):
+    helpers = load_recipe_functions('relocate.py.txt', 'inventory', 'copy_and_verify')
+    source, root, outside = tmp_path / 'source', tmp_path / 'relocation with spaces', tmp_path / 'outside'
+    for path in (source, root, outside):
+        path.mkdir()
+    (source / 'Issue82.exe').write_bytes(b'current')
+    (outside / 'keep').write_bytes(b'untouched')
+    destination = root / 'package310'
+    try:
+        destination.symlink_to(outside, target_is_directory=True)
+    except OSError:
+        pytest.skip('Creating symbolic links is not permitted on this Windows environment')
+    with pytest.raises(ValueError, match='unsafe'):
+        helpers['copy_and_verify'](source, destination, helpers['inventory'](source), root)
+    assert (outside / 'keep').read_bytes() == b'untouched'
+
+
+@pytest.mark.parametrize('name', ['plugin-discovery.json', 'source-plugin-discovery.json'])
+def test_plugin_replay_requires_explicit_historical_limit(name):
+    helpers = evidence_contract()
+    rows = read_json(name)
+    with pytest.raises(ValueError, match='stdout|contradictory'):
+        helpers['validate_plugin_results'](rows)
+    helpers['validate_plugin_results'](rows, historical=True)
+
+
+@pytest.mark.parametrize('field', ['stderr_nonempty', 'stderr_only_library_unload'])
+@pytest.mark.parametrize('value', [None, 'false', 0, 1, [], {}])
+def test_plugin_replay_rejects_missing_or_malformed_stderr(field, value):
+    rows = read_json('plugin-discovery.json')
+    rows[0][field] = value
+    with pytest.raises(ValueError, match='stderr'):
+        evidence_contract()['validate_plugin_results'](rows, historical=True)
+
+
+def test_historical_observations_and_provenance_are_not_rewritten():
+    status = read_json('evidence-status.json')
+    for name, digest in status['historical_payload_sha256'].items():
+        assert hashlib.sha256((EVIDENCE / name).read_bytes()).hexdigest() == digest, name
+    assert status['issue_82_complete'] is False
+    assert status['recommendation'] == 'Conditional Go'
+    assert 'superseded' in status['limited_evidence']['relocation-provenance.json'].lower()
+    with pytest.raises(ValueError):
+        evidence_contract()['validate_uia_result'](read_json('uia.json'))
+
+
+def test_regenerated_production_evidence_matches_current_build_inputs():
+    result = read_json('production-isolation-current.json')
+    assert result['evidence_kind'] == 'regenerated production isolation'
+    assert result['platform'] in {'Linux', 'Windows'}
+    assert result['build_exit_codes'] == [0, 0]
+    for source_name, key in [('production_check.py.txt', 'observer_sha256'),
+                             ('evidence_contract.py.txt', 'contract_sha256')]:
+        assert hashlib.sha256((EVIDENCE / source_name).read_bytes()).hexdigest() == result[key]
+    for entry in result['build_inputs']:
+        # The observer builds committed bytes, independent of Windows checkout EOL.
+        data = subprocess.check_output(['git', 'show', 'HEAD:' + entry['path']], cwd=ROOT)
+        assert len(data) == entry['bytes']
+        assert hashlib.sha256(data).hexdigest() == entry['sha256'], entry['path']
+    payload = json.dumps(result['build_inputs'], sort_keys=True, separators=(',', ':')).encode()
+    assert hashlib.sha256(payload).hexdigest() == result['build_inputs_sha256']
+    assert [entry['path'] for entry in result['wheel_inventory']] == result['wheel_entries']
+    assert sorted({e['path'] for e in result['executable_inventory']} | set(result['executable_directories']) |
+                  {'embedded/' + n for n in result['embedded_entries']}) == result['executable_entries']
+    evidence_contract()['validate_production_result'](result)
+
+
+def test_linux_observer_adjusts_only_the_executable_filename():
+    helper = load_recipe_functions('production_check.py.txt', 'observer_spec')
+    original = (ROOT / 'build.spec').read_text(encoding='utf-8')
+    assert helper['observer_spec'](original, False) == original
+    adjusted = helper['observer_spec'](original, True)
+    assert adjusted.replace("name='WoFFWatchdog.exe',", "name='WoFFWatchdog',", 1) == original
+    assert adjusted.count("name='WoFFWatchdog.exe',") == 1
+    assert adjusted.count("name='WoFFWatchdog',") == 1
+    with pytest.raises(ValueError, match='spec layout'):
+        helper['observer_spec']('unrecognized spec', True)
+
+
+def test_executable_inventory_includes_empty_qt_plugin_directories(tmp_path):
+    (tmp_path / 'plugins/platforms').mkdir(parents=True)
+    (tmp_path / 'unrelated').mkdir()
+    (tmp_path / 'unrelated/notice.txt').write_text('ordinary data', encoding='utf-8')
+    helper = load_recipe_functions('production_check.py.txt', 'artifact_entries')
+    entries = helper['artifact_entries'](tmp_path)
+    assert 'plugins/platforms/' in entries
+    assert [p for p in entries if evidence_contract()['is_forbidden_entry'](p)] == ['plugins/platforms/']

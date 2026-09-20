@@ -88,10 +88,17 @@ The fixture suite uses no `woff/tests` persistence setup. It enforces the
 six-state envelope, all 15 screen mappings, deterministic inventory/order,
 synthetic labeling, fixed safe text, field reasons, stale/unknown freshness,
 stable ownership and isolation from application, database, GUI and network
-access. Passing this gate satisfies #80 only; #81/#82, the toolkit ADR,
+access. Passing this gate satisfies #80 only; #81, #82, the toolkit ADR,
 Product Gates and the aggregate cycle remain separate decisions.
 
 ## Q2: database and data
+
+For #136, `woff/tests/test_nation_domain.py` enforces the schema-3.4
+compatibility decision, legacy/raw preservation, composing-transaction rollback,
+integrity, foreign keys and reopen. No schema migration or bulk data mutation
+is required. The five nation evals have executable evidence; integration and
+#81 dependency reconciliation remain pending. See
+[the domain contract](../architecture/nation-service.md).
 
 Apply Q2 to writes, transactions, schemas, and migrations:
 
@@ -281,10 +288,11 @@ Cycle 3.4.0 is approved only when all conditions below pass:
 CI success alone does not approve cycle 3.4.0.
 
 #82 now belongs to 3.4.0 on the near-term P0 path. #139 completed the policy
-through PR #141 and its dependency into #140 is satisfied; #140 remains blocked
-by #81/#82 and remains fixture-backed only. `review-r2` is a product-review checkpoint,
-not another release-cycle issue. See the [#136 closure discrepancy](evals.md#136-closure-discrepancy)
-before treating #81 as ready. No aggregate tracker is declared for 3.4.0;
+through PR #141 and its dependency into #140 is satisfied. #81 is complete;
+#140 remains blocked by #82 and remains fixture-backed only. `review-r2` is a
+product-review checkpoint, not another release-cycle issue. The historical
+[#136 closure discrepancy](evals.md#136-closure-discrepancy) is resolved by the
+implementation merged through PR #164. No aggregate tracker is declared for 3.4.0;
 `EVAL-CYCLE-340-001` and its graph members define the aggregate scope.
 
 ## Minimum gate matrix

@@ -33,7 +33,9 @@ if ($spikeWindow -ne [IntPtr]::Zero) {
         $spikeElements += @{ name=$spikeCurrent.Name; role=$spikeCurrent.ControlType.ProgrammaticName; keyboard_focusable=$spikeCurrent.IsKeyboardFocusable; offscreen=$spikeCurrent.IsOffscreen }
     }
 }
-$spikeProcess.WaitForExit()
+if (-not $spikeProcess.WaitForExit(30000)) {
+    throw 'UIA process did not finish within the observation bound'
+}
 $spikeProcess.Refresh()
 $spikeResult = @{
     window_found=($spikeWindow -ne [IntPtr]::Zero)
@@ -42,6 +44,10 @@ $spikeResult = @{
     announcements_verified=$false
 }
 $spikeResult | ConvertTo-Json -Depth 5 | Set-Content -Encoding UTF8 'uia.json'
+& $spikePython evidence_contract.py --uia-result uia.json --stderr uia-local-stderr.txt --stdout uia-local-stdout.txt
+if ($LASTEXITCODE -ne 0) {
+    throw 'UIA diagnostics failed; inspect local files'
+}
 if (-not $spikeResult.window_found -or @($spikeResult.elements).Count -eq 0 -or $spikeResult.exit_code -ne 0) {
     throw 'UIA probe did not produce a successful window-bound result; inspect local files'
 }

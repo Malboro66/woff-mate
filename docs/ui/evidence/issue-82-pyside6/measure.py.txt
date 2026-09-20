@@ -11,6 +11,7 @@ from pathlib import Path
 import subprocess
 import sys
 import time
+from evidence_contract import validate_measurements
 
 executable = Path(sys.argv[1]).resolve()
 label = sys.argv[2]
@@ -40,11 +41,18 @@ for scale in ([1, 1.25, 1.5, 2] if audit else [1]):
             process.kill()
             stdout, stderr = process.communicate()
         events = []
+        stdout_unexpected = False
         for line in stdout.splitlines():
             try:
-                events.append(json.loads(line))
+                event = json.loads(line)
+                if not isinstance(event, dict) or event.get('event') not in {'first_paint', 'result'}:
+                    stdout_unexpected = True
+                else:
+                    events.append(event)
             except ValueError:
-                pass
+                stdout_unexpected = True
+        if sorted(e['event'] for e in events) != ['first_paint', 'result']:
+            stdout_unexpected = True
         paint = next((e['clock'] for e in events if e.get('event') == 'first_paint'), None)
         result = next((e['result'] for e in events if e.get('event') == 'result'), None)
         # Any unexpected diagnostics block passing; do not publish local paths.
@@ -57,10 +65,9 @@ for scale in ([1, 1.25, 1.5, 2] if audit else [1]):
                      'cold_boot_verified': False, 'exit_code': process.returncode,
                      'launch_to_paint_seconds': paint - start if paint else None,
                      'stderr_nonempty': bool(stderr.strip()), 'qt_messages': safe_messages,
+                     'stdout_unexpected': stdout_unexpected,
                      'result': result})
         print(label, scale, repetition, 'paint', rows[-1]['launch_to_paint_seconds'],
               'checks_failed', sum(not c['passed'] for c in result['checks']) if result else 'no result', flush=True)
 Path(label + '.json').write_text(json.dumps(rows, indent=2) + '\n', encoding='utf-8')
-if any(r['exit_code'] or r['result'] is None or r['stderr_nonempty'] or r['qt_messages'] or
-       any(not c['passed'] for c in r['result']['checks']) for r in rows):
-    sys.exit(1)
+validate_measurements(rows, label, [1, 1.25, 1.5, 2] if audit else [1])

@@ -2,10 +2,13 @@
 import json
 from pathlib import Path
 import statistics
+import sys
+from evidence_contract import validate_measurements
 
 summary = {}
 for name in ['source310', 'source314', 'packaged310', 'packaged314']:
     rows = json.loads(Path(f'final-{name}.json').read_text(encoding='utf-8'))
+    validate_measurements(rows, f'final-{name}', [1], historical='--historical' in sys.argv)
     launch = [r['launch_to_paint_seconds'] for r in rows]
     imports = [r['result']['import_seconds'] for r in rows]
     summary[name] = {
@@ -23,6 +26,9 @@ summary['dependencies_mb'] = {minor: sum(r['bytes'] for r in json.loads(Path(f'i
 audit_paths = [Path(f'final-{name}-audit.json') for name in
                ['source310', 'source314', 'packaged310', 'packaged314']]
 assert all(path.is_file() for path in audit_paths)
+for path in audit_paths:
+    validate_measurements(json.loads(path.read_text(encoding='utf-8')), path.stem,
+                          [1, 1.25, 1.5, 2], historical='--historical' in sys.argv)
 summary['audit_runs'] = sum(len(json.loads(p.read_text())) for p in audit_paths)
 summary['audit_checks'] = sum(len(r['result']['checks']) for p in audit_paths
                             for r in json.loads(p.read_text()))

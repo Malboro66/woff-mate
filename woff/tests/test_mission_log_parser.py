@@ -77,7 +77,7 @@ class TestMissionLogTemporalContract(unittest.TestCase):
         self.assertIsNone(parser.mission)
 
     def test_country_uses_shared_exact_nation_contract(self):
-        for raw, expected in (("britain", "RFC"), ("Austria", "Austria")):
+        for raw, expected in (("britain", "GB"), ("Austria", None)):
             with self.subTest(raw=raw):
                 parser = WoFFMissionLogParser()
 
@@ -88,7 +88,8 @@ class TestMissionLogTemporalContract(unittest.TestCase):
                 )
                 self.assertIsNotNone(parser.pilot)
                 assert parser.pilot is not None
-                self.assertEqual(parser.pilot.nation, expected)
+                self.assertEqual(parser.pilot.nation_code, expected)
+                self.assertEqual(parser.pilot.nation_raw, raw)
 
 
 if __name__ == "__main__":

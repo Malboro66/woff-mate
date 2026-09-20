@@ -117,8 +117,8 @@ def test_byte_sensitive_ui_evidence_uses_lf_checkout_policy() -> None:
                     evidence_path.relative_to(REPOSITORY_ROOT).as_posix()
                 )
 
-    # 18 retained Site payloads plus 46 textual records/recipes from spike #82.
-    assert len(byte_sensitive_text_paths) == len(set(byte_sensitive_text_paths)) == 64
+    # 18 retained Site payloads plus 49 textual records/recipes from spike #82.
+    assert len(byte_sensitive_text_paths) == len(set(byte_sensitive_text_paths)) == 67
 
     result = subprocess.run(
         [
@@ -1550,12 +1550,55 @@ def test_ui_state_fixture_gate_and_followup_dependencies() -> None:
         "tests/test_ui_state_fixtures.py",
         "woff/tests/test_architecture_contracts.py",
     ]
-    for issue in ("issue-81", "issue-82"):
-        assert work_items[issue]["state"] == "backlog"
-        assert {"id": "issue-80", "status": "satisfied"} in work_items[issue]["depends_on"]
-        for eval_id in work_items[issue]["evals"]:
-            assert evals[eval_id]["status"] == "planned"
+    issue_81 = work_items["issue-81"]
+    assert issue_81["state"] == "done"
+    assert {"id": "issue-80", "status": "satisfied"} in issue_81["depends_on"]
+    assert {"id": "issue-136", "status": "satisfied"} in issue_81["depends_on"]
+    assert evals["EVAL-UI-CONTRACTS-001"]["status"] == "implemented"
+    assert evals["EVAL-UI-CONTRACTS-001"]["enforced_by"] == [
+        "tests/test_ui_contracts.py",
+        "woff/tests/test_architecture_contracts.py",
+    ]
+    issue_82 = work_items["issue-82"]
+    assert issue_82["state"] == "backlog"
+    assert {"id": "issue-80", "status": "satisfied"} in issue_82["depends_on"]
+    assert {"id": "issue-81", "status": "satisfied"} in issue_82["depends_on"]
+    for eval_id in issue_82["evals"]:
+        assert evals[eval_id]["status"] == "planned"
     assert evals["EVAL-CYCLE-340-001"]["status"] == "planned"
+
+
+def test_immutable_ui_application_contract_boundary() -> None:
+    contract = REPOSITORY_ROOT / "woff" / "ui_contracts.py"
+    document = REPOSITORY_ROOT / "docs" / "ui" / "application-contracts.md"
+    assert contract.is_file() and document.is_file()
+    assert "docs/ui/application-contracts.md" in (
+        REPOSITORY_ROOT / "README.md"
+    ).read_text(encoding="utf-8")
+
+    source = contract.read_text(encoding="utf-8")
+    for snapshot in (
+        "OperationsSnapshot",
+        "PilotDossierSnapshot",
+        "MissionsSnapshot",
+        "WarDiarySnapshot",
+        "SquadronSnapshot",
+        "SystemStatusSnapshot",
+    ):
+        assert f"class {snapshot}" in source
+    for forbidden in ("import sqlite3", "import PySide6", "import PyQt6"):
+        assert forbidden not in source
+
+    graph = _graph()
+    modules, work_items, evals = graph["modules"], graph["work_items"], graph["evals"]
+    assert isinstance(modules, dict)
+    assert isinstance(work_items, dict)
+    assert isinstance(evals, dict)
+    presentation = modules["presentation"]
+    assert isinstance(presentation, dict)
+    assert "woff/ui_contracts.py" in presentation["paths"]
+    assert work_items["issue-81"]["state"] == "done"
+    assert evals["EVAL-UI-CONTRACTS-001"]["status"] == "implemented"
 
 
 def test_ui_v2_reference_contract() -> None:

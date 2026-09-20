@@ -134,10 +134,10 @@ not production ADR acceptance and does not waive Product Gates A/B.
 
 The [eval catalog's historical #136 closure discrepancy](evals.md#136-closure-discrepancy)
 records why PR #137 did not implement the domain contract. R1 confirmed the gap,
-and #136 is now reopened for actual implementation. Its evals remain planned
-and #81's dependency remains unsatisfied. Do not treat the earlier closure as
-proof, silently unblock #81, or freeze the old `serviceOrNationLabel`
-ambiguity.
+and PR #164 later supplied and merged the actual implementation. #136 is now
+done with executable evals, and #81 consumes its canonical separate nation and
+service presentation value. The historical PR #137 closure remains evidence of
+what did not constitute implementation; it no longer blocks #81.
 
 The sequence does not require every 3.4.0/3.5.0 item to finish before P0. Work unrelated to the P0 safety and presentation boundary must not indefinitely postpone the first functional desktop prototype.
 

@@ -348,10 +348,13 @@ def run_parse_file(file_path: str) -> int:
             log.error("Parser não encontrou dados válidos.")
             return int(ExitCode.RUNTIME_ERROR)
         if parser.pilot:
+            affiliation = parser.pilot.affiliation.presentation()
             log.info("\n--- 🧑‍✈️ DADOS DO PILOTO ---")
             log.info(f"Nome: {parser.pilot.name}")
             log.info(
-                f"Patente: {parser.pilot.rank} | Nação: {parser.pilot.nation}"
+                f"Patente: {parser.pilot.rank} | "
+                f"Nação: {affiliation.nation_label or 'Vazio'} | "
+                f"Serviço: {affiliation.service_label or 'Vazio'}"
             )
             log.info(
                 f"Esquadrão: {parser.pilot.squadron} | "
@@ -402,9 +405,11 @@ def run_parse_file(file_path: str) -> int:
             log.info(f"Data: {mission.date} | Tempo: {mission.weather}")
             log.info(f"Aeronave do Jogador: {mission.aircraft}")
             if parser.pilot:
+                affiliation = parser.pilot.affiliation.presentation()
                 log.info(
                     f"Esquadrão: {parser.pilot.squadron} "
-                    f"({parser.pilot.nation})"
+                    f"| Nação: {affiliation.nation_label or 'Vazio'} "
+                    f"| Serviço: {affiliation.service_label or 'Vazio'}"
                 )
         log.info("\n--- 👥 MEMBROS DO ESQUADRÃO (Flight) ---")
         for member in parser.squad_members:

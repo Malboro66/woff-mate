@@ -1,6 +1,7 @@
 # Issue #82: PySide6 / Qt Widgets feasibility evidence
 
-Measured: 2026-09-13/14; final validation: 2026-09-15.
+Historical measurements: 2026-09-13/14; original validation: 2026-09-15.
+Current synchronization/correction: 2026-09-20; see current validation below.
 Recommendation: **Conditional Go for further investigation**.
 Production adoption and distribution remain blocked. This report evaluates the
 criteria, including explicit evidence gaps; it does **not** claim completion of
@@ -9,21 +10,22 @@ criteria, including explicit evidence gaps; it does **not** claim completion of
 ## Baseline, authority and Q0
 
 Repository: `Malboro66/woff-mate`. Branch: `codex/issue-82-pyside6-spike`.
-Exact current-main baseline fetched before implementation:
-`0c8a3d3c8afd4a9addae1cd5902faa79aa4f7445`. The evidence revision is the Git
-commit containing this report and its checksummed archive, not a production UI
-revision. [Provenance](evidence/issue-82-pyside6/provenance.json) binds the
+Exact historical main baseline fetched before the original experiment:
+`0c8a3d3c8afd4a9addae1cd5902faa79aa4f7445`. The original archive is preserved at `a632e61d2ca3ee1f7adcd2d1ec6853b568dddf04`;
+its observations do not describe the synchronized branch. [Provenance](evidence/issue-82-pyside6/provenance.json) binds the
 baseline, fixture digest, environment and experiment recipe.
-During finalization, main advanced to #136/PR #164 (`143226d`); those production
-changes are not part of this baseline or its measurements. The synthetic #80
-catalog is unchanged. #81 and formal #82 completion remain separate work.
+During original finalization, main advanced through #136/PR #164 (`143226d`).
+The current branch now includes that change and the #81 squash merge,
+`18faf9cd31be90ea5d74738e5cf299dfdbb9e832`, through merge `c3152f6`.
+The #80 catalog and every historical JSON observation remain unchanged.
+The following Q0 paragraph records the original investigation, not current issue states.
 
 Q0 inspected current #82, closed #79/#80, open #81, related issue search
 (`repo:Malboro66/woff-mate PySide6`), PR #128, and matching Git history. #56/PR
 #68 (`3552a42`) supplied the proposal; #79/PR #124 (`2d3e269`) supplied the
 approved V2 reference; #80/PR #128 (`47bbfcb3010245ca11cdf779864c2a798194b183`)
 supplied the 30-case catalog. None supplied measured native Qt feasibility.
-The current tree had no spike report/harness or retained Python UI contract.
+That historical tree had no spike report/harness or retained Python UI contract.
 `python -I -S scripts/validate_ui_fixtures.py` passed all 30 synthetic cases.
 `git ls-tree -r --name-only HEAD` and `git log --all --oneline --grep='spike\|#82'`
 confirmed the missing experiment. This is preventive evidence work, not a
@@ -41,17 +43,17 @@ Operations, Pilot Dossier, Missions, Squadron, War Diary, Reports, plus the
 separate Data & System Status footer. The archived #79 Audit 4 is the current
 visual reference; stale unchecked text in closed #79 does not reopen it.
 Only Operations is fixture-backed here; other destinations are inert navigation
-placeholders. #81 remains open and the project graph requires it before formal
-#82 completion. The authorized disposable exploration does not satisfy that
-dependency or define #81's contracts.
+placeholders. #81 is now closed and its graph dependency is satisfied.
+Formal #82 completion remains blocked by external evidence. The disposable
+exploration does not implement a query service or replace the final contracts.
 
 ## Candidate and environment matrix
 
 **PySide6 / Qt / shiboken6 6.11.2**, regular CPython x64, was selected because
 the publisher's `Requires-Python: >=3.10,<3.15` and `cp310-abi3-win_amd64` wheels
 cover the project's whole Python range, while Qt 6.11 documents Windows 10
-1809+ and Windows 11 support. This is an eligible current release line, not a
-permanent pin. The wheels contain matching Qt libraries.
+1809+ and Windows 11 support. This was the selected experimental release line, not a
+new adoption decision or a refreshed compatibility certification. The wheels contain matching Qt libraries.
 [PySide6 6.11.2](https://pypi.org/project/PySide6/6.11.2/),
 [Qt 6.11 Windows support](https://doc.qt.io/qt-6/windows.html).
 
@@ -175,11 +177,15 @@ again with only System32 on PATH. Both render and exit successfully; these are
 same-host relocation checks, not clean-machine evidence. The first relocated
 launch exceeded five seconds, reinforcing the unresolved startup variability.
 Raw `relocated310.json` and `relocated314.json` preserve every historical sample.
-The archived `relocate.py.txt` now provides the omitted deterministic replay:
-it verifies the source inventory, copies and re-verifies the relocated bundle,
-runs the same measurement, and binds artifact/source/result identities in
-`relocation-provenance.json`. That provenance is a post-review verification of
-the retained artifacts; the historical timing observations were not regenerated.
+The old `relocation-provenance.json` authentication claim is **superseded**:
+the earlier recipe deleted retained destinations before inventory. Its hashes
+cannot prove that those retained bytes produced the old timing observations.
+The current Linux environment has neither historical Windows bundle, so this
+association cannot be authenticated or regenerated here. The revised recipe
+inventories source and retained destination first, preserves mismatches, reuses
+verified destinations, verifies fresh copies and measures into a new observation
+directory. Only observations from that invocation receive new provenance.
+Historical timing bytes remain unchanged and are not current acceptance evidence.
 
 [Build inventory](evidence/issue-82-pyside6/build-inventory.json) lists every
 relative file, size and SHA-256. Stock hooks collected Core, Gui, Widgets, Test,
@@ -250,9 +256,11 @@ offscreen elements. The first probe could not find the window through the venv
 redirector process; using the shell's explicitly emitted HWND fixed discovery.
 The HWND and process IDs are not archived. The probe's process exit code is
 unavailable (`null`); normal measurement runs separately verify exit status.
-The corrected archived replay now refreshes and requires the process exit code,
-window discovery and a nonempty exposed-element set, while preserving this
-historical result unchanged.
+The historical UIA record also lacks stderr and Qt-message evidence, so it
+is rejected by current replay and retained only as limited exposure history.
+The revised probe requires exit zero, window/elements, actual redirected stderr,
+well-formed shell output and zero captured Qt diagnostics. UIA has no benign
+stderr allowlist. Native execution of this corrected observer remains pending.
 [Native exposure result](evidence/issue-82-pyside6/uia.json).
 
 UIA exposure and Qt NameChanged events do not establish spoken announcements.
@@ -301,7 +309,8 @@ experiment additionally checks installed distributions and bundle filenames.
 | Licensing notices/actions | Identified, with actual GPL/commercial component and missing-notice blockers. No distribution clearance. |
 | Report recommendation; ADR Proposed | Conditional Go for further investigation; ADR and all Product Gates remain unapproved. |
 
-Before production adoption: complete #81 and the formal #82/P0/R2 sequence;
+Before production adoption: complete the remaining formal #82/P0/R2 sequence;
+#81 is integrated and requires no reimplementation;
 run Python 3.11–3.13 smoke and representative Windows 10/11 clean-machine
 coverage; establish repeatable cold/warm budgets on an agreed baseline;
 validate OS-native scaling and screen-reader/keyboard flows; resolve the exact
@@ -310,14 +319,16 @@ UI dependency policy, the ADR and applicable Product Gates. Qt 6.12 is the last
 line documented to support Windows 10, so future release selection needs an
 explicit lifecycle decision. No gate or budget is changed here.
 
-## Validation and cleanup
+## Historical validation and cleanup
 
 <!-- validation-summary -->
-Validation used the existing Qt-free Python 3.10.11 development environment.
+The original `a93f040` archive reported validation in the Qt-free Python
+3.10.11 Windows development environment. These preserved counts are historical;
+they do not describe `a632e61` or the synchronized branch.
 In the following commands, `python`/`pyright` resolve to that environment;
 `<external-temp>` is a writable directory outside this issue checkout.
 
-| Command / check | Final result |
+| Historical command / check | Original reported result |
 |---|---|
 | `python -m pytest -q --basetemp=<external-temp> --tb=short` | **1,320 passed, 1 skipped, 175 subtests passed**, 199.92 s. Skip: Windows symlink privilege unavailable. |
 | `python -m pytest tests/test_ui_spike_evidence.py woff/tests/test_architecture_contracts.py -q --basetemp=<external-temp> --tb=short` | **136 passed** (10 spike replay checks and 126 architecture checks). |
@@ -338,10 +349,11 @@ and preserving raw LF bytes in `.gitattributes` kept the original protection;
 the final full rerun above passed. No existing test was weakened or removed.
 <!-- /validation-summary -->
 
-Production wheel discovery and the unchanged `build.spec` were exercised in a
-third isolated, Qt-free environment. The built watchdog executable returned
-zero for `--help`; wheel and executable inventories contain neither Qt nor
-spike recipes/fixtures. [Production isolation](evidence/issue-82-pyside6/production-isolation.json).
+The original [Windows production result](evidence/issue-82-pyside6/production-isolation.json)
+records exit zero but omits stderr evidence and used incomplete Qt detection.
+It is superseded for isolation acceptance; its bytes remain historical.
+The separate current production result uses the stricter observer on Linux,
+with exact interpreter/tool versions and build inputs. It does not certify Windows.
 No campaign/configuration file or schema was modified. All environments,
 executables, intermediate specs, local diagnostic logs and images remain under
 ignored build directories; only sanitized text is staged. Root-worktree
@@ -357,3 +369,63 @@ Out-of-scope follow-ups: none implemented. Distribution provenance work already
 has #155; unexpected GPL/commercial plugin collection and the missing native
 environment/AT matrix belong to the remaining #82 distribution/validation
 work, not production UI implementation.
+
+
+## Reconciliation with the final Issue #81 contracts
+
+The authoritative `main` is `18faf9cd31be90ea5d74738e5cf299dfdbb9e832`.
+Issues #136 and #81 are closed. A merge, without conflict or history rewriting,
+preserved both published spike commits and all integrated production changes.
+`woff/ui_contracts.py`, `woff/nation.py`, the #80 catalog and production packaging
+configuration are unchanged relative to that main. The existing #81 tests are
+run directly; no duplicate contract, adapter or widget binding is introduced.
+
+The disposable shell's bytes and historical hash remain unchanged. It renders
+four synthetic #80 fixtures directly and has no contract imports. Its timer
+transition is an experiment, not an application refresh/retry implementation.
+The final reference is [application-contracts.md](application-contracts.md):
+
+| Boundary | Reconciliation |
+|---|---|
+| Six screen values | OperationsSnapshot, PilotDossierSnapshot, MissionsSnapshot, WarDiarySnapshot, SquadronSnapshot and SystemStatusSnapshot are defined only in `woff/ui_contracts.py`. |
+| Selection and identity | Five career queries accept optional selection; absent selection is missing/career_not_selected. Stable pilot/mission/diary/squadron IDs are supplied, never derived from labels or positions. |
+| Value semantics | Frozen values, copied collections, exact integer types, deterministic warnings and mission ordering remain enforced by #81. |
+| State/payload | Loading/missing/error are payload-free. Successful list cardinality, optional SYS-01 profile and safely observed retained payload follow the final contract. |
+| Nation/service | Closed GB/FR/DE/US/BE nation codes and distinct RFC/RNAS/RAF service values come from #136. No display-label inference or raw unsupported values cross the presentation boundary. |
+| Diagnostics | Closed sanitized failures/warnings and field-level unavailable reasons remain separate from observer-local logs. |
+
+These are reference boundaries for future authorized consumers. This spike
+implements none of #140 or the production query path.
+
+## Current branch validation
+
+The current command/results table is populated only after executing final gates.
+Historical counts above must never be used as current test totals. The PR body
+records the final validated commit and remote CI run. The production result binds
+its actual build revision, observer hashes and every production build input;
+replay checks those inputs against this tree even after documentation-only commits.
+
+<!-- current-validation -->
+Final validation pending while consolidated corrections are in progress.
+<!-- /current-validation -->
+
+## External evidence still required
+
+Use the revised recipes from a clean checkout of the final PR revision, copy them
+and the validated #80 catalog to an external temporary directory, and retain only
+sanitized JSON and checksummed inventories. Preserve each actual measurement
+revision/date/platform/interpreter; do not reuse historical result files as new output.
+
+| Required environment | Exact command/procedure | Required artifact / acceptance evidence |
+|---|---|---|
+| Windows 10 and Windows 11 x64, without developer/Qt installations | Build using `run.py` in an isolated PySide6 6.11.2 environment; transfer the complete bundle; `python measure.py <bundle>/Issue82.exe <configuration>` (three runs) | Authenticated source/build/copy inventory, platform and interpreter versions, render and process evidence, explicit clean-machine preparation. Metadata alone does not pass. |
+| Python 3.11, 3.12 and 3.13 on representative Windows | Create one optional venv per interpreter with the same pinned Qt binding; adapt the explicit interpreter matrix in `run.py`; run source and packaged `measure.py` series | Per-version executed smoke and artifact provenance; these versions remain unmeasured for Qt. |
+| Windows desktop at native 100/125/150/200% and monitor transitions | Change Windows Display Settings for each profile; clear `QT_SCALE_FACTOR`; run the fixture shell and keyboard audit; record native transition procedure | Native DPR, geometry/focus observations and sanitized screenshots for each actual OS setting/transition. Override evidence is insufficient. |
+| Windows UI Automation and Narrator or NVDA | `./uia.ps1`; manually exercise navigation/retry and record actual spoken state changes | Current `uia.json` with clean diagnostics and exit zero; separate AT/version/procedure/announcement record. UIA exposure does not prove speech. |
+| Reference Windows host after documented cold start | Cold-boot preparation, then `python measure.py <executable> <configuration>`; retain first samples and cache-control procedure | At least three independently prepared cold observations and warm comparisons against unchanged budgets. Current recipe labels remain uncontrolled unless a separate authentic cold procedure proves otherwise. |
+| Host retaining verified native spike bundles | `py310/Scripts/python.exe relocate.py` | Fresh observation directories with timing/provenance; mismatch preserves retained bundles and blocks success. Historical timing attribution remains unavailable. |
+| Approved distribution and licensing review environment | Inventory exact candidate bundle; evaluate every library/plugin, notices, corresponding source and replacement procedure | Version-bound SBOM/notices, resolved Virtual Keyboard licensing route, demonstrated replacement rights and maintainer disposition. No clearance is claimed here. |
+
+Recommendation remains **Conditional Go** for further evidence collection.
+Issue #82 and both spike evals remain open/planned, PR #165 remains Draft,
+the ADR remains Proposed, and no Product Gate or production adoption is approved.

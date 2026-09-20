@@ -13,10 +13,10 @@ import logging
 import xml.etree.ElementTree as ET
 from typing import Optional, List, Dict, Any
 from ..models import WoFFMission, WoFFPilot
+from ..nation import normalize_nation_evidence
 from ..normalization import (
     normalize_coordinates,
     normalize_date,
-    normalize_nation,
     normalize_time,
 )
 
@@ -114,7 +114,7 @@ class WoFFMissionLogParser:
             # Se encontramos a unidade do jogador nesta formação
             if player_unit is not None:
                 self.pilot = WoFFPilot()
-                self.pilot.nation = normalize_nation(
+                self.pilot.nation = normalize_nation_evidence(
                     formation.get("Country", "")
                 )
                 self.pilot.squadron = formation.get("SquadName", "")

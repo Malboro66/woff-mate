@@ -1,5 +1,16 @@
 # Read-only UI foundation
 
+## Nation/service prerequisite (#136)
+
+New #81 contracts consume the frozen `NationServicePresentation` defined in
+the [canonical domain contract](../architecture/nation-service.md). Nation
+and service have independent codes, states and labels. `serviceOrNationLabel`
+is deprecated in new contracts; the historical Site evidence is immutable.
+Unsupported source values have no playable code and an explicit unsupported
+label; raw evidence and private source paths are excluded from this value.
+Future nation choices enumerate exactly GB, FR, DE, US, BE, with a separate
+controlled service choice. This does not implement #81, pilot creation or UI.
+
 ## Status and reference boundary
 
 Issue #56 captured the original Figma file and established this future
@@ -130,14 +141,15 @@ The approved follow-up work is now tracked explicitly:
   it is complete.
 - #80 is complete: the shared state matrix and deterministic sanitized fixtures
   are enforced by a standard-library validator and isolated contract tests.
-- #81 defines immutable read-only view models and application query-service
-  protocols after #80 establishes the shared vocabulary.
+- #81 is implemented by the toolkit-independent
+  [immutable application contracts](application-contracts.md): six explicit
+  screen snapshots, one shared envelope and bounded query-service protocols.
 - #82 measures one isolated PySide6 and Qt Widgets line after #80, including
   supported Python and Windows versions, PyInstaller packaging, startup,
   memory, scaling, keyboard use, accessibility, plugins, and licensing.
 
-Issue #80 adds no GUI runtime dependency. Its completion satisfies the fixture
-prerequisite for #81 and #82; both remain unimplemented backlog work. A
+Issues #80 and #81 add no GUI runtime dependency. Their completion satisfies
+the fixture and immutable-contract prerequisites for #82. A
 retained production shell still requires ADR acceptance, applicable Product
 Gate A and Product Gate B decisions, an approved optional-dependency policy,
 clean Windows packaging evidence, and explicit maintainer approval. None of

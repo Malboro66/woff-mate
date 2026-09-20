@@ -28,12 +28,15 @@ match arbitrary substrings inside unrelated words. A missing categorical value
 remains empty. An unrecognized value from an explicit XML or PilotLog field is
 trimmed and preserved verbatim instead of becoming a known category.
 
-The Dossier format has no confirmed field marker for nation values, so its
-scanner assigns a nation only when the complete decoded value is a supported
-exact alias. Unrecognized decoded values remain available in the parser's raw
-strings and are not guessed as a nation. All parser paths use the alias tables
-in `woff/maps.py`; new aliases require a sanitized representative sample or an
-existing regression fixture that establishes the value.
+The fixture-backed Dossier `fixed-index-v1` reads nation/service evidence at
+decoded index 1. XML, Mission.log and Dossier preserve that evidence and use
+`NationService` with the exact alias authority in `woff/maps.py`. Supported
+codes are exactly GB, FR, DE, US and BE; RFC/RNAS/RAF are distinct British
+services. Missing and unsupported values remain distinct and unsupported text
+is recoverable in storage. No other Dossier record is scanned for nationality.
+New aliases/layouts require representative sanitized evidence. See the
+[nation/service contract](architecture/nation-service.md) for independent
+presentation labels, deprecated raw `nation`, and schema-3.4 compatibility.
 
 ## Claim confirmation and mission duration
 

@@ -122,7 +122,7 @@ class TestWoFFDossierParser(unittest.TestCase):
         assert self.parser.pilot is not None
         
         self.assertEqual(self.parser.pilot.name, "James Hartley")
-        self.assertEqual(self.parser.pilot.nation, "French")
+        self.assertEqual(self.parser.pilot.nation_code, "FR")
         self.assertEqual(self.parser.pilot.photo, "1")
         self.assertEqual(self.parser.pilot.missions, 10)
         self.assertEqual(self.parser.pilot.claimsCount, 5)
@@ -247,14 +247,14 @@ class TestWoFFDossierParser(unittest.TestCase):
 
     def test_dossier_nation_recognition_uses_all_supported_exact_aliases(self):
         cases = (
-            ("Britain", "RFC"),
-            ("RFC", "RFC"),
-            ("RNAS", "RNAS"),
-            ("RAF", "RAF"),
-            ("France", "French"),
-            ("Germany", "German"),
-            ("USA", "American"),
-            ("Belgium", "Belgian"),
+            ("Britain", "GB"),
+            ("RFC", "GB"),
+            ("RNAS", "GB"),
+            ("RAF", "GB"),
+            ("France", "FR"),
+            ("Germany", "DE"),
+            ("USA", "US"),
+            ("Belgium", "BE"),
         )
 
         for raw, expected in cases:
@@ -271,7 +271,8 @@ class TestWoFFDossierParser(unittest.TestCase):
                 )
                 self.assertIsNotNone(parser.pilot)
                 assert parser.pilot is not None
-                self.assertEqual(parser.pilot.nation, expected)
+                self.assertEqual(parser.pilot.nation_code, expected)
+                self.assertEqual(parser.pilot.nation_raw, raw)
 
     def test_signed_reputation_is_not_silently_rewritten_to_zero(self):
         for raw, expected in ((" -1 ", -1), (" +5 ", 5)):
