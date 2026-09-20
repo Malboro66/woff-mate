@@ -1,5 +1,5 @@
 version: 1
-updated: 2026-09-12
+updated: 2026-09-19
 
 project:
   repository: Malboro66/woff-mate
@@ -125,6 +125,7 @@ modules:
       - woff_watchdog_entry.py
       - woff/career_selection.py
       - woff/gerar_relatorio.py
+      - woff/ui_contracts.py
     may_depend_on:
       - foundation
       - domain
@@ -710,8 +711,9 @@ evals:
     enforced_by: [woff/tests/test_ui_development_standard.py]
   EVAL-UI-CONTRACTS-001:
     work_items: [issue-81]
-    status: planned
-    evidence: Immutable toolkit-independent snapshots and query-service protocols preserve stable IDs, freshness, warnings, unavailable reasons, and sanitized failures.
+    status: implemented
+    evidence: Six frozen toolkit-independent screen snapshots enforce context-specific cardinality, safe retained observations, payload-free transitions, exact integer runtime types, warnings unique and sorted by code, canonical nation/service presentation, stable identities, deep immutability and sanitized closed diagnostics. Optional career selection preserves bounded refresh/retry/timeout/cancellation protocols. Deterministic Issue #80 fixtures exercise every contract without live data or toolkit dependencies.
+    enforced_by: [tests/test_ui_contracts.py, woff/tests/test_architecture_contracts.py]
   EVAL-UI-SPIKE-001:
     work_items: [issue-82]
     status: planned
@@ -1156,13 +1158,13 @@ work_items:
   issue-81:
     title: Define immutable read-only UI view models and query-service contracts
     module: presentation
-    state: backlog
+    state: done
     evals: [EVAL-UI-CONTRACTS-001]
     gates: [Q0, Q1, Q6-CYCLE-3.4.0]
     depends_on:
       - {id: issue-56, status: satisfied}
       - {id: issue-80, status: satisfied}
-      - {id: issue-136, status: unsatisfied}
+      - {id: issue-136, status: satisfied}
   issue-82:
     title: Validate PySide6 packaging, startup, scaling, and accessibility
     module: platform
@@ -1172,7 +1174,7 @@ work_items:
     depends_on:
       - {id: issue-56, status: satisfied}
       - {id: issue-80, status: satisfied}
-      - {id: issue-81, status: unsatisfied}
+      - {id: issue-81, status: satisfied}
   issue-87:
     title: Validate same-name career reuse in the same pilot slot
     module: persistence
@@ -1271,9 +1273,7 @@ work_items:
   issue-136:
     title: Separate playable nation from military service and define the WoFF nation domain
     module: domain
-    state: in_progress
-    # Implementation/evals are reviewable; integrated completion is not claimed.
-    # Keep issue-81 unsatisfied until merge/governance reconciliation.
+    state: done
     evals:
       - EVAL-NATION-DOMAIN-001
       - EVAL-NATION-PARSER-PARITY-001
@@ -1300,7 +1300,7 @@ work_items:
     depends_on:
       - {id: issue-79, status: satisfied}
       - {id: issue-80, status: satisfied}
-      - {id: issue-81, status: unsatisfied}
+      - {id: issue-81, status: satisfied}
       - {id: issue-82, status: unsatisfied}
       - {id: issue-139, status: satisfied}
   issue-142:
@@ -1425,7 +1425,7 @@ work_items:
     evals: [EVAL-R2-REVIEW-001]
     gates: [Q0, Q1, Q5-UI-ARCHITECTURE]
     depends_on:
-      - {id: issue-81, status: unsatisfied}
+      - {id: issue-81, status: satisfied}
       - {id: issue-82, status: unsatisfied}
       - {id: issue-140, status: unsatisfied}
 
