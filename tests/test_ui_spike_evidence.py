@@ -3,6 +3,7 @@ from pathlib import Path
 import ast
 import hashlib
 import json
+import re
 import runpy
 import subprocess
 import sys
@@ -12,6 +13,18 @@ import pytest
 
 ROOT = Path(__file__).resolve().parents[1]
 EVIDENCE = ROOT / 'docs/ui/evidence/issue-82-pyside6'
+CURRENT_COMMIT = '181741488803aeb0399477ba89fab0004ea5662f'
+CURRENT_TREE = 'ae33516f5e739478f8a41a3062bb9bd012f42207'
+CURRENT_PYTHONS = {'310': '3.10.11', '312': '3.12.8', '313': '3.13.1', '314': '3.14.7'}
+CURRENT_SERIES = [
+    (f'source{suffix}-smoke', f'current-source{suffix}', [1], version)
+    for suffix, version in CURRENT_PYTHONS.items()
+] + [
+    (f'final-{kind}{suffix}{audit}', f'final-{kind}{suffix}{audit}',
+     [1, 1.25, 1.5, 2] if audit else [1], CURRENT_PYTHONS[suffix])
+    for kind in ('source', 'packaged') for suffix in ('310', '314')
+    for audit in ('', '-audit')
+]
 
 
 def read_json(name):
@@ -33,14 +46,17 @@ def load_recipe_functions(name, *function_names):
 
 def test_evidence_digest_and_synthetic_provenance():
     names = set()
+    ordered_names = []
     for line in (EVIDENCE / 'SHA256SUMS').read_text(encoding='utf-8').splitlines():
         expected, name = line.split('  ', 1)
         assert Path(name).name == name
         assert name not in names
         names.add(name)
+        ordered_names.append(name)
         # .gitattributes preserves LF in the byte-sensitive textual archive.
         content = (EVIDENCE / name).read_bytes()
         assert hashlib.sha256(content).hexdigest() == expected, name
+    assert ordered_names == sorted(ordered_names)
     assert names == {p.name for p in EVIDENCE.iterdir() if p.name != 'SHA256SUMS'}
     provenance = read_json('provenance.json')
     assert provenance['baseline'] == '0c8a3d3c8afd4a9addae1cd5902faa79aa4f7445'
@@ -502,3 +518,173 @@ def test_executable_inventory_includes_empty_qt_plugin_directories(tmp_path):
     entries = helper['artifact_entries'](tmp_path)
     assert 'plugins/platforms/' in entries
     assert [p for p in entries if evidence_contract()['is_forbidden_entry'](p)] == ['plugins/platforms/']
+
+
+@pytest.mark.parametrize('name,configuration,scales,python', CURRENT_SERIES)
+def test_current_windows_measurements_replay_strictly(name, configuration, scales, python):
+    rows = read_json(f'current-windows10-{name}.json')
+    evidence_contract()['validate_measurements'](rows, configuration, scales, historical=False)
+    for row in rows:
+        assert row['result']['python'] == python
+        assert row['result']['os_build'] == 19045
+        assert row['result']['dpr'] == row['requested_scale']
+        assert row['qt_messages'] == []
+
+
+def test_current_windows_measurement_matrix_is_complete():
+    expected = {f'current-windows10-{name}.json' for name, *_ in CURRENT_SERIES}
+    actual = {p.name for pattern in ('current-windows10-final-*.json',
+                                    'current-windows10-source*-smoke.json')
+              for p in EVIDENCE.glob(pattern)}
+    assert actual == expected
+    assert sum(len(read_json(name)) for name in expected) == 72
+    for suffix, version in CURRENT_PYTHONS.items():
+        inventory = read_json(f'current-windows10-inventory{suffix[1:]}.json')
+        assert inventory['python'] == version
+        assert inventory['bindings'] == ['PySide6']
+        versions = {d['name']: d['version'] for d in inventory['distributions']}
+        assert versions['PySide6'] == versions['shiboken6'] == '6.11.2'
+
+
+def test_current_windows_uia_exposure_is_not_speech():
+    result = read_json('current-windows10-uia.json')
+    evidence_contract()['validate_uia_result'](result)
+    assert result['announcements_verified'] is False
+    assert len(result['elements']) == 12
+    controls = {element['name']: element for element in result['elements']}
+    for name in ['Operations', 'Pilot Dossier', 'Missions', 'Squadron', 'War Diary',
+                 'Reports', 'Data & System Status', 'Retry view']:
+        assert controls[name]['role'] == 'ControlType.Button'
+        assert controls[name]['keyboard_focusable'] is True
+        assert controls[name]['offscreen'] is False
+    assert controls['Synthetic fixture state']['role'] == 'ControlType.ComboBox'
+
+
+@pytest.mark.parametrize('name,count', [('source-plugin-discovery', 3), ('plugin-discovery', 6)])
+def test_current_windows_plugins_replay_strictly(name, count):
+    rows = read_json(f'current-windows10-{name}.json')
+    assert len(rows) == count
+    evidence_contract()['validate_plugin_results'](rows, historical=False)
+    assert all('qwindows.dll' in row['discovered_dll_basenames'] for row in rows)
+
+
+def canonical_sha256(value):
+    return hashlib.sha256(json.dumps(value, sort_keys=True, separators=(',', ':')).encode()).hexdigest()
+
+
+@pytest.mark.parametrize('suffix', ['310', '314'])
+def test_current_windows_relocation_authenticates_current_build_and_results(suffix):
+    builds = read_json('current-windows10-build-inventory.json')
+    assert [build['python'] for build in builds] == ['310', '314']
+    build = next(build for build in builds if build['python'] == suffix)
+    records = read_json(f'current-windows10-relocation-provenance{suffix}.json')
+    assert len(records) == 1
+    record = records[0]
+    assert record['python'] == suffix
+    assert record['observation_kind'] == 'regenerated from verified bundle in this invocation'
+    assert record['source_artifact'] == f'dist{suffix}/Issue82'
+    assert record['relocated_artifact'] == f'relocation with spaces/package{suffix}'
+    assert record['source_sha256'] == build['source_sha256'] == hashlib.sha256(
+        (EVIDENCE / 'shell.py.txt').read_bytes()).hexdigest()
+    assert build['exit_code'] == 0
+    assert record['artifact_files'] == len(build['files'])
+    assert record['artifact_bytes'] == build['total_bytes'] == sum(f['bytes'] for f in build['files'])
+    assert record['artifact_inventory_sha256'] == canonical_sha256(build['files'])
+    # The observer's original basename is retained; the archive prefix namespaces it.
+    assert record['result'] == f'relocated{suffix}.json'
+    result_path = EVIDENCE / ('current-windows10-' + record['result'])
+    rows = read_json(result_path.name)
+    assert record['result_json_sha256'] == canonical_sha256(rows)
+    helpers = load_recipe_functions('relocate.py.txt', 'inventory_sha256', 'json_sha256')
+    assert helpers['inventory_sha256'](build['files']) == record['artifact_inventory_sha256']
+    assert helpers['json_sha256'](result_path) == record['result_json_sha256']
+    assert len(rows) == 3
+    evidence_contract()['validate_measurements'](rows, f'relocated{suffix}', [1], historical=False)
+    assert all(row['result']['python'] == CURRENT_PYTHONS[suffix] and
+               row['result']['os_build'] == 19045 for row in rows)
+
+
+def test_current_windows_production_is_native_and_revision_bound():
+    result = read_json('production-isolation-current.json')
+    assert result['platform'] == 'Windows'
+    assert result['native_windows_validation'] is True
+    assert result['source_commit'] == CURRENT_COMMIT
+    assert result['source_tree'] == CURRENT_TREE
+    assert result['python'] == '3.10.11'
+    assert result['spec_variant'] == 'unchanged-production-spec'
+    spec = subprocess.check_output(['git', 'show', CURRENT_COMMIT + ':build.spec'], cwd=ROOT)
+    assert result['effective_spec_sha256'] == hashlib.sha256(spec).hexdigest()
+    assert result['build_exit_codes'] == [0, 0]
+    assert result['executable_help_stderr_nonempty'] is False
+    assert result['qt_distributions'] == []
+    for kind, count in [('wheel', 52), ('executable', 57)]:
+        assert len(result[kind + '_entries']) == count
+        assert result['forbidden_' + kind + '_entries'] == []
+    evidence_contract()['validate_production_result'](result)
+
+
+def test_prior_linux_production_bytes_and_contract_are_preserved():
+    path = EVIDENCE / 'production-isolation-linux-0684805.json'
+    assert hashlib.sha256(path.read_bytes()).hexdigest() == (
+        '4e267c746f5f6396bbdeba3df486c840fd4184baeb65d2ce54b270435b35c5f8')
+    result = read_json(path.name)
+    assert result['platform'] == 'Linux'
+    assert result['native_windows_validation'] is False
+    assert result['source_commit'] == '0684805e6926b3d923d4017023b178ce8b198114'
+    assert result['source_tree'] == 'c1d5312f239acec48c0b51dc0db138b0cce8b465'
+    assert result['python'] == '3.12.14'
+    assert result['spec_variant'] == 'linux-executable-suffix'
+    evidence_contract()['validate_production_result'](result)
+
+
+def test_current_evidence_status_hashes_and_limits():
+    status = read_json('evidence-status.json')
+    original = json.loads(subprocess.check_output([
+        'git', 'show', CURRENT_COMMIT + ':docs/ui/evidence/issue-82-pyside6/evidence-status.json'], cwd=ROOT))
+    assert status['historical_payload_sha256'] == original['historical_payload_sha256']
+    current = status['current_validation']
+    assert current['source_commit'] == CURRENT_COMMIT and current['source_tree'] == CURRENT_TREE
+    assert current['python_versions_executed'] == list(CURRENT_PYTHONS.values())
+    assert current['measurement_rows'] == 72
+    assert current['host']['os_build'] == 19045
+    assert current['host']['clean_machine_verified'] is False
+    assert current['host']['representative_machine_verified'] is False
+    assert current['uia']['announcements_verified'] is False
+    assert current['relocation']['observations'] == 6
+    assert current['relocation']['clean_machine_verified'] is False
+    expected = {p.name for p in EVIDENCE.glob('current-windows10-*.json')} | {
+        'production-isolation-current.json'}
+    assert set(current['evidence_sha256']) == expected
+    for name, digest in current['evidence_sha256'].items():
+        assert hashlib.sha256((EVIDENCE / name).read_bytes()).hexdigest() == digest, name
+    assert status['recommendation'] == 'Conditional Go' and status['issue_82_complete'] is False
+    assert status['pending'] == [
+        'Windows 11', 'clean representative Windows 10/11 machine',
+        'Python 3.11 native Qt execution',
+        'Python 3.12/3.13 packaged execution if required by the criterion',
+        'native DPI settings and transitions', 'screen-reader/Narrator/NVDA speech',
+        'truly cold startup', 'final distribution and licensing obligations']
+
+
+def test_current_evidence_has_no_private_or_local_paths():
+    paths = sorted(EVIDENCE.glob('current-windows10-*.json')) + [
+        EVIDENCE / 'production-isolation-current.json',
+        EVIDENCE / 'production-isolation-linux-0684805.json', EVIDENCE / 'evidence-status.json']
+
+    def inspect(value):
+        if isinstance(value, dict):
+            for key, item in value.items():
+                assert key.lower() not in {'username', 'userprofile', 'hostname', 'computername'}
+                inspect(key)
+                inspect(item)
+        elif isinstance(value, list):
+            for item in value:
+                inspect(item)
+        elif isinstance(value, str):
+            assert not re.search(r'(?i)[a-z]:[\\/]|\\\\|/(?:users|home|tmp|var|mnt|private)/', value)
+            assert not value.startswith(('/', '~/', '~\\'))
+
+    for path in paths:
+        data = path.read_bytes()
+        assert b'\r' not in data and not data.startswith(b'\xef\xbb\xbf'), path.name
+        inspect(json.loads(data))

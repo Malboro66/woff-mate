@@ -6,6 +6,67 @@ modules. See the [report](../../pyside6-spike-82.md) for limits and decisions.
 `.gitattributes` preserves those bytes across Windows and Unix checkouts.
 Runtime/build hashes in raw inventories describe the actual observed artifacts.
 
+## Evidence generations
+
+- **Immutable historical baseline:** the 36 JSON files named in
+  `evidence-status.json/historical_payload_sha256`, measured against `0c8a3d3`
+  and archived at `a632e61`. Their bytes and the shell remain unchanged.
+  Historical UIA, production and relocation limitations remain in force.
+- **Prior regenerated Linux production validation:**
+  `production-isolation-linux-0684805.json` preserves the former current result
+  byte-for-byte: commit `0684805`, Python 3.12.14, explicit clean stderr and raw
+  Qt classification, with the disclosed filename-only spec adaptation. This
+  remains valid production-isolation replay, without native Windows acceptance.
+- **Current native Windows 10 validation:** the 24 `current-windows10-*.json`
+  files and `production-isolation-current.json` record external execution at
+  commit `181741488803aeb0399477ba89fab0004ea5662f`, source tree
+  `ae33516f5e739478f8a41a3062bb9bd012f42207`. Windows 10 Pro 10.0.19045,
+  build 19045 x64, is a developer host, not a clean or agreed representative
+  machine. PySide6/Qt 6.11.2 executed on Python 3.10.11, 3.12.8, 3.13.1 and
+  3.14.7. Python 3.11 was not executed.
+
+Current strict replay covers 72 measurement rows: 12 source smoke observations
+(three per executed Python) and 60 source/packaged observations, including the
+scaling audit, on 3.10/3.14 only. All exits are zero, stderr/stdout flags are
+explicitly false, Qt messages are empty and shell checks pass. The ordered Qt
+scale overrides are 1, 1.25, 1.5 and 2. Nine plugin observations (three source,
+six packaged) discover `qwindows.dll` and pass the current diagnostic contract.
+
+Six additional relocated observations and two canonical provenance records
+authenticate the current build inventory and current result JSON. The original
+sidecar result names remain `relocated310.json` / `relocated314.json`; replay
+resolves them with the `current-windows10-` archive prefix. Canonical hashes use
+parsed JSON, sorted keys and compact separators, preserving array order. They
+are distinct from `SHA256SUMS`, which hashes exact file bytes. The native
+copy-and-verify procedure authenticated relocated inventories on the same host;
+the archive retains sidecars, not the executable bundles. It cannot repair
+historical timing attribution or establish clean-machine portability.
+
+The corrected UIA observer now passes on Windows 10: window found, 12 elements,
+exit zero, explicit clean stderr/stdout and zero Qt messages.
+`announcements_verified` remains false. Current production isolation is native
+Windows/Python 3.10.11 using the unchanged production spec: build exits 0/0,
+help exit 0, explicit empty stderr, 52 wheel and 57 executable entries, no Qt
+distributions and no forbidden artifact entries.
+
+The archive stays flat: `current-windows10-*` separates current external
+observations from historical basenames. Text was normalized to UTF-8/LF before
+archiving; received current bytes are preserved during reconciliation. The
+status record lists exact current filenames and SHA-256 hashes. Deterministic
+tests replay the current contracts with `historical=False`, authenticate
+provenance independently, pin historical and prior Linux bytes, and scan decoded
+JSON for private/local paths and identity fields. Raw diagnostics stay local.
+After evidence edits, regenerate `SHA256SUMS` for every direct child except
+itself, using basenames in lexicographic order and exact LF-preserved bytes.
+
+Windows 11, a clean representative machine, Python 3.11, packaged 3.12/3.13
+coverage if required by the criterion, native DPI settings/transitions,
+Narrator/NVDA speech, true cold startup and final licensing/distribution
+confirmation remain pending. Recommendation: **Conditional Go**; Issue #82
+remains incomplete, the ADR Proposed and Product Gates A/B unapproved.
+
+## Reproduction recipes
+
 Historical commands below used the recorded baseline. For a new measurement,
 use a clean current checkout and external temporary scratch; substitute that
 absolute scratch path for `build/issue82` throughout. Create two
@@ -86,8 +147,9 @@ explicit limits: old production evidence lacks stderr/raw-Qt proof, old UIA
 lacks exit/diagnostic proof, and the old relocation sidecar cannot authenticate
 the bundles behind the historical timings. Its prior retained-artifact claim is
 superseded because the earlier recipe deleted destinations before inventory.
-Neither unavailable native bundles nor native UIA execution can be regenerated
-in the current Linux session. Those acceptance items remain pending.
+Those historical records remain limited even though the separate current
+Windows generation now supplies authenticated same-host relocation and corrected
+UIA exposure. The earlier Linux session could not execute those Windows probes.
 
 The revised UIA observer invokes the standard-library evidence helper after
 recording window observations. It reads actual redirected stderr and the shell's

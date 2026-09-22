@@ -1,13 +1,13 @@
 {
   "evidence_kind": "regenerated production isolation",
-  "source_commit": "181741488803aeb0399477ba89fab0004ea5662f",
-  "source_tree": "ae33516f5e739478f8a41a3062bb9bd012f42207",
-  "observed_at": "2026-09-21T00:12:54.649443+00:00",
-  "platform": "Windows",
-  "python": "3.10.11",
-  "spec_variant": "unchanged-production-spec",
-  "effective_spec_sha256": "e4ded09ed0bac6e615437cdb355391832fe82af24055cba8931fa7fdde19c159",
-  "native_windows_validation": true,
+  "source_commit": "0684805e6926b3d923d4017023b178ce8b198114",
+  "source_tree": "c1d5312f239acec48c0b51dc0db138b0cce8b465",
+  "observed_at": "2026-09-20T16:13:33.496539+00:00",
+  "platform": "Linux",
+  "python": "3.12.14",
+  "spec_variant": "linux-executable-suffix",
+  "effective_spec_sha256": "8abbd74a7ea31f6ff2790570cd1fca88e909897fe1e370f12151d77ce7a1a1a5",
+  "native_windows_validation": false,
   "observer_sha256": "7aa12a39c831f7a2e4910630c02ad8518a0eb2a94ee8762b34336a5631bd8712",
   "contract_sha256": "ef5c3db4654efd34e5d16855e7246d62f2398ad9bf91b2f3b459e47169924b16",
   "environment": [
@@ -20,20 +20,12 @@
       "version": "1.6.1"
     },
     {
-      "name": "colorama",
-      "version": "0.4.6"
-    },
-    {
       "name": "packaging",
       "version": "26.3"
     },
     {
-      "name": "pefile",
-      "version": "2024.8.26"
-    },
-    {
       "name": "pip",
-      "version": "26.2.1"
+      "version": "25.0.1"
     },
     {
       "name": "pyinstaller",
@@ -48,16 +40,8 @@
       "version": "1.3.3"
     },
     {
-      "name": "pywin32-ctypes",
-      "version": "0.2.3"
-    },
-    {
       "name": "setuptools",
-      "version": "65.5.0"
-    },
-    {
-      "name": "tomli",
-      "version": "2.4.1"
+      "version": "84.0.0"
     },
     {
       "name": "watchdog",
@@ -337,13 +321,13 @@
   ],
   "qt_distributions": [],
   "wheel": "woff-3.2.0-py3-none-any.whl",
-  "wheel_sha256": "1caed244ff568a3b03ae7b83ae0a0af5dc5163982b04a8d06d3743ef1c456372",
+  "wheel_sha256": "185cc01062f84c829b0b795f5df36f3019a387fc20ce064fda764fcff9dc82de",
   "wheel_entries": [
-    "woff-3.2.0.dist-info/LICENSE",
     "woff-3.2.0.dist-info/METADATA",
     "woff-3.2.0.dist-info/RECORD",
     "woff-3.2.0.dist-info/WHEEL",
     "woff-3.2.0.dist-info/entry_points.txt",
+    "woff-3.2.0.dist-info/licenses/LICENSE",
     "woff-3.2.0.dist-info/top_level.txt",
     "woff/__init__.py",
     "woff/campaign_engine.py",
@@ -394,29 +378,29 @@
   ],
   "wheel_inventory": [
     {
-      "path": "woff-3.2.0.dist-info/LICENSE",
-      "bytes": 1078,
-      "sha256": "85e29a0ca7ecd9383314a23aa10739e285a141adae048d4d5736f8de9d58135e"
-    },
-    {
       "path": "woff-3.2.0.dist-info/METADATA",
-      "bytes": 525,
-      "sha256": "f9e9fd4eb66e641b100d6015146cd3c88a9eed9659e07ccd474c49dc4e9bdd65"
+      "bytes": 531,
+      "sha256": "9eed3c2713cc9142a29c2b76676f3c3d00183d6d0d744d77003e40ac085465ca"
     },
     {
       "path": "woff-3.2.0.dist-info/RECORD",
-      "bytes": 4117,
-      "sha256": "13a935242aed6632ff4d12716ff376f5090402d753d3bcb82fdcf9694b13aec6"
+      "bytes": 4126,
+      "sha256": "eed37c82e63dcd85bb63094f7f8de43b5327ebe8cdc5fe0858a3a30c8163a68f"
     },
     {
       "path": "woff-3.2.0.dist-info/WHEEL",
-      "bytes": 92,
-      "sha256": "1161a0763fde1fe83d770b1664e4c6d24986b9c12e28fc46cce283fa3015507b"
+      "bytes": 91,
+      "sha256": "61532836a2b3111b7ec23519c09df7c41180c27165fb872a6d8913b566b88ad1"
     },
     {
       "path": "woff-3.2.0.dist-info/entry_points.txt",
       "bytes": 127,
       "sha256": "daf33e7c94b31fbc3f0d5c429d81c8bec690bda6c84d351ca2e26e0f1c028159"
+    },
+    {
+      "path": "woff-3.2.0.dist-info/licenses/LICENSE",
+      "bytes": 1078,
+      "sha256": "85e29a0ca7ecd9383314a23aa10739e285a141adae048d4d5736f8de9d58135e"
     },
     {
       "path": "woff-3.2.0.dist-info/top_level.txt",
@@ -666,47 +650,11 @@
   "executable_entries": [
     "WoFFWatchdog.exe",
     "_internal/",
-    "_internal/VCRUNTIME140.dll",
-    "_internal/_bz2.pyd",
-    "_internal/_ctypes.pyd",
-    "_internal/_decimal.pyd",
-    "_internal/_elementtree.pyd",
-    "_internal/_hashlib.pyd",
-    "_internal/_lzma.pyd",
-    "_internal/_multiprocessing.pyd",
-    "_internal/_queue.pyd",
-    "_internal/_socket.pyd",
-    "_internal/_sqlite3.pyd",
-    "_internal/_ssl.pyd",
-    "_internal/_uuid.pyd",
     "_internal/base_library.zip",
-    "_internal/libcrypto-1_1.dll",
-    "_internal/libffi-7.dll",
-    "_internal/libssl-1_1.dll",
-    "_internal/pyexpat.pyd",
-    "_internal/python310.dll",
-    "_internal/select.pyd",
-    "_internal/sqlite3.dll",
-    "_internal/unicodedata.pyd",
+    "_internal/libpython3.12.so.1.0",
     "embedded/PYZ.pyz",
-    "embedded/VCRUNTIME140.dll",
-    "embedded/_bz2.pyd",
-    "embedded/_ctypes.pyd",
-    "embedded/_decimal.pyd",
-    "embedded/_elementtree.pyd",
-    "embedded/_hashlib.pyd",
-    "embedded/_lzma.pyd",
-    "embedded/_multiprocessing.pyd",
-    "embedded/_queue.pyd",
-    "embedded/_socket.pyd",
-    "embedded/_sqlite3.pyd",
-    "embedded/_ssl.pyd",
-    "embedded/_uuid.pyd",
     "embedded/base_library.zip",
-    "embedded/libcrypto-1_1.dll",
-    "embedded/libffi-7.dll",
-    "embedded/libssl-1_1.dll",
-    "embedded/pyexpat.pyd",
+    "embedded/libpython3.12.so.1.0",
     "embedded/pyi_rth_inspect",
     "embedded/pyi_rth_multiprocessing",
     "embedded/pyi_rth_pkgutil",
@@ -714,129 +662,24 @@
     "embedded/pyimod01_archive",
     "embedded/pyimod02_importers",
     "embedded/pyimod03_ctypes",
-    "embedded/pyimod04_pywin32",
-    "embedded/python310.dll",
-    "embedded/select.pyd",
-    "embedded/sqlite3.dll",
     "embedded/struct",
-    "embedded/unicodedata.pyd",
     "embedded/woff_watchdog_entry"
   ],
   "executable_inventory": [
     {
-      "path": "_internal/_bz2.pyd",
-      "bytes": 83736,
-      "sha256": "62173a8fadd4bf4dd71ab89ea718754aa31620244372f0c5bbbae102e641a60e"
-    },
-    {
-      "path": "_internal/_ctypes.pyd",
-      "bytes": 123672,
-      "sha256": "1ea3dd3df393fa9b27bf6595be4ac859064cd8ef9908a12378a6021bba1cb177"
-    },
-    {
-      "path": "_internal/_decimal.pyd",
-      "bytes": 254744,
-      "sha256": "9aac010a424c757c434c460c3c0a6515d7720966ab64bad667539282a17b4133"
-    },
-    {
-      "path": "_internal/_elementtree.pyd",
-      "bytes": 128280,
-      "sha256": "262d771de19a071c2d086717c29dc9a704b33f95f6aa06ec2092f3e8f54495ae"
-    },
-    {
-      "path": "_internal/_hashlib.pyd",
-      "bytes": 64792,
-      "sha256": "caa4d2f8795e9a55e128409cc016e2cc5c694cb026d7058fc561e4dd131ed1c9"
-    },
-    {
-      "path": "_internal/_lzma.pyd",
-      "bytes": 158488,
-      "sha256": "60793c8592193cfbd00fd3e5263be4315d650ba4f9e4fda9c45a10642fd998be"
-    },
-    {
-      "path": "_internal/_multiprocessing.pyd",
-      "bytes": 34584,
-      "sha256": "7581edea33c1db0a49b8361e51e6291688601640e57d75909fb2007b2104fa4c"
-    },
-    {
-      "path": "_internal/_queue.pyd",
-      "bytes": 31512,
-      "sha256": "925f05255f4aae0997dc4ec94d900fd15950fd840685d5b8aa755427c7422b14"
-    },
-    {
-      "path": "_internal/_socket.pyd",
-      "bytes": 79128,
-      "sha256": "e6deb751039cd5424a139708475ce83f9c042d43e650765a716cb4a924b07e4f"
-    },
-    {
-      "path": "_internal/_sqlite3.pyd",
-      "bytes": 99096,
-      "sha256": "b298a44af162be7107fd187f04b63fb3827f1374594e22910ec38829da7a12dc"
-    },
-    {
-      "path": "_internal/_ssl.pyd",
-      "bytes": 160536,
-      "sha256": "d2a7999e234e33828888ad455baa6ab101d90323579abc1095b8c42f0f723b6f"
-    },
-    {
-      "path": "_internal/_uuid.pyd",
-      "bytes": 25368,
-      "sha256": "990586f2a2ba00d48b59bdd03d3c223b8e9fb7d7fab6d414bac2833eb1241ca2"
+      "path": "WoFFWatchdog.exe",
+      "bytes": 12872584,
+      "sha256": "9260ff334d7cc65679812447b82f123ba902e5a0d5a5fbd48a032b74f56e1dbe"
     },
     {
       "path": "_internal/base_library.zip",
-      "bytes": 880569,
-      "sha256": "f6d974e59c2d5cc9255f2994d92f73665feb1ef96fa5e6abcdf93685bc7554a9"
+      "bytes": 1333490,
+      "sha256": "424e1e7f6dee7f88bc2ff9922ca54ddaa7ef2cbc158a4d76b12f21d4017c371b"
     },
     {
-      "path": "_internal/libcrypto-1_1.dll",
-      "bytes": 3450648,
-      "sha256": "9b7b4a0ad212095a8c2e35c71694d8a1764cd72a829e8e17c8afe3a55f147939"
-    },
-    {
-      "path": "_internal/libffi-7.dll",
-      "bytes": 32792,
-      "sha256": "f60dd9f2fcbd495674dfc1555effb710eb081fc7d4cae5fa58c438ab50405081"
-    },
-    {
-      "path": "_internal/libssl-1_1.dll",
-      "bytes": 704792,
-      "sha256": "d74ce01319ae6f54483a19375524aa39d9f5fd91f06cf7df238ca25e043130fd"
-    },
-    {
-      "path": "_internal/pyexpat.pyd",
-      "bytes": 198936,
-      "sha256": "4a2d59993bce76790c6d923af81bf404f8e2cb73552e320113663b14cf78748c"
-    },
-    {
-      "path": "_internal/python310.dll",
-      "bytes": 4458776,
-      "sha256": "14b06796f288bc6599e458fb23a944ab0c843e9868058f02a91d4606533505ed"
-    },
-    {
-      "path": "_internal/select.pyd",
-      "bytes": 29976,
-      "sha256": "db85f2f94d4994283e1055057372594538ae11020389d966e45607413851d9e9"
-    },
-    {
-      "path": "_internal/sqlite3.dll",
-      "bytes": 1511192,
-      "sha256": "fbd8832b5bc7e5c9adcf7320c051a67ee1c33fd198105283058533d132785ab4"
-    },
-    {
-      "path": "_internal/unicodedata.pyd",
-      "bytes": 1123608,
-      "sha256": "1fb2d66c056f69e8bbdd8c6c910e72697874dae680264f8fb4b4df19af98aa2e"
-    },
-    {
-      "path": "_internal/VCRUNTIME140.dll",
-      "bytes": 98224,
-      "sha256": "9d2b40f0395cc5d1b4d5ea17b84970c29971d448c37104676db577586d4ad1b1"
-    },
-    {
-      "path": "WoFFWatchdog.exe",
-      "bytes": 7660260,
-      "sha256": "44025332d600960f04b53dd786478f5c0fc20711a9420bebda5c4c3292d9e338"
+      "path": "_internal/libpython3.12.so.1.0",
+      "bytes": 32465344,
+      "sha256": "7e177a680eabb11fcb7d3867f7a1b9c4b93a9bd5b18129ce1af51ec07977b024"
     }
   ],
   "executable_directories": [
@@ -844,24 +687,8 @@
   ],
   "embedded_entries": [
     "PYZ.pyz",
-    "VCRUNTIME140.dll",
-    "_bz2.pyd",
-    "_ctypes.pyd",
-    "_decimal.pyd",
-    "_elementtree.pyd",
-    "_hashlib.pyd",
-    "_lzma.pyd",
-    "_multiprocessing.pyd",
-    "_queue.pyd",
-    "_socket.pyd",
-    "_sqlite3.pyd",
-    "_ssl.pyd",
-    "_uuid.pyd",
     "base_library.zip",
-    "libcrypto-1_1.dll",
-    "libffi-7.dll",
-    "libssl-1_1.dll",
-    "pyexpat.pyd",
+    "libpython3.12.so.1.0",
     "pyi_rth_inspect",
     "pyi_rth_multiprocessing",
     "pyi_rth_pkgutil",
@@ -869,12 +696,7 @@
     "pyimod01_archive",
     "pyimod02_importers",
     "pyimod03_ctypes",
-    "pyimod04_pywin32",
-    "python310.dll",
-    "select.pyd",
-    "sqlite3.dll",
     "struct",
-    "unicodedata.pyd",
     "woff_watchdog_entry"
   ],
   "forbidden_executable_entries": [],

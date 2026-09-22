@@ -117,8 +117,9 @@ def test_byte_sensitive_ui_evidence_uses_lf_checkout_policy() -> None:
                     evidence_path.relative_to(REPOSITORY_ROOT).as_posix()
                 )
 
-    # 18 retained Site payloads plus 49 textual records/recipes from spike #82.
-    assert len(byte_sensitive_text_paths) == len(set(byte_sensitive_text_paths)) == 67
+    # 18 Site payloads + 49 prior spike payloads + 24 current Windows records
+    # + the byte-identical, versioned prior Linux production result.
+    assert len(byte_sensitive_text_paths) == len(set(byte_sensitive_text_paths)) == 92
 
     result = subprocess.run(
         [

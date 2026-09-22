@@ -2,13 +2,13 @@
   "historical_archive_commit": "a632e61d2ca3ee1f7adcd2d1ec6853b568dddf04",
   "historical_measurement_baseline": "0c8a3d3c8afd4a9addae1cd5902faa79aa4f7445",
   "authoritative_main": "18faf9cd31be90ea5d74738e5cf299dfdbb9e832",
-  "historical_bytes_policy": "All pre-existing JSON observations and inventories remain byte-identical. Recipe revisions do not retroactively authenticate observations.",
+  "historical_bytes_policy": "Files listed in historical_payload_sha256 remain byte-identical and immutable. Explicitly versioned regenerated/current records may advance with their source revision and hashes recorded separately; superseded regenerated records are preserved under versioned names. Recipe revisions never retroactively authenticate historical observations.",
   "limited_evidence": {
-    "production-isolation.json": "Superseded for isolation acceptance: no executable_help_stderr_nonempty and no raw Qt classification. Windows history only. Regenerated Linux evidence is separate.",
-    "uia.json": "Exposure-only history: exit_code is null and stderr/Qt message evidence is absent. Rejected by current replay. No current UIA success or speech claim.",
+    "production-isolation.json": "Superseded for isolation acceptance: no executable_help_stderr_nonempty and no raw Qt classification. Windows history only. Prior regenerated Linux and current native Windows production evidence are separate.",
+    "uia.json": "Exposure-only history: exit_code is null and stderr/Qt message evidence is absent. Rejected by current replay. Separate current Windows UIA exposure passes the corrected contract; neither record verifies speech.",
     "relocation-provenance.json": "Superseded authentication claim: old recipe deleted retained destinations before inventory. Hashes link JSON and the expected build inventory, but cannot prove which retained bytes produced historical timings.",
-    "relocated310.json": "Historical timing only; retained bundle unavailable and historical observation provenance cannot be authenticated. Native regeneration pending.",
-    "relocated314.json": "Historical timing only; retained bundle unavailable and historical observation provenance cannot be authenticated. Native regeneration pending.",
+    "relocated310.json": "Historical timing only; retained bundle unavailable and historical observation provenance cannot be authenticated. Separate current Windows same-host observations have new authenticated provenance.",
+    "relocated314.json": "Historical timing only; retained bundle unavailable and historical observation provenance cannot be authenticated. Separate current Windows same-host observations have new authenticated provenance.",
     "final-*.json": "Historical Windows observations on the recorded shell/baseline. Strict new replay requires stdout classification absent in these records. Explicit historical replay checks recorded invariants only; no current runtime claim.",
     "plugin-discovery.json": "Historical plugin observations; the recorded unload-only stderr allowlist remains supported. New stdout classification is absent, so current replay requires explicit historical mode. The historical unload-only flag is also true for empty stderr; this vacuous classification is permitted only in explicit historical replay, never for new observations.",
     "source-plugin-discovery.json": "Historical plugin observations; the recorded unload-only stderr allowlist remains supported. New stdout classification is absent, so current replay requires explicit historical mode. The historical unload-only flag is also true for empty stderr; this vacuous classification is permitted only in explicit historical replay, never for new observations."
@@ -17,14 +17,13 @@
   "current_validation_record": "../../pyside6-spike-82.md#current-branch-validation",
   "pending": [
     "Windows 11",
-    "clean Windows 10/11 machine",
-    "Python 3.11/3.12/3.13 native Qt execution",
-    "native DPI transitions",
-    "screen-reader speech",
+    "clean representative Windows 10/11 machine",
+    "Python 3.11 native Qt execution",
+    "Python 3.12/3.13 packaged execution if required by the criterion",
+    "native DPI settings and transitions",
+    "screen-reader/Narrator/NVDA speech",
     "truly cold startup",
-    "final distribution and licensing obligations",
-    "authenticated native relocated observations",
-    "current fail-closed UIA execution"
+    "final distribution and licensing obligations"
   ],
   "recommendation": "Conditional Go",
   "issue_82_complete": false,
@@ -65,5 +64,146 @@
     "summary.json": "7b020c33c9b99af6f81dfaac757c1d265542fa3ee5d80b8f11052f33845b3b21",
     "uia.json": "191bf28648d6ffd21c6e2be2f7d467a83e057e1eafec6d77521eb755a07e34c7",
     "wheel-metadata.json": "5d9ba6e46e85322ed27a5ce5521907da5712796c510deb59ed8fb108e4bfa621"
+  },
+  "prior_regenerated_production": {
+    "result": "production-isolation-linux-0684805.json",
+    "source_commit": "0684805e6926b3d923d4017023b178ce8b198114",
+    "source_tree": "c1d5312f239acec48c0b51dc0db138b0cce8b465",
+    "platform": "Linux",
+    "python": "3.12.14",
+    "native_windows_validation": false,
+    "spec_variant": "linux-executable-suffix",
+    "sha256": "4e267c746f5f6396bbdeba3df486c840fd4184baeb65d2ce54b270435b35c5f8"
+  },
+  "current_validation": {
+    "classification": "current external native Windows 10 developer-host validation",
+    "source_commit": "181741488803aeb0399477ba89fab0004ea5662f",
+    "source_tree": "ae33516f5e739478f8a41a3062bb9bd012f42207",
+    "host": {
+      "os": "Windows 10 Pro",
+      "os_version": "10.0.19045",
+      "os_build": 19045,
+      "architecture": "x64",
+      "kind": "developer host",
+      "clean_machine_verified": false,
+      "representative_machine_verified": false,
+      "native_windows11_verified": false
+    },
+    "python_versions_executed": [
+      "3.10.11",
+      "3.12.8",
+      "3.13.1",
+      "3.14.7"
+    ],
+    "python_311_executed": false,
+    "packaged_python_versions_executed": [
+      "3.10.11",
+      "3.14.7"
+    ],
+    "pyside6": "6.11.2",
+    "qt": "6.11.2",
+    "measurement_rows": 72,
+    "source_smoke_rows": 12,
+    "final_source_packaged_rows": 60,
+    "measurement_replay": {
+      "historical": false,
+      "status": "passed",
+      "exit_codes": [
+        0
+      ],
+      "stderr_nonempty": false,
+      "stdout_unexpected": false,
+      "qt_message_count": 0,
+      "all_shell_checks_passed": true
+    },
+    "scaling": {
+      "mechanism": "QT_SCALE_FACTOR",
+      "ordered_scales": [
+        1,
+        1.25,
+        1.5,
+        2
+      ],
+      "native_dpi_settings_verified": false,
+      "native_dpi_transitions_verified": false
+    },
+    "cold_boot_verified": false,
+    "plugins": {
+      "source_observations": 3,
+      "packaged_observations": 6,
+      "strict_replay": "passed",
+      "qwindows_dll_discovered": true,
+      "unexpected_warnings_or_output": false
+    },
+    "uia": {
+      "result": "current-windows10-uia.json",
+      "strict_replay": "passed",
+      "window_found": true,
+      "elements": 12,
+      "exit_code": 0,
+      "stderr_nonempty": false,
+      "stdout_unexpected": false,
+      "qt_message_count": 0,
+      "announcements_verified": false
+    },
+    "relocation": {
+      "status": "authenticated same-host relocation",
+      "observations": 6,
+      "provenance_records": 2,
+      "strict_replay": "passed",
+      "canonical_authentication": "passed",
+      "clean_machine_verified": false,
+      "result_name_policy": "Prefix the original result basename with current-windows10- when resolving the archived result; preserve the original sidecar bytes.",
+      "inventory_scope": "Canonical sidecars bind the current build inventory and current result JSON. Copy-and-verify execution authenticated relocated bytes on the developer host; raw bundles are not archived."
+    },
+    "production": {
+      "result": "production-isolation-current.json",
+      "strict_replay": "passed",
+      "native_windows_validation": true,
+      "python": "3.10.11",
+      "spec_variant": "unchanged-production-spec",
+      "build_exit_codes": [
+        0,
+        0
+      ],
+      "executable_help_exit_code": 0,
+      "executable_help_stderr_nonempty": false,
+      "wheel_entries": 52,
+      "executable_entries": 57,
+      "qt_distributions": [],
+      "forbidden_wheel_entries": [],
+      "forbidden_executable_entries": []
+    },
+    "privacy_check": {
+      "status": "passed",
+      "scope": "current JSON and versioned Linux record; decoded strings checked for private/local paths and identity fields"
+    },
+    "evidence_sha256": {
+      "current-windows10-build-inventory.json": "aa61a0a5dd6052764863d4337a4a94699b0dc70213104174f0d70901cdd62e51",
+      "current-windows10-final-packaged310-audit.json": "50b84ad7f2c4a6bae922a2227d140c26dd07a09f0980a0aa1f1e145d9a590c0f",
+      "current-windows10-final-packaged310.json": "4ff24e64f17af1ae76a9e3055031adf10215f7b5f9704471ccc089ed3ce32412",
+      "current-windows10-final-packaged314-audit.json": "fe7af23d616128f01ca622501826baa9d0df2a60be3911722900afcf9d766c11",
+      "current-windows10-final-packaged314.json": "aea7bb8350b22d105b11d29967ea648fa4267c54f93595a2c2c6f4bc21b1c7c3",
+      "current-windows10-final-source310-audit.json": "8964eb3f44f6bf4d20e7e033b95d9643027e1bac6c5b21b150501c10531863e8",
+      "current-windows10-final-source310.json": "72b5b30cfe0e52d792b9472ef31494db2914c67edbd1a8a6a36b2565bdeed58d",
+      "current-windows10-final-source314-audit.json": "44cf78dd9b1f10dd279168b024f57b1ff4ab809aedbb68d3465b029c1b6643b3",
+      "current-windows10-final-source314.json": "3a6fe31771eb5ad58250fa6674162080fb3175a25f00c27e057dbbfe124fed15",
+      "current-windows10-inventory10.json": "b86ceef7262b2ce738884b1f2b8b572b805d34b05b40671c4bd65894baadbd8b",
+      "current-windows10-inventory12.json": "594a4d1edb98e5d9372027d307165459dfadbaa7b252cefc9fc984a07fd058ff",
+      "current-windows10-inventory13.json": "2a42a2d933ef334289c128e29754ac96802861be06c3d1e14e7e8bf7a8c133ed",
+      "current-windows10-inventory14.json": "d17d6c1eebc4864baaf3856e1f350356510782507285e320a2491ab9f3d3bf53",
+      "current-windows10-plugin-discovery.json": "da56918651ba49715fdde15a540f82873fad878889b438a730d55b897bb7251d",
+      "current-windows10-relocated310.json": "b72054b0bb456b0478869b9351021d16426d27905e8a8f64413d7dd4598d984a",
+      "current-windows10-relocated314.json": "b36b0cd60605d48f7959bd79ed9af217d6ba6b2018ce9e6222b10b0f5941a7c3",
+      "current-windows10-relocation-provenance310.json": "cb4de40b458701e44cb0beb31cad34e31decddbe54119a845d6078e9f63ad83d",
+      "current-windows10-relocation-provenance314.json": "9141efbfb90689adbf013cb01dca11a9a9cd79faebe263e78c5f75212c8cd9d5",
+      "current-windows10-source-plugin-discovery.json": "f4c8fdcec00b14dfdc6b6b0b146f2c14f41c19ad7c87863a239bdb6a25619606",
+      "current-windows10-source310-smoke.json": "a2c9c52e0e7a9cd35e292300e3038bb594dae97d2efe2fa329055115a88e674d",
+      "current-windows10-source312-smoke.json": "4358a7d508da69eadba76b04cbac46ad6d0e3bb613a811b9bdaec004e50413a1",
+      "current-windows10-source313-smoke.json": "eff899eeafbb445a2ae39684da073b683c06d703295207ce7465abd024131eb7",
+      "current-windows10-source314-smoke.json": "86eace8bcdb400312584d41385a461febdfbef9144dabd1588c8ee51d6cec3c3",
+      "current-windows10-uia.json": "c5bf38353d219596438571ccd7c1470a64da1e08baa33393547db5a8c4b32cf3",
+      "production-isolation-current.json": "ccc4f1aeef7e26552f30abdb0e1c4c931fb40ec99b57f52313ec630dc7102247"
+    }
   }
 }
