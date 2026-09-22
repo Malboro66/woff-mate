@@ -19,4 +19,6 @@ WoFF_Mate é uma aplicação Python para Windows que processa dados do WoFF e ma
 
 ## Conclusão
 
-Uma tarefa termina quando os critérios da issue foram atendidos, os testes passaram, o diff foi revisado e uma PR draft foi aberta.
+A fase de implementação termina quando os critérios da issue foram atendidos, os testes passaram, o diff foi revisado e uma PR draft foi aberta.
+
+A entrega integrada termina somente após os controles aplicáveis ao escopo — como revisão independente, CI, Codex Review e gates de governança — e uma decisão humana explícita de merge. A abertura da PR draft não conclui, por si só, a entrega integrada.
