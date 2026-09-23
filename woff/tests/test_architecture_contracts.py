@@ -11,6 +11,7 @@ from copy import deepcopy
 from pathlib import Path, PurePosixPath
 
 import pytest
+import yaml
 
 from scripts.validate_project_graph import (
     GraphValidationError,
@@ -102,6 +103,20 @@ def test_pyright_uses_repository_virtual_environment() -> None:
     assert configuration["pythonVersion"] == "3.10"
     assert configuration["venvPath"] == "."
     assert configuration["venv"] == ".venv"
+
+
+def test_ci_provenance_matrix_checkout_preserves_history() -> None:
+    workflow = yaml.safe_load(
+        (REPOSITORY_ROOT / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
+    )
+    job = workflow["jobs"]["tests"]
+    assert {"3.10", "3.14"} <= set(job["strategy"]["matrix"]["python-version"])
+    steps = job["steps"]
+    checkouts = [step for step in steps if step.get("uses", "").startswith("actions/checkout@")]
+    assert len(checkouts) == 1 and steps[0] == checkouts[0]
+    # The full suite authenticates archived evidence against earlier Git commits.
+    assert any(step.get("run", "").strip() == "python -m pytest -q" for step in steps)
+    assert str(checkouts[0].get("with", {}).get("fetch-depth")) == "0"
 
 
 def test_byte_sensitive_ui_evidence_uses_lf_checkout_policy() -> None:

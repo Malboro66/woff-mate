@@ -1052,3 +1052,137 @@ The complete worktree diff relative to HEAD contains these 33 paths:
 - `docs/ui/pyside6-spike-82.md` (edited reconciliation)
 - `tests/test_ui_spike_evidence.py` (edited reconciliation)
 - `woff/tests/test_architecture_contracts.py` (edited reconciliation)
+
+
+## CI provenance history correction (2026-09-23 UTC)
+
+This is current branch validation of the checkout correction on top of
+`ecb09851753a4472a7d377702d818357ac0ea9c6`; it does not regenerate spike
+measurements. Preflight found the expected branch, a clean worktree and `0 0`
+divergence. `git fetch origin --prune` exited 0 and confirmed the unchanged
+remote PR head. Authoritative main remains
+`e5b97b950b2dc3196c62b2ac6ed3a54f2c929ce7`. Related closed issues/PRs and workflow
+history were inspected; main still had the shallow-checkout defect.
+
+CI run 35809392471 failed in both Python jobs because the first
+`actions/checkout@v4` step of `jobs.tests` used its default depth of 1.
+The two provenance tests call `git show` against
+`181741488803aeb0399477ba89fab0004ea5662f`, which that checkout did not contain.
+Only this matrix checkout now specifies `fetch-depth: 0`; Pyright and Windows
+smoke checkouts are unchanged. History acquisition remains in CI, outside pytest.
+No provenance, replay, manifest or measurement contract was relaxed.
+
+`test_ci_provenance_matrix_checkout_preserves_history` loads the workflow with
+the existing development dependency PyYAML and requires a single initial checkout
+with depth 0 in the Python 3.10/3.14 job that runs the complete test suite.
+It failed before the workflow fix and passed afterward.
+
+For the exact commands below, `R` is the existing issue-82 worktree, `P` its
+repository development-venv Python, and `DEV_ROOT` the directory containing that
+venv. `V` is the private external temporary validation directory; `B` is the
+separate Qt-free production build-venv Python. Absolute host paths are intentionally
+excluded. Both interpreters are CPython 3.10.11 on Windows 10 build 19045.
+Development tools: pytest 9.1.1, Pyright 1.1.411, PyYAML 6.0.3, psutil 7.2.2;
+Git 2.55.0.windows.3. All pytest commands run with `PYTHONDONTWRITEBYTECODE=1`,
+`PYTHONIOENCODING=utf-8`, `PYTHONUTF8` unset, `TEMP=TMP=V/tmp`, and external
+pytest cache/basetemp. The packaging subprocesses additionally use
+`PYTHONUTF8=1` and `PYINSTALLER_CONFIG_DIR=V/pyinstaller-cache`.
+
+Deterministic reproduction, before editing the repository:
+
+1. From `R`, `git clone --depth 1 --single-branch --branch codex/issue-82-pyside6-spike file:///R V/shallow`
+   exited 0; HEAD was the expected revision and `git rev-parse --is-shallow-repository`
+   returned `true`. `file:///R` denotes the local worktree file URI, not a network host.
+2. From `V/shallow`, both `git show 181741488803aeb0399477ba89fab0004ea5662f:build.spec`
+   and `git show 181741488803aeb0399477ba89fab0004ea5662f:docs/ui/evidence/issue-82-pyside6/evidence-status.json`
+   exited 128 because the historical object was missing.
+3. From `V/shallow`, `P -B -m pytest tests/test_ui_spike_evidence.py::test_current_windows_production_is_native_and_revision_bound tests/test_ui_spike_evidence.py::test_current_evidence_status_hashes_and_limits -q -ra --tb=short --basetemp=V/repro-shallow -o cache_dir=V/pytest-cache`
+   exited 1: 2 failed, 0 passed/skipped/deselected/subtests; both failures reported
+   the underlying `git show` exit 128.
+4. From `V/shallow`, `git fetch --unshallow origin` exited 0 outside pytest,
+   using only the local file transport. Shallow status became `false`; both
+   `git show` commands exited 0. The same pytest command with
+   `--basetemp=V/repro-history` exited 0: 2 passed, all other counts 0.
+   No clone worktree file changed; its status remained clean.
+5. From `R`, `P -B -m pytest woff/tests/test_architecture_contracts.py::test_ci_provenance_matrix_checkout_preserves_history -q -ra --tb=short --basetemp=V/contract-red -o cache_dir=V/pytest-cache`
+   exited 1 before the workflow correction: 1 failed, all other counts 0,
+   because fetch-depth was absent. The passing rerun is listed below.
+
+The following commands were actually executed for this correction. CWD is `R`
+unless specified. Counts are passed / failed / skipped / deselected / passed
+subtests; errors are 0 for every pytest row. Non-pytest counts and skip reasons
+are not applicable. All rows classify as current branch validation; disposable
+packaging outputs are not archived spike evidence. The complete expanded command,
+environment and output ledger is retained outside the repository.
+
+| Check | Exact command with the aliases above | CWD | Exit | Counts or result |
+|---|---|---|---|---|
+| checkout-contract | `P -B -m pytest woff/tests/test_architecture_contracts.py::test_ci_provenance_matrix_checkout_preserves_history -q -ra --tb=short --basetemp=V/checkout-contract -o cache_dir=V/pytest-cache` | `R` | 0 | 1 / 0 / 0 / 0 / 0 |
+| focused | `P -B -m pytest tests/test_ui_spike_evidence.py::test_current_windows_production_is_native_and_revision_bound tests/test_ui_spike_evidence.py::test_current_evidence_status_hashes_and_limits -q -ra --tb=short --basetemp=V/focused -o cache_dir=V/pytest-cache` | `R` | 0 | 2 / 0 / 0 / 0 / 0 |
+| spike | `P -B -m pytest tests/test_ui_spike_evidence.py -q -ra --tb=short --basetemp=V/spike -o cache_dir=V/pytest-cache` | `R` | 0 | 152 / 0 / 1 / 0 / 0 |
+| architecture | `P -B -m pytest woff/tests/test_architecture_contracts.py -q -ra --tb=short --basetemp=V/architecture -o cache_dir=V/pytest-cache` | `R` | 0 | 128 / 0 / 0 / 0 / 0 |
+| governance | `P -B -m pytest woff/tests/test_sdd_governance.py -q -ra --tb=short --basetemp=V/governance -o cache_dir=V/pytest-cache` | `R` | 0 | 7 / 0 / 0 / 0 / 0 |
+| milestones | `P -B -m pytest woff/tests/test_product_milestones.py -q -ra --tb=short --basetemp=V/milestones -o cache_dir=V/pytest-cache` | `R` | 0 | 14 / 0 / 0 / 0 / 0 |
+| ui-standard | `P -B -m pytest woff/tests/test_ui_development_standard.py -q -ra --tb=short --basetemp=V/ui-standard -o cache_dir=V/pytest-cache` | `R` | 0 | 6 / 0 / 0 / 0 / 0 |
+| ui-contracts | `P -B -m pytest tests/test_ui_contracts.py -q -ra --tb=short --basetemp=V/ui-contracts -o cache_dir=V/pytest-cache` | `R` | 0 | 304 / 0 / 0 / 0 / 0 |
+| fixtures | `P -I -S scripts/validate_ui_fixtures.py` | `R` | 0 | 30 synthetic cases / 6 states |
+| manifests | `P -B V/audit_checks.py` | `R` | 1 | Temporary audit helper: cp1252 decode failure; corrected to explicit UTF-8 and rerun |
+| fixture-tests | `P -B -m pytest tests/test_ui_state_fixtures.py -q -ra --tb=short --basetemp=V/fixture-tests -o cache_dir=V/pytest-cache` | `R` | 0 | 203 / 0 / 1 / 0 / 0 |
+| ui-v2-replay | `P scripts/validate_ui_v2_evidence.py` | `R` | 0 | 60 captures / 14 states / 12 statuses / 28 keyboard sequences |
+| historical-replay | `P -B V/replay_summary.py` | `R` | 0 | Summary equality: 60 measurement rows / 48 audit rows / 2640 checks |
+| graph | `P scripts/validate_project_graph.py` | `R` | 0 | Valid |
+| privacy | `P -B -m pytest woff/tests/test_privacy_contracts.py -q -ra --tb=short --basetemp=V/privacy -o cache_dir=V/pytest-cache` | `R` | 0 | 10 / 0 / 0 / 0 / 0 |
+| packaging-tests | `P -B -m pytest tests/test_ui_spike_evidence.py -k 'packaging or production or wheel or raw_qt or executable_inventory or linux_observer' -q -ra --tb=short --basetemp=V/packaging-tests -o cache_dir=V/pytest-cache` | `R` | 0 | 40 / 0 / 0 / 113 / 0 |
+| manifests | `P -B V/audit_checks.py` | `R` | 0 | 75 children unchanged; 62 raw JSON; 74 manifest entries; 36 historical hashes |
+| pyright | `P -m pyright --venvpath DEV_ROOT` | `R` | 0 | 0 errors / 0 warnings / 0 informations |
+| syntax | `P -B V/check_syntax.py` | `R` | 0 | 105 tracked Python files + 9 recipes; Python 3.10 grammar, no bytecode |
+| diff-check | `git diff --check` | `R` | 0 | Clean |
+| wheel-build | `B -m build --wheel --no-isolation --outdir V/wheel` | `V/package-source` | 0 | Wheel built; 52 entries, no forbidden artifacts |
+| pyinstaller-build | `B -m PyInstaller --clean --noconfirm --distpath V/dist --workpath V/build-work build.spec` | `V/package-source` | 0 | Executable built; 57 entries, no forbidden artifacts |
+| packaged-help | `V/dist/WoFFWatchdog/WoFFWatchdog.exe --help` | `V` | 0 | Exit 0, stderr empty |
+| install-venv | `B -m venv --system-site-packages V/install-env` | `V` | 0 | Passed; no pytest counts or skips |
+| runtime-dependency-install | `V/install-env/Scripts/python.exe -m pip install --no-deps --no-index V/watchdog-6.0.0-py3-none-win_amd64.whl` | `V` | 0 | Passed; no pytest counts or skips |
+| wheel-install | `V/install-env/Scripts/python.exe -m pip install --no-deps --no-index V/wheel/woff-3.2.0-py3-none-any.whl` | `V` | 0 | Passed; no pytest counts or skips |
+| installed-imports | `V/install-env/Scripts/python.exe -B -c 'import importlib,pkgutil,woff; modules=list(pkgutil.walk_packages(woff.__path__,woff.__name__+".")); [importlib.import_module(m.name) for m in modules]; print("Installed modules imported:",len(modules))'` | `V` | 0 | 44 modules imported; stderr empty |
+| installed-woff-watchdog | `V/install-env/Scripts/woff-watchdog.exe --help` | `V` | 0 | Passed; no pytest counts or skips |
+| installed-woff-query | `V/install-env/Scripts/woff-query.exe --help` | `V` | 0 | Passed; no pytest counts or skips |
+| installed-woff-report | `V/install-env/Scripts/woff-report.exe --help` | `V` | 0 | Passed; no pytest counts or skips |
+| full | `P -B -m pytest -q -ra --tb=short --basetemp=V/full -o cache_dir=V/pytest-cache` | `R` | 0 | 1887 / 0 / 2 / 0 / 175 |
+
+Skip reasons are unchanged platform limitations: `tests/test_ui_spike_evidence.py:445`
+reports "Creating symbolic links is not permitted on this Windows environment";
+`tests/test_ui_state_fixtures.py:471` reports "symlinks unavailable on this platform".
+The full suite includes those two skips. No other test was skipped, xfailed or
+mocked to avoid provenance. Expected red reproductions are recorded above.
+The only additional failed command was the external audit helper reading a UTF-8
+file with the Windows default codec; explicit UTF-8 fixed the helper, and its
+complete audit passed on rerun. No repository validator was changed for that issue.
+
+`V/replay_summary.py` copies archived inputs and the unchanged summarize/contract
+recipes to an external scratch directory, runs `P summarize.py --historical`,
+and requires JSON equality with the archived summary. `V/check_syntax.py` parses
+all `git ls-files '*.py'` files and archived `*.py.txt` recipes with
+`ast.parse(..., feature_version=(3, 10))`. `V/audit_checks.py` checks the pre-edit
+SHA-256 inventory of every direct evidence child, all historical mappings and
+current Windows build inputs against their recorded Git source, manifest coverage,
+LF normalization, private paths/identifiers/credentials, scoped diff and unchanged
+governance/production boundaries. Packaging used an external copy of the worktree,
+unchanged `build.spec`, offline wheel installation, inventory inspection and CLI
+help checks. No timing, footprint or Qt measurement observer was run.
+
+All 62 raw JSON payloads and every other direct evidence child remain byte-identical.
+The preserved Linux record and native Windows result still authenticate to their
+original revisions. `SHA256SUMS`, evidence README and evidence-status are unchanged;
+no manifest regeneration is needed. The fixture-backed shell, immutable UI contracts,
+production dependencies and production modules are unchanged; wheel and executable
+inventories contain no Qt or spike artifact.
+
+Scope is exactly `.github/workflows/ci.yml`,
+`woff/tests/test_architecture_contracts.py`, and this report. Complete manual diff
+review and final privacy/path review are required before the authorized local commit.
+PR #165 was checked read-only: same branch, Draft, unmerged. Issue #82 remains open.
+ADR remains Proposed, recommendation Conditional Go, all product gates unapproved.
+Windows 11, clean representative machines, Python 3.11 native Qt execution,
+packaged 3.12/3.13 if required, native DPI transitions, screen-reader speech,
+true cold starts and final distribution/licensing remain pending. Remote CI on this
+correction remains pending explicit authorization to push; no new review is requested.
