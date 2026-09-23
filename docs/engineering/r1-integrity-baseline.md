@@ -18,6 +18,13 @@ the reproducible evidence and corrective acceptance criteria. A model
 inference is not repository fact unless supported by executable or repository
 evidence.
 
+Every issue state, dependency state, finding and disposition below describes
+the audited revision and review date recorded above, not the current GitHub or
+repository state. Later closures or integrations, including #136 and #81, must
+not be back-propagated into this historical evidence; consult current `main`
+and current GitHub state for present status. Those later changes do not
+retroactively alter the R1 verdict or approve Product Gate A.
+
 ## Validation and evidence
 
 These are the exact commands and recorded results from the R1 audit of the

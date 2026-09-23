@@ -25,6 +25,13 @@ Runtime/build hashes in raw inventories describe the actual observed artifacts.
   machine. PySide6/Qt 6.11.2 executed on Python 3.10.11, 3.12.8, 3.13.1 and
   3.14.7. Python 3.11 was not executed.
 
+Governance main is now `e5b97b950b2dc3196c62b2ac6ed3a54f2c929ce7`
+(PR #167). The [post-merge branch validation](../../pyside6-spike-82.md#post-governance-merge-validation-2026-09-22)
+is separate from these raw Windows observations at `1817414`; synchronization
+does not regenerate or relabel their source revision. Retained production UI
+requires R2, applicable ADR adoption gates and applicable Product Gates.
+Opening a Draft PR does not establish integrated delivery.
+
 Current strict replay covers 72 measurement rows: 12 source smoke observations
 (three per executed Python) and 60 source/packaged observations, including the
 scaling audit, on 3.10/3.14 only. All exits are zero, stderr/stdout flags are

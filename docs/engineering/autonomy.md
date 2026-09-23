@@ -27,10 +27,22 @@ action than database migrations, destructive operations, merges, and releases.
 | Concurrency and watchdog | L1 | Failures may lose events |
 | Transactions and repositories | L1 | Partial-state risk |
 | Schema and migration | L0 or L1 | Direct database risk |
-| Read-only interface | L2 after Product Gate A | Lower risk while rules stay outside UI |
+| Retained/production read-only interface | L2 only after R2, applicable ADR adoption gates, and applicable Product Gates | Maximum execution level after every prerequisite is satisfied |
 | Merge to `main` | Human only | Official integration point |
 | Release and distribution | Human only | Affects real users |
 | Destructive operation | Human only | May be irreversible |
+
+An autonomy level is a maximum operational permission, not authorization to
+bypass unresolved dependencies, architecture decisions, Product Gates, R2,
+ADR adoption requirements, or issue-specific gates.
+
+Before Product Gate A, UI work may proceed only where current governance
+explicitly authorizes its bounded scope, such as design work, sanitized
+fixtures, immutable toolkit-independent UI contracts, isolated feasibility
+spikes, and the fixture-only P0 prototype. Each item remains subject to its
+issue, graph dependencies, evidence requirements, and human controls.
+Experimental or fixture-only work cannot silently become retained production
+architecture or a live-data interface.
 
 Issue #51 is authorized through L2. It may publish a branch and open a draft
 pull request. It may not mark the pull request ready, merge, or publish a

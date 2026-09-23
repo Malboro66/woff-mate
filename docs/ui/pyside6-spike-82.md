@@ -1,8 +1,10 @@
 # Issue #82: PySide6 / Qt Widgets feasibility evidence
 
 Historical measurements: 2026-09-13/14; original validation: 2026-09-15.
-Synchronization: 2026-09-20; current external Windows observations:
-2026-09-20/21 UTC, at `1817414`. See current validation below.
+Source synchronization: 2026-09-20; external Windows observations:
+2026-09-20/21 UTC, at `1817414`. Governance synchronization: 2026-09-22,
+from PR #167 at `e5b97b950b2dc3196c62b2ac6ed3a54f2c929ce7`.
+See the separate post-governance merge validation below.
 Recommendation: **Conditional Go for further investigation**.
 Production adoption and distribution remain blocked. This report evaluates the
 criteria, including explicit evidence gaps; it does **not** claim completion of
@@ -18,6 +20,9 @@ baseline, fixture digest, environment and experiment recipe.
 During original finalization, main advanced through #136/PR #164 (`143226d`).
 The current branch now includes that change and the #81 squash merge,
 `18faf9cd31be90ea5d74738e5cf299dfdbb9e832`, through source merge `0684805e6926b3d923d4017023b178ce8b198114`.
+Current authoritative governance main is
+`e5b97b950b2dc3196c62b2ac6ed3a54f2c929ce7`. Its five documentation changes
+preserve the integrated #81/#136 contracts and the #82 evidence boundary.
 The #80 catalog and every historical JSON observation remain unchanged.
 The following Q0 paragraph records the original investigation, not current issue states.
 
@@ -412,7 +417,8 @@ work, not production UI implementation.
 
 ## Reconciliation with the final Issue #81 contracts
 
-The authoritative `main` is `18faf9cd31be90ea5d74738e5cf299dfdbb9e832`.
+The authoritative `main` for this earlier reconciliation was
+`18faf9cd31be90ea5d74738e5cf299dfdbb9e832`.
 Issues #136 and #81 are closed. A merge, without conflict or history rewriting,
 preserved both published spike commits and all integrated production changes.
 `woff/ui_contracts.py`, `woff/nation.py`, the #80 catalog and production packaging
@@ -500,11 +506,14 @@ the PR and must pass at the published head.
 
 ## Current branch validation
 
-This continuation stays on `codex/issue-82-pyside6-spike`, PR #165, with source
+This section records the pre-governance Windows reconciliation. The latest
+branch validation is in [the post-governance ledger](#post-governance-merge-validation-2026-09-22).
+
+That continuation stayed on `codex/issue-82-pyside6-spike`, PR #165, with source
 HEAD `181741488803aeb0399477ba89fab0004ea5662f` and source tree
 `ae33516f5e739478f8a41a3062bb9bd012f42207`. Q0 rechecked open #82, Draft PR #165,
 closed related issues and PR history through the GitHub connector. Remote main
-still resolves to `18faf9c`; its final #81 contracts, application-contract
+then resolved to `18faf9c`; its final #81 contracts, application-contract
 document and project graph match this branch. Main contains no #82 archive.
 This is the remaining archive/replay reconciliation after the observer fixes
 in `a632e61`/`0684805` and publication at `1817414`.
@@ -591,6 +600,9 @@ Issue #82 incomplete/open, PR #165 Draft and the ADR Proposed; no Product Gate
 approval, publication, commit, push or further Codex Review is performed.
 
 ## Final edited-worktree validation (2026-09-21)
+
+This is the preserved pre-governance validation ledger. Its results remain
+bound to that edited tree; they do not substitute for post-merge validation.
 
 This ledger records the complete validation requested after the earlier focused
 stage. These are newly executed Windows results, not reused Linux/CI totals.
@@ -751,10 +763,164 @@ review found no scope expansion, private data, unsupported acceptance claim or
 historical-byte change. All 32 candidate files other than this report still match
 the hashes captured at the start of this final-validation step.
 
-The technical changes are suitable for one commit on the existing branch; that does not complete #82,
-accept the ADR or approve adoption/gates. The index stays empty, HEAD unchanged,
-and no commit, push, merge, Ready transition, issue closure, release or further
-Codex Review is performed. Complete candidate paths remain listed below.
+At that validation checkpoint the technical changes were suitable for one
+commit, the index was empty and HEAD unchanged. No commit, push, merge, Ready
+transition, issue closure, release or further Codex Review occurred in that
+earlier step. The later authorized preservation and governance merge are
+recorded separately below; neither completes #82 or approves adoption/gates.
+
+## Post-governance merge validation (2026-09-22)
+
+The preservation commit is `9f417d56db798085ae17914d668654be41bb7b05`,
+parented by `181741488803aeb0399477ba89fab0004ea5662f`. It contains exactly
+the 33 previously validated candidates. A normal noncommitting merge then
+integrated `e5b97b950b2dc3196c62b2ac6ed3a54f2c929ce7` (PR #167).
+There were no conflicts. All five incoming governance files matched main,
+and every one of the 33 preserved files retained its bytes before reconciliation.
+The merged AGENTS.md was reread before edits.
+
+Reconciliation updates only this report, the archive README, evidence-status
+and SHA256SUMS. No deterministic test asserted the former main SHA, so tests
+needed no reconciliation edit. Historical hashes and every raw current Windows
+and prior Linux payload remain unchanged. The raw Windows generation remains
+bound to `1817414`; it is not regenerated by this merge.
+
+Governance distinguishes implementation from integrated delivery and requires
+R2, applicable ADR adoption gates and applicable Product Gates before retained
+production UI. Bounded fixture-only feasibility remains authorized. Conditional
+Go, issue_82_complete false, ADR Proposed, all pending external criteria and
+unapproved gates are unchanged. #81 remains the sole immutable UI contract.
+
+All commands below were executed anew against the merged worktree. `$R` is
+this existing worktree; `$V` is a fresh external temporary validation root.
+Aliases redact private absolute paths only. All pytest and validator commands
+run in `$R`. No output, cache, log, build or install environment is retained in
+the worktree. All rows are current branch validation; packaging rows regenerate
+only disposable production build/install outputs, not the archived Qt evidence.
+
+| Alias | Interpreter and environment |
+|---|---|
+| `$P` | Qt-free development venv, CPython 3.10.11 x64 on Windows 10 build 19045; pytest 9.1.1, Pyright 1.1.411, watchdog 6.0.0, psutil 7.2.2, PyYAML 6.0.3. |
+| `$B` | Separate Qt-free CPython 3.10.11 build venv; build 1.6.1, wheel 0.48.0, setuptools 65.5.0, PyInstaller 6.22.3, hooks-contrib 2026.7, watchdog 6.0.0. |
+| `$I` | New `$V/install-env/Scripts/python.exe`, CPython 3.10.11; freshly installed project wheel and declared watchdog 6.0.0, no Qt. |
+| `$DevVenvParent` | Directory containing the development `.venv`, passed to Pyright. |
+| `git` | Git 2.55.0.windows.3; Python interpreter not applicable. |
+
+Validation children use `PYTHONDONTWRITEBYTECODE=1`, `PYTHONUTF8=1`,
+`PYTHONIOENCODING=utf-8`, `TEMP=$V/tmp`, `TMP=$V/tmp` and
+`PYINSTALLER_CONFIG_DIR=$V/pyinstaller-cache`. Pytest cache and basetemp paths
+are explicit below. Isolated fixture validation uses `-I -S`; syntax checking
+uses `ast.parse(..., feature_version=(3, 10))`, without emitting bytecode.
+
+Pytest counts are **passed / failed / skipped / deselected / subtests passed**.
+Every row uses `$P`, cwd `$R`, exit zero. Collection errors: zero throughout.
+
+| Gate | Exact command | P / F / S / D / subtests |
+|---|---|---|
+| spike | `& $P -m pytest tests/test_ui_spike_evidence.py -q -ra --tb=short --basetemp=$V/spike -o cache_dir=$V/pytest-cache` | **152 / 0 / 1 / 0 / 0** |
+| architecture | `& $P -m pytest woff/tests/test_architecture_contracts.py -q -ra --tb=short --basetemp=$V/architecture -o cache_dir=$V/pytest-cache` | **127 / 0 / 0 / 0 / 0** |
+| ui-contracts | `& $P -m pytest tests/test_ui_contracts.py -q -ra --tb=short --basetemp=$V/ui-contracts -o cache_dir=$V/pytest-cache` | **304 / 0 / 0 / 0 / 0** |
+| fixture-tests | `& $P -m pytest tests/test_ui_state_fixtures.py -q -ra --tb=short --basetemp=$V/fixture-tests -o cache_dir=$V/pytest-cache` | **203 / 0 / 1 / 0 / 0** |
+| milestones | `& $P -m pytest woff/tests/test_product_milestones.py -q -ra --tb=short --basetemp=$V/milestones -o cache_dir=$V/pytest-cache` | **14 / 0 / 0 / 0 / 0** |
+| ui-standard | `& $P -m pytest woff/tests/test_ui_development_standard.py -q -ra --tb=short --basetemp=$V/ui-standard -o cache_dir=$V/pytest-cache` | **6 / 0 / 0 / 0 / 0** |
+| governance | `& $P -m pytest woff/tests/test_sdd_governance.py -q -ra --tb=short --basetemp=$V/governance -o cache_dir=$V/pytest-cache` | **7 / 0 / 0 / 0 / 0** |
+| privacy | `& $P -m pytest woff/tests/test_privacy_contracts.py -q -ra --tb=short --basetemp=$V/privacy -o cache_dir=$V/pytest-cache` | **10 / 0 / 0 / 0 / 0** |
+| packaging-tests | `& $P -m pytest tests/test_ui_spike_evidence.py -k 'packaging or production or wheel or raw_qt or executable_inventory or linux_observer' -q -ra --tb=short --basetemp=$V/packaging-tests -o cache_dir=$V/pytest-cache` | **40 / 0 / 0 / 113 / 0** |
+| command-contracts | `& $P -m pytest woff/tests/test_command_contracts.py -q -ra --tb=short --basetemp=$V/command-contracts -o cache_dir=$V/pytest-cache` | **47 / 0 / 0 / 0 / 0** |
+| package-version | `& $P -m pytest woff/tests/test_version_consistency.py::test_package_cli_config_example_and_version_consumers_are_consistent -q -ra --tb=short --basetemp=$V/package-version -o cache_dir=$V/pytest-cache` | **1 / 0 / 0 / 0 / 0** |
+| full | `& $P -m pytest -q -ra --tb=short --basetemp=$V/full -o cache_dir=$V/pytest-cache` | **1886 / 0 / 2 / 0 / 175** |
+
+The spike skip is `tests/test_ui_spike_evidence.py:445`: creating symbolic
+links is not permitted on this Windows environment. The fixture skip is
+`tests/test_ui_state_fixtures.py:471`: symlinks unavailable on this platform.
+These are the same two skips in the full suite; Windows junction cases passed.
+
+Non-pytest commands have no passed/failed/skipped/deselected/subtest counts
+(N/A), and no skip reasons. All exits below are zero. Interpreter is the command's
+`$P`, `$B` or `$I`; installed launchers and the frozen executable use CPython
+3.10.11. Git rows use the Git version above.
+
+| Gate | Exact command | CWD | Result |
+|---|---|---|---|
+| fixtures | `& $P -I -S scripts/validate_ui_fixtures.py` | `$R` | 30 synthetic cases / 6 shared states |
+| manifests | `& $P -B $V/audit_checks.py` | `$R` | 74 manifest payloads; 36 immutable historical hashes/map; raw Windows and Linux bytes preserved |
+| historical-replay | `& $P -B $V/replay_summary.py` | `$R` | Exact summary equality: 60 rows, 48 audit rows / 2640 checks |
+| ui-v2-replay | `& $P scripts/validate_ui_v2_evidence.py` | `$R` | 60 captures / 14 states / 12 statuses / 28 keyboard sequences |
+| graph | `& $P scripts/validate_project_graph.py` | `$R` | Project graph valid |
+| wheel-build | `& $B -m build --wheel --no-isolation --outdir $V/wheel` | `$V/package-source` | Fresh wheel built; 52 entries |
+| pyinstaller-build | `& $B -m PyInstaller --clean --noconfirm --distpath $V/dist --workpath $V/build-work build.spec` | `$V/package-source` | Unchanged spec; 57 collected/embedded entries |
+| packaged-help | `& $V/dist/WoFFWatchdog/WoFFWatchdog.exe --help` | `$V` | Exit zero; stderr explicitly empty; no Qt artifacts |
+| install-venv | `& $B -m venv --system-site-packages $V/install-env` | `$V` | Fresh disposable environment created |
+| runtime-dependency-install | `& $I -m pip install --no-deps --no-index $V/watchdog-6.0.0-py3-none-win_amd64.whl` | `$V` | Declared watchdog 6.0.0 installed offline |
+| wheel-install | `& $I -m pip install --no-deps --no-index $V/wheel/woff-3.2.0-py3-none-any.whl` | `$V` | Fresh project wheel installed offline |
+| installed-imports | `& $I -B -c 'import importlib,pkgutil,woff; modules=list(pkgutil.walk_packages(woff.__path__,woff.__name__+".")); [importlib.import_module(m.name) for m in modules]; print("Installed modules imported:",len(modules))'` | `$V` | 44 installed modules imported; stderr empty |
+| installed-woff-watchdog | `& $V/install-env/Scripts/woff-watchdog.exe --help` | `$V` | Help passed; stderr empty |
+| installed-woff-query | `& $V/install-env/Scripts/woff-query.exe --help` | `$V` | Help passed; stderr empty |
+| installed-woff-report | `& $V/install-env/Scripts/woff-report.exe --help` | `$V` | Help passed; stderr empty |
+| pyright | `& $P -m pyright --venvpath $DevVenvParent` | `$R` | 0 errors / 0 warnings / 0 informations |
+| syntax | `& $P -B $V/check_syntax.py` | `$R` | 105 tracked Python files + 9 recipes, Python 3.10 grammar |
+| diff-check | `git diff --check` | `$R` | No whitespace errors |
+| cached-diff-check | `git diff --cached --check` | `$R` | No staged whitespace errors |
+| main-diff-check | `git diff origin/main --check` | `$R` | No whitespace errors against origin/main |
+| final-privacy | `& $P -B $V/audit_checks.py` | `$R` | 81 main-diff paths scanned; preservation, private paths, identity, credentials and isolation checks passed |
+
+The runtime dependency was downloaded before installation with
+`& $B -m pip download watchdog==6.0.0 --no-deps --only-binary=:all: --dest $V --cache-dir $V/pip-cache --disable-pip-version-check`
+from `$R`, exit 0, using inherited shell environment and explicit external
+output/cache. This is environment preparation, not a repository dependency change.
+The packaging helper `& $B -B $V/validate_packaging.py` ran from `$R` and
+completed every recorded subcommand successfully. It copied all 295 tracked
+files byte-for-byte to `$V/package-source`, inspected the wheel and collected/
+embedded executable using the existing production-evidence contract, checked
+mandatory metadata dependencies, and exercised installation from outside source.
+No Qt distribution, Qt artifact, fixture, test or spike module entered either
+production artifact. The production spec and build inputs remain unchanged.
+
+The external helpers follow the recipes already described in this report.
+`audit_checks.py` additionally verifies the five incoming governance files against
+main, the exact merge parents, four-file reconciliation scope, every main-diff
+candidate for private text, raw LF bytes and all preserved source/input hashes.
+The historical replay uses unique external scratch and never overwrites its
+inputs. The full evidence suite ran after the README/status edits and manifest
+regeneration. No subsequent evidence-directory edits occurred.
+
+No repository validation failed and no test, validator or production correction
+was needed. Initial `git add` and the phase-2 fetch were blocked by permissions
+on the shared Git metadata directory (exit 128); the explicitly authorized
+operations succeeded when retried with the required access. An optional process
+inspection while waiting was denied and was unnecessary; the full suite completed
+normally. No source or evidence workaround was applied.
+
+Read-only GitHub checks confirmed PR #165 open/Draft on the existing branch,
+remote head `1817414`, `Related to #82` without a closing keyword, and Issue #82
+open. Only the two existing explicit Codex review request comments remain
+(`5690252690`, `5690675182`); no requested reviewers or new request exists.
+The remote PR body still describes its published revision and was not edited.
+Future publication should reconcile that body without converting its relationship
+to a closing keyword. No push, Ready transition, PR merge, issue closure, release,
+ADR acceptance or Product Gate approval is part of this local synchronization.
+
+Manual review accounts for the complete diff against governance main: 81 paths,
+comprising 75 archive children (the 74-payload manifest plus SHA256SUMS),
+`.gitattributes`, the ADR, eval catalog, this report and two test files. The
+manifest is the exact archive path inventory. Historical failures and unsupported
+claims remain visible; raw measurements are unchanged. No production module,
+mandatory dependency, schema, fixture, graph state or #81 implementation changes.
+The four reconciliation documents were reviewed in full against the preservation
+commit, and all five governance documents retain main's exact Git content.
+
+The full, Pyright, syntax, diff-check, cached-diff-check, main-diff-check and
+final-privacy rows also record a final repetition after writing this ledger;
+both executions yielded the results shown. No runtime, test, fixture, recipe or
+evidence payload changed between them. Disposable packaging used identical
+production inputs; the later report-only ledger edit cannot change those inputs.
+
+The two locally created commits are the preservation commit and the normal
+merge commit. Git reachability counts three commits ahead of the remote PR tip:
+those two plus the previously absent governance squash. First-parent history
+counts exactly two. Neither the published history nor the governance squash is
+rewritten to force a misleading ahead count. The final merge's parents are the
+preservation commit and `e5b97b950b2dc3196c62b2ac6ed3a54f2c929ce7`.
 
 ## External evidence still required
 
