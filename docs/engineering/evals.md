@@ -178,6 +178,14 @@ claim Q5 or approval of Product Gate A or Gate B.
 | `EVAL-P0-DEMO-001` | #140 | Planned | Reproducible Windows launch/build, approved experimental toolkit/ADR path, interaction captures and product-demonstrability record | — |
 | `EVAL-R2-REVIEW-001` | `review-r2` | Planned | Revision-bound Full Application Review of #81/#82/P0, explicit maintainer ADR decision and existing adoption gates before retained production architecture/P1 | — |
 
+The [#82 exploratory report](../ui/pyside6-spike-82.md) archives Windows 10
+measurements and deterministic replay checks in `tests/test_ui_spike_evidence.py`.
+This is partial feasibility evidence: neither spike eval is promoted to
+Implemented, #82 is not complete, and #140's prerequisite remains unsatisfied.
+Windows 11/clean-machine runs, the remaining Python runtime matrix, cold starts,
+native DPI/assistive-technology observations and distribution conditions are
+still open. The graph retains its existing states and dependencies.
+
 The executable sequence is #81 -> #82 -> P0/#140 -> R2 -> retained production
 architecture/P1. #82 now belongs to cycle 3.4.0, and its #81 dependency records
 this near-term order; earlier disposable exploration is not completion of that

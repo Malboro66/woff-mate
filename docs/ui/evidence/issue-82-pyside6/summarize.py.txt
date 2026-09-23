@@ -1,0 +1,37 @@
+"""From build/issue82, summarize final raw results without discarding samples."""
+import json
+from pathlib import Path
+import statistics
+import sys
+from evidence_contract import validate_measurements
+
+summary = {}
+for name in ['source310', 'source314', 'packaged310', 'packaged314']:
+    rows = json.loads(Path(f'final-{name}.json').read_text(encoding='utf-8'))
+    validate_measurements(rows, f'final-{name}', [1], historical='--historical' in sys.argv)
+    launch = [r['launch_to_paint_seconds'] for r in rows]
+    imports = [r['result']['import_seconds'] for r in rows]
+    summary[name] = {
+        'samples': len(rows), 'launch_seconds': launch,
+        'launch_median_seconds': statistics.median(launch),
+        'warm_restart_max_seconds': max(launch[1:]),
+        'import_seconds': imports, 'import_median_seconds': statistics.median(imports),
+        'rss_max_mb': max(r['result']['rss_bytes'] for r in rows) / 1e6,
+        'private_max_mb': max(r['result']['private_bytes'] for r in rows) / 1e6,
+    }
+summary['artifacts_mb'] = {r['python']: r['total_bytes'] / 1e6
+                           for r in json.loads(Path('build-inventory.json').read_text())}
+summary['dependencies_mb'] = {minor: sum(r['bytes'] for r in json.loads(Path(f'inventory{minor}.json').read_text())[
+    'distribution_record_footprints']) / 1e6 for minor in ['10', '14']}
+audit_paths = [Path(f'final-{name}-audit.json') for name in
+               ['source310', 'source314', 'packaged310', 'packaged314']]
+assert all(path.is_file() for path in audit_paths)
+for path in audit_paths:
+    validate_measurements(json.loads(path.read_text(encoding='utf-8')), path.stem,
+                          [1, 1.25, 1.5, 2], historical='--historical' in sys.argv)
+summary['audit_runs'] = sum(len(json.loads(p.read_text())) for p in audit_paths)
+summary['audit_checks'] = sum(len(r['result']['checks']) for p in audit_paths
+                            for r in json.loads(p.read_text()))
+summary['cold_verified'] = False
+Path('summary.json').write_text(json.dumps(summary, indent=2) + '\n', encoding='utf-8')
+print(json.dumps(summary, indent=2))

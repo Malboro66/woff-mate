@@ -1,0 +1,15 @@
+[
+  {
+    "observation_kind": "regenerated from verified bundle in this invocation",
+    "observed_at": "2026-09-20T23:54:56.257602+00:00",
+    "python": "310",
+    "source_artifact": "dist310/Issue82",
+    "relocated_artifact": "relocation with spaces/package310",
+    "source_sha256": "9eca49013b91d38db43ce93330f5faf560b57129fd11128cba90ce86e16a6518",
+    "artifact_inventory_sha256": "eb99fc4e111b055584c98c632d0429b68bf7c8f187a34c8520a87915f7802499",
+    "artifact_files": 167,
+    "artifact_bytes": 110079999,
+    "result": "relocated310.json",
+    "result_json_sha256": "3281a7670eb09bfc100464d61b0d5ebfd47f8d09fdc87685e33e7566abd0fbc0"
+  }
+]

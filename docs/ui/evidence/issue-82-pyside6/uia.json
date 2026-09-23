@@ -1,0 +1,79 @@
+{
+  "window_found": true,
+  "announcements_verified": false,
+  "elements": [
+    {
+      "name": "Operations",
+      "keyboard_focusable": true,
+      "offscreen": false,
+      "role": "ControlType.Button"
+    },
+    {
+      "name": "Pilot Dossier",
+      "keyboard_focusable": true,
+      "offscreen": false,
+      "role": "ControlType.Button"
+    },
+    {
+      "name": "Missions",
+      "keyboard_focusable": true,
+      "offscreen": false,
+      "role": "ControlType.Button"
+    },
+    {
+      "name": "Squadron",
+      "keyboard_focusable": true,
+      "offscreen": false,
+      "role": "ControlType.Button"
+    },
+    {
+      "name": "War Diary",
+      "keyboard_focusable": true,
+      "offscreen": false,
+      "role": "ControlType.Button"
+    },
+    {
+      "name": "Reports",
+      "keyboard_focusable": true,
+      "offscreen": false,
+      "role": "ControlType.Button"
+    },
+    {
+      "name": "Data & System Status",
+      "keyboard_focusable": true,
+      "offscreen": false,
+      "role": "ControlType.Button"
+    },
+    {
+      "name": "Operations heading",
+      "keyboard_focusable": true,
+      "offscreen": false,
+      "role": "ControlType.Text"
+    },
+    {
+      "name": "Synthetic fixture state",
+      "keyboard_focusable": true,
+      "offscreen": false,
+      "role": "ControlType.ComboBox"
+    },
+    {
+      "name": "Synthetic | error-query-selected | error\nsynthetic-career-02",
+      "keyboard_focusable": false,
+      "offscreen": false,
+      "role": "ControlType.Text"
+    },
+    {
+      "name": "The view could not be loaded. Retry the view or open Data & System Status.",
+      "keyboard_focusable": false,
+      "offscreen": false,
+      "role": "ControlType.Text"
+    },
+    {
+      "name": "Retry view",
+      "keyboard_focusable": true,
+      "offscreen": false,
+      "role": "ControlType.Button"
+    }
+  ],
+  "exit_code": null
+}

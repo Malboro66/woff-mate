@@ -1,0 +1,73 @@
+"""Copy alongside shell.py in ignored build/issue82; run from that directory.
+
+Usage: python measure.py py310/Scripts/python.exe source310 [--audit]
+       python measure.py dist310/Issue82/Issue82.exe packaged310 [--audit]
+Output is sanitized JSON, no machine paths or arbitrary exception text.
+"""
+import importlib.metadata
+import json
+import os
+from pathlib import Path
+import subprocess
+import sys
+import time
+from evidence_contract import validate_measurements
+
+executable = Path(sys.argv[1]).resolve()
+label = sys.argv[2]
+audit = '--audit' in sys.argv
+rows = []
+for scale in ([1, 1.25, 1.5, 2] if audit else [1]):
+    for repetition in range(1, 4):
+        environment = {k: v for k, v in os.environ.items()
+                       if not k.startswith(('QT_', 'QML_', 'PYTHON'))}
+        environment['QT_SCALE_FACTOR'] = str(scale)
+        environment['QT_QPA_PLATFORM'] = 'windows'
+        environment['PYTHONIOENCODING'] = 'utf-8'
+        # Packaged execution must find Qt itself; no Python/Qt install in PATH.
+        environment['PATH'] = str(Path(os.environ['SystemRoot']) / 'System32')
+        command = [str(executable)]
+        if executable.name.lower() == 'python.exe':
+            command += ['-I', str(Path('shell.py').resolve())]
+        if audit:
+            command += ['--audit']
+        start = time.perf_counter()
+        process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                                   text=True, encoding='utf-8', env=environment,
+                                   creationflags=subprocess.CREATE_NO_WINDOW)
+        try:
+            stdout, stderr = process.communicate(timeout=35)
+        except subprocess.TimeoutExpired:
+            process.kill()
+            stdout, stderr = process.communicate()
+        events = []
+        stdout_unexpected = False
+        for line in stdout.splitlines():
+            try:
+                event = json.loads(line)
+                if not isinstance(event, dict) or event.get('event') not in {'first_paint', 'result'}:
+                    stdout_unexpected = True
+                else:
+                    events.append(event)
+            except ValueError:
+                stdout_unexpected = True
+        if sorted(e['event'] for e in events) != ['first_paint', 'result']:
+            stdout_unexpected = True
+        paint = next((e['clock'] for e in events if e.get('event') == 'first_paint'), None)
+        result = next((e['result'] for e in events if e.get('event') == 'result'), None)
+        # Any unexpected diagnostics block passing; do not publish local paths.
+        diagnostics = [] if result is None else result.pop('messages')
+        safe_messages = [{'kind': d['kind'], 'category':
+                          'plugin' if 'plugin' in d['message'].lower() else 'other',
+                          'text': '[local diagnostic withheld; inspect locally]'} for d in diagnostics]
+        rows.append({'configuration': label, 'requested_scale': scale, 'repetition': repetition,
+                     'cache_condition': 'uncontrolled_first_in_series' if repetition == 1 else 'warm_process_restart',
+                     'cold_boot_verified': False, 'exit_code': process.returncode,
+                     'launch_to_paint_seconds': paint - start if paint else None,
+                     'stderr_nonempty': bool(stderr.strip()), 'qt_messages': safe_messages,
+                     'stdout_unexpected': stdout_unexpected,
+                     'result': result})
+        print(label, scale, repetition, 'paint', rows[-1]['launch_to_paint_seconds'],
+              'checks_failed', sum(not c['passed'] for c in result['checks']) if result else 'no result', flush=True)
+Path(label + '.json').write_text(json.dumps(rows, indent=2) + '\n', encoding='utf-8')
+validate_measurements(rows, label, [1, 1.25, 1.5, 2] if audit else [1])

@@ -1,0 +1,25 @@
+{
+  "baseline": "0c8a3d3c8afd4a9addae1cd5902faa79aa4f7445",
+  "measurement_dates": [
+    "2026-09-13",
+    "2026-09-14"
+  ],
+  "report_validation_date": "2026-09-15",
+  "catalog_sha256": "86caa9e4189f75b0bb65ec6fda3ab40d26556692e6171b79cf350521cb6a6cdc",
+  "shell_sha256": "9eca49013b91d38db43ce93330f5faf560b57129fd11128cba90ce86e16a6518",
+  "native_windows11_verified": false,
+  "clean_machine_verified": false,
+  "cold_boot_verified": false,
+  "native_dpi_switching_verified": false,
+  "screen_reader_speech_verified": false,
+  "os": "Windows 10 x64 build 19045",
+  "logical_cpus": 12,
+  "physical_cpus": 6,
+  "ram_bytes": 16526876672,
+  "native_screen_pixels": [
+    2560,
+    1080
+  ],
+  "native_dpr": 1,
+  "evidence_boundary": "Developer workstation; Qt scale override; automated QTest and Windows UIA; no manual human AT audit"
+}
