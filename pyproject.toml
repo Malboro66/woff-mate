@@ -32,5 +32,14 @@ py-modules = ["woff_query"]
 include = ["woff*"]
 exclude = ["woff.tests", "woff.tests.*"]
 
+[tool.setuptools.package-data]
+woff = [
+    "assets/ui/icons/*.json",
+    "assets/ui/icons/*.md",
+    "assets/ui/icons/*.svg",
+    "assets/ui/icons/SHA256SUMS",
+    "assets/ui/icons/LICENSES/*.txt",
+]
+
 [tool.setuptools.dynamic]
 version = {attr = "woff.version.__version__"}
