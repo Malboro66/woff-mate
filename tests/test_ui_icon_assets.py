@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import json
 import re
+import runpy
 import sys
 from pathlib import Path
 from xml.etree import ElementTree as ET
@@ -33,6 +34,7 @@ REQUIRED = {
     "action.back": ("action_back", ("regular",)),
     "action.disclosure": ("action_disclosure", ("regular",)),
 }
+VISIBLE_TEXT_REQUIRED = set(REQUIRED) - {"action.disclosure"}
 
 
 def _manifest() -> dict[str, object]:
@@ -117,6 +119,53 @@ def test_required_semantics_are_unique_and_complete() -> None:
     assert by_id["action.disclosure"]["rtl"] == "mirror_when_rtl_is_introduced"
 
 
+def test_accessibility_policy_does_not_broaden_icon_only_controls() -> None:
+    manifest = _manifest()
+    policy = manifest["icon_only_policy"]
+    assert isinstance(policy, dict)
+    assert set(policy["visible_text_required"]) == VISIBLE_TEXT_REQUIRED
+    assert policy["conditionally_icon_only"] == ["action.disclosure"]
+    assert "accessible name alone does not authorize" in str(
+        policy["condition"]
+    ).lower()
+
+    by_id = {str(icon["id"]): icon for icon in _manifest_icons()}
+    for icon_id in VISIBLE_TEXT_REQUIRED:
+        assert "visible" in str(by_id[icon_id]["accessibility"]).lower()
+    retry_accessibility = str(by_id["action.retry"]["accessibility"]).lower()
+    assert "retry view" in retry_accessibility
+    assert "refresh snapshot" in retry_accessibility
+    assert "does not authorize icon-only" in retry_accessibility
+
+    package_readme = re.sub(
+        r"\s+",
+        " ",
+        (ASSET_ROOT / "README.md").read_text(encoding="utf-8").lower(),
+    )
+    assert "retry/refresh requires visible action text" in package_readme
+    assert (
+        "accessible name alone does not authorize icon-only use" in package_readme
+    )
+
+
+def test_system_status_uses_the_read_only_database_mapping() -> None:
+    by_id = {str(icon["id"]): icon for icon in _manifest_icons()}
+    system_status = by_id["nav.system-status"]
+    assert system_status["upstream_icon"] == "Database"
+    assert system_status["upstream_path_template"] == (
+        "assets/Database/SVG/ic_fluent_database_<size>_<style>.svg"
+    )
+
+    vendor_globals = runpy.run_path(
+        str(REPOSITORY_ROOT / "scripts" / "vendor_ui_v2_icons.py")
+    )
+    assert vendor_globals["ICON_SOURCES"]["nav_system_status"] == (
+        "Database",
+        "database",
+        ("regular", "filled"),
+    )
+
+
 def test_manifest_and_asset_files_are_synchronized() -> None:
     actual = {path.name for path in ASSET_ROOT.glob("ui_*.svg")}
     assert actual == _expected_assets()
@@ -194,6 +243,14 @@ def test_evidence_is_reproducible_parseable_and_truthfully_bounded() -> None:
         assert scale in readme
     assert "do **not** prove native" in readme
     assert "Issue #82" in readme
+    assert "color.focus.inner" not in readme
+
+    generator_source = (
+        REPOSITORY_ROOT / "scripts" / "generate_ui_icon_evidence.py"
+    ).read_text(encoding="utf-8")
+    assert '"selected_border": "#7D5A18"' not in generator_source
+    assert '"selected_border": "#5B5345"' in generator_source
+    assert b"#7D5A18" not in (EVIDENCE_ROOT / "contact-sheet.svg").read_bytes()
 
 
 def test_package_data_and_runtime_dependencies_preserve_boundary() -> None:
@@ -215,5 +272,6 @@ def test_package_data_and_runtime_dependencies_preserve_boundary() -> None:
     package_data = project["tool"]["setuptools"]["package-data"]["woff"]
     assert "assets/ui/icons/*.svg" in package_data
     assert "assets/ui/icons/*.json" in package_data
+    assert "assets/ui/icons/*.md" in package_data
     assert "assets/ui/icons/SHA256SUMS" in package_data
     assert "assets/ui/icons/LICENSES/*.txt" in package_data

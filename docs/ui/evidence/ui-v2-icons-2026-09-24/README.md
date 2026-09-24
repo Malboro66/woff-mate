@@ -18,6 +18,12 @@ and 32-unit optical master. The context column shows filled current-navigation
 variants and regular information/complete/partial/stale/error/unavailable and
 action examples with visible text.
 
+Current navigation is demonstrated with the filled icon, the approved raised
+or selected surface, and a 2-unit non-focus boundary. Keyboard focus is
+not represented in these current/selected examples; no focus token is reused
+as a selection token. Navigation and state examples retain visible wording,
+and retry/refresh remains a visible-text action.
+
 `scaling-matrix.svg` renders representative current, partial, unavailable, and
 error shapes from every logical master at static physical-size equivalents for
 Windows 100%, 125%, 150%, and 200%. The resulting dimensions are integral:
@@ -40,7 +46,7 @@ The generated surfaces were inspected at their natural dimensions after an
 Inkscape raster pass. Across 16/20/24/32 and the four equivalent scaling rows:
 
 - silhouettes remain distinct and no outer geometry is clipped;
-- the Contact Card, People Team, Book Open, Document Data, Settings, Info,
+- the Contact Card, People Team, Book Open, Document Data, Database, Info,
   Checkmark Circle, Warning, Clock, Dismiss Circle, and Subtract Circle counters
   remain open;
 - back, refresh, and disclosure strokes remain legible without fragile isolated
@@ -63,7 +69,7 @@ requirement:
 | `color.state.warning` / `color.shell.aviation` | 8.48:1 |
 | `color.state.error` / `color.shell.aviation` | 5.30:1 |
 | `color.text.ink` / `color.surface.paper` | 11.93:1 |
-| `color.focus.inner` / `color.surface.paper-raised` | 4.98:1 |
+| `color.text.muted-ink` / `color.surface.paper-raised` | 6.02:1 |
 
 Paper examples deliberately use ink for icon geometry. A future consumer may
 use a state token on paper only after measuring the actual rendered adjacent

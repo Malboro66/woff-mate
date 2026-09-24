@@ -23,7 +23,28 @@
     "paper_surface": "use color.text.ink unless a state token independently meets 3:1 against the actual adjacent paper treatment",
     "unavailable": "use a perceivable foreground token and the unavailable shape plus visible text; never represent unavailable only with opacity"
   },
-  "shared_accessibility": "Navigation and state icons require visible text. Future icon-only conventional action controls require an accessible name at the UI layer. Static assets do not claim native assistive-technology behavior.",
+  "shared_accessibility": "Navigation icons require visible labels, state icons require visible state wording, and retry/refresh requires visible action text. An accessible name alone does not authorize icon-only use. Within this package, only disclosure may later be icon-only when the normative production UI contract authorizes that universally understood disclosure action and supplies an accessible name and state. Static assets do not claim native assistive-technology behavior.",
+  "icon_only_policy": {
+    "visible_text_required": [
+      "nav.operations",
+      "nav.pilot-dossier",
+      "nav.missions",
+      "nav.squadron",
+      "nav.war-diary",
+      "nav.reports",
+      "nav.system-status",
+      "state.information",
+      "state.complete",
+      "state.partial",
+      "state.stale",
+      "state.error",
+      "state.unavailable",
+      "action.retry",
+      "action.back"
+    ],
+    "conditionally_icon_only": ["action.disclosure"],
+    "condition": "Accessible name alone does not authorize icon-only use. A future production UI contract must explicitly authorize the universally understood disclosure action and provide its accessible name and state."
+  },
   "prohibited_domain_uses": [
     "pilot identity",
     "nationality or military service",
@@ -128,15 +149,15 @@
       "semantic": "nav_system_status",
       "display_purpose": "Data & System Status navigation-footer destination",
       "destinations": ["SYS-01"],
-      "upstream_icon": "Settings",
-      "upstream_path_template": "assets/Settings/SVG/ic_fluent_settings_<size>_<style>.svg",
+      "upstream_icon": "Database",
+      "upstream_path_template": "assets/Database/SVG/ic_fluent_database_<size>_<style>.svg",
       "approved_sizes": [16, 20, 24, 32],
       "styles": ["regular", "filled"],
       "variant_use": "regular by default; filled only for the current destination",
       "allowed_color_tokens": ["foreground", "color.accent.brass"],
       "accessibility": "Pair with the visible label Data & System Status.",
       "rtl": "do_not_mirror",
-      "prohibited_uses": ["This read-only destination icon must not imply editable settings, repair, live health or launcher control."]
+      "prohibited_uses": ["The database cylinder identifies a read-only data/status destination; it must not imply editable settings, direct SQLite access, live database health, repair or launcher control."]
     },
     {
       "id": "state.information",
@@ -239,7 +260,7 @@
       "styles": ["regular"],
       "variant_use": "retry or refresh according to the visible action label",
       "allowed_color_tokens": ["foreground"],
-      "accessibility": "Use visible Retry view or Refresh snapshot text; an icon-only future control requires an accessible name.",
+      "accessibility": "Use visible Retry view or Refresh snapshot text. An accessible name alone does not authorize icon-only retry/refresh.",
       "rtl": "do_not_mirror",
       "prohibited_uses": ["Must not imply direct storage access, writes, ingestion, repair or synchronization."]
     },
@@ -254,7 +275,7 @@
       "styles": ["regular"],
       "variant_use": "back navigation only",
       "allowed_color_tokens": ["foreground"],
-      "accessibility": "Pair with a visible destination label when practical; an icon-only future control requires an accessible name.",
+      "accessibility": "Use a visible destination label. This package does not authorize an icon-only back control.",
       "rtl": "mirror_when_rtl_is_introduced",
       "prohibited_uses": ["Do not use for previous chronological record unless the control actually performs back navigation."]
     },
@@ -269,7 +290,7 @@
       "styles": ["regular"],
       "variant_use": "details/disclosure only",
       "allowed_color_tokens": ["foreground"],
-      "accessibility": "The surrounding visible control label names the details; an icon-only future control requires an accessible name and state where expandable.",
+      "accessibility": "Use the surrounding visible control label where present. Only a universally understood disclosure control may later be icon-only when the normative production UI contract explicitly authorizes it and provides an accessible name and state.",
       "rtl": "mirror_when_rtl_is_introduced",
       "prohibited_uses": ["Do not use as a generic decoration or as evidence that details exist."]
     }

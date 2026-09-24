@@ -23,7 +23,7 @@ ICON_SOURCES = {
     "nav_squadron": ("People Team", "people_team", ("regular", "filled")),
     "nav_war_diary": ("Book Open", "book_open", ("regular", "filled")),
     "nav_reports": ("Document Data", "document_data", ("regular", "filled")),
-    "nav_system_status": ("Settings", "settings", ("regular", "filled")),
+    "nav_system_status": ("Database", "database", ("regular", "filled")),
     "state_information": ("Info", "info", ("regular",)),
     "state_complete": ("Checkmark Circle", "checkmark_circle", ("regular",)),
     "state_partial": ("Warning", "warning", ("regular",)),

@@ -150,7 +150,7 @@ def _contact_sheet() -> ET.Element:
             "muted": "#5B5345",
             "border": "#A99A7C",
             "selected_background": "#F0E4CA",
-            "selected_border": "#7D5A18",
+            "selected_border": "#5B5345",
             "selected_icon": "#201D18",
         },
     )
