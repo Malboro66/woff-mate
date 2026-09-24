@@ -117,7 +117,7 @@ def test_byte_sensitive_ui_evidence_uses_lf_checkout_policy() -> None:
                     evidence_path.relative_to(REPOSITORY_ROOT).as_posix()
                 )
 
-    assert len(byte_sensitive_text_paths) == len(set(byte_sensitive_text_paths)) == 18
+    assert len(byte_sensitive_text_paths) == len(set(byte_sensitive_text_paths)) == 20
 
     result = subprocess.run(
         [
