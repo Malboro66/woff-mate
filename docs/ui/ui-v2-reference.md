@@ -213,7 +213,9 @@ the label map is extended; it does not silently replace the value with
 - Keep the crop consistent and place no name, rank, or other text in the image.
 - Never invent a uniform, service, nationality, squadron, insignia, medal, or
   injury that is not supported by presentation-safe data.
-- Use a neutral aviator silhouette when no portrait is available.
+- Use the neutral human silhouette from the
+  [Issue #130 portrait package](../../woff/assets/ui/portraits/README.md) when no
+  portrait is available; it must not imply service or rank.
 - Use alt text `Portrait of <display name>` or `Portrait unavailable`.
 - Treat generated or illustrative portraits as synthetic demonstration assets,
   never as WoFF data or a real person's likeness.

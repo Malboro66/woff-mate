@@ -112,7 +112,7 @@ def test_byte_sensitive_ui_evidence_uses_lf_checkout_policy() -> None:
         for line in manifest.read_text(encoding="ascii").splitlines():
             _digest, filename = line.split("  ", 1)
             evidence_path = manifest.parent / filename
-            if evidence_path.suffix.lower() != ".jpg":
+            if evidence_path.suffix.lower() not in {".jpg", ".png"}:
                 byte_sensitive_text_paths.append(
                     evidence_path.relative_to(REPOSITORY_ROOT).as_posix()
                 )
