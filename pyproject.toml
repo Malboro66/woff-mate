@@ -39,6 +39,11 @@ woff = [
     "assets/ui/icons/*.svg",
     "assets/ui/icons/SHA256SUMS",
     "assets/ui/icons/LICENSES/*.txt",
+    "assets/ui/portraits/*.json",
+    "assets/ui/portraits/*.md",
+    "assets/ui/portraits/*.png",
+    "assets/ui/portraits/*.svg",
+    "assets/ui/portraits/SHA256SUMS",
 ]
 
 [tool.setuptools.dynamic]

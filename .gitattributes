@@ -9,3 +9,9 @@ docs/ui/evidence/ui-v2-site-2026-09-01-audit-4/conformance-measurements.json tex
 docs/ui/evidence/ui-v2-site-2026-09-01-audit-4/source/** text eol=lf
 docs/ui/evidence/ui-v2-icons-2026-09-24/** text eol=lf
 woff/assets/ui/icons/** text eol=lf
+docs/ui/evidence/ui-v2-portraits-2026-09-24/*.md text eol=lf
+docs/ui/evidence/ui-v2-portraits-2026-09-24/SHA256SUMS text eol=lf
+docs/ui/evidence/ui-v2-portraits-2026-09-24/*.png binary
+docs/ui/evidence/ui-v2-portraits-2026-09-24/source/*.png binary
+woff/assets/ui/portraits/** text eol=lf
+woff/assets/ui/portraits/*.png binary

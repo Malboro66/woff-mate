@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="1000" viewBox="0 0 800 1000" fill="none">
+  <title>Portrait unavailable</title>
+  <desc>Neutral head-and-shoulders silhouette without identity, service, rank, or status cues.</desc>
+  <rect width="800" height="1000" rx="24" fill="#2D342D"/>
+  <rect x="20" y="20" width="760" height="960" rx="16" stroke="#C2A86B" stroke-width="8"/>
+  <circle cx="400" cy="350" r="142" fill="#F4EFE2"/>
+  <path d="M150 880C166 689 260 586 400 586C540 586 634 689 650 880H150Z" fill="#F4EFE2"/>
+</svg>
