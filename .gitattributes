@@ -12,5 +12,6 @@ woff/assets/ui/icons/** text eol=lf
 docs/ui/evidence/ui-v2-portraits-2026-09-24/*.md text eol=lf
 docs/ui/evidence/ui-v2-portraits-2026-09-24/SHA256SUMS text eol=lf
 docs/ui/evidence/ui-v2-portraits-2026-09-24/*.png binary
+docs/ui/evidence/ui-v2-portraits-2026-09-24/source/*.png binary
 woff/assets/ui/portraits/** text eol=lf
 woff/assets/ui/portraits/*.png binary

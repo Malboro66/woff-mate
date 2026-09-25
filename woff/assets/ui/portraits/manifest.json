@@ -1,7 +1,41 @@
 {
-  "manifest_version": 1,
+  "schema_version": 1,
+  "package_id": "woff-mate-ui-v2-portraits",
+  "canonical_source_type": "generated PNG master and custom SVG fallback",
   "issue": 130,
   "package_role": "toolkit-independent UI V2 portrait presentation assets",
+  "source": {
+    "id": "source.synthetic.aster.original",
+    "strategy": "generate",
+    "source_type": "generated raster",
+    "synthetic": true,
+    "path": "docs/ui/evidence/ui-v2-portraits-2026-09-24/source/ui_portrait_synthetic_aster_original.png",
+    "dimensions": [1122, 1402],
+    "sha256": "ecc9c17596aa2d9d8c4b807844190d1936092a901e9fd56d22aeaed48803404b",
+    "canonical_master_path": "woff/assets/ui/portraits/ui_portrait_synthetic_aster_master.png",
+    "canonical_master_dimensions": [1120, 1400],
+    "canonical_master_sha256": "f545dd5db17775d14a1e6bb991caf8f064f24a6a93d0627b31a96171dfe1316a",
+    "processing_relationship": "The canonical master is the original source center-cropped by exactly one pixel from every edge, with ancillary metadata stripped and no pixel resampling or upscaling.",
+    "provenance": "No input image or third-party source; invented subject generated with OpenAI image generation in ChatGPT Work for Issue #130 on 2026-09-24.",
+    "redistribution_status": "Project-owned synthetic output distributed under the repository MIT license.",
+    "license": "MIT (repository license)",
+    "attribution_required": false,
+    "notices_required": false
+  },
+  "theme_contract": {
+    "synthetic_master": "Fixed restrained-sepia pixels; consumers must not recolor or use the portrait as a state cue.",
+    "fallback": "Fixed V2 neutral ink, paper and brass colors remain readable on approved paper and dark-shell contexts; visible Portrait unavailable wording is still required.",
+    "state_color": "Neither portrait may encode state through color, tint or opacity. Structured visible data remains authoritative."
+  },
+  "shared_accessibility": "Resolved consumers derive Portrait of <display name> from structured visible data. Unavailable consumers use Portrait unavailable. Assets never supply inferred identity, rank, nationality, service, decoration or status semantics, and static evidence does not claim native assistive-technology behavior.",
+  "prohibited_domain_uses": [
+    "authoritative pilot identity or likeness",
+    "nationality or military service",
+    "squadron identity",
+    "rank, ribbon, medal or decoration",
+    "victory, injury or historical event",
+    "career, death or KIA status"
+  ],
   "q0": {
     "inventory_decision": "one synthetic exemplar plus one neutral fallback",
     "consumers": [
@@ -75,6 +109,7 @@
       "aspect_ratio": "4:5",
       "intended_consumers": ["DOS-01"],
       "presentation_role": "resolved synthetic fixture portrait",
+      "source_id": "source.synthetic.aster.original",
       "generation_method": "OpenAI image generation in ChatGPT Work; exact prompt in GENERATION.md",
       "source_dimensions": [1122, 1402],
       "processing": "center-cropped one pixel from every edge; ancillary metadata stripped; no resampling or upscaling",

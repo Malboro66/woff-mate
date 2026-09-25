@@ -141,8 +141,9 @@ def _contact_sheet(master_href: str, fallback_href: str) -> ET.Element:
     _sources(defs, master_href, fallback_href)
     _clip(defs, "master", 70, 154, 448, 560)
     _clip(defs, "dossier", 646, 208, 140, 176)
-    _clip(defs, "compact", 1160, 208, 104, 135)
-    _clip(defs, "fallback", 1370, 193, 142, 166)
+    _clip(defs, "compact", 1060, 208, 104, 135)
+    _clip(defs, "sqd-standard", 1200, 208, 142, 166)
+    _clip(defs, "sqd-compact", 1390, 208, 102, 132)
     _clip(defs, "dark-fallback", 678, 506, 88, 110)
 
     _add(root, "rect", width=width, height=height, fill="#0B0F0D")
@@ -168,19 +169,24 @@ def _contact_sheet(master_href: str, fallback_href: str) -> ET.Element:
     _text(root, "DOS-01 · Pilot Dossier · standard", 646, 184, fill="#201D18", size=14, weight=600)
     _asset(root, "master-source", 646, 208, 140, 176, clip_id="dossier")
     _frame(root, 646, 208, 140, 176)
-    _text(root, "Synthetic Pilot Aster", 810, 244, fill="#201D18", size=22, weight=600)
-    _text(root, "Portrait of Synthetic Pilot Aster", 810, 275, fill="#5B5345", size=13)
-    _text(root, "Visible fixture data remains authoritative", 810, 301, fill="#5B5345", size=13)
+    _text(root, "Synthetic Pilot Aster", 810, 244, fill="#201D18", size=18, weight=600)
+    _text(root, "Portrait of Synthetic Pilot Aster", 810, 275, fill="#5B5345", size=12)
+    _text(root, "Fixture data remains authoritative", 810, 301, fill="#5B5345", size=12)
 
-    _text(root, "DOS-01 compact", 1138, 184, fill="#201D18", size=12, weight=600)
-    _asset(root, "master-source", 1160, 208, 104, 135, clip_id="compact")
-    _frame(root, 1160, 208, 104, 135)
-    _text(root, "center cover", 1164, 366, fill="#5B5345", size=11)
+    _text(root, "DOS-01 compact", 1040, 184, fill="#201D18", size=12, weight=600)
+    _asset(root, "master-source", 1060, 208, 104, 135, clip_id="compact")
+    _frame(root, 1060, 208, 104, 135)
+    _text(root, "center cover", 1064, 366, fill="#5B5345", size=11)
 
-    _text(root, "SQD-02 fallback", 1348, 184, fill="#201D18", size=12, weight=600)
-    _asset(root, "fallback-source", 1370, 193, 142, 166, clip_id="fallback")
-    _frame(root, 1370, 193, 142, 166)
-    _text(root, "Portrait unavailable", 1362, 386, fill="#201D18", size=12, weight=600)
+    _text(root, "SQD-02 standard", 1185, 184, fill="#201D18", size=12, weight=600)
+    _asset(root, "fallback-source", 1200, 208, 142, 166, clip_id="sqd-standard")
+    _frame(root, 1200, 208, 142, 166)
+    _text(root, "Portrait unavailable", 1186, 395, fill="#201D18", size=11, weight=600)
+
+    _text(root, "SQD-02 compact · 102 × 132", 1362, 184, fill="#201D18", size=11, weight=600)
+    _asset(root, "fallback-source", 1390, 208, 102, 132, clip_id="sqd-compact")
+    _frame(root, 1390, 208, 102, 132)
+    _text(root, "Portrait unavailable", 1368, 368, fill="#201D18", size=11, weight=600)
 
     _add(root, "rect", x=620, y=438, width=928, height=226, rx=6, fill="#18231F", stroke="#46534C")
     _text(root, "Dark V2 shell · fallback state", 646, 472, fill="#F4EFE2", size=15, weight=600)
@@ -212,7 +218,7 @@ def _scaling_matrix(master_href: str, fallback_href: str) -> ET.Element:
 
     _add(root, "rect", width=width, height=height, fill="#111614")
     _text(root, "Static Windows logical-profile equivalents", 32, 42, fill="#F4EFE2", size=24, weight=600)
-    _text(root, "140 × 176 logical DOS-01 slot scaled to 100 / 125 / 150 / 200%; no native DPI claim", 32, 72, fill="#C2BCAF", size=14)
+    _text(root, "Representative DOS-01 standard slot only · 100 / 125 / 150 / 200% static equivalents · not exhaustive", 32, 72, fill="#C2BCAF", size=14)
     _text(root, "Resolved synthetic exemplar", 254, 106, fill="#F4EFE2", size=15, weight=600)
     _text(root, "Neutral fallback", 802, 106, fill="#F4EFE2", size=15, weight=600)
 
@@ -257,14 +263,20 @@ def _write_png(path: Path, root: ET.Element) -> None:
 
 
 def _write_checksums(paths: tuple[Path, ...]) -> None:
-    lines = [f"{hashlib.sha256(path.read_bytes()).hexdigest()}  {path.name}" for path in paths]
+    lines = [
+        f"{hashlib.sha256(path.read_bytes()).hexdigest()}  {path.relative_to(EVIDENCE_ROOT).as_posix()}"
+        for path in paths
+    ]
     (EVIDENCE_ROOT / "SHA256SUMS").write_text("\n".join(lines) + "\n", encoding="ascii")
 
 
 def main() -> None:
     master = ASSET_ROOT / "ui_portrait_synthetic_aster_master.png"
     fallback = ASSET_ROOT / "ui_portrait_unavailable.svg"
-    for required in (master, fallback):
+    original_source = (
+        EVIDENCE_ROOT / "source" / "ui_portrait_synthetic_aster_original.png"
+    )
+    for required in (master, fallback, original_source):
         if not required.is_file():
             raise FileNotFoundError(required.name)
     master_href = _data_uri(master, "image/png")
@@ -274,7 +286,7 @@ def main() -> None:
     scaling_matrix = EVIDENCE_ROOT / "scaling-matrix.png"
     _write_png(contact_sheet, _contact_sheet(master_href, fallback_href))
     _write_png(scaling_matrix, _scaling_matrix(master_href, fallback_href))
-    _write_checksums((contact_sheet, scaling_matrix))
+    _write_checksums((original_source, contact_sheet, scaling_matrix))
 
 
 if __name__ == "__main__":

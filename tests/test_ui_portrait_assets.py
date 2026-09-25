@@ -5,6 +5,7 @@ import json
 import re
 import struct
 import sys
+import zlib
 from pathlib import Path
 from xml.etree import ElementTree as ET
 
@@ -13,6 +14,9 @@ REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
 ASSET_ROOT = REPOSITORY_ROOT / "woff" / "assets" / "ui" / "portraits"
 EVIDENCE_ROOT = (
     REPOSITORY_ROOT / "docs" / "ui" / "evidence" / "ui-v2-portraits-2026-09-24"
+)
+SOURCE_ORIGINAL = (
+    EVIDENCE_ROOT / "source" / "ui_portrait_synthetic_aster_original.png"
 )
 FIXTURE_CATALOG = REPOSITORY_ROOT / "woff" / "tests" / "fixtures" / "ui_states" / "catalog.json"
 SVG_NAMESPACE = "{http://www.w3.org/2000/svg}"
@@ -58,6 +62,97 @@ def _png_chunks(path: Path) -> tuple[tuple[int, int, int, int, int], list[str]]:
     assert offset == len(payload)
     assert ihdr is not None
     return ihdr, chunks
+
+
+def _png_chunk_payloads(path: Path) -> dict[str, list[bytes]]:
+    payload = path.read_bytes()
+    offset = 8
+    chunks: dict[str, list[bytes]] = {}
+    while offset < len(payload):
+        length = struct.unpack(">I", payload[offset : offset + 4])[0]
+        kind = payload[offset + 4 : offset + 8].decode("ascii")
+        chunks.setdefault(kind, []).append(payload[offset + 8 : offset + 8 + length])
+        offset += 12 + length
+    return chunks
+
+
+def _png_rgb_rows(path: Path) -> tuple[bytes, ...]:
+    payload = path.read_bytes()
+    offset = 8
+    width = height = 0
+    compressed = bytearray()
+    while offset < len(payload):
+        length = struct.unpack(">I", payload[offset : offset + 4])[0]
+        kind = payload[offset + 4 : offset + 8]
+        data = payload[offset + 8 : offset + 8 + length]
+        if kind == b"IHDR":
+            width, height, bit_depth, color_type, _, _, interlace = struct.unpack(
+                ">IIBBBBB", data
+            )
+            assert (bit_depth, color_type, interlace) == (8, 2, 0)
+        elif kind == b"IDAT":
+            compressed.extend(data)
+        offset += 12 + length
+
+    stride = width * 3
+    decoded = zlib.decompress(compressed)
+    assert len(decoded) == height * (stride + 1)
+    rows: list[bytes] = []
+    prior = bytearray(stride)
+    cursor = 0
+    for _ in range(height):
+        filter_type = decoded[cursor]
+        cursor += 1
+        raw = decoded[cursor : cursor + stride]
+        cursor += stride
+        row = bytearray(stride)
+        for index, value in enumerate(raw):
+            left = row[index - 3] if index >= 3 else 0
+            above = prior[index]
+            upper_left = prior[index - 3] if index >= 3 else 0
+            if filter_type == 0:
+                predictor = 0
+            elif filter_type == 1:
+                predictor = left
+            elif filter_type == 2:
+                predictor = above
+            elif filter_type == 3:
+                predictor = (left + above) // 2
+            else:
+                assert filter_type == 4
+                candidate = left + above - upper_left
+                distances = (
+                    abs(candidate - left),
+                    abs(candidate - above),
+                    abs(candidate - upper_left),
+                )
+                predictor = (left, above, upper_left)[distances.index(min(distances))]
+            row[index] = (value + predictor) & 0xFF
+        rows.append(bytes(row))
+        prior = row
+    return tuple(rows)
+
+
+def test_common_manifest_fields_follow_the_ui_asset_package_convention() -> None:
+    manifest = _manifest()
+    icon_manifest = json.loads(
+        (REPOSITORY_ROOT / "woff" / "assets" / "ui" / "icons" / "manifest.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    assert manifest["schema_version"] == icon_manifest["schema_version"] == 1
+    assert manifest["package_id"] == "woff-mate-ui-v2-portraits"
+    assert manifest["package_id"] != icon_manifest["package_id"]
+    assert "manifest_version" not in manifest
+    for field in (
+        "canonical_source_type",
+        "source",
+        "theme_contract",
+        "shared_accessibility",
+        "prohibited_domain_uses",
+    ):
+        assert manifest[field]
+        assert icon_manifest[field]
 
 
 def test_q0_consumers_and_minimum_inventory_are_pinned() -> None:
@@ -120,6 +215,30 @@ def test_canonical_png_is_valid_exact_4_by_5_and_metadata_clean() -> None:
     assert compression == 0
     assert chunks[0] == "IHDR" and chunks[-1] == "IEND"
     assert not ({"tEXt", "zTXt", "iTXt", "tIME", "eXIf", "iCCP"} & set(chunks))
+
+
+def test_exact_generated_source_is_retained_and_matches_the_canonical_crop() -> None:
+    source = _manifest()["source"]
+    assert isinstance(source, dict)
+    assert source["id"] == "source.synthetic.aster.original"
+    assert source["synthetic"] is True
+    assert source["path"] == SOURCE_ORIGINAL.relative_to(REPOSITORY_ROOT).as_posix()
+    assert source["dimensions"] == [1122, 1402]
+    assert source["canonical_master_dimensions"] == [1120, 1400]
+    assert hashlib.sha256(SOURCE_ORIGINAL.read_bytes()).hexdigest() == source["sha256"]
+
+    canonical = ASSET_ROOT / "ui_portrait_synthetic_aster_master.png"
+    assert hashlib.sha256(canonical.read_bytes()).hexdigest() == source["canonical_master_sha256"]
+    source_ihdr, source_chunks = _png_chunks(SOURCE_ORIGINAL)
+    assert source_ihdr[:3] == (1122, 1402, 8)
+    assert source_ihdr[3] == 2
+    assert not ({"tEXt", "zTXt", "iTXt", "tIME", "eXIf", "iCCP"} & set(source_chunks))
+
+    source_rows = _png_rgb_rows(SOURCE_ORIGINAL)
+    canonical_rows = _png_rgb_rows(canonical)
+    assert len(source_rows) == 1402
+    assert len(canonical_rows) == 1400
+    assert tuple(row[3:-3] for row in source_rows[1:-1]) == canonical_rows
 
 
 def test_fallback_is_neutral_self_contained_vector_geometry() -> None:
@@ -190,6 +309,7 @@ def test_package_checksums_cover_every_delivered_file() -> None:
 def test_static_evidence_is_reproducible_and_truthfully_bounded() -> None:
     checksums = _checksums(EVIDENCE_ROOT / "SHA256SUMS")
     expected_dimensions = {
+        "source/ui_portrait_synthetic_aster_original.png": (1122, 1402),
         "contact-sheet.png": (1600, 1020),
         "scaling-matrix.png": (1500, 1310),
     }
@@ -200,10 +320,12 @@ def test_static_evidence_is_reproducible_and_truthfully_bounded() -> None:
         ihdr, chunks = _png_chunks(path)
         assert ihdr[:2] == expected_dimensions[relative]
         assert chunks[0] == "IHDR" and chunks[-1] == "IEND"
-        payload = path.read_bytes().lower()
-        assert b"/workspace/" not in payload
-        assert b"\\users\\" not in payload
-        assert b"c:\\" not in payload
+        chunk_payloads = _png_chunk_payloads(path)
+        assert not ({"zTXt", "iTXt", "eXIf"} & set(chunk_payloads))
+        text_metadata = b"\n".join(chunk_payloads.get("tEXt", [])).lower()
+        assert b"/workspace/" not in text_metadata
+        assert b"\\users\\" not in text_metadata
+        assert b"c:\\" not in text_metadata
 
     readme = (EVIDENCE_ROOT / "README.md").read_text(encoding="utf-8")
     for profile in ("100%", "125%", "150%", "200%"):
@@ -215,6 +337,8 @@ def test_static_evidence_is_reproducible_and_truthfully_bounded() -> None:
     assert "TemporaryDirectory" in generator
     assert 'shutil.which("inkscape")' in generator
     assert "image_gen" not in generator
+    assert '"SQD-02 compact · 102 × 132"' in generator
+    assert "not exhaustive" in generator
 
 
 def test_package_data_and_runtime_dependencies_preserve_boundary() -> None:
@@ -238,3 +362,4 @@ def test_package_data_and_runtime_dependencies_preserve_boundary() -> None:
         "assets/ui/portraits/SHA256SUMS",
     ):
         assert pattern in package_data
+    assert "docs/ui/evidence" not in " ".join(package_data)

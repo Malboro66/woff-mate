@@ -87,6 +87,13 @@ rights, dimensions, crop rules, accessibility, and prohibited interpretations.
 `GENERATION.md` preserves the exact generation prompt and processing record.
 `SHA256SUMS` freezes every delivered package file.
 
+The exact 1122 × 1402 generated original is retained outside the installed
+package at
+`docs/ui/evidence/ui-v2-portraits-2026-09-24/source/ui_portrait_synthetic_aster_original.png`.
+It is provenance evidence, not another UI asset or production derivative. The
+manifest records its SHA-256, dimensions, relationship to the canonical master,
+and the canonical master's checksum.
+
 The synthetic master uses no input image or real person. The fallback was
 custom-authored as repository SVG geometry. Both are distributed under the
 repository MIT license; neither requires a third-party attribution or notice.

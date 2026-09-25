@@ -5,13 +5,22 @@ Asset: `portrait.synthetic.aster`
 The source image was generated on 2026-09-24 with the built-in OpenAI image
 generation tool in ChatGPT Work. No input image, WoFF file, campaign screenshot,
 player photograph, historical-person reference, or third-party source image was
-used. The generated 1122 × 1402 PNG was center-cropped by one pixel on every
-edge to 1120 × 1400, then ancillary metadata was stripped. Pixels were not
-resampled or artificially enlarged.
+used. The exact generated 1122 × 1402 PNG is retained as provenance evidence at
+`docs/ui/evidence/ui-v2-portraits-2026-09-24/source/ui_portrait_synthetic_aster_original.png`
+(SHA-256 `ecc9c17596aa2d9d8c4b807844190d1936092a901e9fd56d22aeaed48803404b`).
+It is outside the runtime package and is not a production portrait derivative.
 
-The committed PNG is the canonical source. Image generation is a development
-provenance fact, not a production dependency or a reproducible runtime action.
-The exact committed bytes are pinned by `SHA256SUMS`.
+The canonical master was produced by center-cropping exactly one pixel from
+every source edge to 1120 × 1400, then stripping ancillary metadata. Pixels were
+not resampled or artificially enlarged. A pixel comparison between that exact
+source crop and the canonical master reports zero differing pixels. The manifest
+records both paths, dimensions, checksums, and their processing relationship.
+
+The committed 1120 × 1400 PNG remains the canonical UI master. The separately
+retained 1122 × 1402 original is provenance evidence only. Image generation is
+a development provenance fact, not a production dependency or a reproducible
+runtime action. Exact bytes are pinned by the package and evidence checksum
+manifests.
 
 ## Generation prompt
 
