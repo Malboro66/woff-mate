@@ -8,11 +8,13 @@ not wired into the current launcher, installer, PyInstaller spec, or runtime.
 ## Identity
 
 The selected **plot-and-ledger** direction combines an angular plotted `W`
-with a columnar `M`. A narrow registry rule and terminal square connect the
-compact monogram to the custom wordmark. The construction is original vector
-geometry: it uses no font file, live SVG text, traced artwork, stock mark,
-third-party logo, aircraft, wing, wreath, shield, crown, ribbon, medal,
-roundel, or service emblem.
+with a columnar `M`. Shared WM geometry and rounded line treatment connect the
+compact monogram to the custom wordmark. Registry rules are
+composition-specific: the V2 compact symbol uses a central rule, while the
+terminal square belongs only to the wordmark's extended registry line. The
+construction is original vector geometry: it uses no font file, live SVG text,
+traced artwork, stock mark, third-party logo, aircraft, wing, wreath, shield,
+crown, ribbon, medal, roundel, or service emblem.
 
 The dark and light files are complete one-color marks. The V2 variant adds
 only the approved brass token to the registry details; recognition does not
@@ -31,12 +33,14 @@ tile, and silhouette.
 The opaque aviation-shell tile was chosen after static review because it keeps
 the light monogram legible on both light and dark Windows backgrounds. The
 rounded corners outside the tile remain transparent. Critical WM geometry
-stays within the central 75%; the master tile stays inside a 7% outer margin.
+stays within the central 75%. The master uses nested filled rounded rectangles
+with outer bounds `72..952` and inner bounds `96..928`, so its 7.03125% margin
+is identical in the canonical SVG and raster generator.
 
 `woff_mate_app.ico` contains exactly 16, 24, 32, 48, and 256 px PNG-compressed
-32-bit RGBA entries. The first three use the small optical master; 48 and 256
-use the canonical master. Other target sizes are review exports, not additional
-ICO entries.
+32-bit straight-alpha RGBA entries. The first three use the small optical
+master; 48 and 256 use the canonical master. Other target sizes are review
+exports, not additional ICO entries.
 
 ## Reproduction
 

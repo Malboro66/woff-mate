@@ -71,6 +71,31 @@ def _png_info(payload: bytes) -> tuple[int, int, int, int, list[str], bytes]:
     return width, height, bit_depth, color_type, chunks, zlib.decompress(compressed)
 
 
+def _rgba_rows(payload: bytes) -> list[list[tuple[int, int, int, int]]]:
+    width, height, bit_depth, color_type, _, decoded = _png_info(payload)
+    assert (bit_depth, color_type) == (8, 6)
+    stride = width * 4
+    rows: list[list[tuple[int, int, int, int]]] = []
+    cursor = 0
+    for _ in range(height):
+        assert decoded[cursor] == 0
+        scanline = decoded[cursor + 1 : cursor + 1 + stride]
+        rows.append(
+            [
+                (
+                    scanline[offset],
+                    scanline[offset + 1],
+                    scanline[offset + 2],
+                    scanline[offset + 3],
+                )
+                for offset in range(0, stride, 4)
+            ]
+        )
+        cursor += stride + 1
+    assert cursor == len(decoded)
+    return rows
+
+
 def _ico_entries(path: Path) -> dict[int, bytes]:
     payload = path.read_bytes()
     reserved, image_type, count = struct.unpack("<HHH", payload[:6])
@@ -110,6 +135,10 @@ def test_q0_identity_decision_is_bounded_and_recorded() -> None:
         "small_size_simplification",
     ):
         assert q0[field]
+
+    relationship = str(q0["wordmark_symbol_relationship"]).lower()
+    assert "terminal register square belongs only to the wordmark" in relationship
+    assert "terminal register square used by the compact symbol" not in relationship
 
     guide = BRAND_GUIDE.read_text(encoding="utf-8")
     guide_flat = re.sub(r"\s+", " ", guide)
@@ -217,6 +246,46 @@ def test_monochrome_and_v2_variants_are_complete_and_restrained() -> None:
         assert "gradient" not in payload.lower()
         assert "filter" not in payload.lower()
 
+    symbol_dark = ET.parse(ASSET_ROOT / "woff_mate_symbol_dark.svg").getroot()
+    symbol_light = ET.parse(ASSET_ROOT / "woff_mate_symbol_light.svg").getroot()
+    symbol_v2 = ET.parse(ASSET_ROOT / "woff_mate_symbol_v2.svg").getroot()
+    assert not list(symbol_dark.iter(f"{SVG_NAMESPACE}rect"))
+    assert not list(symbol_light.iter(f"{SVG_NAMESPACE}rect"))
+    v2_rects = list(symbol_v2.iter(f"{SVG_NAMESPACE}rect"))
+    assert [rect.attrib for rect in v2_rects] == [
+        {
+            "x": "128",
+            "y": "82",
+            "width": "8",
+            "height": "92",
+            "rx": "4",
+            "fill": "#C2A86B",
+        }
+    ]
+
+    guide = BRAND_GUIDE.read_text(encoding="utf-8").lower()
+    package_readme = (ASSET_ROOT / "README.md").read_text(encoding="utf-8").lower()
+    for contract in (guide, package_readme):
+        assert "terminal square" in contract
+        assert "wordmark" in contract
+        assert "terminal square connect the compact monogram" not in contract
+
+
+def test_brand_evidence_separates_limited_color_from_true_monochrome() -> None:
+    rows = _rgba_rows((EVIDENCE_ROOT / "brand-review.png").read_bytes())
+    brass = (194, 168, 107, 255)
+    on_dark = (244, 239, 226, 255)
+
+    limited_color = {
+        rows[y][x] for y in range(205, 385) for x in range(74, 794)
+    }
+    monochrome = {
+        rows[y][x] for y in range(194, 374) for x in range(1100, 1280)
+    }
+    assert brass in limited_color
+    assert on_dark in monochrome
+    assert brass not in monochrome
+
 
 def test_windows_icon_has_exact_required_entries_and_clean_alpha() -> None:
     entries = _ico_entries(ASSET_ROOT / "woff_mate_app.ico")
@@ -236,6 +305,104 @@ def test_windows_icon_has_exact_required_entries_and_clean_alpha() -> None:
         center_offset = center_row * (stride + 1) + 1 + center_column * 4 + 3
         assert top_left_alpha == 0
         assert decoded[center_offset] == 255
+
+        rows = _rgba_rows(png)
+        partially_transparent = [
+            pixel for row in rows for pixel in row if 0 < pixel[3] < 255
+        ]
+        assert partially_transparent
+        expected_edge_rgb = (24, 35, 31) if size <= 32 else (194, 168, 107)
+        assert {pixel[:3] for pixel in partially_transparent} == {expected_edge_rgb}
+
+
+def test_app_icon_svg_geometry_matches_raster_safe_area_contract() -> None:
+    manifest = _manifest()
+    windows_icon = manifest["windows_icon"]
+    assert isinstance(windows_icon, dict)
+
+    master = ET.parse(ASSET_ROOT / "woff_mate_app_icon_master.svg").getroot()
+    master_rects = list(master.iter(f"{SVG_NAMESPACE}rect"))
+    assert [
+        {
+            key: rect.attrib[key]
+            for key in ("x", "y", "width", "height", "rx", "fill")
+        }
+        for rect in master_rects[:2]
+    ] == [
+        {
+            "x": "72",
+            "y": "72",
+            "width": "880",
+            "height": "880",
+            "rx": "150",
+            "fill": "#C2A86B",
+        },
+        {
+            "x": "96",
+            "y": "96",
+            "width": "832",
+            "height": "832",
+            "rx": "126",
+            "fill": "#18231F",
+        },
+    ]
+    assert all("stroke" not in rect.attrib for rect in master_rects[:2])
+    assert windows_icon["master_tile_geometry"] == {
+        "outer_bounds": [72, 72, 952, 952],
+        "outer_corner_radius": 150,
+        "inner_bounds": [96, 96, 928, 928],
+        "inner_corner_radius": 126,
+        "construction": (
+            "nested filled rounded rectangles shared by canonical SVG and raster sampler"
+        ),
+    }
+
+    small = ET.parse(ASSET_ROOT / "woff_mate_app_icon_small.svg").getroot()
+    small_tile = next(small.iter(f"{SVG_NAMESPACE}rect"))
+    assert {
+        key: small_tile.attrib[key]
+        for key in ("x", "y", "width", "height", "rx", "fill")
+    } == {
+        "x": "64",
+        "y": "64",
+        "width": "896",
+        "height": "896",
+        "rx": "172",
+        "fill": "#18231F",
+    }
+    assert windows_icon["small_tile_geometry"] == {
+        "outer_bounds": [64, 64, 960, 960],
+        "outer_corner_radius": 172,
+        "construction": (
+            "single filled rounded rectangle shared by optical SVG and raster sampler"
+        ),
+    }
+
+    for element in list(master.iter(f"{SVG_NAMESPACE}path")) + master_rects[2:]:
+        if element.tag.endswith("path"):
+            coordinates = [
+                float(value)
+                for value in re.findall(r"\d+(?:\.\d+)?", element.attrib["d"])
+            ]
+            xs, ys = coordinates[::2], coordinates[1::2]
+            radius = float(element.attrib["stroke-width"]) / 2
+            bounds = (
+                min(xs) - radius,
+                min(ys) - radius,
+                max(xs) + radius,
+                max(ys) + radius,
+            )
+        else:
+            left = float(element.attrib["x"])
+            top = float(element.attrib["y"])
+            bounds = (
+                left,
+                top,
+                left + float(element.attrib["width"]),
+                top + float(element.attrib["height"]),
+            )
+        assert bounds[0] >= 128 and bounds[1] >= 128
+        assert bounds[2] <= 896 and bounds[3] <= 896
 
 
 def test_small_optical_master_is_distinct_and_usage_is_pinned() -> None:

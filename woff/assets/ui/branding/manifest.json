@@ -34,7 +34,7 @@
     ],
     "core_identity_concept": "WoFF Mate as the operational companion where plotted activity becomes an orderly, readable record.",
     "primary_visual_metaphor": "A plotted angular route paired with ledger columns, expressed as an original WM monogram.",
-    "wordmark_symbol_relationship": "The wordmark repeats the WM geometry, rounded line ends, clipped drafting-letter construction, central rule, and terminal register square used by the compact symbol.",
+    "wordmark_symbol_relationship": "The wordmark and compact symbol share WM geometry and rounded line treatment. Registry rules are composition-specific: the V2 compact symbol uses a central rule, while the terminal register square belongs only to the wordmark's extended registry line.",
     "operations_room_1917_relationship": "Plotting-table geometry, registry rules, restrained ink and brass, and drafting-like custom lettering carry period atmosphere without artificial aging.",
     "monochrome_rationale": "Silhouette, letter construction, spacing, and the WM relationship carry recognition; brass is optional and never required.",
     "similarity_avoidance": "No aircraft, wing, feather, wreath, shield, crown, ribbon, medal, roundel, service letters, squadron form, or heraldic enclosure is used.",
@@ -76,7 +76,19 @@
   "windows_icon": {
     "canonical_master": "woff_mate_app_icon_master.svg",
     "background_decision": "An opaque aviation-shell tile inside transparent rounded corners provides stable contrast across unknown Windows backgrounds and is optically clearer than a free-standing light or dark monogram.",
-    "safe_area": "The tile remains inside 7% outer margins; critical WM geometry remains inside the central 75% after optical review.",
+    "safe_area": "The canonical master tile uses exact 72..952 bounds (7.03125% outer margins); critical WM geometry remains inside the central 75% after optical review. The small optical tile uses 64..960 bounds (6.25% outer margins).",
+    "master_tile_geometry": {
+      "outer_bounds": [72, 72, 952, 952],
+      "outer_corner_radius": 150,
+      "inner_bounds": [96, 96, 928, 928],
+      "inner_corner_radius": 126,
+      "construction": "nested filled rounded rectangles shared by canonical SVG and raster sampler"
+    },
+    "small_tile_geometry": {
+      "outer_bounds": [64, 64, 960, 960],
+      "outer_corner_radius": 172,
+      "construction": "single filled rounded rectangle shared by optical SVG and raster sampler"
+    },
     "optical_variants": [
       {
         "path": "woff_mate_app_icon_small.svg",
@@ -95,7 +107,7 @@
     },
     "reviewed_windows_target_sizes": [16, 20, 24, 30, 32, 36, 40, 48, 60, 64, 72, 80, 96, 256],
     "generation": "python -I -S scripts/generate_branding_assets.py",
-    "encoding": "PNG-compressed 32-bit RGBA ICO entries",
+    "encoding": "PNG-compressed 32-bit straight-alpha RGBA ICO entries",
     "future_issue_82_consumption": "Issue #82 should consume woff_mate_app.ico for PyInstaller and use the canonical and small SVG masters to diagnose packaged shortcut, taskbar, window-icon, and DPI behavior."
   },
   "shared_accessibility": "Wordmark and symbol are product identifiers, not substitutes for an accessible product name. Consumers provide WoFF Mate as visible or accessible text where the surrounding control or window requires it.",
@@ -211,7 +223,7 @@
       "approved_variants": ["48-256 px master"],
       "approved_uses": ["Windows application-icon generation", "large static review"],
       "minimum_size": "48 x 48 px",
-      "clear_space_or_safe_area": "critical WM geometry within central 75%; tile within 7% outer margin",
+      "clear_space_or_safe_area": "critical WM geometry within central 75%; tile bounds 72..952 provide exact 7.03125% outer margins",
       "prohibited_uses": ["mechanical use below 48 px", "semantic UI icon", "status color"]
     },
     {

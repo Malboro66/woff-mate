@@ -38,6 +38,9 @@ MASTER_W = ((200, 318), (272, 706), (352, 512), (432, 706), (496, 318))
 MASTER_M = ((560, 706), (560, 318), (700, 548), (840, 318), (840, 706))
 SMALL_W = ((176, 286), (250, 738), (348, 500), (446, 738), (512, 286))
 SMALL_M = ((562, 738), (562, 286), (700, 526), (838, 286), (838, 738))
+MASTER_TILE_OUTER = (72, 72, 952, 952, 150)
+MASTER_TILE_INNER = (96, 96, 928, 928, 126)
+SMALL_TILE_OUTER = (64, 64, 960, 960, 172)
 
 
 FONT = {
@@ -198,11 +201,11 @@ def _sample_app_icon(size: int, *, small: bool) -> Canvas:
     w_points = SMALL_W if small else MASTER_W
     m_points = SMALL_M if small else MASTER_M
     stroke = 92 if small else 72
-    outer = (64, 64, 960, 960, 172) if small else (72, 72, 952, 952, 150)
-    inner = (96, 96, 928, 928, 126)
+    outer = SMALL_TILE_OUTER if small else MASTER_TILE_OUTER
     for py in range(size):
         for px in range(size):
-            totals = [0, 0, 0, 0]
+            alpha_total = 0
+            rgb_alpha_totals = [0, 0, 0]
             for sy in range(samples):
                 for sx in range(samples):
                     x = (px + (sx + 0.5) / samples) * 1024 / size
@@ -210,7 +213,9 @@ def _sample_app_icon(size: int, *, small: bool) -> Canvas:
                     color = TRANSPARENT
                     if _rounded_rect_contains(x, y, *outer):
                         color = AVIATION
-                        if not small and not _rounded_rect_contains(x, y, *inner):
+                        if not small and not _rounded_rect_contains(
+                            x, y, *MASTER_TILE_INNER
+                        ):
                             color = BRASS
                         for points in (w_points, m_points):
                             if any(
@@ -221,11 +226,32 @@ def _sample_app_icon(size: int, *, small: bool) -> Canvas:
                         divider_width = 26 if small else 18
                         if 512 - divider_width / 2 <= x <= 512 + divider_width / 2 and 350 <= y <= 674:
                             color = BRASS
-                    for channel in range(4):
-                        totals[channel] += color[channel]
+                    alpha = color[3]
+                    alpha_total += alpha
+                    for channel in range(3):
+                        rgb_alpha_totals[channel] += color[channel] * alpha
             count = samples * samples
-            output.set(px, py, tuple(round(total / count) for total in totals))  # type: ignore[arg-type]
+            output.set(
+                px,
+                py,
+                _straight_alpha_average(rgb_alpha_totals, alpha_total, count),
+            )
     return output
+
+
+def _straight_alpha_average(
+    rgb_alpha_totals: list[int], alpha_total: int, sample_count: int
+) -> tuple[int, int, int, int]:
+    """Return straight-alpha RGBA from alpha-weighted supersample totals."""
+
+    if alpha_total == 0:
+        return TRANSPARENT
+    return (
+        round(rgb_alpha_totals[0] / alpha_total),
+        round(rgb_alpha_totals[1] / alpha_total),
+        round(rgb_alpha_totals[2] / alpha_total),
+        round(alpha_total / sample_count),
+    )
 
 
 def _png_chunk(kind: bytes, data: bytes) -> bytes:
@@ -332,14 +358,15 @@ def _wordmark_svg(color: str, *, accent: str | None = None) -> str:
 
 def _app_svg(*, small: bool) -> str:
     if small:
-        outer = '  <rect x="64" y="64" width="896" height="896" rx="172" fill="#18231F"/>\n'
+        tile = _tile_rect_svg(SMALL_TILE_OUTER, "#18231F")
         w_path = _polyline_path(SMALL_W)
         m_path = _polyline_path(SMALL_M)
         stroke = 92
         divider_width = 26
     else:
-        outer = (
-            '  <rect x="72" y="72" width="880" height="880" rx="150" fill="#18231F" stroke="#C2A86B" stroke-width="24"/>\n'
+        tile = (
+            _tile_rect_svg(MASTER_TILE_OUTER, "#C2A86B")
+            + _tile_rect_svg(MASTER_TILE_INNER, "#18231F")
         )
         w_path = _polyline_path(MASTER_W)
         m_path = _polyline_path(MASTER_M)
@@ -348,11 +375,19 @@ def _app_svg(*, small: bool) -> str:
     return (
         '<?xml version="1.0" encoding="UTF-8"?>\n'
         f'<svg xmlns="{SVG_NS}" width="1024" height="1024" viewBox="0 0 1024 1024">\n'
-        + outer
+        + tile
         + f'  <path d="{w_path}" fill="none" stroke="#F4EFE2" stroke-width="{stroke}" stroke-linecap="round" stroke-linejoin="round"/>\n'
         + f'  <path d="{m_path}" fill="none" stroke="#F4EFE2" stroke-width="{stroke}" stroke-linecap="round" stroke-linejoin="round"/>\n'
         + f'  <rect x="{512 - divider_width // 2}" y="350" width="{divider_width}" height="324" rx="{divider_width // 2}" fill="#C2A86B"/>\n'
         + "</svg>\n"
+    )
+
+
+def _tile_rect_svg(bounds: tuple[int, int, int, int, int], color: str) -> str:
+    left, top, right, bottom, radius = bounds
+    return (
+        f'  <rect x="{left}" y="{top}" width="{right - left}" '
+        f'height="{bottom - top}" rx="{radius}" fill="{color}"/>\n'
     )
 
 
@@ -388,13 +423,20 @@ def _downsample(high: Canvas, width: int, height: int, scale: int) -> Canvas:
     count = scale * scale
     for y in range(height):
         for x in range(width):
-            totals = [0, 0, 0, 0]
+            alpha_total = 0
+            rgb_alpha_totals = [0, 0, 0]
             for dy in range(scale):
                 for dx in range(scale):
                     offset = high._offset(x * scale + dx, y * scale + dy)
-                    for channel in range(4):
-                        totals[channel] += high.pixels[offset + channel]
-            output.set(x, y, tuple(round(value / count) for value in totals))  # type: ignore[arg-type]
+                    alpha = high.pixels[offset + 3]
+                    alpha_total += alpha
+                    for channel in range(3):
+                        rgb_alpha_totals[channel] += high.pixels[offset + channel] * alpha
+            output.set(
+                x,
+                y,
+                _straight_alpha_average(rgb_alpha_totals, alpha_total, count),
+            )
     return output
 
 
@@ -427,9 +469,10 @@ def _brand_review() -> Canvas:
 
     canvas.fill_rect(28, 110, 1544, 330, AVIATION)
     canvas.frame(28, 110, 1544, 330, BRASS, 2)
-    canvas.text("DARK SHELL / LIMITED COLOR", 56, 136, BRASS, 3)
+    canvas.text("DARK SHELL / V2 LIMITED COLOR + MONOCHROME", 56, 136, BRASS, 3)
     canvas.paste(_render_wordmark(720, 180, color=ON_DARK, accent=BRASS), 74, 205)
-    canvas.paste(_render_symbol(180, 180, color=ON_DARK, accent=BRASS), 1100, 194)
+    canvas.text("V2 LIMITED COLOR", 74, 388, MUTED_DARK, 2)
+    canvas.paste(_render_symbol(180, 180, color=ON_DARK), 1100, 194)
     canvas.text("MONO LIGHT ON DARK", 810, 340, ON_DARK, 2)
 
     canvas.fill_rect(28, 466, 1544, 286, PAPER)

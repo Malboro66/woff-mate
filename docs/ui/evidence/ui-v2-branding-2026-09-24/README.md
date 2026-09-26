@@ -2,7 +2,7 @@
 
 Issue: #132
 
-Evidence revision: `UIV2-BRANDING-2026-09-24-1`
+Evidence revision: `UIV2-BRANDING-2026-09-24-2`
 
 This directory contains two deterministic, synthetic, toolkit-independent PNG
 review composites generated from the canonical vector geometry. It contains no
@@ -13,15 +13,16 @@ content, log, WoFF payload, configuration secret, or activation/license data.
 
 `brand-review.png` shows the primary wordmark and compact symbol as:
 
-- restrained V2 light/brass placement on the dark aviation shell;
-- light-on-dark monochrome;
+- restrained V2 light/brass wordmark placement on the dark aviation shell;
+- a separate genuine light-on-dark monochrome compact symbol with no brass;
 - dark-on-light monochrome on the paper surface;
 - a clear-space example;
 - the 160 px minimum wordmark; and
 - the 24 px minimum compact symbol.
 
 The composite demonstrates that the wordmark and symbol are related but not a
-cropped copy, and that recognition survives without brass.
+cropped copy. Its dark-shell monochrome region contains light geometry only,
+so the artifact directly demonstrates that recognition survives without brass.
 
 ## Windows icon review
 
@@ -51,7 +52,8 @@ the recorded close views:
 - 32 px preserves stroke separation with no clipped edge;
 - 48, 96, and 256 px retain a consistent monogram, border, and rounded tile;
 - all target sizes keep critical geometry inside the tile safe area;
-- transparent corner alpha is clean; and
+- transparent corner alpha is clean and partially covered pixels retain
+  straight-alpha source RGB without a dark fringe; and
 - the icon remains identifiable in monochrome geometry without relying on the
   brass accent.
 

@@ -23,9 +23,11 @@ The selected concept communicates WoFF Mate as the operational companion where
 plotted activity becomes a clear record. It reflects **Operations Room 1917**
 through plotting geometry, registry rules, restrained ink and brass, and
 drafting-like proportions—not artificial aging, a literal aircraft, or a
-military badge. The wordmark and compact symbol share the WM geometry, rounded
-line ends, central rule, and terminal register square, while remaining separate
-compositions.
+military badge. The wordmark and compact symbol share the WM geometry and
+rounded line treatment while remaining separate compositions. Registry rules
+are used where the composition benefits from them: the V2 compact symbol has a
+central rule, while the wordmark extends its registry line to a wordmark-only
+terminal square. That square is not a compact-symbol primitive.
 
 Recognition comes from silhouette and geometry, so both marks work in one
 color. The optional V2 treatment uses only light ink plus restrained brass and
@@ -108,10 +110,14 @@ unavailable tokens.
 ## Windows icon generation and review
 
 The canonical master uses an aviation-shell tile with transparent rounded
-corners, a light WM, a restrained brass border, and a brass registry rule. An
-opaque tile is deliberately superior here because it preserves contrast across
-uncontrolled light and dark shell backgrounds. The critical monogram remains
-inside the central 75%; the tile remains inside a 7% outer margin.
+corners, a light WM, a restrained brass border, and a brass registry rule. The
+SVG and raster source both construct that border as nested filled rounded
+rectangles: brass outer bounds `72..952` with radius `150`, then aviation-shell
+inner bounds `96..928` with radius `126`. No centered stroke can paint beyond
+the declared outer bounds. An opaque tile is deliberately superior here
+because it preserves contrast across uncontrolled light and dark shell
+backgrounds. The critical monogram remains inside the central 75%; the master
+tile's exact 72/1024 margin is 7.03125% on every side.
 
 The small optical master serves 16, 20, 24, 30, 32, 36, and 40 px. It preserves
 the same silhouette while widening the strokes, opening counters, and removing
@@ -119,8 +125,10 @@ the fragile inset border. The canonical master serves 48, 60, 64, 72, 80, 96,
 and 256 px in static review.
 
 The ICO contains only the required entries: 16, 24, 32, 48, and 256 px. Entries
-are PNG-compressed 32-bit RGBA images with transparent corners. The 20, 30, 36,
-40, 60, 64, 72, 80, and 96 px sizes are review targets, not embedded entries.
+are PNG-compressed 32-bit straight-alpha RGBA images with transparent corners.
+Partially transparent edge pixels retain unpremultiplied source RGB. The 20,
+30, 36, 40, 60, 64, 72, 80, and 96 px sizes are review targets, not embedded
+entries.
 
 Static review covers the full 16, 20, 24, 30, 32, 36, 40, 48, 60, 64, 72, 80,
 96, and 256 px target matrix, natural and 8× close views of 16/20/24/32, and
