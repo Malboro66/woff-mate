@@ -138,6 +138,7 @@ modules:
   governance:
     responsibility: Executable repository policy, project graph and immutable evidence validation.
     paths:
+      - scripts/generate_branding_assets.py
       - scripts/generate_ui_icon_evidence.py
       - scripts/generate_ui_portrait_evidence.py
       - scripts/validate_project_graph.py

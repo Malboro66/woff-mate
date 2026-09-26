@@ -1,0 +1,261 @@
+{
+  "schema_version": 1,
+  "package_id": "woff-mate-product-identity",
+  "canonical_source_type": "original custom SVG vector geometry",
+  "issue": 132,
+  "package_role": "toolkit-independent WoFF Mate product identity and Windows application icon source",
+  "source": {
+    "strategy": "custom",
+    "origin": "repository-authored geometry created for Issue #132",
+    "third_party_artwork": false,
+    "legacy_icon_reused": false,
+    "license": "MIT (repository license)",
+    "attribution_required": false,
+    "notices_required": false
+  },
+  "q0": {
+    "selected_direction": "plot-and-ledger monogram",
+    "considered_directions": [
+      {
+        "name": "plot-and-ledger monogram",
+        "selected": true,
+        "summary": "An angular plotted W and columnar M use a central registry rule to join route planning with administrative record keeping."
+      },
+      {
+        "name": "dispatch-tab letterform",
+        "selected": false,
+        "summary": "A clipped filing-tab silhouette was restrained but too generic and depended too heavily on an enclosing tile."
+      },
+      {
+        "name": "aerial-route monoline",
+        "selected": false,
+        "summary": "A single route line was simple, but risked reading as a literal aircraft trajectory and lost the product name relationship at small sizes."
+      }
+    ],
+    "core_identity_concept": "WoFF Mate as the operational companion where plotted activity becomes an orderly, readable record.",
+    "primary_visual_metaphor": "A plotted angular route paired with ledger columns, expressed as an original WM monogram.",
+    "wordmark_symbol_relationship": "The wordmark and compact symbol share WM geometry and rounded line treatment. Registry rules are composition-specific: the V2 compact symbol uses a central rule, while the terminal register square belongs only to the wordmark's extended registry line.",
+    "operations_room_1917_relationship": "Plotting-table geometry, registry rules, restrained ink and brass, and drafting-like custom lettering carry period atmosphere without artificial aging.",
+    "monochrome_rationale": "Silhouette, letter construction, spacing, and the WM relationship carry recognition; brass is optional and never required.",
+    "similarity_avoidance": "No aircraft, wing, feather, wreath, shield, crown, ribbon, medal, roundel, service letters, squadron form, or heraldic enclosure is used.",
+    "small_size_simplification": "One small optical master widens WM strokes and counters and removes the inset brass border for targets through 40 px."
+  },
+  "typography_provenance": {
+    "strategy": "original custom vector lettering",
+    "font_family": null,
+    "font_file_required": false,
+    "text_elements_in_canonical_svg": false,
+    "license": "MIT (repository license)",
+    "attribution_required": false
+  },
+  "theme_contract": {
+    "dark_on_light": "#201D18 on V2 paper or another verified light surface",
+    "light_on_dark": "#F4EFE2 on V2 shell or another verified dark surface",
+    "limited_color": "#F4EFE2 geometry with #C2A86B registry accents on #18231F where a self-contained tile is required",
+    "recognition": "Color is optional and never carries product identity alone.",
+    "status_boundary": "Brand colors do not encode information, success, warning, error, stale, or unavailable state."
+  },
+  "usage": {
+    "wordmark_viewbox": "0 0 768 192",
+    "symbol_viewbox": "0 0 256 256",
+    "wordmark_clear_space": "one symbol divider width (16/256 symbol units)",
+    "symbol_clear_space": "32/256 symbol units on every side",
+    "wordmark_minimum_width_px": 160,
+    "symbol_minimum_size_px": 24,
+    "app_icon_safe_area": "critical WM geometry stays within the central 75%",
+    "dark_surface": "Use the light or limited-color variant.",
+    "light_surface": "Use the dark monochrome variant.",
+    "prohibited_transformations": [
+      "stretching or condensing",
+      "skewing or rotation",
+      "rearranging symbol and wordmark geometry",
+      "adding gradients, shadows, bevels, distress, outlines, wings, wreaths, shields, crowns, ribbons, medals, or roundels",
+      "using semantic status colors as brand colors"
+    ]
+  },
+  "windows_icon": {
+    "canonical_master": "woff_mate_app_icon_master.svg",
+    "background_decision": "An opaque aviation-shell tile inside transparent rounded corners provides stable contrast across unknown Windows backgrounds and is optically clearer than a free-standing light or dark monogram.",
+    "safe_area": "The canonical master tile uses exact 72..952 bounds (7.03125% outer margins); critical WM geometry remains inside the central 75% after optical review. The small optical tile uses 64..960 bounds (6.25% outer margins).",
+    "master_tile_geometry": {
+      "outer_bounds": [72, 72, 952, 952],
+      "outer_corner_radius": 150,
+      "inner_bounds": [96, 96, 928, 928],
+      "inner_corner_radius": 126,
+      "construction": "nested filled rounded rectangles shared by canonical SVG and raster sampler"
+    },
+    "small_tile_geometry": {
+      "outer_bounds": [64, 64, 960, 960],
+      "outer_corner_radius": 172,
+      "construction": "single filled rounded rectangle shared by optical SVG and raster sampler"
+    },
+    "optical_variants": [
+      {
+        "path": "woff_mate_app_icon_small.svg",
+        "targets": [16, 20, 24, 30, 32, 36, 40],
+        "reason": "wider strokes, larger counters, and no inset border"
+      }
+    ],
+    "distribution_artifact": "woff_mate_app.ico",
+    "embedded_ico_sizes": [16, 24, 32, 48, 256],
+    "ico_source_map": {
+      "16": "small",
+      "24": "small",
+      "32": "small",
+      "48": "master",
+      "256": "master"
+    },
+    "reviewed_windows_target_sizes": [16, 20, 24, 30, 32, 36, 40, 48, 60, 64, 72, 80, 96, 256],
+    "generation": "python -I -S scripts/generate_branding_assets.py",
+    "encoding": "PNG-compressed 32-bit straight-alpha RGBA ICO entries",
+    "future_issue_82_consumption": "Issue #82 should consume woff_mate_app.ico for PyInstaller and use the canonical and small SVG masters to diagnose packaged shortcut, taskbar, window-icon, and DPI behavior."
+  },
+  "shared_accessibility": "Wordmark and symbol are product identifiers, not substitutes for an accessible product name. Consumers provide WoFF Mate as visible or accessible text where the surrounding control or window requires it.",
+  "prohibited_domain_uses": [
+    "pilot face or individual pilot identity",
+    "pilot nationality or military service",
+    "squadron badge or unit identity",
+    "rank insignia, qualification wing, medal, ribbon, or decoration",
+    "national roundel, service emblem, or historical military authority",
+    "warning, error, success, stale, unavailable, or other UI state",
+    "WoFF/OFF or third-party game branding"
+  ],
+  "assets": [
+    {
+      "id": "brand.wordmark.dark",
+      "path": "woff_mate_wordmark_dark.svg",
+      "purpose": "Primary wordmark for paper and other light surfaces",
+      "canonical_source_type": "SVG custom vector geometry",
+      "status": "original/custom",
+      "license": "MIT (repository license)",
+      "attribution_required": false,
+      "notices_required": false,
+      "approved_variants": ["dark-on-light monochrome"],
+      "approved_uses": ["application", "documentation", "light product surfaces"],
+      "minimum_size": "160 px wide",
+      "clear_space_or_safe_area": "one symbol divider width on every side",
+      "prohibited_uses": ["dark surfaces without verified contrast", "distortion", "unapproved recoloring"]
+    },
+    {
+      "id": "brand.wordmark.light",
+      "path": "woff_mate_wordmark_light.svg",
+      "purpose": "Primary wordmark for shell and other dark surfaces",
+      "canonical_source_type": "SVG custom vector geometry",
+      "status": "original/custom",
+      "license": "MIT (repository license)",
+      "attribution_required": false,
+      "notices_required": false,
+      "approved_variants": ["light-on-dark monochrome"],
+      "approved_uses": ["application", "documentation", "dark product surfaces"],
+      "minimum_size": "160 px wide",
+      "clear_space_or_safe_area": "one symbol divider width on every side",
+      "prohibited_uses": ["light surfaces without verified contrast", "distortion", "unapproved recoloring"]
+    },
+    {
+      "id": "brand.wordmark.v2",
+      "path": "woff_mate_wordmark_v2.svg",
+      "purpose": "Restrained limited-color wordmark for representative V2 dark-shell placement",
+      "canonical_source_type": "SVG custom vector geometry",
+      "status": "original/custom",
+      "license": "MIT (repository license)",
+      "attribution_required": false,
+      "notices_required": false,
+      "approved_variants": ["V2 light with restrained brass registry accents"],
+      "approved_uses": ["V2 dark shell", "documentation on verified dark surfaces"],
+      "minimum_size": "160 px wide",
+      "clear_space_or_safe_area": "one symbol divider width on every side",
+      "prohibited_uses": ["paper placement", "semantic status use", "additional colors"]
+    },
+    {
+      "id": "brand.symbol.dark",
+      "path": "woff_mate_symbol_dark.svg",
+      "purpose": "Compact monochrome product symbol for light surfaces",
+      "canonical_source_type": "SVG custom vector geometry",
+      "status": "original/custom",
+      "license": "MIT (repository license)",
+      "attribution_required": false,
+      "notices_required": false,
+      "approved_variants": ["dark-on-light monochrome"],
+      "approved_uses": ["compact product identification", "documentation", "square placement"],
+      "minimum_size": "24 x 24 px",
+      "clear_space_or_safe_area": "32/256 symbol units on every side",
+      "prohibited_uses": ["military badge", "state icon", "cropped wordmark substitute"]
+    },
+    {
+      "id": "brand.symbol.light",
+      "path": "woff_mate_symbol_light.svg",
+      "purpose": "Compact monochrome product symbol for dark surfaces",
+      "canonical_source_type": "SVG custom vector geometry",
+      "status": "original/custom",
+      "license": "MIT (repository license)",
+      "attribution_required": false,
+      "notices_required": false,
+      "approved_variants": ["light-on-dark monochrome"],
+      "approved_uses": ["compact product identification", "documentation", "square placement"],
+      "minimum_size": "24 x 24 px",
+      "clear_space_or_safe_area": "32/256 symbol units on every side",
+      "prohibited_uses": ["military badge", "state icon", "cropped wordmark substitute"]
+    },
+    {
+      "id": "brand.symbol.v2",
+      "path": "woff_mate_symbol_v2.svg",
+      "purpose": "Restrained limited-color compact product symbol",
+      "canonical_source_type": "SVG custom vector geometry",
+      "status": "original/custom",
+      "license": "MIT (repository license)",
+      "attribution_required": false,
+      "notices_required": false,
+      "approved_variants": ["V2 light with restrained brass registry accent"],
+      "approved_uses": ["V2 dark shell", "documentation on verified dark surfaces"],
+      "minimum_size": "32 x 32 px",
+      "clear_space_or_safe_area": "32/256 symbol units on every side",
+      "prohibited_uses": ["semantic status use", "paper placement", "additional colors"]
+    },
+    {
+      "id": "app-icon.master",
+      "path": "woff_mate_app_icon_master.svg",
+      "purpose": "Canonical square Windows application-icon vector master",
+      "canonical_source_type": "SVG custom vector geometry",
+      "status": "original/custom",
+      "license": "MIT (repository license)",
+      "attribution_required": false,
+      "notices_required": false,
+      "approved_variants": ["48-256 px master"],
+      "approved_uses": ["Windows application-icon generation", "large static review"],
+      "minimum_size": "48 x 48 px",
+      "clear_space_or_safe_area": "critical WM geometry within central 75%; tile bounds 72..952 provide exact 7.03125% outer margins",
+      "prohibited_uses": ["mechanical use below 48 px", "semantic UI icon", "status color"]
+    },
+    {
+      "id": "app-icon.small",
+      "path": "woff_mate_app_icon_small.svg",
+      "purpose": "Single optical master for small Windows target sizes",
+      "canonical_source_type": "SVG custom vector geometry",
+      "status": "original/custom",
+      "license": "MIT (repository license)",
+      "attribution_required": false,
+      "notices_required": false,
+      "approved_variants": ["16-40 px small optical master"],
+      "approved_uses": ["small Windows target generation", "pixel-level static review"],
+      "minimum_size": "16 x 16 px",
+      "clear_space_or_safe_area": "wider glyph stays inside the rounded tile with no inset border",
+      "prohibited_uses": ["wordmark replacement", "large brand placement", "semantic UI icon"]
+    },
+    {
+      "id": "app-icon.windows-ico",
+      "path": "woff_mate_app.ico",
+      "purpose": "Windows distribution artifact for future Issue #82 packaging consumption",
+      "canonical_source_type": "generated ICO from canonical SVG geometry",
+      "status": "original/custom",
+      "license": "MIT (repository license)",
+      "attribution_required": false,
+      "notices_required": false,
+      "approved_variants": ["16", "24", "32", "48", "256"],
+      "approved_uses": ["future PyInstaller icon input", "Windows icon parsing and static review"],
+      "minimum_size": "embedded sizes only",
+      "clear_space_or_safe_area": "inherited from mapped canonical and small optical masters",
+      "prohibited_uses": ["claim of native Windows validation", "semantic UI icon", "editing as canonical source"]
+    }
+  ],
+  "privacy": "Only original custom geometry and synthetic labels are present; no player, campaign, WoFF screenshot, database, log, private path, payload, configuration, activation, or license data was used."
+}
