@@ -272,16 +272,18 @@ unapproved.
 | Eval | Work item | Status | Required evidence |
 |---|---|---|---|
 | `EVAL-OUTPUT-PATH-ISOLATION-001` | #151 | Planned | Persistent outputs cannot overlap monitored WoFF inputs through Windows path/case aliases, and rejection occurs before output creation or source mutation |
-| `EVAL-MAIN-PROTECTION-001` | #152 | Planned | Read-only GitHub verification proves required PR/check enforcement and force-push/deletion protection for `main` |
+| `EVAL-MAIN-PROTECTION-001` | #152 | Implemented | [Read-only GitHub verification](main-protection-2026-09-27.md) records that `main` requires pull requests with zero approving reviews, requires exactly `Tests (Python 3.10)`, `Tests (Python 3.14)`, `Pyright`, and `Windows smoke test` from GitHub Actions, blocks force pushes and deletion, and has no configured bypass actors |
 | `EVAL-SUPPLY-CHAIN-001` | #153 | Planned | Reproducible dependency/build inputs, vulnerability-audit policy, immutable full-SHA Actions, and controlled updates are executable |
 | `EVAL-SECURITY-GOVERNANCE-001` | #154 | Planned | The maintained threat model and compact Security Gate compose with Q0-Q6 and have explicit ownership and reassessment rules |
 | `EVAL-RELEASE-PROVENANCE-001` | #155 | Planned | Public binaries bind to reviewed source/build inputs and provide checksums, SBOM/provenance evidence, a signing decision, and trusted promotion |
 
-All five evals are planned and therefore have no fabricated `enforced_by`
-paths. #151–#155 are outside the existing Q6 cycles. #151 and #152 add the
-specific Gate A/product-gate guardrails recorded in `quality-gates.md`; #153
-and #154 remain staged P3 work, while #155 is required only before public
-binary distribution.
+`EVAL-MAIN-PROTECTION-001` is implemented. GitHub ruleset `24065034` is the
+live enforcement mechanism; `woff/tests/test_product_milestones.py` validates
+only the recorded evidence contract and repository-governance consistency and
+does not query GitHub. The other four evals remain planned without fabricated
+`enforced_by` paths. #151–#155 remain outside the existing Q6 cycles. #151
+remains an independent Gate A guardrail; #153 and #154 remain staged P3 work,
+while #155 is required only before public binary distribution.
 
 ### SDD pilot governance
 
