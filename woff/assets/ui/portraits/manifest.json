@@ -1,0 +1,148 @@
+{
+  "schema_version": 1,
+  "package_id": "woff-mate-ui-v2-portraits",
+  "canonical_source_type": "generated PNG master and custom SVG fallback",
+  "issue": 130,
+  "package_role": "toolkit-independent UI V2 portrait presentation assets",
+  "source": {
+    "id": "source.synthetic.aster.original",
+    "strategy": "generate",
+    "source_type": "generated raster",
+    "synthetic": true,
+    "path": "docs/ui/evidence/ui-v2-portraits-2026-09-24/source/ui_portrait_synthetic_aster_original.png",
+    "dimensions": [1122, 1402],
+    "sha256": "ecc9c17596aa2d9d8c4b807844190d1936092a901e9fd56d22aeaed48803404b",
+    "canonical_master_path": "woff/assets/ui/portraits/ui_portrait_synthetic_aster_master.png",
+    "canonical_master_dimensions": [1120, 1400],
+    "canonical_master_sha256": "f545dd5db17775d14a1e6bb991caf8f064f24a6a93d0627b31a96171dfe1316a",
+    "processing_relationship": "The canonical master is the original source center-cropped by exactly one pixel from every edge, with ancillary metadata stripped and no pixel resampling or upscaling.",
+    "provenance": "No input image or third-party source; invented subject generated with OpenAI image generation in ChatGPT Work for Issue #130 on 2026-09-24.",
+    "redistribution_status": "Project-owned synthetic output distributed under the repository MIT license.",
+    "license": "MIT (repository license)",
+    "attribution_required": false,
+    "notices_required": false
+  },
+  "theme_contract": {
+    "synthetic_master": "Fixed restrained-sepia pixels; consumers must not recolor or use the portrait as a state cue.",
+    "fallback": "Fixed V2 neutral ink, paper and brass colors remain readable on approved paper and dark-shell contexts; visible Portrait unavailable wording is still required.",
+    "state_color": "Neither portrait may encode state through color, tint or opacity. Structured visible data remains authoritative."
+  },
+  "shared_accessibility": "Resolved consumers derive Portrait of <display name> from structured visible data. Unavailable consumers use Portrait unavailable. Assets never supply inferred identity, rank, nationality, service, decoration or status semantics, and static evidence does not claim native assistive-technology behavior.",
+  "prohibited_domain_uses": [
+    "authoritative pilot identity or likeness",
+    "nationality or military service",
+    "squadron identity",
+    "rank, ribbon, medal or decoration",
+    "victory, injury or historical event",
+    "career, death or KIA status"
+  ],
+  "q0": {
+    "inventory_decision": "one synthetic exemplar plus one neutral fallback",
+    "consumers": [
+      {
+        "screen": "DOS-01",
+        "component": "CareerIdentityHeader",
+        "role": "resolved portrait or fallback",
+        "approved_logical_slots": [[140, 176], [104, 135]]
+      },
+      {
+        "screen": "SQD-01",
+        "component": "squadron roster rows",
+        "role": "no portrait consumer",
+        "approved_logical_slots": []
+      },
+      {
+        "screen": "SQD-02",
+        "component": "Aircrew Profile identity region",
+        "role": "fallback under current fixture contract",
+        "approved_logical_slots": [[142, 166], [102, 132]]
+      }
+    ],
+    "excluded_consumers": ["OPR-01", "roster thumbnails", "unapproved screens"]
+  },
+  "crop_policy": {
+    "primary_aspect_ratio": "4:5",
+    "identity_safe_area_percent": {"left": 12, "top": 6, "right": 88, "bottom": 82},
+    "composition_safe_area_percent": {"left": 5, "top": 4, "right": 95, "bottom": 96},
+    "eye_line_percent_from_top": [29, 34],
+    "compact_behavior": "centered cover crop; never shift the focal point or clip the identity safe area",
+    "derivative_policy": "No production raster derivatives until an approved consumer or Issue #82 provides measured need."
+  },
+  "state_policy": {
+    "career_switch_sequence": ["clear_previous", "show_loading_or_fallback", "show_new_resolved"],
+    "payload_free_states": ["loading", "missing", "unavailable", "error"],
+    "rule": "A previous career portrait must never remain visible while another career is loading, selected, unavailable, partial without an explicit mapping, or switching."
+  },
+  "fixture_mappings": [
+    {
+      "fixture_id": "pilot-ready",
+      "screen": "DOS-01",
+      "presentation": "resolved",
+      "asset_id": "portrait.synthetic.aster",
+      "authoritative_data": false
+    },
+    {
+      "fixture_id": "aircrew-detail-ready",
+      "screen": "SQD-02",
+      "presentation": "unavailable",
+      "asset_id": "portrait.unavailable",
+      "authoritative_data": false
+    },
+    {
+      "fixture_id": "squadron-ready",
+      "screen": "SQD-01",
+      "presentation": "no_portrait_slot",
+      "asset_id": null,
+      "authoritative_data": false
+    }
+  ],
+  "assets": [
+    {
+      "id": "portrait.synthetic.aster",
+      "path": "ui_portrait_synthetic_aster_master.png",
+      "source_type": "generated raster",
+      "format": "PNG",
+      "synthetic": true,
+      "custom": false,
+      "third_party": false,
+      "canonical_dimensions": [1120, 1400],
+      "aspect_ratio": "4:5",
+      "intended_consumers": ["DOS-01"],
+      "presentation_role": "resolved synthetic fixture portrait",
+      "source_id": "source.synthetic.aster.original",
+      "generation_method": "OpenAI image generation in ChatGPT Work; exact prompt in GENERATION.md",
+      "source_dimensions": [1122, 1402],
+      "processing": "center-cropped one pixel from every edge; ancillary metadata stripped; no resampling or upscaling",
+      "provenance": "No input image or third-party source; invented subject generated for Issue #130 on 2026-09-24.",
+      "redistribution_status": "Project-owned synthetic output distributed under the repository MIT license.",
+      "license": "MIT (repository license)",
+      "attribution_required": false,
+      "notices_required": false,
+      "accessibility": "Resolved consumer supplies Portrait of <display name> from structured visible data.",
+      "prohibited_interpretations": ["identity", "nationality", "service", "branch", "squadron", "rank", "decorations", "ribbons", "victories", "injury", "KIA status", "career status", "historical event"]
+    },
+    {
+      "id": "portrait.unavailable",
+      "path": "ui_portrait_unavailable.svg",
+      "source_type": "custom vector",
+      "format": "SVG",
+      "synthetic": false,
+      "custom": true,
+      "third_party": false,
+      "canonical_dimensions": [800, 1000],
+      "aspect_ratio": "4:5",
+      "intended_consumers": ["DOS-01", "SQD-02"],
+      "presentation_role": "neutral Portrait unavailable fallback",
+      "generation_method": "Repository-authored deterministic SVG geometry.",
+      "provenance": "Created for Issue #130 without source imagery or reused #129 icon geometry.",
+      "redistribution_status": "Project-owned custom asset distributed under the repository MIT license.",
+      "license": "MIT (repository license)",
+      "attribution_required": false,
+      "notices_required": false,
+      "accessibility": "Consumer supplies the visible and accessible text Portrait unavailable.",
+      "prohibited_interpretations": ["identity", "nationality", "service", "branch", "squadron", "rank", "decorations", "ribbons", "victories", "injury", "death", "KIA status", "career status"]
+    }
+  ],
+  "semantic_boundary": "Portraits are presentation, not data; structured view-model data remains authoritative.",
+  "privacy": "Only invented or custom content is present; no player, campaign, WoFF, database, log, private path, payload, configuration, activation, or license data was used."
+}

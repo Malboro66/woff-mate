@@ -127,14 +127,14 @@ def test_byte_sensitive_ui_evidence_uses_lf_checkout_policy() -> None:
         for line in manifest.read_text(encoding="ascii").splitlines():
             _digest, filename = line.split("  ", 1)
             evidence_path = manifest.parent / filename
-            if evidence_path.suffix.lower() != ".jpg":
+            if evidence_path.suffix.lower() not in {".jpg", ".png"}:
                 byte_sensitive_text_paths.append(
                     evidence_path.relative_to(REPOSITORY_ROOT).as_posix()
                 )
 
-    # 18 Site payloads + 49 prior spike payloads + 24 current Windows records
+    # 20 Site/icon text payloads + 49 prior spike payloads + 24 Windows records
     # + the byte-identical, versioned prior Linux production result.
-    assert len(byte_sensitive_text_paths) == len(set(byte_sensitive_text_paths)) == 92
+    assert len(byte_sensitive_text_paths) == len(set(byte_sensitive_text_paths)) == 94
 
     result = subprocess.run(
         [

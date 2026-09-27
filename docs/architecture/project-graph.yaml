@@ -138,9 +138,13 @@ modules:
   governance:
     responsibility: Executable repository policy, project graph and immutable evidence validation.
     paths:
+      - scripts/generate_branding_assets.py
+      - scripts/generate_ui_icon_evidence.py
+      - scripts/generate_ui_portrait_evidence.py
       - scripts/validate_project_graph.py
       - scripts/validate_ui_v2_evidence.py
       - scripts/validate_ui_fixtures.py
+      - scripts/vendor_ui_v2_icons.py
     may_depend_on: []
     forbidden_dependencies:
       - foundation
@@ -811,8 +815,9 @@ evals:
     evidence: Canonical Windows path and case aliases cannot place SQLite or discovery-log outputs at or beneath a monitored WoFF root, validation fails before either output is opened or created, and synthetic source bytes remain unchanged.
   EVAL-MAIN-PROTECTION-001:
     work_items: [issue-152]
-    status: planned
-    evidence: Read-only repository verification proves that main requires pull requests and the exact approved validation checks, blocks force pushes and deletion, and permits no ordinary-writer bypass.
+    status: implemented
+    evidence: Active GitHub ruleset 24065034 is the live enforcement mechanism for main; the revision-bound repository record captures read-only verification of required pull requests, the four exact GitHub Actions checks, blocked force pushes and deletion, and an empty bypass list, while the repository test enforces consistency of that recorded contract without querying GitHub.
+    enforced_by: [woff/tests/test_product_milestones.py]
   EVAL-SUPPLY-CHAIN-001:
     work_items: [issue-153]
     status: planned
@@ -1376,7 +1381,7 @@ work_items:
   issue-152:
     title: Enforce protected main branch and required validation checks
     module: governance
-    state: backlog
+    state: done
     evals: [EVAL-MAIN-PROTECTION-001]
     gates: [Q0, Q1, Q5]
     depends_on: []
@@ -1401,7 +1406,7 @@ work_items:
     evals: [EVAL-RELEASE-PROVENANCE-001]
     gates: [Q0, Q1, Q4, Q5]
     depends_on:
-      - {id: issue-152, status: unsatisfied}
+      - {id: issue-152, status: satisfied}
       - {id: issue-153, status: unsatisfied}
       - {id: issue-154, status: unsatisfied}
   issue-157:
