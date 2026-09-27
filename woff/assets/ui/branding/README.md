@@ -5,6 +5,10 @@ application-icon sources for Issue #132. SVG is canonical. The ICO is a
 deterministic distribution derivative for future Issue #82 consumption; it is
 not wired into the current launcher, installer, PyInstaller spec, or runtime.
 
+The eight committed SVG files are the authoritative editable artwork. Edit
+them intentionally and review the diff directly. The derivative generator
+validates and consumes their constrained geometry; it never rewrites them.
+
 ## Identity
 
 The selected **plot-and-ledger** direction combines an angular plotted `W`
@@ -35,7 +39,7 @@ the light monogram legible on both light and dark Windows backgrounds. The
 rounded corners outside the tile remain transparent. Critical WM geometry
 stays within the central 75%. The master uses nested filled rounded rectangles
 with outer bounds `72..952` and inner bounds `96..928`, so its 7.03125% margin
-is identical in the canonical SVG and raster generator.
+is preserved in raster derivatives rendered directly from the canonical SVG.
 
 `woff_mate_app.ico` contains exactly 16, 24, 32, 48, and 256 px PNG-compressed
 32-bit straight-alpha RGBA entries. The first three use the small optical
@@ -50,9 +54,13 @@ From the repository root:
 python -I -S scripts/generate_branding_assets.py
 ```
 
-The generator uses only the Python standard library. It emits clean SVG,
-metadata-free PNG review composites, and an ICO whose PNG entries carry alpha.
-`SHA256SUMS` freezes every delivered package file.
+The generator uses only the Python standard library. It reads the clean,
+self-contained canonical SVGs and writes only the ICO, the two metadata-free
+PNG review composites, and their SHA-256 inventories. Ordinary regeneration
+never authors or modifies canonical artwork. Unsupported SVG elements,
+attributes, path commands, transforms, effects, references, or colors fail
+closed instead of being silently ignored. `SHA256SUMS` freezes every delivered
+package file.
 
 ## Boundaries
 

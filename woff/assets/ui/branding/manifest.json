@@ -7,6 +7,9 @@
   "source": {
     "strategy": "custom",
     "origin": "repository-authored geometry created for Issue #132",
+    "authority": "the eight committed SVG files are the authoritative editable artwork",
+    "edit_workflow": "edit canonical SVGs directly; run the generator only to validate them and refresh derivatives",
+    "generator_behavior": "consumes canonical SVG geometry without rewriting SVG files; writes ICO, review PNGs, and checksum inventories",
     "third_party_artwork": false,
     "legacy_icon_reused": false,
     "license": "MIT (repository license)",
@@ -82,12 +85,12 @@
       "outer_corner_radius": 150,
       "inner_bounds": [96, 96, 928, 928],
       "inner_corner_radius": 126,
-      "construction": "nested filled rounded rectangles shared by canonical SVG and raster sampler"
+      "construction": "nested filled rounded rectangles consumed directly from the canonical SVG"
     },
     "small_tile_geometry": {
       "outer_bounds": [64, 64, 960, 960],
       "outer_corner_radius": 172,
-      "construction": "single filled rounded rectangle shared by optical SVG and raster sampler"
+      "construction": "single filled rounded rectangle consumed directly from the optical SVG"
     },
     "optical_variants": [
       {
@@ -107,6 +110,8 @@
     },
     "reviewed_windows_target_sizes": [16, 20, 24, 30, 32, 36, 40, 48, 60, 64, 72, 80, 96, 256],
     "generation": "python -I -S scripts/generate_branding_assets.py",
+    "generation_inputs": ["woff_mate_app_icon_master.svg", "woff_mate_app_icon_small.svg"],
+    "generated_derivatives": ["woff_mate_app.ico", "brand-review.png", "windows-icon-review.png", "SHA256SUMS"],
     "encoding": "PNG-compressed 32-bit straight-alpha RGBA ICO entries",
     "future_issue_82_consumption": "Issue #82 should consume woff_mate_app.ico for PyInstaller and use the canonical and small SVG masters to diagnose packaged shortcut, taskbar, window-icon, and DPI behavior."
   },

@@ -1,18 +1,22 @@
-"""Generate deterministic WoFF Mate identity, Windows icon, and review assets.
+"""Generate deterministic derivatives from canonical WoFF Mate branding SVGs.
 
-The generator deliberately uses only the Python standard library. Canonical
-SVGs remain editable vector sources; PNG payloads are generated only for the
-Windows ICO and composite review evidence.
+The generator deliberately uses only the Python standard library. It validates
+and consumes the committed SVG artwork without rewriting it, then emits the
+Windows ICO, composite review evidence, and checksum inventories.
 """
 
 from __future__ import annotations
 
 import argparse
 import binascii
+import hashlib
 import math
+import re
 import struct
 import zlib
+from dataclasses import dataclass
 from pathlib import Path
+from xml.etree import ElementTree as ET
 
 
 INK = (32, 29, 24, 255)
@@ -27,20 +31,63 @@ MUTED_DARK = (194, 188, 175, 255)
 MUTED_INK = (91, 83, 69, 255)
 TRANSPARENT = (0, 0, 0, 0)
 SVG_NS = "http://www.w3.org/2000/svg"
-
-WORDMARK_VIEWBOX = (768, 192)
-SYMBOL_VIEWBOX = (256, 256)
-APP_VIEWBOX = (1024, 1024)
+SVG_TAG = f"{{{SVG_NS}}}svg"
 ICO_SIZES = (16, 24, 32, 48, 256)
 REVIEW_SIZES = (16, 20, 24, 30, 32, 36, 40, 48, 60, 64, 72, 80, 96, 256)
+CANONICAL_SVG_NAMES = (
+    "woff_mate_wordmark_dark.svg",
+    "woff_mate_wordmark_light.svg",
+    "woff_mate_wordmark_v2.svg",
+    "woff_mate_symbol_dark.svg",
+    "woff_mate_symbol_light.svg",
+    "woff_mate_symbol_v2.svg",
+    "woff_mate_app_icon_master.svg",
+    "woff_mate_app_icon_small.svg",
+)
+PACKAGE_CHECKSUM_NAMES = (
+    "README.md",
+    "manifest.json",
+    "woff_mate_app.ico",
+    "woff_mate_app_icon_master.svg",
+    "woff_mate_app_icon_small.svg",
+    "woff_mate_symbol_dark.svg",
+    "woff_mate_symbol_light.svg",
+    "woff_mate_symbol_v2.svg",
+    "woff_mate_wordmark_dark.svg",
+    "woff_mate_wordmark_light.svg",
+    "woff_mate_wordmark_v2.svg",
+)
+NUMBER_PATTERN = r"-?(?:\d+(?:\.\d*)?|\.\d+)"
 
-MASTER_W = ((200, 318), (272, 706), (352, 512), (432, 706), (496, 318))
-MASTER_M = ((560, 706), (560, 318), (700, 548), (840, 318), (840, 706))
-SMALL_W = ((176, 286), (250, 738), (348, 500), (446, 738), (512, 286))
-SMALL_M = ((562, 738), (562, 286), (700, 526), (838, 286), (838, 738))
-MASTER_TILE_OUTER = (72, 72, 952, 952, 150)
-MASTER_TILE_INNER = (96, 96, 928, 928, 126)
-SMALL_TILE_OUTER = (64, 64, 960, 960, 172)
+
+class SvgValidationError(ValueError):
+    """Raised when canonical artwork leaves the supported, fail-closed subset."""
+
+
+@dataclass(frozen=True)
+class SvgPath:
+    points: tuple[tuple[float, float], ...]
+    stroke: tuple[int, int, int, int]
+    stroke_width: float
+    linecap: str
+    linejoin: str
+
+
+@dataclass(frozen=True)
+class SvgRect:
+    x: float
+    y: float
+    width: float
+    height: float
+    radius: float
+    fill: tuple[int, int, int, int]
+
+
+@dataclass(frozen=True)
+class SvgArtwork:
+    viewbox_width: float
+    viewbox_height: float
+    shapes: tuple[SvgPath | SvgRect, ...]
 
 
 FONT = {
@@ -195,45 +242,293 @@ def _rounded_rect_contains(
     return math.hypot(x - nearest_x, y - nearest_y) <= radius
 
 
-def _sample_app_icon(size: int, *, small: bool) -> Canvas:
-    samples = 4
-    output = Canvas(size, size, TRANSPARENT)
-    w_points = SMALL_W if small else MASTER_W
-    m_points = SMALL_M if small else MASTER_M
-    stroke = 92 if small else 72
-    outer = SMALL_TILE_OUTER if small else MASTER_TILE_OUTER
-    for py in range(size):
-        for px in range(size):
+def _number(value: str, *, context: str) -> float:
+    if re.fullmatch(NUMBER_PATTERN, value) is None:
+        raise SvgValidationError(f"unsupported numeric value for {context}: {value!r}")
+    return float(value)
+
+
+def _color(value: str, *, context: str) -> tuple[int, int, int, int]:
+    if re.fullmatch(r"#[0-9A-Fa-f]{6}", value) is None:
+        raise SvgValidationError(f"unsupported color for {context}: {value!r}")
+    return (
+        int(value[1:3], 16),
+        int(value[3:5], 16),
+        int(value[5:7], 16),
+        255,
+    )
+
+
+def _attributes(
+    element: ET.Element, expected: set[str], *, context: str
+) -> dict[str, str]:
+    actual = set(element.attrib)
+    if actual != expected:
+        raise SvgValidationError(
+            f"unsupported attributes for {context}: expected {sorted(expected)}, "
+            f"found {sorted(actual)}"
+        )
+    return element.attrib
+
+
+def _transform(value: str) -> tuple[float, float, float]:
+    match = re.fullmatch(
+        rf"\s*translate\(\s*({NUMBER_PATTERN})[\s,]+({NUMBER_PATTERN})\s*\)"
+        rf"\s*scale\(\s*({NUMBER_PATTERN})\s*\)\s*",
+        value,
+    )
+    if match is None:
+        raise SvgValidationError(
+            "unsupported transform; expected translate(x y) scale(uniform)"
+        )
+    translate_x, translate_y, scale = (float(part) for part in match.groups())
+    if scale <= 0:
+        raise SvgValidationError("SVG scale must be positive")
+    return scale, translate_x, translate_y
+
+
+def _path_points(value: str) -> tuple[tuple[float, float], ...]:
+    remainder = re.sub(NUMBER_PATTERN, "", value)
+    if re.sub(r"[ML,\s]", "", remainder):
+        raise SvgValidationError(f"unsupported path syntax: {value!r}")
+    commands = re.findall(r"[A-Za-z]", value)
+    numbers = [float(part) for part in re.findall(NUMBER_PATTERN, value)]
+    if not commands or commands[0] != "M" or any(command != "L" for command in commands[1:]):
+        raise SvgValidationError("only one M followed by L path commands is supported")
+    if len(numbers) != len(commands) * 2:
+        raise SvgValidationError("every supported path command must contain one x/y pair")
+    points = tuple(zip(numbers[::2], numbers[1::2]))
+    if len(points) < 2:
+        raise SvgValidationError("canonical paths require at least two points")
+    return points
+
+
+def _parse_svg(path: Path) -> SvgArtwork:
+    payload = path.read_text(encoding="utf-8")
+    lowered = payload.lower()
+    for forbidden in ("<!doctype", "<!entity", "<script", "<image", "<text"):
+        if forbidden in lowered:
+            raise SvgValidationError(f"unsupported SVG structure in {path.name}: {forbidden}")
+
+    root = ET.fromstring(payload)
+    if root.tag != SVG_TAG:
+        raise SvgValidationError(f"{path.name} must use the SVG namespace")
+    root_attributes = _attributes(
+        root, {"width", "height", "viewBox"}, context=f"{path.name} root"
+    )
+    viewbox = root_attributes["viewBox"].split()
+    if len(viewbox) != 4:
+        raise SvgValidationError(f"{path.name} viewBox must contain four numbers")
+    origin_x, origin_y, viewbox_width, viewbox_height = (
+        _number(value, context=f"{path.name} viewBox") for value in viewbox
+    )
+    if origin_x != 0 or origin_y != 0 or viewbox_width <= 0 or viewbox_height <= 0:
+        raise SvgValidationError(f"{path.name} requires a positive zero-origin viewBox")
+    declared_width = _number(root_attributes["width"], context=f"{path.name} width")
+    declared_height = _number(root_attributes["height"], context=f"{path.name} height")
+    if (declared_width, declared_height) != (viewbox_width, viewbox_height):
+        raise SvgValidationError(
+            f"{path.name} width/height must match its viewBox dimensions"
+        )
+    if root.text and root.text.strip():
+        raise SvgValidationError(f"unsupported text content in {path.name}")
+
+    shapes: list[SvgPath | SvgRect] = []
+
+    def visit(parent: ET.Element, inherited: tuple[float, float, float]) -> None:
+        inherited_scale, inherited_x, inherited_y = inherited
+        for element in parent:
+            if element.text and element.text.strip():
+                raise SvgValidationError(f"unsupported text content in {path.name}")
+            if element.tail and element.tail.strip():
+                raise SvgValidationError(f"unsupported text tail in {path.name}")
+            namespace_prefix = f"{{{SVG_NS}}}"
+            if not isinstance(element.tag, str) or not element.tag.startswith(
+                namespace_prefix
+            ):
+                raise SvgValidationError(
+                    f"unsupported non-SVG element in {path.name}: {element.tag!r}"
+                )
+            local_name = element.tag[len(namespace_prefix) :]
+            if local_name == "g":
+                attributes = _attributes(
+                    element, {"transform"}, context=f"{path.name} group"
+                )
+                local_scale, local_x, local_y = _transform(attributes["transform"])
+                visit(
+                    element,
+                    (
+                        inherited_scale * local_scale,
+                        inherited_x + inherited_scale * local_x,
+                        inherited_y + inherited_scale * local_y,
+                    ),
+                )
+                continue
+            if local_name == "path":
+                attributes = element.attrib
+                required_path_attributes = {
+                    "d",
+                    "fill",
+                    "stroke",
+                    "stroke-width",
+                    "stroke-linecap",
+                }
+                actual_path_attributes = set(attributes)
+                if not required_path_attributes.issubset(actual_path_attributes) or (
+                    actual_path_attributes - required_path_attributes
+                ) - {"stroke-linejoin"}:
+                    raise SvgValidationError(
+                        f"unsupported attributes for {path.name} path: "
+                        f"found {sorted(actual_path_attributes)}"
+                    )
+                if attributes["fill"] != "none":
+                    raise SvgValidationError("canonical paths must use fill=none")
+                if attributes["stroke-linecap"] != "round":
+                    raise SvgValidationError("canonical paths require round line caps")
+                points_untransformed = _path_points(attributes["d"])
+                linejoin = attributes.get("stroke-linejoin")
+                if linejoin not in (None, "round"):
+                    raise SvgValidationError("canonical paths require round line joins")
+                if linejoin is None and len(points_untransformed) != 2:
+                    raise SvgValidationError(
+                        "stroke-linejoin may be omitted only for a two-point path"
+                    )
+                points = tuple(
+                    (
+                        inherited_x + inherited_scale * x,
+                        inherited_y + inherited_scale * y,
+                    )
+                    for x, y in points_untransformed
+                )
+                stroke_width = _number(
+                    attributes["stroke-width"], context="stroke width"
+                )
+                if stroke_width <= 0:
+                    raise SvgValidationError("canonical path stroke width must be positive")
+                shapes.append(
+                    SvgPath(
+                        points=points,
+                        stroke=_color(attributes["stroke"], context="path stroke"),
+                        stroke_width=stroke_width * inherited_scale,
+                        linecap="round",
+                        linejoin=linejoin or "round",
+                    )
+                )
+                continue
+            if local_name == "rect":
+                attributes = _attributes(
+                    element,
+                    {"x", "y", "width", "height", "rx", "fill"},
+                    context=f"{path.name} rect",
+                )
+                width = _number(attributes["width"], context="rect width")
+                height = _number(attributes["height"], context="rect height")
+                radius = _number(attributes["rx"], context="rect radius")
+                if width <= 0 or height <= 0 or radius < 0:
+                    raise SvgValidationError("rectangle dimensions must be valid")
+                if radius > min(width, height) / 2:
+                    raise SvgValidationError("rectangle radius exceeds half its short side")
+                shapes.append(
+                    SvgRect(
+                        x=(
+                            inherited_x
+                            + inherited_scale * _number(attributes["x"], context="rect x")
+                        ),
+                        y=(
+                            inherited_y
+                            + inherited_scale * _number(attributes["y"], context="rect y")
+                        ),
+                        width=width * inherited_scale,
+                        height=height * inherited_scale,
+                        radius=radius * inherited_scale,
+                        fill=_color(attributes["fill"], context="rect fill"),
+                    )
+                )
+                continue
+            raise SvgValidationError(
+                f"unsupported SVG element in {path.name}: <{local_name}>"
+            )
+
+    visit(root, (1.0, 0.0, 0.0))
+    if not shapes:
+        raise SvgValidationError(f"{path.name} contains no supported geometry")
+    return SvgArtwork(viewbox_width, viewbox_height, tuple(shapes))
+
+
+def _draw_polyline(canvas: Canvas, points: list[tuple[float, float]], width: float, color: tuple[int, int, int, int]) -> None:
+    radius = width / 2
+    for start, end in zip(points, points[1:]):
+        left = max(0, math.floor(min(start[0], end[0]) - radius))
+        right = min(canvas.width - 1, math.ceil(max(start[0], end[0]) + radius))
+        top = max(0, math.floor(min(start[1], end[1]) - radius))
+        bottom = min(canvas.height - 1, math.ceil(max(start[1], end[1]) + radius))
+        for y in range(top, bottom + 1):
+            for x in range(left, right + 1):
+                if _distance_to_segment(x + 0.5, y + 0.5, *start, *end) <= radius:
+                    canvas.set(x, y, color)
+
+
+def _draw_rounded_rect(
+    canvas: Canvas,
+    left: float,
+    top: float,
+    right: float,
+    bottom: float,
+    radius: float,
+    color: tuple[int, int, int, int],
+) -> None:
+    for y in range(max(0, math.floor(top)), min(canvas.height, math.ceil(bottom))):
+        for x in range(max(0, math.floor(left)), min(canvas.width, math.ceil(right))):
+            if _rounded_rect_contains(
+                x + 0.5, y + 0.5, left, top, right, bottom, radius
+            ):
+                canvas.set(x, y, color)
+
+
+def _render_artwork(artwork: SvgArtwork, width: int, height: int) -> Canvas:
+    supersample = 4
+    high = Canvas(width * supersample, height * supersample, TRANSPARENT)
+    scale_x = high.width / artwork.viewbox_width
+    scale_y = high.height / artwork.viewbox_height
+    stroke_scale = min(scale_x, scale_y)
+    for shape in artwork.shapes:
+        if isinstance(shape, SvgPath):
+            _draw_polyline(
+                high,
+                [(x * scale_x, y * scale_y) for x, y in shape.points],
+                shape.stroke_width * stroke_scale,
+                shape.stroke,
+            )
+        else:
+            _draw_rounded_rect(
+                high,
+                shape.x * scale_x,
+                shape.y * scale_y,
+                (shape.x + shape.width) * scale_x,
+                (shape.y + shape.height) * scale_y,
+                shape.radius * stroke_scale,
+                shape.fill,
+            )
+    return _downsample(high, width, height, supersample)
+
+
+def _downsample(high: Canvas, width: int, height: int, scale: int) -> Canvas:
+    output = Canvas(width, height, TRANSPARENT)
+    count = scale * scale
+    for y in range(height):
+        for x in range(width):
             alpha_total = 0
             rgb_alpha_totals = [0, 0, 0]
-            for sy in range(samples):
-                for sx in range(samples):
-                    x = (px + (sx + 0.5) / samples) * 1024 / size
-                    y = (py + (sy + 0.5) / samples) * 1024 / size
-                    color = TRANSPARENT
-                    if _rounded_rect_contains(x, y, *outer):
-                        color = AVIATION
-                        if not small and not _rounded_rect_contains(
-                            x, y, *MASTER_TILE_INNER
-                        ):
-                            color = BRASS
-                        for points in (w_points, m_points):
-                            if any(
-                                _distance_to_segment(x, y, *start, *end) <= stroke / 2
-                                for start, end in zip(points, points[1:])
-                            ):
-                                color = ON_DARK
-                        divider_width = 26 if small else 18
-                        if 512 - divider_width / 2 <= x <= 512 + divider_width / 2 and 350 <= y <= 674:
-                            color = BRASS
-                    alpha = color[3]
+            for dy in range(scale):
+                for dx in range(scale):
+                    offset = high._offset(x * scale + dx, y * scale + dy)
+                    alpha = high.pixels[offset + 3]
                     alpha_total += alpha
                     for channel in range(3):
-                        rgb_alpha_totals[channel] += color[channel] * alpha
-            count = samples * samples
+                        rgb_alpha_totals[channel] += high.pixels[offset + channel] * alpha
             output.set(
-                px,
-                py,
+                x,
+                y,
                 _straight_alpha_average(rgb_alpha_totals, alpha_total, count),
             )
     return output
@@ -255,7 +550,8 @@ def _straight_alpha_average(
 
 
 def _png_chunk(kind: bytes, data: bytes) -> bytes:
-    return struct.pack(">I", len(data)) + kind + data + struct.pack(">I", binascii.crc32(kind + data) & 0xFFFFFFFF)
+    checksum = binascii.crc32(kind + data) & 0xFFFFFFFF
+    return struct.pack(">I", len(data)) + kind + data + struct.pack(">I", checksum)
 
 
 def _png_bytes(canvas: Canvas) -> bytes:
@@ -281,188 +577,16 @@ def _ico_bytes(entries: list[tuple[int, bytes]]) -> bytes:
     for size, png in entries:
         dimension = 0 if size == 256 else size
         directory.extend(
-            struct.pack("<BBBBHHII", dimension, dimension, 0, 0, 1, 32, len(png), offset)
+            struct.pack(
+                "<BBBBHHII", dimension, dimension, 0, 0, 1, 32, len(png), offset
+            )
         )
         payload.extend(png)
         offset += len(png)
     return bytes(directory + payload)
 
 
-def _polyline_path(points: tuple[tuple[int, int], ...]) -> str:
-    return "M " + " L ".join(f"{x} {y}" for x, y in points)
-
-
-def _letter_paths(character: str, x: float, y: float, width: float, height: float) -> list[list[tuple[float, float]]]:
-    left, right, top, bottom = x, x + width, y, y + height
-    middle = y + height * 0.5
-    if character == "W":
-        return [[(left, top), (left + width * 0.22, bottom), (left + width * 0.5, middle), (left + width * 0.78, bottom), (right, top)]]
-    if character == "O":
-        return [[(left + width * 0.18, top), (right - width * 0.18, top), (right, top + height * 0.18), (right, bottom - height * 0.18), (right - width * 0.18, bottom), (left + width * 0.18, bottom), (left, bottom - height * 0.18), (left, top + height * 0.18), (left + width * 0.18, top)]]
-    if character == "F":
-        return [[(left, bottom), (left, top), (right, top)], [(left, middle), (right - width * 0.15, middle)]]
-    if character == "M":
-        return [[(left, bottom), (left, top), (left + width * 0.5, middle), (right, top), (right, bottom)]]
-    if character == "A":
-        return [[(left, bottom), (left + width * 0.5, top), (right, bottom)], [(left + width * 0.22, middle + height * 0.08), (right - width * 0.22, middle + height * 0.08)]]
-    if character == "T":
-        return [[(left, top), (right, top)], [(left + width * 0.5, top), (left + width * 0.5, bottom)]]
-    if character == "E":
-        return [[(right, top), (left, top), (left, bottom), (right, bottom)], [(left, middle), (right - width * 0.12, middle)]]
-    raise ValueError(character)
-
-
-def _svg_path(points: list[tuple[float, float]], *, color: str, width: float) -> str:
-    coordinates = " L ".join(f"{x:g} {y:g}" for x, y in points)
-    return (
-        f'  <path d="M {coordinates}" fill="none" stroke="{color}" '
-        f'stroke-width="{width:g}" stroke-linecap="round" stroke-linejoin="round"/>\n'
-    )
-
-
-def _symbol_svg(color: str, *, accent: str | None = None) -> str:
-    divider = ""
-    if accent:
-        divider = f'  <rect x="128" y="82" width="8" height="92" rx="4" fill="{accent}"/>\n'
-    return (
-        '<?xml version="1.0" encoding="UTF-8"?>\n'
-        f'<svg xmlns="{SVG_NS}" width="256" height="256" viewBox="0 0 256 256">\n'
-        f'  <path d="M 24 48 L 48 208 L 72 126 L 96 208 L 120 48" fill="none" stroke="{color}" stroke-width="22" stroke-linecap="round" stroke-linejoin="round"/>\n'
-        f'  <path d="M 144 208 L 144 48 L 188 132 L 232 48 L 232 208" fill="none" stroke="{color}" stroke-width="22" stroke-linecap="round" stroke-linejoin="round"/>\n'
-        f"{divider}</svg>\n"
-    )
-
-
-def _wordmark_svg(color: str, *, accent: str | None = None) -> str:
-    parts = [
-        '<?xml version="1.0" encoding="UTF-8"?>\n',
-        f'<svg xmlns="{SVG_NS}" width="768" height="192" viewBox="0 0 768 192">\n',
-        '  <g transform="translate(16 16) scale(0.625)">\n',
-        f'    <path d="M 24 48 L 48 208 L 72 126 L 96 208 L 120 48" fill="none" stroke="{color}" stroke-width="22" stroke-linecap="round" stroke-linejoin="round"/>\n',
-        f'    <path d="M 144 208 L 144 48 L 188 132 L 232 48 L 232 208" fill="none" stroke="{color}" stroke-width="22" stroke-linecap="round" stroke-linejoin="round"/>\n',
-        "  </g>\n",
-    ]
-    divider_color = accent or color
-    parts.append(f'  <rect x="188" y="34" width="8" height="124" rx="4" fill="{divider_color}"/>\n')
-    for character, x in zip("WOFF", (224, 314, 404, 494)):
-        for points in _letter_paths(character, x, 30, 62, 76):
-            parts.append(_svg_path(points, color=color, width=13))
-    for character, x in zip("MATE", (228, 310, 392, 474)):
-        for points in _letter_paths(character, x, 126, 46, 38):
-            parts.append(_svg_path(points, color=color, width=9))
-    parts.append(f'  <path d="M 548 145 L 716 145" fill="none" stroke="{divider_color}" stroke-width="5" stroke-linecap="round"/>\n')
-    parts.append(f'  <rect x="724" y="139" width="12" height="12" rx="3" fill="{divider_color}"/>\n')
-    parts.append("</svg>\n")
-    return "".join(parts)
-
-
-def _app_svg(*, small: bool) -> str:
-    if small:
-        tile = _tile_rect_svg(SMALL_TILE_OUTER, "#18231F")
-        w_path = _polyline_path(SMALL_W)
-        m_path = _polyline_path(SMALL_M)
-        stroke = 92
-        divider_width = 26
-    else:
-        tile = (
-            _tile_rect_svg(MASTER_TILE_OUTER, "#C2A86B")
-            + _tile_rect_svg(MASTER_TILE_INNER, "#18231F")
-        )
-        w_path = _polyline_path(MASTER_W)
-        m_path = _polyline_path(MASTER_M)
-        stroke = 72
-        divider_width = 18
-    return (
-        '<?xml version="1.0" encoding="UTF-8"?>\n'
-        f'<svg xmlns="{SVG_NS}" width="1024" height="1024" viewBox="0 0 1024 1024">\n'
-        + tile
-        + f'  <path d="{w_path}" fill="none" stroke="#F4EFE2" stroke-width="{stroke}" stroke-linecap="round" stroke-linejoin="round"/>\n'
-        + f'  <path d="{m_path}" fill="none" stroke="#F4EFE2" stroke-width="{stroke}" stroke-linecap="round" stroke-linejoin="round"/>\n'
-        + f'  <rect x="{512 - divider_width // 2}" y="350" width="{divider_width}" height="324" rx="{divider_width // 2}" fill="#C2A86B"/>\n'
-        + "</svg>\n"
-    )
-
-
-def _tile_rect_svg(bounds: tuple[int, int, int, int, int], color: str) -> str:
-    left, top, right, bottom, radius = bounds
-    return (
-        f'  <rect x="{left}" y="{top}" width="{right - left}" '
-        f'height="{bottom - top}" rx="{radius}" fill="{color}"/>\n'
-    )
-
-
-def _render_symbol(width: int, height: int, *, color: tuple[int, int, int, int], accent: tuple[int, int, int, int] | None = None) -> Canvas:
-    scale = 4
-    high = Canvas(width * scale, height * scale, TRANSPARENT)
-
-    def transform(point: tuple[float, float]) -> tuple[float, float]:
-        return point[0] / 256 * width * scale, point[1] / 256 * height * scale
-
-    _draw_polyline(high, [transform(point) for point in ((24, 48), (48, 208), (72, 126), (96, 208), (120, 48))], 22 / 256 * width * scale, color)
-    _draw_polyline(high, [transform(point) for point in ((144, 208), (144, 48), (188, 132), (232, 48), (232, 208))], 22 / 256 * width * scale, color)
-    if accent:
-        high.fill_rect(round(128 / 256 * width * scale), round(82 / 256 * height * scale), max(1, round(8 / 256 * width * scale)), round(92 / 256 * height * scale), accent)
-    return _downsample(high, width, height, scale)
-
-
-def _draw_polyline(canvas: Canvas, points: list[tuple[float, float]], width: float, color: tuple[int, int, int, int]) -> None:
-    radius = width / 2
-    for start, end in zip(points, points[1:]):
-        left = max(0, math.floor(min(start[0], end[0]) - radius))
-        right = min(canvas.width - 1, math.ceil(max(start[0], end[0]) + radius))
-        top = max(0, math.floor(min(start[1], end[1]) - radius))
-        bottom = min(canvas.height - 1, math.ceil(max(start[1], end[1]) + radius))
-        for y in range(top, bottom + 1):
-            for x in range(left, right + 1):
-                if _distance_to_segment(x + 0.5, y + 0.5, *start, *end) <= radius:
-                    canvas.set(x, y, color)
-
-
-def _downsample(high: Canvas, width: int, height: int, scale: int) -> Canvas:
-    output = Canvas(width, height, TRANSPARENT)
-    count = scale * scale
-    for y in range(height):
-        for x in range(width):
-            alpha_total = 0
-            rgb_alpha_totals = [0, 0, 0]
-            for dy in range(scale):
-                for dx in range(scale):
-                    offset = high._offset(x * scale + dx, y * scale + dy)
-                    alpha = high.pixels[offset + 3]
-                    alpha_total += alpha
-                    for channel in range(3):
-                        rgb_alpha_totals[channel] += high.pixels[offset + channel] * alpha
-            output.set(
-                x,
-                y,
-                _straight_alpha_average(rgb_alpha_totals, alpha_total, count),
-            )
-    return output
-
-
-def _render_wordmark(width: int, height: int, *, color: tuple[int, int, int, int], accent: tuple[int, int, int, int] | None = None) -> Canvas:
-    scale = 4
-    high = Canvas(width * scale, height * scale, TRANSPARENT)
-    sx = width * scale / WORDMARK_VIEWBOX[0]
-    sy = height * scale / WORDMARK_VIEWBOX[1]
-    symbol = _render_symbol(round(160 * sx), round(160 * sy), color=color, accent=None)
-    high.paste(symbol, round(16 * sx), round(16 * sy))
-    divider_color = accent or color
-    high.fill_rect(round(188 * sx), round(34 * sy), max(1, round(8 * sx)), round(124 * sy), divider_color)
-    for character, x in zip("WOFF", (224, 314, 404, 494)):
-        for points in _letter_paths(character, x, 30, 62, 76):
-            transformed = [(px * sx, py * sy) for px, py in points]
-            _draw_polyline(high, transformed, 13 * min(sx, sy), color)
-    for character, x in zip("MATE", (228, 310, 392, 474)):
-        for points in _letter_paths(character, x, 126, 46, 38):
-            transformed = [(px * sx, py * sy) for px, py in points]
-            _draw_polyline(high, transformed, 9 * min(sx, sy), color)
-    _draw_polyline(high, [(548 * sx, 145 * sy), (716 * sx, 145 * sy)], 5 * min(sx, sy), divider_color)
-    high.fill_rect(round(724 * sx), round(139 * sy), max(1, round(12 * sx)), max(1, round(12 * sy)), divider_color)
-    return _downsample(high, width, height, scale)
-
-
-def _brand_review() -> Canvas:
+def _brand_review(sources: dict[str, SvgArtwork]) -> Canvas:
     canvas = Canvas(1600, 1000, GRAPHITE)
     canvas.text("WOFF MATE PRODUCT IDENTITY - ISSUE #132", 36, 28, ON_DARK, 4)
     canvas.text("PLOT + LEDGER / ORIGINAL CUSTOM VECTOR LETTERING", 36, 68, MUTED_DARK, 2)
@@ -470,31 +594,49 @@ def _brand_review() -> Canvas:
     canvas.fill_rect(28, 110, 1544, 330, AVIATION)
     canvas.frame(28, 110, 1544, 330, BRASS, 2)
     canvas.text("DARK SHELL / V2 LIMITED COLOR + MONOCHROME", 56, 136, BRASS, 3)
-    canvas.paste(_render_wordmark(720, 180, color=ON_DARK, accent=BRASS), 74, 205)
+    canvas.paste(
+        _render_artwork(sources["woff_mate_wordmark_v2.svg"], 720, 180), 74, 205
+    )
     canvas.text("V2 LIMITED COLOR", 74, 388, MUTED_DARK, 2)
-    canvas.paste(_render_symbol(180, 180, color=ON_DARK), 1100, 194)
+    canvas.paste(
+        _render_artwork(sources["woff_mate_symbol_light.svg"], 180, 180),
+        1100,
+        194,
+    )
     canvas.text("MONO LIGHT ON DARK", 810, 340, ON_DARK, 2)
 
     canvas.fill_rect(28, 466, 1544, 286, PAPER)
     canvas.frame(28, 466, 1544, 286, MUTED_INK, 2)
     canvas.text("PAPER / MONO DARK ON LIGHT", 56, 492, INK, 3)
-    canvas.paste(_render_wordmark(640, 160, color=INK), 72, 552)
-    canvas.paste(_render_symbol(150, 150, color=INK), 1115, 540)
+    canvas.paste(
+        _render_artwork(sources["woff_mate_wordmark_dark.svg"], 640, 160), 72, 552
+    )
+    canvas.paste(
+        _render_artwork(sources["woff_mate_symbol_dark.svg"], 150, 150),
+        1115,
+        540,
+    )
 
     canvas.fill_rect(28, 778, 1544, 184, FELT)
     canvas.frame(28, 778, 1544, 184, (70, 83, 76, 255), 2)
     canvas.text("CLEAR SPACE", 56, 804, BRASS, 2)
     canvas.frame(54, 840, 224, 88, BRASS, 2)
-    canvas.paste(_render_wordmark(160, 40, color=ON_DARK), 86, 864)
+    canvas.paste(
+        _render_artwork(sources["woff_mate_wordmark_light.svg"], 160, 40),
+        86,
+        864,
+    )
     canvas.text("MIN 160 PX WORDMARK", 322, 866, ON_DARK, 2)
     canvas.frame(720, 824, 104, 104, BRASS, 2)
-    canvas.paste(_render_symbol(24, 24, color=ON_DARK), 760, 864)
+    canvas.paste(
+        _render_artwork(sources["woff_mate_symbol_light.svg"], 24, 24), 760, 864
+    )
     canvas.text("MIN 24 PX SYMBOL", 858, 866, ON_DARK, 2)
     canvas.text("STATIC TOOLKIT-INDEPENDENT EVIDENCE", 1120, 930, MUTED_DARK, 2)
     return canvas
 
 
-def _windows_review() -> Canvas:
+def _windows_review(master: SvgArtwork, small: SvgArtwork) -> Canvas:
     canvas = Canvas(1800, 1200, GRAPHITE)
     canvas.text("WOFF MATE WINDOWS ICON - STATIC REVIEW", 32, 24, ON_DARK, 4)
     canvas.text("TARGET SIZES ARE REVIEW EXPORTS / ICO EMBEDS 16 24 32 48 256", 32, 64, MUTED_DARK, 2)
@@ -507,17 +649,19 @@ def _windows_review() -> Canvas:
         row, column = divmod(index, 7)
         x = 46 + column * cell_width
         y = 176 + row * 146
-        small = size <= 40
-        icon = _sample_app_icon(size, small=small)
+        use_small = size <= 40
+        icon = _render_artwork(small if use_small else master, size, size)
         canvas.fill_rect(x, y, 168, 120, PAPER_RAISED if (index + row) % 2 == 0 else PAPER)
         canvas.frame(x, y, 168, 120, MUTED_INK, 1)
         canvas.paste(icon, x + 12, y + (120 - size) // 2)
         canvas.text(f"{size} PX", x + 104, y + 48, INK, 1)
-        canvas.text("SMALL" if small else "MASTER", x + 104, y + 68, MUTED_INK, 1)
+        canvas.text(
+            "SMALL" if use_small else "MASTER", x + 104, y + 68, MUTED_INK, 1
+        )
 
     canvas.fill_rect(1396, 154, 344, 312, PAPER_RAISED)
     canvas.frame(1396, 154, 344, 312, MUTED_INK, 1)
-    canvas.paste(_sample_app_icon(256, small=False), 1440, 174)
+    canvas.paste(_render_artwork(master, 256, 256), 1440, 174)
     canvas.text("256 PX / MASTER", 1460, 446, INK, 2)
 
     canvas.fill_rect(24, 522, 1040, 646, AVIATION)
@@ -525,7 +669,7 @@ def _windows_review() -> Canvas:
     canvas.text("PIXEL CLOSE REVIEW - 16 / 20 / 24 / 32", 50, 548, BRASS, 3)
     for index, size in enumerate((16, 20, 24, 32)):
         x = 52 + index * 252
-        natural = _sample_app_icon(size, small=True)
+        natural = _render_artwork(small, size, size)
         canvas.text(f"{size} PX NATURAL", x, 602, ON_DARK, 2)
         canvas.paste(natural, x, 636)
         canvas.text("8X", x, 688, MUTED_DARK, 2)
@@ -538,17 +682,17 @@ def _windows_review() -> Canvas:
     canvas.text("STATIC CONTEXT", 1118, 548, BRASS, 3)
     canvas.text("SHORTCUT", 1120, 606, ON_DARK, 2)
     canvas.fill_rect(1120, 636, 620, 106, PAPER_RAISED)
-    canvas.paste(_sample_app_icon(64, small=False), 1144, 656)
+    canvas.paste(_render_artwork(master, 64, 64), 1144, 656)
     canvas.text("WOFF MATE", 1234, 678, INK, 3)
 
     canvas.text("TASKBAR", 1120, 784, ON_DARK, 2)
     canvas.fill_rect(1120, 814, 620, 64, GRAPHITE)
     canvas.fill_rect(1308, 822, 48, 48, FELT)
-    canvas.paste(_sample_app_icon(32, small=True), 1316, 830)
+    canvas.paste(_render_artwork(small, 32, 32), 1316, 830)
 
     canvas.text("WINDOW / APP ICON", 1120, 920, ON_DARK, 2)
     canvas.fill_rect(1120, 950, 620, 54, PAPER_RAISED)
-    canvas.paste(_sample_app_icon(20, small=True), 1138, 967)
+    canvas.paste(_render_artwork(small, 20, 20), 1138, 967)
     canvas.text("WOFF MATE", 1174, 966, INK, 2)
     canvas.text("STATIC EVIDENCE / DEFER NATIVE WINDOWS TO ISSUE #82", 1120, 1084, MUTED_DARK, 1)
     return canvas
@@ -560,26 +704,38 @@ def _write_outputs(root: Path) -> None:
     asset_root.mkdir(parents=True, exist_ok=True)
     evidence_root.mkdir(parents=True, exist_ok=True)
 
-    svg_outputs = {
-        "woff_mate_wordmark_dark.svg": _wordmark_svg("#201D18"),
-        "woff_mate_wordmark_light.svg": _wordmark_svg("#F4EFE2"),
-        "woff_mate_wordmark_v2.svg": _wordmark_svg("#F4EFE2", accent="#C2A86B"),
-        "woff_mate_symbol_dark.svg": _symbol_svg("#201D18"),
-        "woff_mate_symbol_light.svg": _symbol_svg("#F4EFE2"),
-        "woff_mate_symbol_v2.svg": _symbol_svg("#F4EFE2", accent="#C2A86B"),
-        "woff_mate_app_icon_master.svg": _app_svg(small=False),
-        "woff_mate_app_icon_small.svg": _app_svg(small=True),
+    sources = {
+        filename: _parse_svg(asset_root / filename)
+        for filename in CANONICAL_SVG_NAMES
     }
-    for filename, payload in svg_outputs.items():
-        (asset_root / filename).write_text(payload, encoding="utf-8", newline="\n")
+    master = sources["woff_mate_app_icon_master.svg"]
+    small = sources["woff_mate_app_icon_small.svg"]
 
     icon_entries = []
     for size in ICO_SIZES:
-        canvas = _sample_app_icon(size, small=size <= 32)
+        canvas = _render_artwork(small if size <= 32 else master, size, size)
         icon_entries.append((size, _png_bytes(canvas)))
     (asset_root / "woff_mate_app.ico").write_bytes(_ico_bytes(icon_entries))
-    (evidence_root / "brand-review.png").write_bytes(_png_bytes(_brand_review()))
-    (evidence_root / "windows-icon-review.png").write_bytes(_png_bytes(_windows_review()))
+    (evidence_root / "brand-review.png").write_bytes(
+        _png_bytes(_brand_review(sources))
+    )
+    (evidence_root / "windows-icon-review.png").write_bytes(
+        _png_bytes(_windows_review(master, small))
+    )
+    _write_checksums(asset_root / "SHA256SUMS", asset_root, PACKAGE_CHECKSUM_NAMES)
+    _write_checksums(
+        evidence_root / "SHA256SUMS",
+        evidence_root,
+        ("brand-review.png", "windows-icon-review.png"),
+    )
+
+
+def _write_checksums(path: Path, root: Path, names: tuple[str, ...]) -> None:
+    lines = [
+        f"{hashlib.sha256((root / name).read_bytes()).hexdigest()}  {name}\n"
+        for name in names
+    ]
+    path.write_text("".join(lines), encoding="ascii", newline="\n")
 
 
 def main() -> int:

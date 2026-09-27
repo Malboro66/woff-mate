@@ -46,6 +46,12 @@ font file at design time or runtime. Canonical SVGs, generated derivatives,
 and documentation are distributed under the repository MIT license with no
 additional attribution or notice obligation.
 
+The eight committed SVGs are authoritative editable sources. The repository
+generator validates and rasterizes their constrained `path`, `rect`, and
+approved uniform-transform vocabulary; it does not reconstruct or overwrite
+the SVG artwork from parallel Python geometry. Unsupported structures fail
+closed. The ICO, review PNGs, and checksum inventories are derivatives.
+
 The work does not copy, trace, redraw, or adapt a third-party logo or insignia.
 The existing root `icon.png` was inspected only for duplication and conflict;
 its winged-insignia construction is explicitly excluded and none of its pixels
@@ -119,6 +125,10 @@ because it preserves contrast across uncontrolled light and dark shell
 backgrounds. The critical monogram remains inside the central 75%; the master
 tile's exact 72/1024 margin is 7.03125% on every side.
 
+Both app-icon SVGs define the registry divider as a rounded rectangle whose
+`rx` is half its width. Derivative rasterization consumes those exact canonical
+bounds, radius, and fill; it does not substitute a square-ended rectangle.
+
 The small optical master serves 16, 20, 24, 30, 32, 36, and 40 px. It preserves
 the same silhouette while widening the strokes, opening counters, and removing
 the fragile inset border. The canonical master serves 48, 60, 64, 72, 80, 96,
@@ -142,6 +152,10 @@ Issue #132 completes the product identity, canonical vector sources, one small
 optical master, deterministic ICO, static review, provenance, and usage rules.
 Future Issue #82 should use `woff/assets/ui/branding/woff_mate_app.ico` as the
 candidate PyInstaller icon and retain both app-icon SVG masters for diagnosis.
+
+Run `python -I -S scripts/generate_branding_assets.py` after an intentional SVG
+edit to validate the canonical sources and refresh only the ICO, review PNGs,
+and checksum inventories. The command never rewrites the canonical SVG files.
 
 The actual PyInstaller bundle consumption remains deferred; native Windows
 shortcut, taskbar, and window-icon behavior remains deferred, as do real Qt

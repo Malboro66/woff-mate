@@ -2,7 +2,9 @@ from __future__ import annotations
 
 import hashlib
 import json
+import math
 import re
+import shutil
 import struct
 import subprocess
 import sys
@@ -31,6 +33,7 @@ SVG_ASSETS = {
     "woff_mate_app_icon_small.svg",
 }
 GENERATED_ASSETS = SVG_ASSETS | {"woff_mate_app.ico"}
+GENERATOR_INPUTS = SVG_ASSETS | {"README.md", "manifest.json"}
 
 
 def _manifest() -> dict[str, object]:
@@ -116,6 +119,32 @@ def _ico_entries(path: Path) -> dict[int, bytes]:
     return entries
 
 
+def _prepare_generator_root(root: Path) -> Path:
+    target = root / "woff" / "assets" / "ui" / "branding"
+    target.mkdir(parents=True)
+    for relative in GENERATOR_INPUTS:
+        shutil.copyfile(ASSET_ROOT / relative, target / relative)
+    return target
+
+
+def _run_generator(root: Path, *, check: bool = True) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(
+        [
+            sys.executable,
+            "-I",
+            "-S",
+            str(REPOSITORY_ROOT / "scripts" / "generate_branding_assets.py"),
+            "--output-root",
+            str(root),
+        ],
+        cwd=REPOSITORY_ROOT,
+        check=check,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+    )
+
+
 def test_q0_identity_decision_is_bounded_and_recorded() -> None:
     manifest = _manifest()
     q0 = manifest["q0"]
@@ -159,6 +188,19 @@ def test_manifest_paths_ids_and_provenance_are_complete() -> None:
     manifest = _manifest()
     assert manifest["schema_version"] == 1
     assert manifest["package_id"] == "woff-mate-product-identity"
+    source = manifest["source"]
+    assert isinstance(source, dict)
+    assert source["authority"] == (
+        "the eight committed SVG files are the authoritative editable artwork"
+    )
+    assert source["edit_workflow"] == (
+        "edit canonical SVGs directly; run the generator only to validate them and "
+        "refresh derivatives"
+    )
+    assert source["generator_behavior"] == (
+        "consumes canonical SVG geometry without rewriting SVG files; writes ICO, "
+        "review PNGs, and checksum inventories"
+    )
     assets = manifest["assets"]
     assert isinstance(assets, list)
     ids = [str(asset["id"]) for asset in assets]
@@ -347,13 +389,27 @@ def test_app_icon_svg_geometry_matches_raster_safe_area_contract() -> None:
         },
     ]
     assert all("stroke" not in rect.attrib for rect in master_rects[:2])
+    assert {
+        key: master_rects[2].attrib[key]
+        for key in ("x", "y", "width", "height", "rx", "fill")
+    } == {
+        "x": "503",
+        "y": "350",
+        "width": "18",
+        "height": "324",
+        "rx": "9",
+        "fill": "#C2A86B",
+    }
+    assert 2 * float(master_rects[2].attrib["rx"]) == float(
+        master_rects[2].attrib["width"]
+    )
     assert windows_icon["master_tile_geometry"] == {
         "outer_bounds": [72, 72, 952, 952],
         "outer_corner_radius": 150,
         "inner_bounds": [96, 96, 928, 928],
         "inner_corner_radius": 126,
         "construction": (
-            "nested filled rounded rectangles shared by canonical SVG and raster sampler"
+            "nested filled rounded rectangles consumed directly from the canonical SVG"
         ),
     }
 
@@ -370,11 +426,26 @@ def test_app_icon_svg_geometry_matches_raster_safe_area_contract() -> None:
         "rx": "172",
         "fill": "#18231F",
     }
+    small_rects = list(small.iter(f"{SVG_NAMESPACE}rect"))
+    assert {
+        key: small_rects[1].attrib[key]
+        for key in ("x", "y", "width", "height", "rx", "fill")
+    } == {
+        "x": "499",
+        "y": "350",
+        "width": "26",
+        "height": "324",
+        "rx": "13",
+        "fill": "#C2A86B",
+    }
+    assert 2 * float(small_rects[1].attrib["rx"]) == float(
+        small_rects[1].attrib["width"]
+    )
     assert windows_icon["small_tile_geometry"] == {
         "outer_bounds": [64, 64, 960, 960],
         "outer_corner_radius": 172,
         "construction": (
-            "single filled rounded rectangle shared by optical SVG and raster sampler"
+            "single filled rounded rectangle consumed directly from the optical SVG"
         ),
     }
 
@@ -486,26 +557,133 @@ def test_package_and_evidence_checksums_cover_deliverables() -> None:
 
 def test_generation_is_deterministic_and_stdlib_only(tmp_path: Path) -> None:
     script = REPOSITORY_ROOT / "scripts" / "generate_branding_assets.py"
-    subprocess.run(
-        [sys.executable, "-I", "-S", str(script), "--output-root", str(tmp_path)],
-        cwd=REPOSITORY_ROOT,
-        check=True,
-        capture_output=True,
-        text=True,
-        encoding="utf-8",
-    )
-    generated_asset_root = tmp_path / "woff" / "assets" / "ui" / "branding"
+    generated_asset_root = _prepare_generator_root(tmp_path)
+    canonical_before = {
+        relative: (generated_asset_root / relative).read_bytes()
+        for relative in SVG_ASSETS
+    }
+    _run_generator(tmp_path)
     generated_evidence_root = (
         tmp_path / "docs" / "ui" / "evidence" / "ui-v2-branding-2026-09-24"
     )
-    for relative in GENERATED_ASSETS:
-        assert (generated_asset_root / relative).read_bytes() == (ASSET_ROOT / relative).read_bytes()
+    assert {
+        relative: (generated_asset_root / relative).read_bytes()
+        for relative in SVG_ASSETS
+    } == canonical_before
+    for relative in ("woff_mate_app.ico", "SHA256SUMS"):
+        assert (generated_asset_root / relative).read_bytes() == (
+            ASSET_ROOT / relative
+        ).read_bytes()
     for relative in ("brand-review.png", "windows-icon-review.png"):
-        assert (generated_evidence_root / relative).read_bytes() == (EVIDENCE_ROOT / relative).read_bytes()
+        assert (generated_evidence_root / relative).read_bytes() == (
+            EVIDENCE_ROOT / relative
+        ).read_bytes()
+    assert (generated_evidence_root / "SHA256SUMS").read_bytes() == (
+        EVIDENCE_ROOT / "SHA256SUMS"
+    ).read_bytes()
 
     source = script.read_text(encoding="utf-8").lower()
     for forbidden in ("pillow", "cairosvg", "inkscape", "imagemagick", "openai", "requests"):
         assert forbidden not in source
+
+
+def test_canonical_svg_edits_drive_derivatives_and_keep_rounded_dividers(
+    tmp_path: Path,
+) -> None:
+    generated_asset_root = _prepare_generator_root(tmp_path)
+    replacements = {
+        "woff_mate_app_icon_master.svg": (
+            '<rect x="503" y="350" width="18" height="324" rx="9" fill="#C2A86B"/>',
+            '<rect x="448" y="350" width="128" height="324" rx="64" fill="#C2A86B"/>',
+        ),
+        "woff_mate_app_icon_small.svg": (
+            '<rect x="499" y="350" width="26" height="324" rx="13" fill="#C2A86B"/>',
+            '<rect x="448" y="350" width="128" height="324" rx="64" fill="#C2A86B"/>',
+        ),
+    }
+    for relative, (before, after) in replacements.items():
+        path = generated_asset_root / relative
+        payload = path.read_text(encoding="utf-8")
+        assert payload.count(before) == 1
+        path.write_text(payload.replace(before, after), encoding="utf-8", newline="\n")
+
+    canonical_before = {
+        relative: (generated_asset_root / relative).read_bytes()
+        for relative in SVG_ASSETS
+    }
+    _run_generator(tmp_path)
+    assert {
+        relative: (generated_asset_root / relative).read_bytes()
+        for relative in SVG_ASSETS
+    } == canonical_before
+
+    changed_entries = _ico_entries(generated_asset_root / "woff_mate_app.ico")
+    baseline_entries = _ico_entries(ASSET_ROOT / "woff_mate_app.ico")
+    assert tuple(sorted(changed_entries)) == ICO_SIZES
+    assert all(changed_entries[size] != baseline_entries[size] for size in ICO_SIZES)
+
+    square_dividers = {
+        "woff_mate_app_icon_master.svg": (
+            '<rect x="448" y="350" width="128" height="324" rx="64" fill="#C2A86B"/>',
+            '<rect x="503" y="350" width="18" height="324" rx="0" fill="#C2A86B"/>',
+        ),
+        "woff_mate_app_icon_small.svg": (
+            '<rect x="448" y="350" width="128" height="324" rx="64" fill="#C2A86B"/>',
+            '<rect x="499" y="350" width="26" height="324" rx="0" fill="#C2A86B"/>',
+        ),
+    }
+    for relative, (before, after) in square_dividers.items():
+        path = generated_asset_root / relative
+        payload = path.read_text(encoding="utf-8")
+        assert payload.count(before) == 1
+        path.write_text(
+            payload.replace(before, after),
+            encoding="utf-8",
+            newline="\n",
+        )
+    _run_generator(tmp_path)
+    square_entries = _ico_entries(generated_asset_root / "woff_mate_app.ico")
+
+    for size in (32, 48, 256):
+        rounded_rows = _rgba_rows(baseline_entries[size])
+        square_rows = _rgba_rows(square_entries[size])
+        scale = size / 1024
+        left_source, right_source, radius_source = (
+            (499, 525, 13) if size == 32 else (503, 521, 9)
+        )
+        left = max(0, int(left_source * scale))
+        right = min(size, math.ceil(right_source * scale))
+        top = max(0, int(350 * scale))
+        bottom = min(size, math.ceil(674 * scale))
+        radius = max(1, math.ceil(radius_source * scale))
+        assert any(
+            rounded_rows[y][x] != square_rows[y][x]
+            for y in range(top, min(bottom, top + radius + 1))
+            for x in range(left, right)
+        )
+        assert any(
+            rounded_rows[y][x] != square_rows[y][x]
+            for y in range(max(top, bottom - radius - 1), bottom)
+            for x in range(left, right)
+        )
+        middle = int(512 * scale)
+        assert rounded_rows[middle] == square_rows[middle]
+
+
+def test_generator_fails_closed_on_unsupported_canonical_svg(tmp_path: Path) -> None:
+    generated_asset_root = _prepare_generator_root(tmp_path)
+    symbol = generated_asset_root / "woff_mate_symbol_dark.svg"
+    payload = symbol.read_text(encoding="utf-8")
+    symbol.write_text(
+        payload.replace(
+            "</svg>", '  <circle cx="128" cy="128" r="12" fill="#201D18"/>\n</svg>'
+        ),
+        encoding="utf-8",
+        newline="\n",
+    )
+    result = _run_generator(tmp_path, check=False)
+    assert result.returncode != 0
+    assert "unsupported SVG element" in result.stderr
 
 
 def test_runtime_and_scope_boundaries_remain_intact() -> None:

@@ -2,7 +2,7 @@
 
 Issue: #132
 
-Evidence revision: `UIV2-BRANDING-2026-09-24-2`
+Evidence revision: `UIV2-BRANDING-2026-09-24-3`
 
 This directory contains two deterministic, synthetic, toolkit-independent PNG
 review composites generated from the canonical vector geometry. It contains no
@@ -65,6 +65,7 @@ Regenerate from the repository root:
 python -I -S scripts/generate_branding_assets.py
 ```
 
-The generator uses only the Python standard library. `SHA256SUMS` covers the
-two generated review composites. The asset package has its own checksum
-manifest and focused structural validation.
+The generator uses only the Python standard library. It reads and validates the
+committed canonical SVGs without rewriting them, then regenerates this evidence
+as a derivative. `SHA256SUMS` covers the two review composites. The asset
+package has its own checksum manifest and focused structural validation.
