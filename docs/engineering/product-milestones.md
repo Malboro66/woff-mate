@@ -111,7 +111,7 @@ The current priority is to convert the strong foundation into demonstrable produ
 1. Correct or explicitly disposition the blocking findings from the failed first **R1** review.
 2. Restore deterministic native Windows/local validation through #145.
 3. Resolve the remaining cycle 3.3.0 evidence/gate decision, including #87 and maintainer approval.
-4. After the existing P1 correction order, resolve #151's real-root output/input isolation and enforce #152's repository controls; then repeat the affected R1 scope against the corrected integrated revision and produce the reliable-companion/recovery demonstration before Gate A consideration.
+4. After the existing P1 correction order, resolve #151's real-root output/input isolation. #152's repository controls are already enforced and recorded; then repeat the affected R1 scope against the corrected integrated revision and produce the reliable-companion/recovery demonstration before Gate A consideration.
 5. Use the completed and integrated **#81** immutable read-only presentation/query contracts, built on the #136 domain contract integrated through PR #164, as authoritative input to the remaining UI evidence sequence.
 6. Execute **#82** as the current toolkit/packaging/scaling/accessibility feasibility-evidence step and explicitly document the permitted fixture-only prototype path in the ADR.
 7. Implement **#140 — P0 Functional Desktop Prototype**.

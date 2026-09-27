@@ -14,6 +14,7 @@ ROOT = Path(__file__).resolve().parents[2]
 POLICY = "docs/engineering/product-milestones.md"
 R1_RECORD = "docs/engineering/r1-integrity-baseline.md"
 SECURITY_BASELINE_RECORD = "docs/engineering/security-baseline-2026-09-10.md"
+MAIN_PROTECTION_RECORD = "docs/engineering/main-protection-2026-09-27.md"
 
 
 def _graph() -> dict[str, Any]:
@@ -282,7 +283,10 @@ def test_r1_follow_ups_are_registered_without_implicit_cycle_membership() -> Non
 def test_security_baseline_ownership_and_scheduling_are_reconciled() -> None:
     graph = _graph()
     items, evals, cycles = graph["work_items"], graph["evals"], graph["cycles"]
-    expected: dict[str, tuple[str, set[str], str, set[tuple[str, str]]]] = {
+    expected: dict[
+        str,
+        tuple[str, set[str], str, set[tuple[str, str]], str, str],
+    ] = {
         "issue-151": (
                 "platform",
                 {"Q0", "Q1", "Q3", "Q4", "Q5"},
@@ -291,37 +295,48 @@ def test_security_baseline_ownership_and_scheduling_are_reconciled() -> None:
                     ("issue-45", "satisfied"),
                     ("issue-157", "satisfied"),
                 },
+                "backlog",
+                "planned",
             ),
         "issue-152": (
             "governance", {"Q0", "Q1", "Q5"},
-            "EVAL-MAIN-PROTECTION-001", set(),
+            "EVAL-MAIN-PROTECTION-001", set(), "done", "implemented",
         ),
         "issue-153": (
             "governance", {"Q0", "Q1", "Q4", "Q5"},
-            "EVAL-SUPPLY-CHAIN-001", set(),
+            "EVAL-SUPPLY-CHAIN-001", set(), "backlog", "planned",
         ),
         "issue-154": (
             "governance", {"Q0", "Q1", "Q5"},
-            "EVAL-SECURITY-GOVERNANCE-001", set(),
+            "EVAL-SECURITY-GOVERNANCE-001", set(), "backlog", "planned",
         ),
         "issue-155": (
             "governance",
             {"Q0", "Q1", "Q4", "Q5"},
             "EVAL-RELEASE-PROVENANCE-001",
             {
-                ("issue-152", "unsatisfied"),
+                ("issue-152", "satisfied"),
                 ("issue-153", "unsatisfied"),
                 ("issue-154", "unsatisfied"),
             },
+            "backlog",
+            "planned",
         ),
     }
     cycle_members = {
         member for cycle in cycles.values() for member in cycle["members"]
     }
 
-    for item_id, (module, gates, eval_id, dependencies) in expected.items():
+    for item_id, (
+        module,
+        gates,
+        eval_id,
+        dependencies,
+        item_state,
+        eval_status,
+    ) in expected.items():
         item = items[item_id]
-        assert item["state"] == "backlog"
+        assert item["state"] == item_state
         assert item["module"] == module
         assert set(item["gates"]) == gates
         assert item["evals"] == [eval_id]
@@ -331,8 +346,10 @@ def test_security_baseline_ownership_and_scheduling_are_reconciled() -> None:
         } == dependencies
         assert item_id not in cycle_members
         assert evals[eval_id]["work_items"] == [item_id]
-        assert evals[eval_id]["status"] == "planned"
-        assert not evals[eval_id].get("enforced_by")
+        assert evals[eval_id]["status"] == eval_status
+        assert bool(evals[eval_id].get("enforced_by")) == (
+            eval_status == "implemented"
+        )
 
     record = _text(SECURITY_BASELINE_RECORD)
     quality = _text("docs/engineering/quality-gates.md")
@@ -355,15 +372,63 @@ def test_security_baseline_ownership_and_scheduling_are_reconciled() -> None:
         assert f"#{issue_number}" in catalog
     assert "not added to a q6 cycle" in record.lower()
     assert "#151 must be resolved" in quality
-    assert "#152 must be enforced and verified" in quality
+    assert "The #152 repository-protection guardrail is complete" in quality
     assert "#153 and #154 remain staged P3 work" in quality
     assert "#155 is pre-release work" in quality
     assert "Product Gate A remains unapproved." in quality
     assert "After the existing P1 correction order, resolve #151" in policy
-    assert "enforce #152's repository controls" in policy
+    assert "#152's repository controls are already enforced and recorded" in policy
     assert "#153 supply-chain hardening and #154 permanent security-governance" in policy
     assert "#155 remains pre-release work" in policy
     validate_graph(ROOT, graph)
+
+
+def test_main_protection_evidence_contract_is_recorded_without_approving_gate_a() -> None:
+    graph = _graph()
+    items, evals = graph["work_items"], graph["evals"]
+
+    assert items["issue-152"]["state"] == "done"
+    evaluation = evals["EVAL-MAIN-PROTECTION-001"]
+    assert evaluation["status"] == "implemented"
+    assert evaluation["enforced_by"] == ["woff/tests/test_product_milestones.py"]
+    assert {"id": "issue-152", "status": "satisfied"} in (
+        items["issue-155"]["depends_on"]
+    )
+
+    evidence = _text(MAIN_PROTECTION_RECORD)
+    for phrase in (
+        "74d3576e87efb112b1f42cc07100d496ff66bcd1",
+        "24065034",
+        "Protect main and require CI",
+        "Tests (Python 3.10)",
+        "Tests (Python 3.14)",
+        "Pyright",
+        "Windows smoke test",
+        "GitHub Actions",
+        "15368",
+        "Required approving reviews | `0`",
+        "Branch up to date before merge | Not required",
+        "Force pushes | Blocked",
+        "Branch deletion | Blocked",
+        "No configured bypass actors",
+        "Product Gate A remains NOT APPROVED",
+    ):
+        assert phrase in evidence
+
+    workflow = _text(".github/workflows/ci.yml")
+    for phrase in (
+        "name: Tests (Python ${{ matrix.python-version }})",
+        'python-version: ["3.10", "3.14"]',
+        "name: Pyright",
+        "name: Windows smoke test",
+    ):
+        assert phrase in workflow
+
+    baseline = _text(SECURITY_BASELINE_RECORD)
+    assert "The audit found no active branch protection or ruleset for `main`" in baseline
+    assert "Remediation verified on 2026-09-27" in baseline
+    assert Path(MAIN_PROTECTION_RECORD).name in baseline
+    assert "Product Gate A and public distribution remain unapproved" in baseline
 
 
 def test_review_revision_and_priority_contract() -> None:

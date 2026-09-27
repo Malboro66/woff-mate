@@ -181,11 +181,14 @@ CI success alone cannot satisfy or approve this gate.
 The revision-bound [2026-09-10 Security Baseline](security-baseline-2026-09-10.md)
 adds two focused guardrails without changing the existing P1 correction order:
 #151 must be resolved before Gate A can claim safe operation against real WoFF
-roots, and #152 must be enforced and verified before the next Product Gate
-approval. #152 is a repository-governance control, not an application or
-data-integrity defect. #153 and #154 remain staged P3 work and are not current
-Gate A blockers; #155 is pre-release work rather than a current development
-priority. Product Gate A remains unapproved.
+roots. The #152 repository-protection guardrail is complete: active GitHub
+ruleset `24065034` and its
+[revision-bound evidence](main-protection-2026-09-27.md) enforce and record the
+required control. This completion is repository governance, not an application
+or data-integrity change, and does not approve a Product Gate. #153 and #154
+remain staged P3 work and are not current Gate A blockers; #155 is pre-release
+work rather than a current development priority. Product Gate A remains
+unapproved.
 
 ### Q5-UI-ARCHITECTURE: R2 production retention decision
 
