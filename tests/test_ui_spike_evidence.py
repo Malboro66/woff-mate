@@ -477,8 +477,12 @@ def test_historical_observations_and_provenance_are_not_rewritten():
         evidence_contract()['validate_uia_result'](read_json('uia.json'))
 
 
-def test_regenerated_production_evidence_matches_current_build_inputs():
+def test_regenerated_production_evidence_matches_recorded_build_inputs():
     result = read_json('production-isolation-current.json')
+    assert result['source_commit'] == CURRENT_COMMIT
+    assert result['source_tree'] == CURRENT_TREE
+    assert subprocess.check_output([
+        'git', 'rev-parse', result['source_commit'] + '^{tree}'], cwd=ROOT).decode().strip() == CURRENT_TREE
     assert result['evidence_kind'] == 'regenerated production isolation'
     assert result['platform'] in {'Linux', 'Windows'}
     assert result['build_exit_codes'] == [0, 0]
@@ -486,8 +490,10 @@ def test_regenerated_production_evidence_matches_current_build_inputs():
                              ('evidence_contract.py.txt', 'contract_sha256')]:
         assert hashlib.sha256((EVIDENCE / source_name).read_bytes()).hexdigest() == result[key]
     for entry in result['build_inputs']:
-        # The observer builds committed bytes, independent of Windows checkout EOL.
-        data = subprocess.check_output(['git', 'show', 'HEAD:' + entry['path']], cwd=ROOT)
+        # Authenticate the measured revision, not a later packaging configuration.
+        # Missing history still fails; no current-file fallback or network fetch.
+        data = subprocess.check_output([
+            'git', 'show', result['source_commit'] + ':' + entry['path']], cwd=ROOT)
         assert len(data) == entry['bytes']
         assert hashlib.sha256(data).hexdigest() == entry['sha256'], entry['path']
     payload = json.dumps(result['build_inputs'], sort_keys=True, separators=(',', ':')).encode()

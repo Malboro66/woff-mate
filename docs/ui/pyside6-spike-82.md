@@ -5,10 +5,13 @@ Source synchronization: 2026-09-20; external Windows observations:
 2026-09-20/21 UTC, at `1817414`. Governance synchronization: 2026-09-22,
 from PR #167 at `e5b97b950b2dc3196c62b2ac6ed3a54f2c929ce7`.
 See the separate post-governance merge validation below.
-Recommendation: **Conditional Go for further investigation**.
-Production adoption and distribution remain blocked. This report evaluates the
-criteria, including explicit evidence gaps; it does **not** claim completion of
-#82, acceptance of either spike eval, Product Gates A/B, or the toolkit ADR.
+Recommendation: **Conditional Go** to continue the architecture/product process.
+The 2026-09-27 maintainer scope decision below concludes exploratory evidence
+collection for this feasibility spike. It does not approve production adoption,
+release, Product Gates A/B or the toolkit ADR. Issue closure and integration
+remain the maintainer's decisions; missing observations are not claimed as passes.
+The acceptance disposition below supersedes earlier completion-blocker wording
+in the historical validation ledgers, without changing any measured evidence.
 
 ## Baseline, authority and Q0
 
@@ -20,9 +23,10 @@ baseline, fixture digest, environment and experiment recipe.
 During original finalization, main advanced through #136/PR #164 (`143226d`).
 The current branch now includes that change and the #81 squash merge,
 `18faf9cd31be90ea5d74738e5cf299dfdbb9e832`, through source merge `0684805e6926b3d923d4017023b178ce8b198114`.
-Current authoritative governance main is
-`e5b97b950b2dc3196c62b2ac6ed3a54f2c929ce7`. Its five documentation changes
-preserve the integrated #81/#136 contracts and the #82 evidence boundary.
+The previous governance synchronization used
+`e5b97b950b2dc3196c62b2ac6ed3a54f2c929ce7`. Finalization integrates authoritative
+main `2dd6c5c49f1d373a42c873c9d0b6f9e1ce8670e2`, including #152 protection and
+the icon/portrait/branding work. That synchronization is not a measurement revision.
 The #80 catalog and every historical JSON observation remain unchanged.
 The following Q0 paragraph records the original investigation, not current issue states.
 
@@ -50,8 +54,9 @@ separate Data & System Status footer. The archived #79 Audit 4 is the current
 visual reference; stale unchecked text in closed #79 does not reopen it.
 Only Operations is fixture-backed here; other destinations are inert navigation
 placeholders. #81 is now closed and its graph dependency is satisfied.
-Formal #82 completion remains blocked by external evidence. The disposable
-exploration does not implement a query service or replace the final contracts.
+The bounded spike is submitted for the maintainer's integration decision. Deferred
+adoption/release evidence does not prolong this spike. The disposable exploration
+does not implement a query service or replace the final contracts.
 
 ## Candidate and environment matrix
 
@@ -320,36 +325,62 @@ PyInstaller explicitly disallows multiple Qt bindings in one build; the
 experiment additionally checks installed distributions and bundle filenames.
 [PyInstaller Qt hooks](https://pyinstaller.org/en/stable/hooks-config.html#qt).
 
-## Acceptance accounting and remaining blockers
+## Final acceptance disposition (maintainer scope decision, 2026-09-27)
 
-| #82 acceptance criterion | Classification | Evidence / limit |
+Screen-reader speech certification is **not a current product requirement** and
+was **not manually verified**. Narrator/NVDA speech, announcement timing and
+certification are outside current product-validation scope; no new AT campaign
+is required to conclude #82. Keyboard-only navigation, logical tab order, visible
+focus, naturally exposed accessible names/roles, basic UI Automation exposure,
+scaling and any serious blockers discovered remain relevant quality evidence.
+UIA exposure and Qt accessibility events do not prove spoken announcements.
+Every archived `announcements_verified: false` remains unchanged.
+
+`Conditional Go` means the measured evidence is sufficient to continue the
+architecture/product process, with the conditions below retained for adoption or
+release where applicable. It is not full Windows/Python matrix certification,
+ADR acceptance, permission to ship, or approval of a retained production UI.
+
+| Original #82 criterion | Final disposition | Evidence and explicit limit |
 |---|---|---|
-| Exactly one Qt binding | Satisfied | Historical and current isolated environments contain PySide6 only; source and artifact inventories exclude alternative bindings. |
-| Candidate version and rationale | Satisfied | PySide6/Qt/shiboken 6.11.2 and original metadata rationale preserved. No refreshed vendor policy claim. |
-| Wheel availability and smoke for every Python | Partially satisfied | Historical metadata covers five Python versions; current Windows source smoke covers 3.10/3.12/3.13/3.14. Python 3.11 remains unexecuted; current packaged/audit coverage is 3.10/3.14 only. |
-| Representative Windows 10/11 | Partially satisfied | Historical and current Windows 10 developer-host runs; representative clean machine and Windows 11 pending. |
-| Clean-machine packaged render | Blocked | No clean representative Windows machine is available in this session. |
-| Reproducible performance/resource measurements | Partially satisfied | Historical samples preserved; 72 current measurement rows plus six authenticated same-host relocated observations pass strict replay. True cold/reference-machine baseline pending. |
-| 100/125/150/200% scaling | Partially satisfied | Historical and current Qt overrides; native DPI settings/transitions pending. |
-| Keyboard/focus/order/names/roles/announcements | Partially satisfied | Historical and current shell checks; corrected native UIA exposure now passes. Actual AT speech and broader manual flows pending. |
-| Synthetic #80 fixtures only | Satisfied | Catalog and shell digests unchanged; deterministic fixture gate. |
-| No forbidden application/live integrations | Satisfied | Shell import boundary and final #81 architecture checks. |
-| No mandatory production Qt dependency | Satisfied | Current native Windows wheel/executable inventories and clean `--help` stderr pass with unchanged production spec; no Qt distributions or forbidden entries. Prior adapted Linux result preserved separately. |
-| Licensing notices and distribution actions | Partially satisfied | GPL/commercial plugin and missing notices preserved; final version-bound licensing/distribution confirmation pending. |
-| Explicit recommendation | Satisfied | Conditional Go for further evidence collection. |
-| ADR remains Proposed | Satisfied | Status unchanged; no gate approval. |
-| No shipped temporary spike artifact | Satisfied | Only documentation, text recipes/results and deterministic tests enter the PR; builds/environments/logs remain external. |
+| Exactly one Qt binding | Satisfied | PySide6 only; alternative bindings excluded by environment/artifact inventories. |
+| Candidate version and selection rationale | Satisfied | PySide6/Qt/shiboken6 6.11.2; recorded wheel eligibility and original rationale. |
+| Wheels and smoke for every supported Python | Satisfied within spike scope; remaining execution deferred to adoption/release validation | Wheel metadata covers 3.10-3.14. Windows source ran on 3.10/3.12/3.13/3.14; packaged/audit ran on 3.10/3.14. Native 3.11 and packaged 3.12/3.13 are not verified. |
+| Representative Windows 10 and Windows 11 | Deferred to adoption/release validation | Windows 10 developer-host execution is recorded; representative-host and Windows 11 execution are not verified. |
+| Clean-machine PyInstaller startup/render | Deferred to adoption/release validation | Same-host packaging/render/relocation feasibility is recorded; clean-machine execution is not verified. |
+| Reproducible import/startup/memory/footprint/package measurements | Satisfied within spike scope; true cold/reference-machine validation deferred | Preserved samples, 72 current measurement rows and six authenticated same-host relocated observations; warm/resource/package targets passed in observed runs. Uncontrolled initial starts exceeded targets. No true cold-start certification or product guarantee. |
+| Scaling at 100/125/150/200% | Satisfied within spike scope | Requested Qt scale-factor audits are recorded; native DPI-monitor transitions are deferred and not verified. |
+| Keyboard/focus/tab order/names/roles/announcements | Satisfied within spike scope for keyboard/focus/semantics/UIA; speech not a current product requirement / not manually verified | Recorded navigation/retry checks and current UIA exposure pass. No Narrator/NVDA speech or general production-accessibility claim. |
+| Synthetic #80 fixtures only | Satisfied | Catalog and archived shell identity preserved. |
+| No SQL/SQLite/WoFF/parser/repository/watchdog/launcher/session/network/campaign integration | Satisfied | Fixture-only shell and unchanged final #81 contract boundary. |
+| No mandatory Qt production dependency | Satisfied | Dependency/architecture checks remain Qt-free; archived production isolation retains its actual source revision. |
+| Licensing evidence identifies notices/distribution actions | Satisfied within spike scope | Findings include GPL/commercial Qt Virtual Keyboard and missing notices. Final licensed bundle, notices, replacement/relinking and distribution approval are deferred; no approved LGPL-only bundle is claimed. |
+| Explicit Go/Conditional Go/No-go recommendation | Satisfied | Conditional Go for the architecture/product process; observed limits remain explicit. |
+| ADR Proposed absent later approval | Satisfied | Proposed; no acceptance or Product Gate approval. |
+| No shipped temporary spike artifacts | Satisfied | Archived textual evidence/recipes and tests only; no spike runtime or release artifact is added. |
 
-Before production adoption: complete the remaining formal #82/P0/R2 sequence;
-#81 is integrated and requires no reimplementation;
-run Python 3.11 smoke, resolve packaged 3.12/3.13 coverage required by the
-criterion, and complete representative Windows 10/11 clean-machine
-coverage; establish repeatable cold/warm budgets on an agreed baseline;
-validate OS-native scaling and screen-reader/keyboard flows; resolve the exact
-licensed bundle, notices, source and replacement mechanism; approve an optional
-UI dependency policy, the ADR and applicable Product Gates. Qt 6.12 is the last
-line documented to support Windows 10, so future release selection needs an
-explicit lifecycle decision. No gate or budget is changed here.
+Production adoption remains subject to P0/#140, R2, explicit ADR acceptance and
+applicable Product Gates, optional-dependency policy, supported-platform smoke,
+clean-machine packaging, native scaling, representative startup budgets and
+version-bound licensing/distribution validation. These are future decisions and
+evidence, not additional #82 experiments in this finalization. A speech support
+requirement would require a later explicit product decision.
+
+The GitHub issue's original checklist remains unchanged and open. Proposed
+maintainer reconciliation wording (not applied to GitHub):
+
+> Accept the Issue #82 report as a bounded feasibility spike with Conditional Go.
+> Evaluate the original checklist using the report's 2026-09-27 disposition:
+> keyboard, focus, scaling, accessible names/roles and basic UIA remain in scope;
+> screen-reader speech is not a current product requirement and was not manually
+> verified. Representative Windows 11, clean-machine execution, native DPI,
+> true cold startup, remaining Python execution and final distribution evidence
+> are deferred to adoption/release validation. No missing observation is marked
+> passed. Integration/closure do not accept the ADR or approve Product Gates.
+
+Graph completion/dependency and eval-promotion states remain pending the human
+integration/disposition decision; they are not assertions that new measurements
+must be collected. This pass neither closes #82 nor unblocks production adoption.
 
 ## Historical validation and cleanup
 
@@ -922,9 +953,12 @@ counts exactly two. Neither the published history nor the governance squash is
 rewritten to force a misleading ahead count. The final merge's parents are the
 preservation commit and `e5b97b950b2dc3196c62b2ac6ed3a54f2c929ce7`.
 
-## External evidence still required
+## Historical external-evidence plan (superseded for spike completion)
 
-Use the revised recipes from a clean checkout of the final PR revision, copy them
+The final acceptance disposition above governs current scope. This older plan is
+retained as historical context, not an instruction to resume external evidence work.
+For later separately authorized adoption/release validation, use the revised
+recipes from a clean checkout, copy them
 and the validated #80 catalog to an external temporary directory, and retain only
 sanitized JSON and checksummed inventories. Preserve each actual measurement
 revision/date/platform/interpreter; do not reuse historical result files as new output.
@@ -1186,3 +1220,110 @@ Windows 11, clean representative machines, Python 3.11 native Qt execution,
 packaged 3.12/3.13 if required, native DPI transitions, screen-reader speech,
 true cold starts and final distribution/licensing remain pending. Remote CI on this
 correction remains pending explicit authorization to push; no new review is requested.
+
+## Finalization and integration preparation (2026-09-28)
+
+This pass implements the maintainer's explicit product-scope decision above and
+ends exploratory #82 evidence collection. Initial worktree was clean at
+`af3abaca53a8265a651a7c6161cc547c2f4641cd`; the abandoned manual Narrator runner
+and procedure were already absent. No accessibility/environment experiment was
+restarted. Fresh fetch confirmed main
+`2dd6c5c49f1d373a42c873c9d0b6f9e1ce8670e2`, with the PR branch 7 commits ahead
+and 4 behind. The incoming commits were #168 icons, #169 portraits, #170 branding
+and #171/#152 main-protection governance.
+
+Normal merge `9501509f296350775e0cb5ce021ced7ecf6dc9d2` preserves published
+history. Its parents are `af3abaca53a8265a651a7c6161cc547c2f4641cd` and
+`2dd6c5c49f1d373a42c873c9d0b6f9e1ce8670e2`. The two conflicts were resolved by
+retaining both sides' `.gitattributes` rules and combining the architecture
+inventory: 20 Site/icon text payloads + 74 spike payloads = 94. PNG evidence
+remains binary. The main-protection record, newer assets, packaging data policy,
+security/governance state and final #81 contracts remain intact. No force push,
+rebase, replacement branch or replacement PR is used.
+
+One synchronization regression was reproduced: the archived production-input
+check used `git show HEAD:pyproject.toml`. New main packages approved static
+assets, so its 1191 bytes differ from the measured revision's 819 bytes. The
+focused command below initially exited 1 (1 failed, 152 deselected, all other
+counts zero). The correction authenticates the recorded commit and tree, then
+uses `git show <recorded-source-commit>:<input-path>` while retaining every
+length, hash, inventory and diagnostic assertion. Missing history still fails;
+there is no fallback, fetch inside pytest, mock, skip or regenerated measurement.
+The renamed `test_regenerated_production_evidence_matches_recorded_build_inputs`
+passed afterward. Current dependencies/isolation remain separately checked.
+
+All 62 raw JSON files, `evidence-status.json`, the original shell and historical
+source/timestamp/platform/interpreter values remain byte-identical to `af3abac`.
+All 36 historical hashes and 74 manifest entries pass. Only the archive README
+changed, so only its `SHA256SUMS` entry changed; the complete evidence suite ran
+afterward. The shell SHA-256 remains
+`9eca49013b91d38db43ce93330f5faf560b57129fd11128cba90ce86e16a6518`.
+The historical status snapshot retains its old reconciliation SHA and pending
+list; this report records the later scope disposition separately.
+
+Changes authored in this pass are the two merge resolutions, the report/ADR/
+eval/graph scope wording, archive README/checksum and the revision-bound replay
+test. There is no new production UI, mandatory dependency, Qt binding, runtime
+artifact or live integration. Planned eval/work-item/dependency states await the
+maintainer's integration decision; no gate or toolkit acceptance is inferred.
+The original issue checklist is not edited; exact proposed reconciliation text
+is recorded in the final acceptance disposition above.
+
+Local validation uses Windows 10 build 19045, CPython 3.10.11, pytest 9.1.1 and
+Pyright 1.1.411. `R` is the existing issue-82 worktree, `P` the Qt-free development
+venv interpreter, `DEV_ROOT` that venv's parent, and `V` an external temporary
+validation directory. Environment: `PYTHONDONTWRITEBYTECODE=1`,
+`PYTHONIOENCODING=utf-8`, `PYTHONUTF8` unset, `TEMP=TMP=V/tmp`,
+`PYINSTALLER_CONFIG_DIR=V/pyinstaller-cache`; pytest caches/basetemp are external.
+All results below are current synchronized-branch validation, not new Qt
+measurements. Counts are passed / failed / skipped / deselected / passed subtests;
+pytest errors are zero. Non-test counts/skip reasons are inapplicable. The local
+expanded ledger retains exact command paths, CWD, interpreter, environment and
+outputs; sanitized aliases prevent private paths entering the archive.
+
+| Check | Exact command (aliases above) | CWD | Exit | Counts / result |
+|---|---|---|---|---|
+| focused | `P -B -m pytest tests/test_ui_spike_evidence.py -k regenerated_production_evidence_matches -q -ra --tb=short --basetemp=V/focused -o cache_dir=V/pytest-cache` | `R` | 0 | 1 / 0 / 0 / 152 / 0 |
+| spike | `P -B -m pytest tests/test_ui_spike_evidence.py -q -ra --tb=short --basetemp=V/spike -o cache_dir=V/pytest-cache` | `R` | 0 | 152 / 0 / 1 / 0 / 0 |
+| architecture | `P -B -m pytest woff/tests/test_architecture_contracts.py -q -ra --tb=short --basetemp=V/architecture -o cache_dir=V/pytest-cache` | `R` | 0 | 128 / 0 / 0 / 0 / 0 |
+| ui-contracts | `P -B -m pytest tests/test_ui_contracts.py -q -ra --tb=short --basetemp=V/ui-contracts -o cache_dir=V/pytest-cache` | `R` | 0 | 304 / 0 / 0 / 0 / 0 |
+| fixtures | `P -I -S scripts/validate_ui_fixtures.py` | `R` | 0 | 30 synthetic cases / 6 states |
+| graph | `P scripts/validate_project_graph.py` | `R` | 0 | Valid |
+| governance | `P -B -m pytest woff/tests/test_product_milestones.py woff/tests/test_sdd_governance.py woff/tests/test_ui_development_standard.py -q -ra --tb=short --basetemp=V/governance -o cache_dir=V/pytest-cache` | `R` | 0 | 28 / 0 / 0 / 0 / 0 |
+| packaging | `P -B -m pytest tests/test_ui_spike_evidence.py -k 'production or packaging or wheel or raw_qt or executable_inventory' -q -ra --tb=short --basetemp=V/packaging -o cache_dir=V/pytest-cache` | `R` | 0 | 39 / 0 / 0 / 114 / 0 |
+| privacy | `P -B -m pytest woff/tests/test_privacy_contracts.py -q -ra --tb=short --basetemp=V/privacy -o cache_dir=V/pytest-cache` | `R` | 0 | 10 / 0 / 0 / 0 / 0 |
+| ui-v2 | `P scripts/validate_ui_v2_evidence.py` | `R` | 0 | 60 captures / 14 states / 12 statuses / 28 keyboard sequences |
+| pyright | `P -m pyright --venvpath DEV_ROOT` | `R` | 0 | 0 errors / 0 warnings / 0 informations |
+| syntax | `P -B V/syntax.py` | `R` | 0 | 112 tracked Python files + 9 recipes; Python 3.10 grammar; no bytecode |
+| integrity | `P -B V/integrity.py` | `R` | 0 | 62 raw + status + shell unchanged; 36 historical hashes; 74 manifest entries; main preserved; privacy/isolation passed |
+| diff-check | `git diff --check` | `R` | 0 | Clean |
+| full | `P -B -m pytest -q -ra --tb=short --basetemp=V/full -o cache_dir=V/pytest-cache` | `R` | 0 | 1922 / 0 / 2 / 0 / 175 |
+
+The full suite ran once on the synchronized final implementation/disposition
+(tree before this results-only ledger insertion): 1922 passed, 2 skipped,
+175 subtests passed, exit 0. No source, test, manifest or policy was changed after
+that run; only this validation record was appended. The skip reasons are
+`tests/test_ui_spike_evidence.py:445`: creating symbolic links is not permitted
+in this Windows environment; `tests/test_ui_state_fixtures.py:471`: symlinks
+unavailable on this platform. Neither skip was added by this pass.
+
+The external integrity helper initially failed on default Windows text decoding;
+explicit UTF-8 corrected it. Subsequent path-scan false positives were the
+existing public GitHub project URL and privacy-pattern literals in incoming
+main tests. The corrected helper distinguishes the public URL and authenticates
+unchanged matches against exact main; added private paths remain rejected.
+These helper-only corrections did not change repository validators or evidence.
+Initial Git object/ref writes hit sandbox permission limits; the authorized
+merge/fetch succeeded with the required repository-metadata access. No bypass
+of repository branch protection was attempted.
+
+Full diff review and final integrity checks preserve newer main work and the
+measurement boundary. Eight existing review threads were resolved and no
+CHANGES_REQUESTED review was present at preflight. PR #165 remains Draft and
+Issue #82 open; ADR Proposed, Conditional Go and unapproved Product Gates remain
+unchanged. Final-head CI is checked on the existing PR after publication; the
+PR's finalization record carries its result rather than attributing old CI to
+new commits. No Codex Review, Ready transition, PR merge or issue closure is
+requested by this pass. Screen-reader speech is not a current requirement;
+other unperformed matrix/DPI/cold-start/distribution checks remain future
+adoption/release validation, not new spike tasks.

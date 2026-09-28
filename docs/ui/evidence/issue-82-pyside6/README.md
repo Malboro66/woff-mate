@@ -25,7 +25,7 @@ Runtime/build hashes in raw inventories describe the actual observed artifacts.
   machine. PySide6/Qt 6.11.2 executed on Python 3.10.11, 3.12.8, 3.13.1 and
   3.14.7. Python 3.11 was not executed.
 
-Governance main is now `e5b97b950b2dc3196c62b2ac6ed3a54f2c929ce7`
+The archived status snapshot records prior governance main `e5b97b950b2dc3196c62b2ac6ed3a54f2c929ce7`
 (PR #167). The [post-merge branch validation](../../pyside6-spike-82.md#post-governance-merge-validation-2026-09-22)
 is separate from these raw Windows observations at `1817414`; synchronization
 does not regenerate or relabel their source revision. Retained production UI
@@ -66,11 +66,23 @@ JSON for private/local paths and identity fields. Raw diagnostics stay local.
 After evidence edits, regenerate `SHA256SUMS` for every direct child except
 itself, using basenames in lexicographic order and exact LF-preserved bytes.
 
-Windows 11, a clean representative machine, Python 3.11, packaged 3.12/3.13
-coverage if required by the criterion, native DPI settings/transitions,
-Narrator/NVDA speech, true cold startup and final licensing/distribution
-confirmation remain pending. Recommendation: **Conditional Go**; Issue #82
-remains incomplete, the ADR Proposed and Product Gates A/B unapproved.
+## Final spike disposition
+
+The [2026-09-27 final report disposition](../../pyside6-spike-82.md#final-acceptance-disposition-maintainer-scope-decision-2026-09-27)
+records the maintainer's product decision: Conditional Go for the architecture/
+product process. Keyboard navigation, tab order, visible focus, names/roles,
+basic UIA exposure and scaling remain useful evidence. Screen-reader speech
+certification is not a current product requirement and was not manually verified;
+UIA and Qt events do not establish speech. No announcement claim is added.
+Windows 11, clean-machine execution, remaining Python execution, native DPI,
+true cold starts and final distribution validation are deferred to adoption/
+release where applicable, without claiming they passed or prolonging this spike.
+ADR Proposed and Product Gates unapproved remain unchanged; #82 stays open for
+human disposition. `evidence-status.json`, including its prior governance SHA,
+`pending` list and `issue_82_complete: false`, is retained byte-for-byte as the
+previous reconciliation snapshot. The final report owns the later scope decision.
+The synchronized branch uses main `2dd6c5c49f1d373a42c873c9d0b6f9e1ce8670e2`;
+none of its changes relabels observations measured at `1817414`.
 
 ## Reproduction recipes
 
