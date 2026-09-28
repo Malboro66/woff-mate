@@ -56,12 +56,41 @@ binding with mature desktop widgets, `pytest-qt`, accessibility facilities, and
 an LGPL option. This is a proposal, not an Accepted decision and not legal
 advice; maintainers must approve the license and distribution obligations.
 
-No startup performance has been measured. Import time, first-window time,
-memory, plugin discovery, and packaged executable size are uncertain. A future
-spike must measure cold and warm startup on representative Windows 10/11
-machines across the supported Python range, using a documented harness and
-fixture-backed shell. Results must be compared to an agreed budget before
-adoption; estimates or upstream anecdotes are not acceptance evidence.
+The [Issue #82 exploratory report](../ui/pyside6-spike-82.md) records local
+Windows 10 measurements for PySide6/Qt 6.11.2 on Python 3.10 and 3.14, with
+disposable fixture-only Widgets and PyInstaller artifacts. Its recommendation
+is **Conditional Go for the architecture/product process**, not production adoption.
+Warm starts, measured memory and artifact sizes meet the initial targets in
+that bounded run. Uncontrolled initial starts exceeded the startup targets;
+true cold starts, Windows 11, clean machines, Python 3.11 runtime smoke,
+native DPI changes and screen-reader announcements remain unverified.
+Default packaging also collected the GPLv3/commercial Qt Virtual Keyboard
+module and omitted distribution notices. These are unresolved distribution
+conditions, not an approved LGPL-only package. The report preserves raw
+results and reproduction recipes; it does not satisfy the full adoption matrix
+and does not claim observations that were not performed. The #81 immutable contracts are now
+integrated through PR #166 and its graph prerequisite is satisfied. Historical
+UIA/relocation authentication limits and the prior Linux production-isolation
+regeneration at `0684805` remain recorded separately. Current native Windows 10
+developer-host evidence at `1817414` adds source smoke on Python 3.12.8/3.13.1,
+source/packaged execution on 3.10.11/3.14.7, corrected UIA exposure without
+verified speech, authenticated same-host relocation and unchanged-spec native
+production isolation. These results do not establish clean-machine, native DPI,
+cold-start or licensing acceptance. Packaged 3.12/3.13 coverage remains pending
+if required by the criterion; no historical measurement is promoted to current
+platform validation. This ADR remains Proposed and Product Gates A/B unapproved.
+
+## Feasibility disposition (2026-09-27)
+
+The maintainer's current product decision does not require screen-reader speech
+certification. Narrator/NVDA speech was not manually verified; UIA exposure and
+Qt events do not prove announcements. Keyboard navigation, logical tab order,
+visible focus, accessible names/roles, basic UIA exposure and scaling remain
+applicable quality evidence. The [#82 final disposition](../ui/pyside6-spike-82.md#final-acceptance-disposition-maintainer-scope-decision-2026-09-27)
+records Conditional Go without extending the spike into release certification.
+Unperformed Windows 11, clean-machine, native DPI, true cold startup, remaining
+Python execution and final distribution checks belong to later adoption/release
+validation where applicable. This does not waive the production gates below.
 
 ## Adoption gates
 
@@ -75,7 +104,9 @@ module**. Adoption remains gated by:
    decisions—neither is approved here;
 3. an optional-dependency policy that preserves non-UI installation;
 4. Windows 10/11 and Python 3.10–3.14 smoke coverage;
-5. the measured clean-machine packaging, startup, scaling, accessibility, and licensing spike in #82;
+5. the bounded #82 feasibility report, with clean-machine packaging, representative
+   startup/scaling, applicable accessibility quality and licensing conditions
+   validated before production adoption/release as applicable;
 6. sanitized fixtures and shared states from #80, the approved visual reference from #79, and immutable contracts from #81; and
 7. enforcement that each build environment contains exactly one Qt binding.
 

@@ -1,0 +1,322 @@
+[
+  {
+    "package": "PySide6",
+    "version": "6.11.2",
+    "python": "3.10",
+    "metadata_url": "https://pypi.org/pypi/PySide6/6.11.2/json",
+    "requires_python": "<3.15,>=3.10",
+    "compatible_wheels": [
+      {
+        "filename": "pyside6-6.11.2-cp310-abi3-win_amd64.whl",
+        "sha256": "3201d67e3c10be2eaedd3910ff0f02351eca7e88c95a291cde5e7f2f55ef207f",
+        "bytes": 578382,
+        "uploaded": "2026-08-18T06:37:34.385342Z"
+      }
+    ],
+    "runtime_smoke": "not performed by metadata probe"
+  },
+  {
+    "package": "PySide6",
+    "version": "6.11.2",
+    "python": "3.11",
+    "metadata_url": "https://pypi.org/pypi/PySide6/6.11.2/json",
+    "requires_python": "<3.15,>=3.10",
+    "compatible_wheels": [
+      {
+        "filename": "pyside6-6.11.2-cp310-abi3-win_amd64.whl",
+        "sha256": "3201d67e3c10be2eaedd3910ff0f02351eca7e88c95a291cde5e7f2f55ef207f",
+        "bytes": 578382,
+        "uploaded": "2026-08-18T06:37:34.385342Z"
+      }
+    ],
+    "runtime_smoke": "not performed by metadata probe"
+  },
+  {
+    "package": "PySide6",
+    "version": "6.11.2",
+    "python": "3.12",
+    "metadata_url": "https://pypi.org/pypi/PySide6/6.11.2/json",
+    "requires_python": "<3.15,>=3.10",
+    "compatible_wheels": [
+      {
+        "filename": "pyside6-6.11.2-cp310-abi3-win_amd64.whl",
+        "sha256": "3201d67e3c10be2eaedd3910ff0f02351eca7e88c95a291cde5e7f2f55ef207f",
+        "bytes": 578382,
+        "uploaded": "2026-08-18T06:37:34.385342Z"
+      }
+    ],
+    "runtime_smoke": "not performed by metadata probe"
+  },
+  {
+    "package": "PySide6",
+    "version": "6.11.2",
+    "python": "3.13",
+    "metadata_url": "https://pypi.org/pypi/PySide6/6.11.2/json",
+    "requires_python": "<3.15,>=3.10",
+    "compatible_wheels": [
+      {
+        "filename": "pyside6-6.11.2-cp310-abi3-win_amd64.whl",
+        "sha256": "3201d67e3c10be2eaedd3910ff0f02351eca7e88c95a291cde5e7f2f55ef207f",
+        "bytes": 578382,
+        "uploaded": "2026-08-18T06:37:34.385342Z"
+      }
+    ],
+    "runtime_smoke": "not performed by metadata probe"
+  },
+  {
+    "package": "PySide6",
+    "version": "6.11.2",
+    "python": "3.14",
+    "metadata_url": "https://pypi.org/pypi/PySide6/6.11.2/json",
+    "requires_python": "<3.15,>=3.10",
+    "compatible_wheels": [
+      {
+        "filename": "pyside6-6.11.2-cp310-abi3-win_amd64.whl",
+        "sha256": "3201d67e3c10be2eaedd3910ff0f02351eca7e88c95a291cde5e7f2f55ef207f",
+        "bytes": 578382,
+        "uploaded": "2026-08-18T06:37:34.385342Z"
+      }
+    ],
+    "runtime_smoke": "not performed by metadata probe"
+  },
+  {
+    "package": "PySide6_Essentials",
+    "version": "6.11.2",
+    "python": "3.10",
+    "metadata_url": "https://pypi.org/pypi/PySide6_Essentials/6.11.2/json",
+    "requires_python": "<3.15,>=3.10",
+    "compatible_wheels": [
+      {
+        "filename": "pyside6_essentials-6.11.2-cp310-abi3-win_amd64.whl",
+        "sha256": "c8a29def77032773a30879f7f24415b5395ad08592d147c170824ef4c735dfc1",
+        "bytes": 76913043,
+        "uploaded": "2026-08-18T06:36:54.038925Z"
+      }
+    ],
+    "runtime_smoke": "not performed by metadata probe"
+  },
+  {
+    "package": "PySide6_Essentials",
+    "version": "6.11.2",
+    "python": "3.11",
+    "metadata_url": "https://pypi.org/pypi/PySide6_Essentials/6.11.2/json",
+    "requires_python": "<3.15,>=3.10",
+    "compatible_wheels": [
+      {
+        "filename": "pyside6_essentials-6.11.2-cp310-abi3-win_amd64.whl",
+        "sha256": "c8a29def77032773a30879f7f24415b5395ad08592d147c170824ef4c735dfc1",
+        "bytes": 76913043,
+        "uploaded": "2026-08-18T06:36:54.038925Z"
+      }
+    ],
+    "runtime_smoke": "not performed by metadata probe"
+  },
+  {
+    "package": "PySide6_Essentials",
+    "version": "6.11.2",
+    "python": "3.12",
+    "metadata_url": "https://pypi.org/pypi/PySide6_Essentials/6.11.2/json",
+    "requires_python": "<3.15,>=3.10",
+    "compatible_wheels": [
+      {
+        "filename": "pyside6_essentials-6.11.2-cp310-abi3-win_amd64.whl",
+        "sha256": "c8a29def77032773a30879f7f24415b5395ad08592d147c170824ef4c735dfc1",
+        "bytes": 76913043,
+        "uploaded": "2026-08-18T06:36:54.038925Z"
+      }
+    ],
+    "runtime_smoke": "not performed by metadata probe"
+  },
+  {
+    "package": "PySide6_Essentials",
+    "version": "6.11.2",
+    "python": "3.13",
+    "metadata_url": "https://pypi.org/pypi/PySide6_Essentials/6.11.2/json",
+    "requires_python": "<3.15,>=3.10",
+    "compatible_wheels": [
+      {
+        "filename": "pyside6_essentials-6.11.2-cp310-abi3-win_amd64.whl",
+        "sha256": "c8a29def77032773a30879f7f24415b5395ad08592d147c170824ef4c735dfc1",
+        "bytes": 76913043,
+        "uploaded": "2026-08-18T06:36:54.038925Z"
+      }
+    ],
+    "runtime_smoke": "not performed by metadata probe"
+  },
+  {
+    "package": "PySide6_Essentials",
+    "version": "6.11.2",
+    "python": "3.14",
+    "metadata_url": "https://pypi.org/pypi/PySide6_Essentials/6.11.2/json",
+    "requires_python": "<3.15,>=3.10",
+    "compatible_wheels": [
+      {
+        "filename": "pyside6_essentials-6.11.2-cp310-abi3-win_amd64.whl",
+        "sha256": "c8a29def77032773a30879f7f24415b5395ad08592d147c170824ef4c735dfc1",
+        "bytes": 76913043,
+        "uploaded": "2026-08-18T06:36:54.038925Z"
+      }
+    ],
+    "runtime_smoke": "not performed by metadata probe"
+  },
+  {
+    "package": "PySide6_Addons",
+    "version": "6.11.2",
+    "python": "3.10",
+    "metadata_url": "https://pypi.org/pypi/PySide6_Addons/6.11.2/json",
+    "requires_python": "<3.15,>=3.10",
+    "compatible_wheels": [
+      {
+        "filename": "pyside6_addons-6.11.2-cp310-abi3-win_amd64.whl",
+        "sha256": "f449ea4431da20e7b86752cca8d166f93434516fe417f981c27e5f8e1b554407",
+        "bytes": 168208836,
+        "uploaded": "2026-08-18T06:36:07.295071Z"
+      }
+    ],
+    "runtime_smoke": "not performed by metadata probe"
+  },
+  {
+    "package": "PySide6_Addons",
+    "version": "6.11.2",
+    "python": "3.11",
+    "metadata_url": "https://pypi.org/pypi/PySide6_Addons/6.11.2/json",
+    "requires_python": "<3.15,>=3.10",
+    "compatible_wheels": [
+      {
+        "filename": "pyside6_addons-6.11.2-cp310-abi3-win_amd64.whl",
+        "sha256": "f449ea4431da20e7b86752cca8d166f93434516fe417f981c27e5f8e1b554407",
+        "bytes": 168208836,
+        "uploaded": "2026-08-18T06:36:07.295071Z"
+      }
+    ],
+    "runtime_smoke": "not performed by metadata probe"
+  },
+  {
+    "package": "PySide6_Addons",
+    "version": "6.11.2",
+    "python": "3.12",
+    "metadata_url": "https://pypi.org/pypi/PySide6_Addons/6.11.2/json",
+    "requires_python": "<3.15,>=3.10",
+    "compatible_wheels": [
+      {
+        "filename": "pyside6_addons-6.11.2-cp310-abi3-win_amd64.whl",
+        "sha256": "f449ea4431da20e7b86752cca8d166f93434516fe417f981c27e5f8e1b554407",
+        "bytes": 168208836,
+        "uploaded": "2026-08-18T06:36:07.295071Z"
+      }
+    ],
+    "runtime_smoke": "not performed by metadata probe"
+  },
+  {
+    "package": "PySide6_Addons",
+    "version": "6.11.2",
+    "python": "3.13",
+    "metadata_url": "https://pypi.org/pypi/PySide6_Addons/6.11.2/json",
+    "requires_python": "<3.15,>=3.10",
+    "compatible_wheels": [
+      {
+        "filename": "pyside6_addons-6.11.2-cp310-abi3-win_amd64.whl",
+        "sha256": "f449ea4431da20e7b86752cca8d166f93434516fe417f981c27e5f8e1b554407",
+        "bytes": 168208836,
+        "uploaded": "2026-08-18T06:36:07.295071Z"
+      }
+    ],
+    "runtime_smoke": "not performed by metadata probe"
+  },
+  {
+    "package": "PySide6_Addons",
+    "version": "6.11.2",
+    "python": "3.14",
+    "metadata_url": "https://pypi.org/pypi/PySide6_Addons/6.11.2/json",
+    "requires_python": "<3.15,>=3.10",
+    "compatible_wheels": [
+      {
+        "filename": "pyside6_addons-6.11.2-cp310-abi3-win_amd64.whl",
+        "sha256": "f449ea4431da20e7b86752cca8d166f93434516fe417f981c27e5f8e1b554407",
+        "bytes": 168208836,
+        "uploaded": "2026-08-18T06:36:07.295071Z"
+      }
+    ],
+    "runtime_smoke": "not performed by metadata probe"
+  },
+  {
+    "package": "shiboken6",
+    "version": "6.11.2",
+    "python": "3.10",
+    "metadata_url": "https://pypi.org/pypi/shiboken6/6.11.2/json",
+    "requires_python": "<3.15,>=3.10",
+    "compatible_wheels": [
+      {
+        "filename": "shiboken6-6.11.2-cp310-abi3-win_amd64.whl",
+        "sha256": "6ab0eba1c904455df621f9a6df3ca2bb896bab8670572d2bc4e37804ae91f19a",
+        "bytes": 1226578,
+        "uploaded": "2026-08-18T06:37:18.002960Z"
+      }
+    ],
+    "runtime_smoke": "not performed by metadata probe"
+  },
+  {
+    "package": "shiboken6",
+    "version": "6.11.2",
+    "python": "3.11",
+    "metadata_url": "https://pypi.org/pypi/shiboken6/6.11.2/json",
+    "requires_python": "<3.15,>=3.10",
+    "compatible_wheels": [
+      {
+        "filename": "shiboken6-6.11.2-cp310-abi3-win_amd64.whl",
+        "sha256": "6ab0eba1c904455df621f9a6df3ca2bb896bab8670572d2bc4e37804ae91f19a",
+        "bytes": 1226578,
+        "uploaded": "2026-08-18T06:37:18.002960Z"
+      }
+    ],
+    "runtime_smoke": "not performed by metadata probe"
+  },
+  {
+    "package": "shiboken6",
+    "version": "6.11.2",
+    "python": "3.12",
+    "metadata_url": "https://pypi.org/pypi/shiboken6/6.11.2/json",
+    "requires_python": "<3.15,>=3.10",
+    "compatible_wheels": [
+      {
+        "filename": "shiboken6-6.11.2-cp310-abi3-win_amd64.whl",
+        "sha256": "6ab0eba1c904455df621f9a6df3ca2bb896bab8670572d2bc4e37804ae91f19a",
+        "bytes": 1226578,
+        "uploaded": "2026-08-18T06:37:18.002960Z"
+      }
+    ],
+    "runtime_smoke": "not performed by metadata probe"
+  },
+  {
+    "package": "shiboken6",
+    "version": "6.11.2",
+    "python": "3.13",
+    "metadata_url": "https://pypi.org/pypi/shiboken6/6.11.2/json",
+    "requires_python": "<3.15,>=3.10",
+    "compatible_wheels": [
+      {
+        "filename": "shiboken6-6.11.2-cp310-abi3-win_amd64.whl",
+        "sha256": "6ab0eba1c904455df621f9a6df3ca2bb896bab8670572d2bc4e37804ae91f19a",
+        "bytes": 1226578,
+        "uploaded": "2026-08-18T06:37:18.002960Z"
+      }
+    ],
+    "runtime_smoke": "not performed by metadata probe"
+  },
+  {
+    "package": "shiboken6",
+    "version": "6.11.2",
+    "python": "3.14",
+    "metadata_url": "https://pypi.org/pypi/shiboken6/6.11.2/json",
+    "requires_python": "<3.15,>=3.10",
+    "compatible_wheels": [
+      {
+        "filename": "shiboken6-6.11.2-cp310-abi3-win_amd64.whl",
+        "sha256": "6ab0eba1c904455df621f9a6df3ca2bb896bab8670572d2bc4e37804ae91f19a",
+        "bytes": 1226578,
+        "uploaded": "2026-08-18T06:37:18.002960Z"
+      }
+    ],
+    "runtime_smoke": "not performed by metadata probe"
+  }
+]

@@ -721,7 +721,7 @@ evals:
   EVAL-UI-SPIKE-001:
     work_items: [issue-82]
     status: planned
-    evidence: One isolated PySide6 line passes the supported Python and Windows matrix, clean PyInstaller startup, and measured startup, memory, and artifact budgets.
+    evidence: One isolated PySide6 line records bounded packaging/resource feasibility, actual Python/Windows coverage, and explicit deferred adoption/release validation; the final report owns the maintainer disposition.
   EVAL-UI-SPIKE-002:
     work_items: [issue-82]
     status: planned

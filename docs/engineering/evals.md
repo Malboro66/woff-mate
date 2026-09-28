@@ -171,12 +171,24 @@ claim Q5 or approval of Product Gate A or Gate B.
 | `EVAL-UI-STATES-001` | #80 | Implemented | Thirty synthetic fixtures and the 15-screen matrix enforce six shared states, separate global/list/detail contexts, explicit subject selection, retained career context, owner identity field placement, consistent identity, partial/conflicting fields, safe freshness, redacted settings, closed text and sanitized failures without production dependencies | `scripts/validate_ui_fixtures.py`, `tests/test_ui_state_fixtures.py`, `woff/tests/test_architecture_contracts.py` |
 | `EVAL-UI-POLICY-001` | #135 | Implemented | The canonical UI development standard preserves repository authority, V2 accessibility, privacy, provenance, reduced motion, and toolkit-independent runtime boundaries | `woff/tests/test_ui_development_standard.py` |
 | `EVAL-UI-CONTRACTS-001` | #81 | Implemented | Six frozen toolkit-independent snapshots enforce context-specific cardinality, safe retained observations, payload-free transitions, exact integer types, warnings unique and sorted by code, canonical nation/service, stable identities, defensive immutable values, sanitized diagnostics and optional-selection request lifecycle protocols, exercised only by #80 fixtures | `tests/test_ui_contracts.py`, `woff/tests/test_architecture_contracts.py` |
-| `EVAL-UI-SPIKE-001` | #82 | Planned | One PySide6 line passes the supported Python and Windows packaging and measured resource matrix | — |
+| `EVAL-UI-SPIKE-001` | #82 | Planned | One PySide6 line records bounded packaging/resource feasibility, Python/Windows coverage and explicit deferred adoption/release gaps | — |
 | `EVAL-UI-SPIKE-002` | #82 | Planned | Scaling, keyboard use, accessibility, plugin behavior, and licensing evidence support a Go, Conditional Go, or No-go recommendation | — |
 | `EVAL-P0-FLOW-001` | #140 | Planned | Seven primary destinations, two synthetic careers, six shared states, immutable #81 values, isolation, keyboard/focus and scaling | — |
 | `EVAL-P0-BOUNDARY-001` | #140 | Planned | Fixture-only execution excludes live SQLite/WoFF, repository/parser/watchdog access, writes, launcher control, network, personal data, runtime AI and production social/RPG behavior | — |
 | `EVAL-P0-DEMO-001` | #140 | Planned | Reproducible Windows launch/build, approved experimental toolkit/ADR path, interaction captures and product-demonstrability record | — |
 | `EVAL-R2-REVIEW-001` | `review-r2` | Planned | Revision-bound Full Application Review of #81/#82/P0, explicit maintainer ADR decision and existing adoption gates before retained production architecture/P1 | — |
+
+The [#82 exploratory report](../ui/pyside6-spike-82.md) archives Windows 10
+measurements and deterministic replay checks in `tests/test_ui_spike_evidence.py`.
+The report's 2026-09-27 maintainer disposition concludes evidence collection
+with Conditional Go for the architecture/product process. Windows 11/clean-machine
+runs, remaining Python execution, true cold starts, native DPI and final
+distribution validation are deferred to adoption/release; screen-reader speech
+is not a current product requirement and was not manually verified. Keyboard,
+focus, semantics, UIA and scaling remain relevant. Neither spike eval is promoted
+to Implemented before human integration/disposition, #82 remains open and #140's
+prerequisite remains unsatisfied. Those workflow states do not require another
+external evidence campaign. No production adoption or Product Gate is approved.
 
 The executable sequence is #81 -> #82 -> P0/#140 -> R2 -> retained production
 architecture/P1. #82 now belongs to cycle 3.4.0, and its #81 dependency records

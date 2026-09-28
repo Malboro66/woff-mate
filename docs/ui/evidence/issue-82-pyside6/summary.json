@@ -1,0 +1,85 @@
+{
+  "source310": {
+    "samples": 3,
+    "launch_seconds": [
+      0.4665375000004133,
+      0.4585809000000154,
+      0.4482943000002706
+    ],
+    "launch_median_seconds": 0.4585809000000154,
+    "warm_restart_max_seconds": 0.4585809000000154,
+    "import_seconds": [
+      0.11115640000025451,
+      0.10976489999848127,
+      0.1024952999996458
+    ],
+    "import_median_seconds": 0.10976489999848127,
+    "rss_max_mb": 67.203072,
+    "private_max_mb": 34.275328
+  },
+  "source314": {
+    "samples": 3,
+    "launch_seconds": [
+      0.47860319999927015,
+      0.4613838000004762,
+      0.4669494999998278
+    ],
+    "launch_median_seconds": 0.4669494999998278,
+    "warm_restart_max_seconds": 0.4669494999998278,
+    "import_seconds": [
+      0.12529600000016217,
+      0.11529599999994389,
+      0.1185672000010527
+    ],
+    "import_median_seconds": 0.1185672000010527,
+    "rss_max_mb": 71.913472,
+    "private_max_mb": 38.445056
+  },
+  "packaged310": {
+    "samples": 3,
+    "launch_seconds": [
+      0.5515428999988217,
+      0.43053169999984675,
+      0.428452300000572
+    ],
+    "launch_median_seconds": 0.43053169999984675,
+    "warm_restart_max_seconds": 0.43053169999984675,
+    "import_seconds": [
+      0.012919300001158263,
+      0.007811299999957555,
+      0.007817600000635139
+    ],
+    "import_median_seconds": 0.007817600000635139,
+    "rss_max_mb": 66.240512,
+    "private_max_mb": 31.363072
+  },
+  "packaged314": {
+    "samples": 3,
+    "launch_seconds": [
+      0.5495093999998062,
+      0.45570500000030734,
+      0.46364639999956125
+    ],
+    "launch_median_seconds": 0.46364639999956125,
+    "warm_restart_max_seconds": 0.46364639999956125,
+    "import_seconds": [
+      0.013062300000456162,
+      0.009606999999959953,
+      0.009707600000183447
+    ],
+    "import_median_seconds": 0.009707600000183447,
+    "rss_max_mb": 71.118848,
+    "private_max_mb": 36.765696
+  },
+  "artifacts_mb": {
+    "310": 110.079991,
+    "314": 116.825433
+  },
+  "dependencies_mb": {
+    "10": 678.9226,
+    "14": 679.100287
+  },
+  "audit_runs": 48,
+  "audit_checks": 2640,
+  "cold_verified": false
+}

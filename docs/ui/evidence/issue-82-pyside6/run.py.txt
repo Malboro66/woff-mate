@@ -1,0 +1,42 @@
+"""Sequential builds and measurements. Run from ignored build/issue82.
+
+No concurrent benchmarks. Does not modify production build.spec.
+"""
+import hashlib
+import json
+from pathlib import Path
+import subprocess
+import sys
+
+builds = []
+for suffix in ['310', '314']:
+    command = [f'py{suffix}/Scripts/python.exe', '-m', 'PyInstaller', '--clean', '--noconfirm',
+               '--onedir', '--console', '--noupx', '--name', 'Issue82',
+               '--distpath', f'dist{suffix}', '--workpath', f'work{suffix}', '--specpath', '.',
+               '--add-data', 'catalog.json;.', '--exclude-module', 'PyQt6',
+               '--exclude-module', 'PyQt5', '--exclude-module', 'PySide2', 'shell.py']
+    result = subprocess.run(command, capture_output=True)
+    Path(f'build{suffix}.log').write_bytes(result.stdout + result.stderr)
+    assert result.returncode == 0, f'Build {suffix} failed; inspect local log'
+    root = Path(f'dist{suffix}/Issue82')
+    files = [{'path': p.relative_to(root).as_posix(), 'bytes': p.stat().st_size,
+              'sha256': hashlib.sha256(p.read_bytes()).hexdigest()}
+             for p in sorted(root.rglob('*')) if p.is_file()]
+    assert not any('pyqt' in f['path'].lower() or 'pyside2' in f['path'].lower() for f in files)
+    builds.append({'python': suffix, 'exit_code': result.returncode, 'files': files,
+                   'total_bytes': sum(f['bytes'] for f in files),
+                   'source_sha256': hashlib.sha256(Path('shell.py').read_bytes()).hexdigest(),
+                   'command': command})
+    print('built', suffix, builds[-1]['total_bytes'], flush=True)
+Path('build-inventory.json').write_text(json.dumps(builds, indent=2) + '\n', encoding='utf-8')
+failed = []
+for mode in ['source', 'packaged']:
+    for suffix in ['310', '314']:
+        executable = f'py{suffix}/Scripts/python.exe' if mode == 'source' else f'dist{suffix}/Issue82/Issue82.exe'
+        for audit in [False, True]:
+            label = f'final-{mode}{suffix}' + ('-audit' if audit else '')
+            command = [sys.executable, 'measure.py', executable, label] + (['--audit'] if audit else [])
+            result = subprocess.run(command)
+            if result.returncode:
+                failed.append(label)
+assert not failed, failed

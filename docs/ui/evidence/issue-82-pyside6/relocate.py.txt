@@ -1,0 +1,97 @@
+"""Copy each exact frozen build to a path with spaces and measure it.
+
+Run from ignored build/issue82 after run.py has produced build-inventory.json.
+Historical relocated*.json observations remain archived; rerunning this recipe
+creates new observations and relocation-provenance.json for comparison.
+"""
+import hashlib
+import json
+from pathlib import Path
+import shutil
+import subprocess
+import sys
+import stat
+import tempfile
+from datetime import datetime, timezone
+
+
+def inventory(root):
+    paths = [root, *sorted(root.rglob('*'))]
+    if not root.is_dir() or any(path.is_symlink() or
+            getattr(path.lstat(), 'st_file_attributes', 0) & stat.FILE_ATTRIBUTE_REPARSE_POINT
+            for path in paths):
+        raise ValueError('bundle contains an unsafe link or is not a directory')
+    return [{'path': path.relative_to(root).as_posix(), 'bytes': path.stat().st_size,
+             'sha256': hashlib.sha256(path.read_bytes()).hexdigest()}
+            for path in paths[1:] if path.is_file()]
+
+
+def inventory_sha256(files):
+    payload = json.dumps(files, sort_keys=True, separators=(',', ':')).encode()
+    return hashlib.sha256(payload).hexdigest()
+
+
+def json_sha256(path):
+    payload = json.dumps(json.loads(path.read_text(encoding='utf-8-sig')),
+                         sort_keys=True, separators=(',', ':')).encode()
+    return hashlib.sha256(payload).hexdigest()
+
+
+def copy_and_verify(source, destination, expected_files, relocation_root):
+    # Authenticate before any copy. A retained bundle is never replaced/deleted.
+    if (destination.name not in {'package310', 'package314'} or
+            destination.parent != relocation_root or relocation_root.is_symlink() or
+            destination.is_symlink() or source.is_symlink()):
+        raise ValueError('unsafe relocation path')
+    inventory(relocation_root)
+    if source.resolve() == destination.resolve() or source.resolve() in destination.resolve().parents or destination.resolve() in source.resolve().parents:
+        raise ValueError('overlapping relocation paths')
+    if not expected_files or inventory(source) != expected_files:
+        raise ValueError('source inventory mismatch')
+    if destination.exists():
+        if inventory(destination) != expected_files:
+            raise ValueError('retained destination inventory mismatch; preserved for investigation')
+        return destination
+    shutil.copytree(source, destination)
+    if inventory(destination) != expected_files:
+        raise ValueError('copied destination inventory mismatch')
+    return destination
+
+
+builds = json.loads(Path('build-inventory.json').read_text(encoding='utf-8'))
+assert [build['python'] for build in builds] == ['310', '314']
+shell_sha256 = hashlib.sha256(Path('shell.py').read_bytes()).hexdigest()
+relocation_root = Path.cwd() / 'relocation with spaces'
+relocation_root.mkdir(exist_ok=True)
+provenance = []
+for build in builds:
+    suffix = build['python']
+    assert build['exit_code'] == 0 and build['source_sha256'] == shell_sha256
+    expected_files = build['files']
+    source = Path(f'dist{suffix}/Issue82')
+    destination = copy_and_verify(source, relocation_root / f'package{suffix}',
+                                  expected_files, relocation_root)
+    label = f'relocated{suffix}'
+    observation_root = Path(tempfile.mkdtemp(prefix='observation-', dir=relocation_root))
+    local_result = observation_root / f'{label}.json'
+    command = [sys.executable, str(Path('measure.py').resolve()),
+               str((destination / 'Issue82.exe').resolve()), label]
+    completed = subprocess.run(command, cwd=observation_root, timeout=120)
+    assert completed.returncode == 0 and local_result.is_file()
+    archived_result = local_result
+    provenance.append({
+        'observation_kind': 'regenerated from verified bundle in this invocation',
+        'observed_at': datetime.now(timezone.utc).isoformat(),
+        'python': suffix,
+        'source_artifact': f'dist{suffix}/Issue82',
+        'relocated_artifact': f'relocation with spaces/package{suffix}',
+        'source_sha256': build['source_sha256'],
+        'artifact_inventory_sha256': inventory_sha256(expected_files),
+        'artifact_files': len(expected_files),
+        'artifact_bytes': sum(item['bytes'] for item in expected_files),
+        'result': archived_result.name,
+        'result_json_sha256': json_sha256(archived_result),
+    })
+    (observation_root / 'relocation-provenance.json').write_text(
+        json.dumps([provenance[-1]], indent=2) + '\n', encoding='utf-8')
+    print('Regenerated observation:', observation_root)

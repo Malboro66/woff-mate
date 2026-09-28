@@ -1,0 +1,40 @@
+[
+  {
+    "python": "310",
+    "exit_code": 3221225477,
+    "message_count": 25,
+    "warning_kinds": [],
+    "discovered_dll_basenames": [
+      "qdirect2d.dll",
+      "qminimal.dll",
+      "qmodernwindowsstyle.dll",
+      "qoffscreen.dll",
+      "qwindows.dll"
+    ],
+    "loaded_dll_basenames": [
+      "qmodernwindowsstyle.dll",
+      "qwindows.dll"
+    ],
+    "stderr_nonempty": false,
+    "platform_plugin": "windows"
+  },
+  {
+    "python": "314",
+    "exit_code": 3221225477,
+    "message_count": 25,
+    "warning_kinds": [],
+    "discovered_dll_basenames": [
+      "qdirect2d.dll",
+      "qminimal.dll",
+      "qmodernwindowsstyle.dll",
+      "qoffscreen.dll",
+      "qwindows.dll"
+    ],
+    "loaded_dll_basenames": [
+      "qmodernwindowsstyle.dll",
+      "qwindows.dll"
+    ],
+    "stderr_nonempty": false,
+    "platform_plugin": "windows"
+  }
+]

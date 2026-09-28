@@ -1,0 +1,104 @@
+[
+  {
+    "configuration": "current-source310",
+    "requested_scale": 1,
+    "repetition": 1,
+    "cache_condition": "uncontrolled_first_in_series",
+    "cold_boot_verified": false,
+    "exit_code": 0,
+    "launch_to_paint_seconds": 1.5663213999996515,
+    "stderr_nonempty": false,
+    "qt_messages": [],
+    "stdout_unexpected": false,
+    "result": {
+      "python": "3.10.11",
+      "pyside": "6.11.2",
+      "qt": "6.11.2",
+      "os_build": 19045,
+      "platform_plugin": "windows",
+      "dpr": 1.0,
+      "logical_window": [
+        960,
+        680
+      ],
+      "logical_screen": [
+        2560,
+        1080
+      ],
+      "import_seconds": 0.19397660000140604,
+      "script_to_paint_seconds": 0.49136429999998654,
+      "rss_bytes": 57503744,
+      "private_bytes": 27746304,
+      "checks": [],
+      "forbidden_imports": []
+    }
+  },
+  {
+    "configuration": "current-source310",
+    "requested_scale": 1,
+    "repetition": 2,
+    "cache_condition": "warm_process_restart",
+    "cold_boot_verified": false,
+    "exit_code": 0,
+    "launch_to_paint_seconds": 0.35094799999933457,
+    "stderr_nonempty": false,
+    "qt_messages": [],
+    "stdout_unexpected": false,
+    "result": {
+      "python": "3.10.11",
+      "pyside": "6.11.2",
+      "qt": "6.11.2",
+      "os_build": 19045,
+      "platform_plugin": "windows",
+      "dpr": 1.0,
+      "logical_window": [
+        960,
+        680
+      ],
+      "logical_screen": [
+        2560,
+        1080
+      ],
+      "import_seconds": 0.10570660000121279,
+      "script_to_paint_seconds": 0.234339299999192,
+      "rss_bytes": 57430016,
+      "private_bytes": 27729920,
+      "checks": [],
+      "forbidden_imports": []
+    }
+  },
+  {
+    "configuration": "current-source310",
+    "requested_scale": 1,
+    "repetition": 3,
+    "cache_condition": "warm_process_restart",
+    "cold_boot_verified": false,
+    "exit_code": 0,
+    "launch_to_paint_seconds": 0.34449099999983446,
+    "stderr_nonempty": false,
+    "qt_messages": [],
+    "stdout_unexpected": false,
+    "result": {
+      "python": "3.10.11",
+      "pyside": "6.11.2",
+      "qt": "6.11.2",
+      "os_build": 19045,
+      "platform_plugin": "windows",
+      "dpr": 1.0,
+      "logical_window": [
+        960,
+        680
+      ],
+      "logical_screen": [
+        2560,
+        1080
+      ],
+      "import_seconds": 0.10328099999969709,
+      "script_to_paint_seconds": 0.2301802999991196,
+      "rss_bytes": 56922112,
+      "private_bytes": 27316224,
+      "checks": [],
+      "forbidden_imports": []
+    }
+  }
+]

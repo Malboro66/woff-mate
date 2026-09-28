@@ -1,0 +1,179 @@
+"""Standard-library observers only; never import into the disposable Qt shell.
+
+Copy alongside the other recipes as evidence_contract.py. Failure messages are
+fixed and sanitized. Historical records lacking required fields fail replay.
+"""
+import argparse
+import json
+import math
+from pathlib import Path
+import re
+
+
+def require(condition, message):
+    if not condition:
+        raise ValueError(message)
+
+
+def is_forbidden_entry(path):
+    """Match archive components, raw Qt libraries/tools and plugin directories."""
+    require(isinstance(path, str) and bool(path), 'invalid artifact path')
+    parts = [p.lower() for p in path.replace('\\', '/').split('/') if p != '.']
+    require('..' not in parts, 'invalid artifact path')
+    binding = r'(?:pyside[26]?|pyqt[56]?|shiboken[26]?)(?:[-_.].*)?'
+    library = r'(?:lib)?qt[56]?[a-z][a-z0-9]*(?:\.dll|\.pyd|\.exe|\.so(?:\.\d+)*|(?:\.\d+)*\.dylib|\.framework)'
+    platform = r'(?:lib)?q(?:windows|xcb|wayland[a-z-]*|cocoa|minimal|offscreen|linuxfb|eglfs)(?:\.dll|\.so(?:\.\d+)*|\.dylib)'
+    tooling = r'(?:qmake|qtpaths|qtplugininfo|qmlscene|qmltestrunner)[56]?(?:\.exe)?'
+    plugin_kinds = {'platforms', 'platformthemes', 'platforminputcontexts', 'styles',
+                    'imageformats', 'iconengines', 'tls', 'networkinformation',
+                    'generic', 'sqldrivers', 'printsupport', 'egldeviceintegrations',
+                    'xcbglintegrations', 'wayland-shell-integration'}
+    for index, part in enumerate(parts):
+        if any(re.fullmatch(pattern, part) for pattern in (binding, library, platform, tooling)):
+            return True
+        if part in {'qt', 'qt5', 'qt6', 'issue82', 'issue-82', 'catalog.json', 'docs', 'conftest.py'}:
+            return True
+        if part == 'woff' and parts[index + 1:index + 2] == ['tests']:
+            return True
+        if part == 'plugins' and index + 1 < len(parts) and parts[index + 1] in plugin_kinds:
+            return True
+    return False
+
+
+def validate_production_result(result):
+    require(isinstance(result, dict), 'invalid production result')
+    require(result.get('executable_help_stderr_nonempty') is False,
+            'production stderr evidence must be explicitly false')
+    code = result.get('executable_help_exit_code')
+    require(type(code) is int and code == 0, 'production help failed')
+    require(result.get('qt_distributions') == [], 'production Qt distribution found')
+    for kind in ('wheel', 'executable'):
+        entries = result.get(kind + '_entries')
+        require(isinstance(entries, list) and bool(entries), 'missing artifact inventory')
+        require(all(isinstance(n, str) and n for n in entries), 'malformed artifact inventory')
+        require(len(entries) == len(set(entries)), 'duplicate artifact entry')
+        forbidden = [n for n in entries if is_forbidden_entry(n)]
+        require(result.get('forbidden_' + kind + '_entries') == forbidden,
+                'artifact classification mismatch')
+        require(not forbidden, 'production Qt or spike artifact found')
+    dependencies = result.get('requires_dist')
+    require(isinstance(dependencies, list) and bool(dependencies), 'missing dependency inventory')
+    for line in dependencies:
+        require(isinstance(line, str) and line.startswith('Requires-Dist: '), 'invalid dependency entry')
+        name = re.split(r'[\s<>=!~;\[]', line[len('Requires-Dist: '):], maxsplit=1)[0]
+        require(not is_forbidden_entry(name), 'production Qt dependency found')
+
+
+def validate_uia_result(result):
+    require(isinstance(result, dict), 'invalid UIA result')
+    require(result.get('stderr_nonempty') is False, 'UIA stderr evidence must be explicitly false')
+    require(result.get('stdout_unexpected') is False, 'UIA stdout evidence must be explicitly false')
+    count = result.get('qt_message_count')
+    require(type(count) is int and count == 0, 'UIA Qt diagnostic evidence must be zero')
+    code = result.get('exit_code')
+    require(type(code) is int and code == 0, 'UIA process exit evidence must be zero')
+    require(result.get('window_found') is True, 'UIA window not found')
+    elements = result.get('elements')
+    require(isinstance(elements, list) and bool(elements), 'UIA elements missing')
+    for item in elements:
+        require(isinstance(item, dict) and isinstance(item.get('name'), str)
+                and isinstance(item.get('role'), str)
+                and type(item.get('keyboard_focusable')) is bool
+                and type(item.get('offscreen')) is bool, 'malformed UIA element')
+    require(result.get('announcements_verified') is False, 'UIA does not verify speech')
+
+
+def validate_plugin_results(rows, historical=False):
+    require(isinstance(rows, list) and bool(rows), 'plugin observations missing')
+    for row in rows:
+        require(isinstance(row, dict), 'malformed plugin observation')
+        code = row.get('exit_code')
+        require(type(code) is int and code == 0, 'plugin process failed')
+        require(row.get('warning_kinds') == [], 'plugin warnings present')
+        nonempty, unload = row.get('stderr_nonempty'), row.get('stderr_only_library_unload')
+        require(type(nonempty) is bool and type(unload) is bool, 'plugin stderr evidence malformed')
+        require(not nonempty or unload, 'plugin stderr is unexpected')
+        # The old observer classified empty output as unload-only (vacuous all).
+        # Preserve that interpretation only in explicit historical replay.
+        require(historical or nonempty == unload, 'plugin stderr is contradictory')
+        require((historical and 'stdout_unexpected' not in row) or
+                row.get('stdout_unexpected') is False, 'plugin stdout evidence invalid')
+        loaded = row.get('loaded_dll_basenames')
+        require(isinstance(loaded, list) and 'qwindows.dll' in loaded
+                and row.get('platform_plugin') == 'windows', 'plugin platform evidence missing')
+
+
+def collect_uia_diagnostics(result, stderr_path, stdout_path):
+    # File absence, invalid UTF-8 and malformed/missing shell events all fail.
+    # There is no UIA stderr allowlist. Raw text remains local.
+    stderr = stderr_path.read_text(encoding='utf-8-sig')
+    stdout = stdout_path.read_text(encoding='utf-8-sig')
+    result['stderr_nonempty'] = bool(stderr.strip())
+    events = []
+    unexpected = False
+    for line in stdout.splitlines():
+        try:
+            event = json.loads(line)
+        except ValueError:
+            unexpected = True
+            continue
+        if not isinstance(event, dict) or event.get('event') not in {'window', 'first_paint', 'result'}:
+            unexpected = True
+        else:
+            events.append(event)
+    result['stdout_unexpected'] = unexpected
+    require(sorted(e['event'] for e in events) == ['first_paint', 'result', 'window'],
+            'UIA shell event evidence missing or duplicated')
+    payload = next(e.get('result') for e in events if e['event'] == 'result')
+    require(isinstance(payload, dict) and isinstance(payload.get('messages'), list),
+            'UIA Qt message evidence missing')
+    require(payload.get('forbidden_imports') == [], 'UIA forbidden imports')
+    result['qt_message_count'] = len(payload['messages'])
+    return result
+
+
+def validate_measurements(rows, configuration, scales, historical=False):
+    require(isinstance(rows, list), 'missing measurement rows')
+    require(all(isinstance(row, dict) for row in rows), 'malformed measurement row')
+    require([(r.get('configuration'), r.get('requested_scale'), r.get('repetition')) for r in rows]
+            == [(configuration, scale, repeat) for scale in scales for repeat in (1, 2, 3)],
+            'measurement series mismatch')
+    for row in rows:
+        require(type(row.get('exit_code')) is int and row['exit_code'] == 0, 'measurement process failed')
+        require(row.get('stderr_nonempty') is False and row.get('qt_messages') == [],
+                'measurement diagnostic evidence invalid')
+        require((historical and 'stdout_unexpected' not in row)
+                or row.get('stdout_unexpected') is False, 'unexpected or missing measurement stdout')
+        require(row.get('cold_boot_verified') is False, 'cold measurement unsupported')
+        value = row.get('launch_to_paint_seconds')
+        require(type(value) in (int, float) and math.isfinite(value) and value > 0,
+                'first-paint evidence invalid')
+        result = row.get('result')
+        require(isinstance(result, dict), 'measurement payload missing')
+        require(result.get('forbidden_imports') == [], 'forbidden measurement imports')
+        require(result.get('platform_plugin') == 'windows', 'measurement platform mismatch')
+        require(result.get('pyside') == result.get('qt') == '6.11.2', 'measurement Qt mismatch')
+        checks = result.get('checks')
+        require(isinstance(checks, list), 'measurement checks missing')
+        require(all(isinstance(c, dict) and c.get('passed') is True for c in checks), 'measurement check failed')
+        if len(scales) > 1:
+            require(bool(checks), 'audit checks missing')
+
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--uia-result', type=Path, required=True)
+    parser.add_argument('--stderr', type=Path, required=True)
+    parser.add_argument('--stdout', type=Path, required=True)
+    args = parser.parse_args()
+    try:
+        result = json.loads(args.uia_result.read_text(encoding='utf-8-sig'))
+        result = collect_uia_diagnostics(result, args.stderr, args.stdout)
+        args.uia_result.write_text(json.dumps(result, indent=2) + '\n', encoding='utf-8')
+        validate_uia_result(result)
+    except (OSError, UnicodeError, ValueError, TypeError, KeyError):
+        raise SystemExit('UIA evidence failed; inspect local diagnostics') from None
+
+
+if __name__ == '__main__':
+    main()
