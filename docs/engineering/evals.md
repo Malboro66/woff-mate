@@ -171,8 +171,8 @@ claim Q5 or approval of Product Gate A or Gate B.
 | `EVAL-UI-STATES-001` | #80 | Implemented | Thirty synthetic fixtures and the 15-screen matrix enforce six shared states, separate global/list/detail contexts, explicit subject selection, retained career context, owner identity field placement, consistent identity, partial/conflicting fields, safe freshness, redacted settings, closed text and sanitized failures without production dependencies | `scripts/validate_ui_fixtures.py`, `tests/test_ui_state_fixtures.py`, `woff/tests/test_architecture_contracts.py` |
 | `EVAL-UI-POLICY-001` | #135 | Implemented | The canonical UI development standard preserves repository authority, V2 accessibility, privacy, provenance, reduced motion, and toolkit-independent runtime boundaries | `woff/tests/test_ui_development_standard.py` |
 | `EVAL-UI-CONTRACTS-001` | #81 | Implemented | Six frozen toolkit-independent snapshots enforce context-specific cardinality, safe retained observations, payload-free transitions, exact integer types, warnings unique and sorted by code, canonical nation/service, stable identities, defensive immutable values, sanitized diagnostics and optional-selection request lifecycle protocols, exercised only by #80 fixtures | `tests/test_ui_contracts.py`, `woff/tests/test_architecture_contracts.py` |
-| `EVAL-UI-SPIKE-001` | #82 | Planned | One PySide6 line records bounded packaging/resource feasibility, Python/Windows coverage and explicit deferred adoption/release gaps | — |
-| `EVAL-UI-SPIKE-002` | #82 | Planned | Scaling, keyboard use, accessibility, plugin behavior, and licensing evidence support a Go, Conditional Go, or No-go recommendation | — |
+| `EVAL-UI-SPIKE-001` | #82 | Implemented | One PySide6 line records bounded packaging/resource feasibility, actual Python/Windows coverage and explicit deferred adoption/release gaps | `tests/test_ui_spike_evidence.py` |
+| `EVAL-UI-SPIKE-002` | #82 | Implemented | Archived scaling, keyboard use, accessibility exposure, plugin behavior and licensing evidence support the final Conditional Go recommendation within its recorded limits | `tests/test_ui_spike_evidence.py` |
 | `EVAL-P0-FLOW-001` | #140 | Planned | Seven primary destinations, two synthetic careers, six shared states, immutable #81 values, isolation, keyboard/focus and scaling | — |
 | `EVAL-P0-BOUNDARY-001` | #140 | Planned | Fixture-only execution excludes live SQLite/WoFF, repository/parser/watchdog access, writes, launcher control, network, personal data, runtime AI and production social/RPG behavior | — |
 | `EVAL-P0-DEMO-001` | #140 | Planned | Reproducible Windows launch/build, approved experimental toolkit/ADR path, interaction captures and product-demonstrability record | — |
@@ -185,15 +185,20 @@ with Conditional Go for the architecture/product process. Windows 11/clean-machi
 runs, remaining Python execution, true cold starts, native DPI and final
 distribution validation are deferred to adoption/release; screen-reader speech
 is not a current product requirement and was not manually verified. Keyboard,
-focus, semantics, UIA and scaling remain relevant. Neither spike eval is promoted
-to Implemented before human integration/disposition, #82 remains open and #140's
-prerequisite remains unsatisfied. Those workflow states do not require another
-external evidence campaign. No production adoption or Product Gate is approved.
+focus, semantics, UIA and scaling remain relevant. PR #165 is now squash-merged
+and #82 is closed as Completed. Both spike evals are Implemented through the
+existing deterministic evidence replay; this records bounded feasibility, not
+completion of the deferred adoption/release matrix. The [post-spike ADR decision](../architecture/adr-ui-toolkit.md#post-spike-p0-authorization-2026-09-28)
+records integrated `main` at `20f742868a71e2092b8a82397304fef668638bed` and the
+maintainer's authorization of PySide6 + Qt Widgets 6.11.2 for experimental P0
+only. The ADR remains Proposed. Historical evidence is unchanged, and no new
+external evidence campaign, production adoption or Product Gate is authorized.
 
 The executable sequence is #81 -> #82 -> P0/#140 -> R2 -> retained production
 architecture/P1. #82 now belongs to cycle 3.4.0, and its #81 dependency records
 this near-term order; earlier disposable exploration is not completion of that
-sequence. #140 depends on #79/#80/#81/#139 (satisfied) and #82 (unsatisfied).
+sequence. #140 depends on #79/#80/#81/#82/#139 (all satisfied); P0 remains pending.
+The #82 dependency into R2 is also satisfied, but R2 still awaits #140 evidence.
 Its planned evals prove neither live data integration nor production toolkit
 acceptance. `review-r2` is a repository review work item outside engineering
 cycle membership, not a newly numbered GitHub issue. Future retained production
@@ -378,8 +383,8 @@ not the mutable public Site. Audit 1–3 remain immutable historical evidence.
 Issue #80 is complete. Its [state matrix](../ui/screen-state-matrix.md) and
 [fixture inventory](../../woff/tests/fixtures/ui_states/README.md) satisfy the
 fixture prerequisite for #81 and #82. Issue #81 is now implemented by the
-[immutable application contracts](../ui/application-contracts.md); #82 remains
-independent toolkit-feasibility work.
+[immutable application contracts](../ui/application-contracts.md); #82 is complete
+as bounded toolkit-feasibility work through PR #165.
 The isolated fixture suite runs outside `woff/tests` to avoid its persistence
 setup; the validator also runs under `python -I -S` with integration imports
 and events blocked by a regression test. None of these items adopts Qt,

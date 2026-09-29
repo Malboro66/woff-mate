@@ -77,14 +77,23 @@ def test_product_path_and_cycle_ownership_are_executable() -> None:
         assert {"Q0", "Q1"} <= set(item["gates"])
         for eval_id in item["evals"]:
             assert item_id in evals[eval_id]["work_items"]
-            assert evals[eval_id]["status"] == "planned"
+            expected_status = "implemented" if item_id == "issue-82" else "planned"
+            assert evals[eval_id]["status"] == expected_status
+    assert items["issue-82"]["state"] == "done"
+    assert items["issue-140"]["state"] == "backlog"
+    assert items["review-r2"]["state"] == "backlog"
     assert {"Q4", "Q6-CYCLE-3.4.0"} <= set(items["issue-140"]["gates"])
     assert "Q5-UI-ARCHITECTURE" in items["review-r2"]["gates"]
     assert "Q5-UI-ARCHITECTURE" not in items["issue-140"]["gates"]
     assert items["issue-139"]["state"] == "done"
     assert {"id": "issue-139", "status": "satisfied"} in items["issue-140"]["depends_on"]
     assert {"id": "issue-81", "status": "satisfied"} in items["issue-140"]["depends_on"]
-    assert {"id": "issue-82", "status": "unsatisfied"} in items["issue-140"]["depends_on"]
+    assert all(dep["status"] == "satisfied" for dep in items["issue-140"]["depends_on"])
+    assert items["review-r2"]["depends_on"] == [
+        {"id": "issue-81", "status": "satisfied"},
+        {"id": "issue-82", "status": "satisfied"},
+        {"id": "issue-140", "status": "unsatisfied"},
+    ]
     members = set(cycles["cycle-3.4.0"]["members"])
     assert {"issue-136", "issue-139", "issue-140", "issue-81", "issue-82"} <= members
     assert len(members) == 20
@@ -463,3 +472,30 @@ def test_p0_evidence_preserves_fixture_boundary() -> None:
                    "scaling", "SQLite", "WoFF", "network", "launcher", "AI",
                    "product-demonstrability record"):
         assert phrase in evidence
+
+
+def test_post_spike_authorization_is_revision_bound_and_limited_to_p0() -> None:
+    adr = _text("docs/architecture/adr-ui-toolkit.md")
+    decision = adr.split("## Post-spike P0 authorization (2026-09-28)", 1)[1].split(
+        "## Adoption gates", 1
+    )[0]
+    for phrase in (
+        "20f742868a71e2092b8a82397304fef668638bed",
+        "PR #165", "Completed", "Conditional Go",
+        "Authorize PySide6 + Qt Widgets 6.11.2 for the experimental P0 fixture-backed",
+        "desktop prototype in Issue #140",
+        "ADR remains **Proposed** until the post-P0 R2 review",
+        "adoption gates are satisfied",
+        "does not authorize P1 or retained production architecture",
+        "SQLite or live WoFF data access",
+        "parser, repository, watchdog, launcher or session integration",
+        "campaign/configuration mutation",
+        "mandatory Qt production dependencies outside the approved P0 boundary",
+        "public distribution; Product Gate approval; or ADR acceptance",
+        "P3 asset work is not a dependency of #140",
+        "does not authorize additional Narrator/NVDA, VM, Windows 11, clean-machine, DPI or cold-start evidence work",
+        "evidence-status.json", "measurements, hashes and provenance remain unchanged",
+    ):
+        assert phrase in decision
+    graph = _graph()
+    assert graph["evals"]["EVAL-CYCLE-340-001"]["status"] == "planned"

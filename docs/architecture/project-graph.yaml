@@ -720,12 +720,14 @@ evals:
     enforced_by: [tests/test_ui_contracts.py, woff/tests/test_architecture_contracts.py]
   EVAL-UI-SPIKE-001:
     work_items: [issue-82]
-    status: planned
+    status: implemented
     evidence: One isolated PySide6 line records bounded packaging/resource feasibility, actual Python/Windows coverage, and explicit deferred adoption/release validation; the final report owns the maintainer disposition.
+    enforced_by: [tests/test_ui_spike_evidence.py]
   EVAL-UI-SPIKE-002:
     work_items: [issue-82]
-    status: planned
+    status: implemented
     evidence: The fixture-backed spike records Windows scaling, keyboard navigation, accessibility exposure, Qt plugin behavior, and licensing obligations without adding a production dependency.
+    enforced_by: [tests/test_ui_spike_evidence.py]
   EVAL-GOV-001:
     work_items: [issue-51]
     status: implemented
@@ -1173,7 +1175,7 @@ work_items:
   issue-82:
     title: Validate PySide6 packaging, startup, scaling, and accessibility
     module: platform
-    state: backlog
+    state: done
     evals: [EVAL-UI-SPIKE-001, EVAL-UI-SPIKE-002]
     gates: [Q0, Q1, Q4, Q6-CYCLE-3.4.0]
     depends_on:
@@ -1306,7 +1308,7 @@ work_items:
       - {id: issue-79, status: satisfied}
       - {id: issue-80, status: satisfied}
       - {id: issue-81, status: satisfied}
-      - {id: issue-82, status: unsatisfied}
+      - {id: issue-82, status: satisfied}
       - {id: issue-139, status: satisfied}
   issue-142:
     title: Reconcile pre-existing nested campaign files during watchdog startup
@@ -1431,7 +1433,7 @@ work_items:
     gates: [Q0, Q1, Q5-UI-ARCHITECTURE]
     depends_on:
       - {id: issue-81, status: satisfied}
-      - {id: issue-82, status: unsatisfied}
+      - {id: issue-82, status: satisfied}
       - {id: issue-140, status: unsatisfied}
 
 cycles:
