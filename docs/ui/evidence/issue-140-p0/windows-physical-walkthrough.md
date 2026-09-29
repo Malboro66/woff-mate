@@ -1,4 +1,4 @@
-﻿# Issue #140 â€” Physical Windows P0 Walkthrough
+# Issue #140 - Physical Windows P0 Walkthrough
 
 **Date:** 2026-09-29
 **Platform:** Windows 10 Pro 64-bit, build 19045
