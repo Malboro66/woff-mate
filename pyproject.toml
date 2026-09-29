@@ -30,7 +30,7 @@ py-modules = ["woff_query"]
 
 [tool.setuptools.packages.find]
 include = ["woff*"]
-exclude = ["woff.tests", "woff.tests.*"]
+exclude = ["woff.tests", "woff.tests.*", "woff.p0_desktop", "woff.p0_desktop.*"]
 
 [tool.setuptools.package-data]
 woff = [

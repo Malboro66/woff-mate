@@ -32,7 +32,7 @@ py -3.10 -m venv .venv-p0
 .venv-p0\Scripts\python.exe -m woff.p0_desktop
 ```
 
-The source launch is deliberately from the repository root: the closed fixture catalog remains excluded from the ordinary production wheel. PySide6 6.11.2 is installed explicitly into the isolated P0 environment; the base dependency metadata and existing Qt-free `build.spec` are unchanged. `--smoke` constructs, shows and closes the shell with no event loop or external state.
+The source launch is deliberately from the repository root: the closed fixture catalog and `woff.p0_desktop` remain excluded from the ordinary production wheel. PySide6 6.11.2 is installed explicitly into the isolated P0 environment; the base dependency metadata and existing Qt-free `build.spec` are unchanged. `--smoke` constructs, shows and closes the shell with no event loop or external state. CI exercises this source and bundle in a separate Linux offscreen P0 job; it does not substitute for the Windows walkthrough.
 
 For a maintainer-evaluation Windows folder bundle, from the same root and isolated environment:
 

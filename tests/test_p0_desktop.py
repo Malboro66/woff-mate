@@ -92,6 +92,7 @@ def test_qt_and_forbidden_live_modules_do_not_cross_boundary() -> None:
         assert 'PySide6' not in path.read_text(encoding='utf-8')
     assert 'PySide6' not in (ROOT / 'build.spec').read_text(encoding='utf-8')
     assert 'PySide6' not in (ROOT / 'pyproject.toml').read_text()
+    assert '"woff.p0_desktop"' in (ROOT / 'pyproject.toml').read_text()
 
 
 @pytest.mark.skipif(__import__('importlib').util.find_spec('PySide6') is None,
