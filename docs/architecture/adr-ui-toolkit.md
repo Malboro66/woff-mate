@@ -92,6 +92,38 @@ Unperformed Windows 11, clean-machine, native DPI, true cold startup, remaining
 Python execution and final distribution checks belong to later adoption/release
 validation where applicable. This does not waive the production gates below.
 
+## Post-spike P0 authorization (2026-09-28)
+
+Integrated `main` revision used for this decision:
+`20f742868a71e2092b8a82397304fef668638bed`, the squash merge of
+[PR #165](https://github.com/Malboro66/woff-mate/pull/165).
+[Issue #82](https://github.com/Malboro66/woff-mate/issues/82) is closed as
+Completed, with the final **Conditional Go** feasibility disposition.
+
+The maintainer explicitly approved this decision:
+
+> Authorize PySide6 + Qt Widgets 6.11.2 for the experimental P0 fixture-backed
+> desktop prototype in Issue #140.
+
+This authorizes only the experimental P0 path. It does not authorize P1 or
+retained production architecture; SQLite or live WoFF data access; parser,
+repository, watchdog, launcher or session integration; campaign/configuration
+mutation; mandatory Qt production dependencies outside the approved P0 boundary;
+public distribution; Product Gate approval; or ADR acceptance.
+
+The ADR remains **Proposed** until the post-P0 R2 review and the applicable
+adoption gates are satisfied. P0 implementation/completion, R2, Product Gates
+and later adoption/release validation remain pending. The completed #82 evidence
+and this explicit decision satisfy #140's #82 prerequisite; no new requirement
+or blocker is introduced, and P3 asset work is not a dependency of #140.
+
+This decision does not authorize additional Narrator/NVDA, VM, Windows 11,
+clean-machine, DPI or cold-start evidence work. Deferred adoption/release checks
+remain deferred as described above; they are not new prerequisites for #140.
+`docs/ui/evidence/issue-82-pyside6/evidence-status.json` and all historical #82
+raw evidence, measurements, hashes and provenance remain unchanged. Completion
+of the spike does not promote its observations into unperformed validation.
+
 ## Adoption gates
 
 This documentation PR adds **no GUI runtime dependency or production UI
@@ -116,8 +148,8 @@ dependency, create a production UI, or approve Product Gate A or Product Gate B.
 
 The near-term order is #81 -> #82 -> P0/#140 -> R2 -> retained production
 architecture/P1. #82 provides feasibility evidence; P0 proves the fixture-backed
-experience. The post-spike decision must explicitly authorize any experimental
-P0 implementation path, but the ADR remains Proposed for production until R2
-and all adoption gates are satisfied. Neither the spike nor P0 silently accepts
+experience. The post-spike decision above explicitly authorizes the experimental
+P0 implementation path, but the ADR remains Proposed until the post-P0 R2 review
+and all applicable adoption gates are satisfied. Neither the spike nor P0 silently accepts
 PySide6 or any other GUI toolkit. This governance change adds no dependency or
 permission to ship an experimental artifact as production UI.

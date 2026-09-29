@@ -1576,11 +1576,12 @@ def test_ui_state_fixture_gate_and_followup_dependencies() -> None:
         "woff/tests/test_architecture_contracts.py",
     ]
     issue_82 = work_items["issue-82"]
-    assert issue_82["state"] == "backlog"
+    assert issue_82["state"] == "done"
     assert {"id": "issue-80", "status": "satisfied"} in issue_82["depends_on"]
     assert {"id": "issue-81", "status": "satisfied"} in issue_82["depends_on"]
     for eval_id in issue_82["evals"]:
-        assert evals[eval_id]["status"] == "planned"
+        assert evals[eval_id]["status"] == "implemented"
+        assert evals[eval_id]["enforced_by"] == ["tests/test_ui_spike_evidence.py"]
     assert evals["EVAL-CYCLE-340-001"]["status"] == "planned"
 
 

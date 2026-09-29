@@ -481,23 +481,26 @@ def test_regenerated_production_evidence_matches_recorded_build_inputs():
     result = read_json('production-isolation-current.json')
     assert result['source_commit'] == CURRENT_COMMIT
     assert result['source_tree'] == CURRENT_TREE
-    assert subprocess.check_output([
-        'git', 'rev-parse', result['source_commit'] + '^{tree}'], cwd=ROOT).decode().strip() == CURRENT_TREE
+    # These identifiers are recorded provenance; squash integration need not
+    # retain their Git objects. SHA256SUMS authenticates the archived record.
     assert result['evidence_kind'] == 'regenerated production isolation'
     assert result['platform'] in {'Linux', 'Windows'}
     assert result['build_exit_codes'] == [0, 0]
     for source_name, key in [('production_check.py.txt', 'observer_sha256'),
                              ('evidence_contract.py.txt', 'contract_sha256')]:
         assert hashlib.sha256((EVIDENCE / source_name).read_bytes()).hexdigest() == result[key]
-    for entry in result['build_inputs']:
-        # Authenticate the measured revision, not a later packaging configuration.
-        # Missing history still fails; no current-file fallback or network fetch.
-        data = subprocess.check_output([
-            'git', 'show', result['source_commit'] + ':' + entry['path']], cwd=ROOT)
-        assert len(data) == entry['bytes']
-        assert hashlib.sha256(data).hexdigest() == entry['sha256'], entry['path']
-    payload = json.dumps(result['build_inputs'], sort_keys=True, separators=(',', ':')).encode()
-    assert hashlib.sha256(payload).hexdigest() == result['build_inputs_sha256']
+    inputs = result['build_inputs']
+    paths = [entry['path'] for entry in inputs]
+    assert paths == sorted(set(paths))
+    for entry in inputs:
+        assert set(entry) == {'path', 'bytes', 'sha256'}
+        assert isinstance(entry['path'], str) and entry['path']
+        assert type(entry['bytes']) is int and entry['bytes'] >= 0
+        assert re.fullmatch(r'[0-9a-f]{64}', entry['sha256'])
+    # Pin the canonical historical inventory, including every path, byte count
+    # and digest. This preserves its metadata, not a re-read of historical files.
+    assert canonical_sha256(inputs) == result['build_inputs_sha256'] == (
+        'b35ebb8ccabc75acc6cfd2811459d7826f32857671dbe11eab1e6ec8bfea311a')
     assert [entry['path'] for entry in result['wheel_inventory']] == result['wheel_entries']
     assert sorted({e['path'] for e in result['executable_inventory']} | set(result['executable_directories']) |
                   {'embedded/' + n for n in result['embedded_entries']}) == result['executable_entries']
@@ -618,8 +621,9 @@ def test_current_windows_production_is_native_and_revision_bound():
     assert result['source_tree'] == CURRENT_TREE
     assert result['python'] == '3.10.11'
     assert result['spec_variant'] == 'unchanged-production-spec'
-    spec = subprocess.check_output(['git', 'show', CURRENT_COMMIT + ':build.spec'], cwd=ROOT)
-    assert result['effective_spec_sha256'] == hashlib.sha256(spec).hexdigest()
+    specs = [entry for entry in result['build_inputs'] if entry['path'] == 'build.spec']
+    assert len(specs) == 1
+    assert result['effective_spec_sha256'] == specs[0]['sha256']
     assert result['build_exit_codes'] == [0, 0]
     assert result['executable_help_stderr_nonempty'] is False
     assert result['qt_distributions'] == []
@@ -645,9 +649,8 @@ def test_prior_linux_production_bytes_and_contract_are_preserved():
 
 def test_current_evidence_status_hashes_and_limits():
     status = read_json('evidence-status.json')
-    original = json.loads(subprocess.check_output([
-        'git', 'show', CURRENT_COMMIT + ':docs/ui/evidence/issue-82-pyside6/evidence-status.json'], cwd=ROOT))
-    assert status['historical_payload_sha256'] == original['historical_payload_sha256']
+    # Historical payload digests are checked against archived bytes by
+    # test_historical_observations_and_provenance_are_not_rewritten.
     current = status['current_validation']
     assert current['source_commit'] == CURRENT_COMMIT and current['source_tree'] == CURRENT_TREE
     assert current['python_versions_executed'] == list(CURRENT_PYTHONS.values())
@@ -670,6 +673,19 @@ def test_current_evidence_status_hashes_and_limits():
         'Python 3.12/3.13 packaged execution if required by the criterion',
         'native DPI settings and transitions', 'screen-reader/Narrator/NVDA speech',
         'truly cold startup', 'final distribution and licensing obligations']
+
+
+def test_archived_provenance_replay_does_not_require_git_objects(monkeypatch, tmp_path):
+    # Normal squash integration can leave intermediate measurement commits
+    # unreachable. Replay must use the archive, never Git or current sources.
+    def reject_process(*args, **kwargs):
+        pytest.fail('Archived provenance replay must not invoke Git or another process')
+
+    monkeypatch.setattr(subprocess, 'Popen', reject_process)
+    monkeypatch.setitem(globals(), 'ROOT', tmp_path)
+    test_regenerated_production_evidence_matches_recorded_build_inputs()
+    test_current_windows_production_is_native_and_revision_bound()
+    test_current_evidence_status_hashes_and_limits()
 
 
 def test_current_evidence_has_no_private_or_local_paths():

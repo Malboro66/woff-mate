@@ -196,8 +196,10 @@ The graph tracks `review-r2` after #81, #82 and P0/#140. R2 requires the
 revision-bound Full Application Review, P0 demonstration and explicit maintainer
 ADR decision before retaining production UI architecture or beginning P1 work.
 #82 supplies feasibility evidence and P0 supplies fixture-backed experience;
-neither approves a production toolkit. A documented experimental P0 path may
-precede R2; all existing ADR adoption gates still apply to production retention.
+neither approves a production toolkit. The [post-spike decision](../architecture/adr-ui-toolkit.md#post-spike-p0-authorization-2026-09-28)
+authorizes PySide6 + Qt Widgets 6.11.2 only for experimental fixture-backed P0
+before R2. The ADR remains Proposed; all existing ADR adoption gates still apply
+to production retention.
 R2 does not rename, replace or approve any Product Gate A-D.
 
 ### Privacy and security release evidence
@@ -293,8 +295,10 @@ Cycle 3.4.0 is approved only when all conditions below pass:
 CI success alone does not approve cycle 3.4.0.
 
 #82 now belongs to 3.4.0 on the near-term P0 path. #139 completed the policy
-through PR #141 and its dependency into #140 is satisfied. #81 is complete;
-#140 remains blocked by #82 and remains fixture-backed only. `review-r2` is a
+through PR #141 and its dependency into #140 is satisfied. #81 and #82 are complete;
+#140's #82 prerequisite is satisfied by PR #165 and the explicit experimental P0
+authorization. #140 remains pending and fixture-backed only; R2 still awaits
+P0 evidence, and Product Gates and adoption/release work remain pending. `review-r2` is a
 product-review checkpoint, not another release-cycle issue. The historical
 [#136 closure discrepancy](evals.md#136-closure-discrepancy) is resolved by the
 implementation merged through PR #164. No aggregate tracker is declared for 3.4.0;

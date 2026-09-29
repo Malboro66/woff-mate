@@ -113,8 +113,8 @@ The current priority is to convert the strong foundation into demonstrable produ
 3. Resolve the remaining cycle 3.3.0 evidence/gate decision, including #87 and maintainer approval.
 4. After the existing P1 correction order, resolve #151's real-root output/input isolation. #152's repository controls are already enforced and recorded; then repeat the affected R1 scope against the corrected integrated revision and produce the reliable-companion/recovery demonstration before Gate A consideration.
 5. Use the completed and integrated **#81** immutable read-only presentation/query contracts, built on the #136 domain contract integrated through PR #164, as authoritative input to the remaining UI evidence sequence.
-6. Execute **#82** as the current toolkit/packaging/scaling/accessibility feasibility-evidence step and explicitly document the permitted fixture-only prototype path in the ADR.
-7. Implement **#140 — P0 Functional Desktop Prototype**.
+6. Use the completed and integrated **#82** Conditional Go feasibility evidence and the [explicit post-spike P0 authorization](../architecture/adr-ui-toolkit.md#post-spike-p0-authorization-2026-09-28): PySide6 + Qt Widgets 6.11.2 for the experimental fixture-backed prototype; the ADR remains Proposed.
+7. Implement **#140 — P0 Functional Desktop Prototype**; its #82 prerequisite is satisfied, while P0 completion remains pending.
 8. Use P0 as the first recurring product-demonstrability checkpoint.
 9. Perform **R2 — UI Architecture Decision** using #81/#82 and P0 evidence; decide explicitly whether the architecture/toolkit may be retained under the ADR adoption gates.
 10. Only after R2 and all applicable adoption gates, move toward **P1 — Read-only Vertical Slice**, replacing fixture-only data only through approved application query services.
