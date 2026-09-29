@@ -135,6 +135,22 @@ modules:
       - platform
     forbidden_dependencies: []
 
+  p0_desktop:
+    responsibility: Experimental fixture-only Qt Widgets desktop and demonstration capture.
+    paths:
+      - p0_launcher.py
+      - scripts/capture_p0.py
+      - woff/p0_desktop/**/*.py
+    may_depend_on:
+      - foundation
+      - domain
+      - presentation
+    forbidden_dependencies:
+      - persistence
+      - ingestion
+      - application
+      - platform
+
   governance:
     responsibility: Executable repository policy, project graph and immutable evidence validation.
     paths:
