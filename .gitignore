@@ -36,3 +36,8 @@ woff_data_report.txt
 # Migration safety backups
 .woff-migration-backups/
 *.backup.sqlite
+
+# Issue 140 experimental P0 local environment and build outputs
+.venv-p0/
+.p0-build/
+.p0-dist/

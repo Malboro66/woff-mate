@@ -1,6 +1,6 @@
 # P0 — Functional Desktop Prototype (Issue #140)
 
-Status: experimental implementation on Issue #140 Draft PR; physical Windows demonstration pending. This record is branch evidence, not Product Gate or ADR approval.
+Status: experimental implementation on Issue #140 Draft PR; physical Windows P0 demonstration completed on 2026-09-29. This record is branch evidence, not Product Gate or ADR approval.
 
 ## User capability gained
 
@@ -50,10 +50,12 @@ Representative synthetic captures live in [`evidence/issue-140-p0`](evidence/iss
 
 Portable checks: `tests/test_p0_desktop.py` proves seven routes and six states, immutable ID isolation, immediate widget clearing, focus and clean reopen via Qt offscreen, asset resolution and a structural forbidden-import boundary. The separate P0 PyInstaller spec excludes live integration modules. The #82 archived Windows 10 evidence established toolkit feasibility at the four Qt override scaling profiles; it did not execute this Issue #140 window. No #82 measurement is relabelled as a P0 measurement.
 
+**Startup/package comparison with #82:** Issue #82 remains the historical measured baseline and its measurements are not relabelled as P0 results. Its final Windows 10 series recorded launch-to-paint samples of `0.467 / 0.459 / 0.448 s` for Python 3.10 source and `0.479 / 0.461 / 0.467 s` for Python 3.14 source; packaged samples were `0.552 / 0.431 / 0.428 s` on Python 3.10 and `0.550 / 0.456 / 0.464 s` on Python 3.14. The corresponding complete onedir artifacts were `110.08 MB` and `116.83 MB`. The Issue #140 physical walkthrough did not repeat that benchmark or produce a new timing series; it confirmed functional source and folder-bundle launch, close and reopen on the same Windows 10 development host. Therefore #82 supplies the inherited quantitative startup/package baseline while #140 supplies revision-specific functional demonstrability evidence.
+
 **Physical Windows P0 check — completed 2026-09-29:** The fixture-backed P0 was exercised on the physical Windows 10 developer host from both source and the PyInstaller folder bundle at 100%, 125%, 150% and 200% display scaling. All seven destinations remained reachable; Tab/Shift+Tab, rail arrows, Enter/Space, selector interaction, heading focus and Retry were usable; Pilot 2 → same-name Pilot 3 switching cleared the previous widgets, portrait and data before presenting the expected missing state; resizing remained usable at all four profiles; and source/bundle close and reopen succeeded. The detailed maintainer-observed record is in [`evidence/issue-140-p0/windows-physical-walkthrough.md`](evidence/issue-140-p0/windows-physical-walkthrough.md). No Windows screenshots were captured. The existing representative screenshots remain explicitly Linux Qt offscreen evidence and are not relabelled as Windows observations. This walkthrough is P0 functional evidence only, not Narrator/NVDA, clean-machine, release-certification, ADR-adoption, R2 or Product Gate evidence.
 
 ## Architecture status and P1 blockers
 
 PySide6 + Qt Widgets **6.11.2** is authorized only for experimental P0. The UI toolkit ADR remains **Proposed**; **R2 is pending** until post-P0 review; no Product Gate is approved. Issue #140 and its graph dependency into R2 remain pending until integration and acceptance.
 
-Actual blockers to **P1 — Read-only Vertical Slice**: physical P0 Windows launch/build/interaction validation; post-P0 R2 architectural decision and applicable ADR adoption gates; approved application query services and the narrow real local read-only data path. The fixture inventory's second-career screen absence is a P0 demonstration limitation, not a reason to invent live data or reopen #80.
+Actual blockers to **P1 — Read-only Vertical Slice**: post-P0 R2 architectural decision and applicable ADR adoption gates; approved application query services; and authorization of the narrow real local read-only data path. The physical P0 Windows launch/build/interaction validation is complete. The fixture inventory's second-career screen absence is a P0 demonstration limitation, not a reason to invent live data or reopen #80.
