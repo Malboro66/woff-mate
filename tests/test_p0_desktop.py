@@ -127,3 +127,44 @@ for _ in range(2):
     result = subprocess.run([sys.executable, '-c', code], cwd=ROOT, env=env,
                             capture_output=True, text=True, timeout=25)
     assert result.returncode == 0, result.stderr
+
+
+@pytest.mark.skipif(__import__('importlib').util.find_spec('PySide6') is None,
+                    reason='Optional P0 toolkit unavailable')
+def test_offscreen_state_messages_and_context_label_semantics() -> None:
+    code = '''
+from PySide6.QtWidgets import QApplication, QFrame, QLabel, QPushButton
+from woff.p0_desktop.window import P0Window
+from woff.ui_contracts import ScreenState
+app = QApplication([])
+w = P0Window(); w.show(); app.processEvents()
+career_label = next(label for label in w.findChildren(QLabel) if label.text() == 'CAREER')
+assert career_label.objectName() == 'muted'
+w.set_fixture_state('error'); app.processEvents()
+failure_message = w.current_snapshot.envelope.failure.message
+notice = next(frame for frame in w.findChildren(QFrame) if frame.objectName() == 'notice')
+assert [label.text() for label in notice.findChildren(QLabel)].count(failure_message) == 1
+retry = next(button for button in w.findChildren(QPushButton)
+             if button.text() == 'Retry fixture view')
+retry.click(); app.processEvents()
+assert w.current_snapshot.envelope.state is ScreenState.READY
+empty_messages = {
+ 'OPR-01': 'No operations recorded in this synthetic view.',
+ 'DOS-01': 'No pilot dossier entries recorded in this synthetic view.',
+ 'MIS-01': 'No missions recorded in this synthetic view.',
+ 'SQD-01': 'No squadron members recorded in this synthetic view.',
+ 'JRN-01': 'No diary entries recorded in this synthetic view.',
+ 'RPT-01': 'No reports recorded in this synthetic view.',
+ 'SYS-01': 'No diagnostics recorded in this synthetic view.',
+}
+assert len(set(empty_messages.values())) == len(w.nav_buttons) == 7
+for screen, expected in empty_messages.items():
+ w.navigate(screen); w.set_fixture_state('empty'); app.processEvents()
+ notice = next(frame for frame in w.findChildren(QFrame) if frame.objectName() == 'notice')
+ assert [label.text() for label in notice.findChildren(QLabel)].count(expected) == 1
+w.close()
+'''
+    env = dict(os.environ, QT_QPA_PLATFORM='offscreen')
+    result = subprocess.run([sys.executable, '-c', code], cwd=ROOT, env=env,
+                            capture_output=True, text=True, timeout=25)
+    assert result.returncode == 0, result.stderr

@@ -18,6 +18,15 @@ from ..ui_contracts import (
 from .fixtures import FixturePresentation, SCREENS, Snapshot, ReportsView
 
 _ASSETS = Path(__file__).resolve().parents[1] / "assets/ui"
+_EMPTY_MESSAGES = {
+    "OPR-01": "No operations recorded in this synthetic view.",
+    "DOS-01": "No pilot dossier entries recorded in this synthetic view.",
+    "MIS-01": "No missions recorded in this synthetic view.",
+    "SQD-01": "No squadron members recorded in this synthetic view.",
+    "JRN-01": "No diary entries recorded in this synthetic view.",
+    "RPT-01": "No reports recorded in this synthetic view.",
+    "SYS-01": "No diagnostics recorded in this synthetic view.",
+}
 _PALETTE = """
 QMainWindow, QWidget#shell { background: #18231F; color: #F4EFE2; font-family: 'Segoe UI'; font-size: 14px; }
 QWidget#rail { background: #111614; border-right: 1px solid #46534C; }
@@ -142,6 +151,7 @@ class P0Window(QMainWindow):
         career_row = QHBoxLayout()
         career_row.setSpacing(12)
         selector_label = QLabel("CAREER")
+        selector_label.setObjectName("muted")
         career_row.addWidget(selector_label)
         self.career = QComboBox()
         self.career.setAccessibleName("Select synthetic career")
@@ -292,13 +302,14 @@ class P0Window(QMainWindow):
         if envelope.state in {ScreenState.READY, ScreenState.EMPTY, ScreenState.STALE_OR_UNAVAILABLE}:
             self._content(snapshot)
         if envelope.state is not ScreenState.READY or envelope.warnings:
-            messages = [w.message for w in envelope.warnings]
-            if envelope.failure:
-                messages.append(envelope.failure.message)
+            messages = list(dict.fromkeys(
+                [warning.message for warning in envelope.warnings]
+                + ([envelope.failure.message] if envelope.failure else [])
+            ))
             if not messages:
                 messages.append({
                     ScreenState.LOADING: "Loading the synthetic view.",
-                    ScreenState.EMPTY: "None recorded in this synthetic view.",
+                    ScreenState.EMPTY: _EMPTY_MESSAGES[self.destination],
                     ScreenState.MISSING: ("Select a career." if envelope.reason is SnapshotReason.CAREER_NOT_SELECTED
                                           else "This synthetic career has no source for this view."),
                     ScreenState.STALE_OR_UNAVAILABLE: "This synthetic source is unavailable. No current value is inferred.",
