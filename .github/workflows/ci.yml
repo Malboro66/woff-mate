@@ -100,6 +100,47 @@ jobs:
       - run: QT_QPA_PLATFORM=offscreen python -m woff.p0_desktop --smoke
       - run: python -m PyInstaller --clean --noconfirm p0_desktop.spec
       - run: QT_QPA_PLATFORM=offscreen dist/WoFFMateP0/WoFFMateP0 --smoke
+      - name: Capture Issue 140 Linux offscreen evidence
+        shell: bash
+        env:
+          QT_QPA_PLATFORM: offscreen
+          EVIDENCE_DIR: ${{ runner.temp }}/issue-140-p0-linux-offscreen-evidence
+        run: |
+          set -euo pipefail
+          mkdir -p "$EVIDENCE_DIR"
+          python -m scripts.capture_p0 "$EVIDENCE_DIR"
+
+          expected=(
+            dossier-ready.png
+            homonym-missing.png
+            missions-error.png
+            operations-ready.png
+          )
+          for filename in "${expected[@]}"; do
+            test -f "$EVIDENCE_DIR/$filename"
+          done
+
+          mapfile -t actual < <(
+            find "$EVIDENCE_DIR" -maxdepth 1 -type f -name '*.png' -printf '%f\n' |
+              LC_ALL=C sort
+          )
+          if [[ "${actual[*]}" != "${expected[*]}" ]]; then
+            printf 'Unexpected PNG inventory: %s\n' "${actual[*]}" >&2
+            exit 1
+          fi
+
+          (
+            cd "$EVIDENCE_DIR"
+            sha256sum "${expected[@]}" > SHA256SUMS
+            sha256sum --check SHA256SUMS
+          )
+      - name: Upload Issue 140 Linux offscreen evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: issue-140-p0-linux-offscreen-evidence
+          path: ${{ runner.temp }}/issue-140-p0-linux-offscreen-evidence/
+          if-no-files-found: error
+          retention-days: 3
 
   windows-smoke:
     name: Windows smoke test
