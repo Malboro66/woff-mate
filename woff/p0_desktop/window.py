@@ -110,7 +110,7 @@ class P0Window(QMainWindow):
         rail = QWidget()
         rail.setObjectName("rail")
         self.rail = rail
-        rail.setFixedWidth(224)
+        rail.setFixedWidth(256)
         rail_layout = QVBoxLayout(rail)
         rail_layout.setContentsMargins(16, 20, 16, 20)
         rail_layout.setSpacing(8)
@@ -194,7 +194,7 @@ class P0Window(QMainWindow):
 
     def resizeEvent(self, event: QResizeEvent) -> None:
         compact = self.width() < 1000
-        self.rail.setFixedWidth(184 if compact else 224)
+        self.rail.setFixedWidth(184 if compact else 256)
         self.brand_name.setStyleSheet("font-size: 15px;" if compact else "")
         size = 24 if compact else 32
         self.brand_symbol.setPixmap(_svg_icon(_ASSETS / "branding/woff_mate_symbol_light.svg", "#F4EFE2", size).pixmap(size, size))
@@ -322,7 +322,15 @@ class P0Window(QMainWindow):
             if envelope.observed_at.value:
                 layout.addWidget(_line(f"Observed: {envelope.observed_at.value.isoformat()} · {envelope.freshness.value}"))
             self.page_layout.addWidget(notice)
-        if envelope.state is ScreenState.ERROR and envelope.failure and envelope.failure.retryable:
+        can_retry = (
+            envelope.state is ScreenState.ERROR
+            and envelope.failure is not None
+            and envelope.failure.retryable
+        ) or (
+            self.destination == "OPR-01"
+            and envelope.state is ScreenState.STALE_OR_UNAVAILABLE
+        )
+        if can_retry:
             retry = QPushButton("Retry fixture view")
             retry.setIcon(_svg_icon(_ASSETS / "icons/ui_action_retry_20_regular.svg", "#F4EFE2"))
             retry.clicked.connect(lambda: self.set_fixture_state("ready"))
@@ -366,7 +374,11 @@ class P0Window(QMainWindow):
                     f"Claims: {_field_text(stats.claims)} · Confirmed victories: {_field_text(stats.confirmed_victories)}",
                     f"Skill: {_field_text(stats.skill)} · Reputation: {_field_text(stats.reputation)}",
                 ])
-            if isinstance(snapshot, OperationsSnapshot):
+            if isinstance(snapshot, OperationsSnapshot) and (
+                snapshot.pilot is not None
+                or snapshot.statistics is not None
+                or bool(snapshot.recent_missions)
+            ):
                 self._card("Latest mission", ["No recent mission supplied in this overview snapshot."])
         elif isinstance(snapshot, MissionsSnapshot):
             for mission in snapshot.missions:

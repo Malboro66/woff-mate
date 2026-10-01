@@ -62,6 +62,12 @@ def _field(source: dict) -> FieldValue:
     return FieldValue.known(source["value"])
 
 
+def _field_or_not_supplied(fields: dict, name: str) -> FieldValue:
+    source = fields.get(name)
+    return (_field(source) if source is not None
+            else FieldValue.unavailable(UnavailableReason.NOT_SUPPLIED))
+
+
 def _envelope(case: dict) -> SnapshotEnvelope:
     data = case["data"]
     gaps = tuple(FieldUnavailable(k, UnavailableReason(v["unavailable_reason"]))
@@ -172,17 +178,26 @@ class FixturePresentation:
         records = data["records"] if data else []
         if screen in {"OPR-01", "DOS-01"}:
             pilot = stats = None
-            if data and data["collection"] is None:
+            if data and "display_name" in fields:
                 if owner is None:
                     raise ValueError("Pilot payload requires career identity")
-                service = fields["service"]
-                affiliation = (FieldValue.known(NationService(service["value"]).presentation())
-                               if service["unavailable_reason"] is None
-                               else FieldValue.unavailable(UnavailableReason(service["unavailable_reason"])))
+                service = fields.get("service")
+                if service is None:
+                    affiliation = FieldValue.unavailable(UnavailableReason.NOT_SUPPLIED)
+                elif service["unavailable_reason"] is None:
+                    affiliation = FieldValue.known(
+                        NationService(service["value"]).presentation()
+                    )
+                else:
+                    affiliation = FieldValue.unavailable(
+                        UnavailableReason(service["unavailable_reason"])
+                    )
                 pilot = PilotIdentityView(owner, _field(fields["display_name"]),
-                                          _field(fields["source_slot"]), affiliation,
+                                          _field_or_not_supplied(fields, "source_slot"), affiliation,
                                           FieldValue.unavailable(UnavailableReason.NOT_SUPPLIED),
-                                          _field(fields["squadron"]), _field(fields["status"]))
+                                          _field_or_not_supplied(fields, "squadron"),
+                                          _field_or_not_supplied(fields, "status"))
+            if data and data["collection"] is None:
                 stats = PilotStatistics(*(_field(fields[k]) for k in (
                     "missions", "flight_minutes", "claims", "confirmed_victories", "skill", "reputation")))
             if screen == "OPR-01":

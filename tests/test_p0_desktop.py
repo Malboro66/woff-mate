@@ -11,7 +11,10 @@ import sys
 import pytest
 
 from woff.p0_desktop.fixtures import FixturePresentation, SCREENS, ReportsView
-from woff.ui_contracts import PilotId, ScreenState, MissionsSnapshot, OperationsSnapshot
+from woff.ui_contracts import (
+    MissionsSnapshot, OperationsSnapshot, PilotDossierSnapshot, PilotId,
+    ScreenState, UnavailableReason,
+)
 
 ROOT = Path(__file__).resolve().parents[1]
 STATES = ("ready", "loading", "empty", "missing", "stale/unavailable", "error")
@@ -55,6 +58,38 @@ def test_second_homonym_never_borrows_first_career_payload() -> None:
         demo.snapshot('OPR-01', PilotId('foreign-career'))
     with pytest.raises((FrozenInstanceError, AttributeError)):
         setattr(demo.snapshot('OPR-01', first)[1], 'pilot_id', second)
+
+
+@pytest.mark.parametrize('screen', ('OPR-01', 'DOS-01'))
+def test_empty_pilot_views_preserve_only_supplied_subject_identity(screen: str) -> None:
+    demo = FixturePresentation()
+    first, second = (career.pilot_id for career in demo.careers)
+    case_id, snapshot = demo.snapshot(screen, first, 'empty')
+    assert isinstance(snapshot, (OperationsSnapshot, PilotDossierSnapshot))
+    assert case_id == 'empty-records'
+    assert snapshot.envelope.state is ScreenState.EMPTY
+    assert snapshot.pilot_id == first
+    pilot = snapshot.pilot
+    assert pilot is not None
+    assert pilot.pilot_id == first
+    assert pilot.display_name == demo.careers[0].display_name
+    for field in (
+        pilot.source_slot,
+        pilot.affiliation,
+        pilot.squadron_id,
+        pilot.squadron_label,
+        pilot.status,
+    ):
+        assert field.value is None
+        assert field.reason is UnavailableReason.NOT_SUPPLIED
+    assert snapshot.statistics is None
+
+    _, isolated = demo.snapshot(screen, second, 'empty')
+    assert isinstance(isolated, (OperationsSnapshot, PilotDossierSnapshot))
+    assert isolated.envelope.state is ScreenState.MISSING
+    assert isolated.pilot_id == second
+    assert isolated.pilot is None
+    assert isolated.statistics is None
 
 
 def test_fixture_selection_and_asset_inventory_are_deterministic() -> None:
@@ -107,6 +142,8 @@ app = QApplication([])
 for _ in range(2):
  w = P0Window(); w.show(); app.processEvents()
  assert w.current_case_id == 'pilot-ready'
+ assert w.rail.width() == 256
+ assert all(button.text() and button.accessibleName() for button in w.nav_buttons.values())
  for screen in w.nav_buttons:
   w.navigate(screen); app.processEvents()
   assert w.destination == screen and w.heading.hasFocus()
@@ -120,10 +157,37 @@ for _ in range(2):
  assert w.current_snapshot.envelope.state is ScreenState.ERROR
  w.resize(680, 520); app.processEvents()
  assert w.rail.width() == 184 and '\\n' in w.nav_buttons['SYS-01'].text()
+ assert all(button.text() and button.accessibleName() for button in w.nav_buttons.values())
  assert w.brand_name.fontMetrics().horizontalAdvance(w.brand_name.text()) <= w.brand_name.width()
  w.close()
 '''
     env = dict(os.environ, QT_QPA_PLATFORM='offscreen', QT_SCALE_FACTOR='2')
+    result = subprocess.run([sys.executable, '-c', code], cwd=ROOT, env=env,
+                            capture_output=True, text=True, timeout=25)
+    assert result.returncode == 0, result.stderr
+
+
+@pytest.mark.skipif(__import__('importlib').util.find_spec('PySide6') is None,
+                    reason='Optional P0 toolkit unavailable')
+def test_offscreen_operations_stale_retry_and_payload_guard() -> None:
+    code = '''
+from PySide6.QtWidgets import QApplication, QLabel, QPushButton
+from woff.p0_desktop.window import P0Window
+from woff.ui_contracts import ScreenState
+app = QApplication([])
+w = P0Window(); w.show(); app.processEvents()
+assert any(label.text() == 'Latest mission' for label in w.findChildren(QLabel))
+w.set_fixture_state('stale/unavailable'); app.processEvents()
+assert w.current_snapshot.envelope.state is ScreenState.STALE_OR_UNAVAILABLE
+assert not any(label.text() == 'Latest mission' for label in w.findChildren(QLabel))
+retry = next(button for button in w.findChildren(QPushButton)
+             if button.text() == 'Retry fixture view')
+retry.click(); app.processEvents()
+assert w.current_snapshot.envelope.state is ScreenState.READY
+assert any(label.text() == 'Latest mission' for label in w.findChildren(QLabel))
+w.close()
+'''
+    env = dict(os.environ, QT_QPA_PLATFORM='offscreen')
     result = subprocess.run([sys.executable, '-c', code], cwd=ROOT, env=env,
                             capture_output=True, text=True, timeout=25)
     assert result.returncode == 0, result.stderr
@@ -162,6 +226,11 @@ for screen, expected in empty_messages.items():
  w.navigate(screen); w.set_fixture_state('empty'); app.processEvents()
  notice = next(frame for frame in w.findChildren(QFrame) if frame.objectName() == 'notice')
  assert [label.text() for label in notice.findChildren(QLabel)].count(expected) == 1
+ if screen in {'OPR-01', 'DOS-01'}:
+  labels = [label.text() for label in w.findChildren(QLabel)]
+  assert 'Career identity' in labels
+  assert any(label.startswith('Synthetic Pilot Aster') for label in labels)
+  assert 'Service record' not in labels
 w.close()
 '''
     env = dict(os.environ, QT_QPA_PLATFORM='offscreen')
