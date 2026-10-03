@@ -51,6 +51,15 @@ For a maintainer-evaluation Windows folder bundle, from the same root and isolat
 
 Keep the complete `WoFFMateP0` folder together. This is a prototype bundle, not an installer or approved release. Output directories above are ignored local build products, not repository evidence.
 
+This evidence satisfies only `Q4-P0-PROTOTYPE`: source launch/smoke and a
+prototype PyInstaller folder build with bundle smoke/launch on the approved
+Windows development/test environment, physical 100/125/150/200% scaling,
+close/reopen, the synthetic fixture-only boundary and truthful prototype/not-
+installer labeling. It does not satisfy or replace full Q4 obligations for a
+clean production machine, installer, installation/update/rollback, release
+checksums/signing/provenance or production distribution, and it approves no
+Product Gate.
+
 ## Demonstration and validation evidence
 
 Representative synthetic captures live in [`evidence/issue-140-p0`](evidence/issue-140-p0/) with SHA-256 inventory. These are **Linux Qt offscreen** screenshots of Operations ready, Dossier ready, Missions error and career 03 missing. Reproduce from the repository root with `QT_QPA_PLATFORM=offscreen python -m scripts.capture_p0 docs/ui/evidence/issue-140-p0` on a suitable Linux test host. They are product-flow illustrations, not Windows DPI or UIA certification and do not supersede #79/#82 historical evidence.
@@ -72,6 +81,43 @@ This later pass supplements rather than rewrites the historical 2026-09-29
 walkthrough. Local Windows screenshots from revalidation were not committed;
 the versioned captures remain Linux Qt offscreen evidence. The same detailed
 walkthrough record distinguishes both observation dates and evidence classes.
+
+### Physical-evidence revision binding
+
+The post-review physical run executed on
+`64710a0b1bc46c19f267db10e4168403ce974066`; it did **not** execute after the
+squash merge. The final branch documentation commit was
+`691749ce3e2c9e9c807142c1c6b326846c4bc269`, and R2 audited squash-merged `main`
+at `bfa7647ac94cafba658a077e52a55a3c2240a4dd`. The physical result applies to
+the audited merge because repository comparisons prove that all relevant P0
+runtime, bundle, test, contract, fixture and asset inputs are byte-identical:
+
+```text
+git diff --exit-code 64710a0b1bc46c19f267db10e4168403ce974066 bfa7647ac94cafba658a077e52a55a3c2240a4dd -- pyproject.toml woff/__init__.py woff/p0_desktop p0_desktop.spec p0_launcher.py tests/test_p0_desktop.py woff/ui_contracts.py woff/nation.py woff/maps.py woff/tests/fixtures/ui_states woff/assets/ui/icons woff/assets/ui/portraits woff/assets/ui/branding scripts/validate_ui_fixtures.py
+```
+
+Result: no output, exit 0. The same input set was therefore unchanged between
+the physically validated revision and audited merge. The intervening branch
+change was evidence-only:
+
+```text
+git diff --name-only 64710a0b1bc46c19f267db10e4168403ce974066 691749ce3e2c9e9c807142c1c6b326846c4bc269
+docs/ui/evidence/issue-140-p0/windows-physical-walkthrough.md
+```
+
+Finally, the final pre-merge PR tree and audited squash tree are identical:
+
+```text
+git diff --exit-code 691749ce3e2c9e9c807142c1c6b326846c4bc269 bfa7647ac94cafba658a077e52a55a3c2240a4dd
+# no output, exit 0
+git rev-parse 691749ce3e2c9e9c807142c1c6b326846c4bc269^{tree}
+6927873b08f3867fa3d43bb620f1de9910b4e560
+git rev-parse bfa7647ac94cafba658a077e52a55a3c2240a4dd^{tree}
+6927873b08f3867fa3d43bb620f1de9910b4e560
+```
+
+This is direct content equivalence across the squash boundary, not an ancestry
+claim and not a relabeling of the physical run as post-merge testing.
 
 ## Architecture status and P1 blockers
 

@@ -173,10 +173,10 @@ claim Q5 or approval of Product Gate A or Gate B.
 | `EVAL-UI-CONTRACTS-001` | #81 | Implemented | Six frozen toolkit-independent snapshots enforce context-specific cardinality, safe retained observations, payload-free transitions, exact integer types, warnings unique and sorted by code, canonical nation/service, stable identities, defensive immutable values, sanitized diagnostics and optional-selection request lifecycle protocols, exercised only by #80 fixtures | `tests/test_ui_contracts.py`, `woff/tests/test_architecture_contracts.py` |
 | `EVAL-UI-SPIKE-001` | #82 | Implemented | One PySide6 line records bounded packaging/resource feasibility, actual Python/Windows coverage and explicit deferred adoption/release gaps | `tests/test_ui_spike_evidence.py` |
 | `EVAL-UI-SPIKE-002` | #82 | Implemented | Archived scaling, keyboard use, accessibility exposure, plugin behavior and licensing evidence support the final Conditional Go recommendation within its recorded limits | `tests/test_ui_spike_evidence.py` |
-| `EVAL-P0-FLOW-001` | #140 | Implemented | Seven primary destinations, two synthetic careers, six shared states, immutable #81 values, isolation and automated keyboard/focus/logical-scaling coverage; the Windows walkthrough records physical interaction separately | `tests/test_p0_desktop.py`, `docs/ui/p0-functional-desktop.md`, `docs/ui/evidence/issue-140-p0/windows-physical-walkthrough.md` |
+| `EVAL-P0-FLOW-001` | #140 | Implemented | Automated Qt-offscreen checks cover routing/navigation calls, focus results, career switching/isolation, state transitions/rendering, rail/layout behavior and close/reopen; they do not synthesize Tab/Shift+Tab, rail arrows, Enter/Space or selector keys. The maintainer-observed Windows walkthrough supplies those physical keyboard/selector and scaling observations | `tests/test_p0_desktop.py`, `docs/ui/p0-functional-desktop.md`, `docs/ui/evidence/issue-140-p0/windows-physical-walkthrough.md` |
 | `EVAL-P0-BOUNDARY-001` | #140 | Implemented | Fixture-only execution structurally excludes live SQLite/WoFF, repository/parser/watchdog access, writes, launcher control, network, personal data, runtime AI and production social/RPG behavior | `tests/test_p0_desktop.py`, `docs/ui/p0-functional-desktop.md` |
-| `EVAL-P0-DEMO-001` | #140 | Implemented | PR #173/CI #303, reproducible source and prototype-bundle launch, committed Linux Qt-offscreen captures with SHA-256 inventory, and recorded Windows 10 source/bundle walkthroughs at 100/125/150/200% support the experimental product-demonstrability record without accepting a production toolkit | `tests/test_p0_desktop.py`, `docs/ui/p0-functional-desktop.md`, `docs/ui/evidence/issue-140-p0/windows-physical-walkthrough.md`, `docs/ui/evidence/issue-140-p0/SHA256SUMS` |
-| `EVAL-R2-REVIEW-001` | `review-r2` | Planned | Revision-bound Full Application Review of #81/#82/P0, explicit maintainer ADR decision and existing adoption gates before retained production architecture/P1 | — |
+| `EVAL-P0-DEMO-001` | #140 | Implemented | PR #173/CI #303, reproducible source and prototype-bundle launch, committed Linux Qt-offscreen captures with SHA-256 inventory, and recorded Windows 10 source/bundle walkthroughs at 100/125/150/200% satisfy only `Q4-P0-PROTOTYPE`; they do not satisfy full Q4, establish an installer or production distribution, or accept a production toolkit | `tests/test_p0_desktop.py`, `docs/ui/p0-functional-desktop.md`, `docs/ui/evidence/issue-140-p0/windows-physical-walkthrough.md`, `docs/ui/evidence/issue-140-p0/SHA256SUMS` |
+| `EVAL-R2-REVIEW-001` | `review-r2` | Planned | After relevant adoption-readiness changes are integrated, a new revision-bound R2 Full Application Review of the then-current integrated `main`, followed by the explicit maintainer ADR decision and existing adoption gates, is mandatory before retained production architecture/P1; scope-impact may cover only unrelated, non-material changes between that repeated R2 revision and the final decision revision | — |
 
 The [#82 exploratory report](../ui/pyside6-spike-82.md) archives Windows 10
 measurements and deterministic replay checks in `tests/test_ui_spike_evidence.py`.
@@ -206,8 +206,11 @@ The [first R2 review](r2-ui-architecture-review.md) is pinned to integrated
 Conditional No-Go for production retention**. `review-r2` remains backlog and
 `EVAL-R2-REVIEW-001` remains Planned because its contract includes complete
 adoption-readiness evidence and the final explicit maintainer ADR decision,
-neither of which the first pass supplied. A revision-valid R2 must be repeated
-after the relevant evidence changes. The HOLD proves neither live integration
+neither of which the first pass supplied. After the relevant adoption-readiness
+changes are integrated, a new revision-bound R2 Full Application Review must be
+performed against the then-current integrated `main`; scope-impact may cover
+only unrelated, non-material changes between that repeated review and the final
+decision and cannot replace it. The HOLD proves neither live integration
 nor production toolkit acceptance, approves no Product Gate and does not
 authorize P1. `review-r2` remains a repository review work item outside
 engineering cycle membership, not a newly numbered GitHub issue.

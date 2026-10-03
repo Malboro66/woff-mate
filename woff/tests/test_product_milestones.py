@@ -85,7 +85,8 @@ def test_product_path_and_cycle_ownership_are_executable() -> None:
     assert items["issue-82"]["state"] == "done"
     assert items["issue-140"]["state"] == "done"
     assert items["review-r2"]["state"] == "backlog"
-    assert {"Q4", "Q6-CYCLE-3.4.0"} <= set(items["issue-140"]["gates"])
+    assert {"Q4-P0-PROTOTYPE", "Q6-CYCLE-3.4.0"} <= set(items["issue-140"]["gates"])
+    assert "Q4" not in items["issue-140"]["gates"]
     assert "Q5-UI-ARCHITECTURE" in items["review-r2"]["gates"]
     assert "Q5-UI-ARCHITECTURE" not in items["issue-140"]["gates"]
     assert items["issue-139"]["state"] == "done"
@@ -116,6 +117,45 @@ def test_product_path_and_cycle_ownership_are_executable() -> None:
         assert re.search(rf"#{number}\b", quality)
         assert f"| #{number} |" in catalog
     validate_graph(ROOT, graph)
+
+
+def test_p0_prototype_packaging_gate_is_bounded_and_does_not_replace_q4() -> None:
+    graph = _graph()
+    gates = graph["gates"]
+    assert gates["Q4"]["description"] == (
+        "Windows and packaging changes pass supported Python, smoke, build, "
+        "install, upgrade, and rollback checks."
+    )
+    bounded = gates["Q4-P0-PROTOTYPE"]["description"]
+    for phrase in (
+        "approved Windows development/test environment",
+        "prototype PyInstaller folder build",
+        "physical 100/125/150/200% scaling",
+        "synthetic fixture-only boundary",
+        "prototype/not-installer labeling",
+        "does not satisfy or replace Q4",
+        "clean-machine production validation",
+        "upgrade/rollback",
+        "release checksum/signing/provenance",
+        "production-distribution",
+        "approves no Product Gate",
+    ):
+        assert phrase in bounded
+
+    quality = _text("docs/engineering/quality-gates.md")
+    bounded_quality = quality.split(
+        "### Q4-P0-PROTOTYPE: experimental P0 demonstrability", 1
+    )[1].split("## Q5:", 1)[0]
+    for phrase in (
+        "prototype, not installer",
+        "does not satisfy, replace or weaken Q4",
+        "clean-machine production validation",
+        "installation/update/rollback",
+        "release checksums/signing/provenance",
+        "production distribution",
+        "approves no Product Gate",
+    ):
+        assert phrase in bounded_quality
 
 
 def test_nation_contract_is_integrated_before_ui_contract_completion() -> None:
@@ -482,6 +522,30 @@ def test_p0_evidence_preserves_fixture_boundary() -> None:
                    "product-demonstrability record"):
         assert phrase in evidence
 
+    flow = graph["evals"]["EVAL-P0-FLOW-001"]["evidence"]
+    for automated_claim in (
+        "routing/navigation calls",
+        "state transitions",
+        "focus results",
+        "rail/layout behavior",
+        "career isolation",
+        "close/reopen",
+    ):
+        assert automated_claim in flow
+    for physical_claim in (
+        "Tab/Shift+Tab",
+        "rail-arrow",
+        "Enter/Space",
+        "selector interaction",
+        "does not synthesize those key events",
+    ):
+        assert physical_claim in flow
+    assert "automated keyboard" not in flow
+
+    catalog = _text("docs/engineering/evals.md")
+    assert "they do not synthesize Tab/Shift+Tab, rail arrows, Enter/Space or selector keys" in catalog
+    assert "maintainer-observed Windows walkthrough supplies those physical keyboard/selector" in catalog
+
 
 def test_post_p0_r2_hold_is_revision_bound_without_authorizing_adoption() -> None:
     graph = _graph()
@@ -518,9 +582,58 @@ def test_post_p0_r2_hold_is_revision_bound_without_authorizing_adoption() -> Non
         "representative production packaging and startup behavior",
         "bundle inventory, SBOM and licensing route",
         "Qt Virtual Keyboard",
-        "R2 must be repeated",
+        "R2 Full Application Review **MUST** be performed",
     ):
         assert phrase in record
+
+    for command_or_result in (
+        "git rev-parse HEAD",
+        "git rev-parse origin/main",
+        "python scripts/validate_project_graph.py",
+        "1025 passed in 21.65s",
+        "UI fixtures valid: 30 synthetic cases, 6 shared states.",
+        "6 passed, 3 skipped in 0.04s",
+        "sha256sum --check docs/ui/evidence/issue-140-p0/SHA256SUMS",
+        "1927 passed, 7 skipped, 1 deselected, 175 subtests passed",
+        "8 errors, 0 warnings, 0 informations",
+        "git diff --check",
+        "CI #303 was not an R2 audit command",
+    ):
+        assert command_or_result in record
+
+    for scope in (
+        "Architecture/module dependencies",
+        "Career/slot/campaign/wingman identity",
+        "Transactions/rollback/atomicity",
+        "Ingestion/retry/coalescing/startup/shutdown",
+        "Data preservation/authority/provenance",
+        "Schema migration/backward compatibility",
+        "Parser known/missing/unsupported/invalid semantics",
+        "SQLite/concurrency behavior",
+        "Privacy/local-only/credential exclusions",
+        "CLI/editor/presentation contracts",
+        "Windows packaging and supported Python compatibility",
+        "Test/eval blind spots",
+        "Project graph/gates/issues/docs/code consistency",
+        "Residual risks and explicit maintainer decisions",
+    ):
+        assert scope in record
+
+    for blocker in ("#142", "#96", "#151"):
+        assert blocker in record
+
+    for revision_or_tree in (
+        "64710a0b1bc46c19f267db10e4168403ce974066",
+        "691749ce3e2c9e9c807142c1c6b326846c4bc269",
+        "6927873b08f3867fa3d43bb620f1de9910b4e560",
+        "git diff --exit-code 64710a0b1bc46c19f267db10e4168403ce974066",
+        "git diff --name-only 64710a0b1bc46c19f267db10e4168403ce974066",
+        "This does not relabel the run as post-merge execution",
+    ):
+        assert revision_or_tree in record
+
+    assert "R2 Full Application Review **MUST** be performed" in record
+    assert "it cannot replace the mandatory repeat R2" in record
 
     adr = (ROOT / "docs/architecture/adr-ui-toolkit.md").read_text(encoding="utf-8")
     assert re.search(r"^Status:\s*Proposed\s*$", adr, re.MULTILINE)
@@ -542,6 +655,8 @@ def test_post_p0_r2_hold_is_revision_bound_without_authorizing_adoption() -> Non
         "experimental implementation on Issue #140 Draft PR",
     ):
         assert stale_claim not in reconciled_docs
+    assert "repeat review or scope-impact determination" not in reconciled_docs
+    assert "scope-impact determination may cover only unrelated, non-material" in reconciled_docs
 
 
 def test_post_spike_authorization_is_revision_bound_and_limited_to_p0() -> None:

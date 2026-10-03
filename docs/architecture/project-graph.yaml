@@ -210,6 +210,8 @@ gates:
     description: File and concurrency changes prove bounded queues, retries, snapshots, moves, and shutdown.
   Q4:
     description: Windows and packaging changes pass supported Python, smoke, build, install, upgrade, and rollback checks.
+  Q4-P0-PROTOTYPE:
+    description: Experimental P0 demonstrability is limited to the approved Windows development/test environment, reproducible source launch and smoke, a prototype PyInstaller folder build and bundled launch/smoke, physical 100/125/150/200% scaling and close/reopen, the synthetic fixture-only boundary, and truthful prototype/not-installer labeling. It does not satisfy or replace Q4 clean-machine production validation, installer, upgrade/rollback, release checksum/signing/provenance, or production-distribution obligations and approves no Product Gate.
   Q5:
     description: Product Gates A-D retain their data reliability, launcher viability, social core, and public release conditions; each additionally requires the applicable Full Application Review and product-demonstrability record valid for the exact integrated decision revision, plus explicit maintainer approval.
     policy: docs/engineering/product-milestones.md
@@ -757,7 +759,7 @@ evals:
   EVAL-P0-FLOW-001:
     work_items: [issue-140]
     status: implemented
-    evidence: The integrated fixture-backed V2 desktop exposes all seven primary destinations, two synthetic careers isolated by stable career_id, six shared states and immutable issue-81-compatible values; automated Qt-offscreen coverage proves routing, state rendering, immediate prior-career clearing, keyboard/focus behavior and logical scaling, while the recorded Windows walkthrough distinguishes maintainer-observed physical interaction evidence.
+    evidence: The integrated fixture-backed V2 desktop exposes all seven primary destinations, two synthetic careers isolated by stable career_id, six shared states and immutable issue-81-compatible values; automated Qt-offscreen coverage proves routing/navigation calls, state transitions and rendering, immediate prior-career clearing, focus results, rail/layout behavior, career isolation and close/reopen. The recorded maintainer-observed Windows walkthrough supplies the physical keyboard evidence for Tab/Shift+Tab, rail-arrow, Enter/Space and selector interaction plus scaling; the automated test does not synthesize those key events.
     enforced_by: [tests/test_p0_desktop.py, docs/ui/p0-functional-desktop.md, docs/ui/evidence/issue-140-p0/windows-physical-walkthrough.md]
   EVAL-P0-BOUNDARY-001:
     work_items: [issue-140]
@@ -767,12 +769,12 @@ evals:
   EVAL-P0-DEMO-001:
     work_items: [issue-140]
     status: implemented
-    evidence: The integrated product-demonstrability record binds PR #173 and green CI #303 to reproducible source and prototype-bundle launch, committed Linux Qt-offscreen captures with a SHA-256 manifest, and maintainer-observed Windows 10 source/bundle walkthroughs at 100%, 125%, 150% and 200%; it preserves the approved experimental toolkit/version and Proposed ADR status, records limitations and P1 blockers, and does not claim a supported installer or production toolkit acceptance.
+    evidence: The integrated product-demonstrability record satisfies only Q4-P0-PROTOTYPE by binding PR 173 and green CI 303 to reproducible source and prototype-bundle launch, committed Linux Qt-offscreen captures with a SHA-256 manifest, and maintainer-observed Windows 10 source/bundle walkthroughs at 100%, 125%, 150% and 200%; it preserves the approved experimental toolkit/version and Proposed ADR status, records limitations and P1 blockers, and does not satisfy full Q4, claim a supported installer, authorize production distribution or accept a production toolkit.
     enforced_by: [tests/test_p0_desktop.py, docs/ui/p0-functional-desktop.md, docs/ui/evidence/issue-140-p0/windows-physical-walkthrough.md, docs/ui/evidence/issue-140-p0/SHA256SUMS]
   EVAL-R2-REVIEW-001:
     work_items: [review-r2]
     status: planned
-    evidence: The first Full Application Review is pinned to main bfa7647ac94cafba658a077e52a55a3c2240a4dd in docs/engineering/r2-ui-architecture-review.md and records HOLD / Conditional No-Go for production retention. The eval remains planned because adoption-readiness evidence, a revision-valid repeat review or scope-impact determination, residual-risk dispositions and an explicit maintainer ADR decision must still precede retained production architecture or P1 without waiving existing adoption gates.
+    evidence: The first Full Application Review is pinned to main bfa7647ac94cafba658a077e52a55a3c2240a4dd in docs/engineering/r2-ui-architecture-review.md and records HOLD / Conditional No-Go for production retention. The eval remains planned because, after relevant adoption-readiness changes are integrated, a new revision-bound R2 Full Application Review MUST be performed against the then-current integrated main before residual-risk dispositions and an explicit maintainer ADR decision. A scope-impact determination may cover only unrelated, non-material intervening changes between that repeated R2 revision and the final decision revision; it cannot replace the repeat review. Existing adoption gates remain required before retained production architecture or P1.
   EVAL-STARTUP-RECURSIVE-001:
     work_items: [issue-142]
     status: planned
@@ -1322,7 +1324,7 @@ work_items:
     module: presentation
     state: done
     evals: [EVAL-P0-FLOW-001, EVAL-P0-BOUNDARY-001, EVAL-P0-DEMO-001]
-    gates: [Q0, Q1, Q4, Q6-CYCLE-3.4.0]
+    gates: [Q0, Q1, Q4-P0-PROTOTYPE, Q6-CYCLE-3.4.0]
     depends_on:
       - {id: issue-79, status: satisfied}
       - {id: issue-80, status: satisfied}

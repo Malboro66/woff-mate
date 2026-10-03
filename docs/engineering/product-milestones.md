@@ -19,7 +19,7 @@ The identifiers below are product/review checkpoints. They do not replace semant
 |---|---|---|
 | **R0 — Foundation Baseline** | Historical foundation checkpoint | Existing integrated engineering baseline; no new audit is required merely to adopt this policy |
 | **R1 — Integrity Baseline** | Integrated review before Product Gate A approval | Full Application Review of the reliable-companion boundary and explicit residual-risk decision |
-| **P0 — Functional Desktop Prototype** | First launchable/navigable desktop WoFF Mate prototype | Fixture-backed shell, synthetic careers, primary navigation, shared states, keyboard/scaling evidence, no live SQLite/WoFF binding |
+| **P0 — Functional Desktop Prototype** | First launchable/navigable desktop WoFF Mate prototype | Fixture-backed shell, synthetic careers, primary navigation, shared states, keyboard/scaling evidence, no live SQLite/WoFF binding, bounded `Q4-P0-PROTOTYPE` evidence |
 | **R2 — UI Architecture Decision** | Cross-system review after P0 and presentation contracts/toolkit evidence | #81/#82/#140 evidence, ADR decision, packaging/accessibility results, boundary review before retained production UI architecture or P1 work |
 | **P1 — Read-only Vertical Slice** | First narrow end-to-end real local read flow | Stable career selection and approved core screens driven through application query services, with no widget-side SQL/parsing/inference |
 | **P2 — Installable Alpha** | First installable Windows alpha usable by a non-developer for approved scope | Clean-machine install/start, diagnostics, bounded alpha flow, packaging evidence and known limitations |
@@ -45,8 +45,13 @@ after #140/P0 integration and returned **HOLD / Conditional No-Go for production
 retention**. It found no new priority:P0 or priority:P1 UI defect and confirmed
 the fixture-only boundary, but adoption-readiness evidence is incomplete. The
 ADR therefore remains Proposed, P1 remains unauthorized, and no Product Gate is
-approved. A revision-valid R2 must be repeated after the relevant
-adoption-readiness work before an explicit production-retention decision.
+approved. After relevant adoption-readiness changes are integrated, a new
+revision-bound R2 Full Application Review **MUST** be performed against the
+then-current integrated `main`. Only after that repeat review may the explicit
+maintainer production-retention ADR decision occur. A scope-impact determination
+may cover only unrelated, non-material intervening changes between the repeated
+R2 review revision and the final decision revision; it cannot replace the
+mandatory repeat R2.
 
 ### Revision-bound review record
 
@@ -125,7 +130,7 @@ The current priority is to convert the strong foundation into demonstrable produ
 6. Use the completed and integrated **#82** Conditional Go feasibility evidence and the [explicit post-spike P0 authorization](../architecture/adr-ui-toolkit.md#post-spike-p0-authorization-2026-09-28): PySide6 + Qt Widgets 6.11.2 for the experimental fixture-backed prototype; the ADR remains Proposed.
 7. Preserve the integrated and completed **#140 — P0 Functional Desktop Prototype** at `bfa7647ac94cafba658a077e52a55a3c2240a4dd` as experimental, fixture-backed product-demonstrability evidence.
 8. Record the first **R2 — UI Architecture Decision** review against that exact integrated revision with its **HOLD / Conditional No-Go for production retention** disposition.
-9. Complete the separate adoption-readiness evidence phase, then repeat a revision-valid R2 and obtain the explicit maintainer production-retention ADR decision.
+9. Complete the separate adoption-readiness evidence phase; after its relevant changes are integrated, perform a new revision-bound R2 Full Application Review against the then-current integrated `main`, then obtain the explicit maintainer production-retention ADR decision. Scope-impact may cover only unrelated, non-material changes after that repeat review and before the final decision; it cannot replace the repeat R2.
 10. Only after a passing R2 decision and all applicable adoption gates, authorize movement toward **P1 — Read-only Vertical Slice**, replacing fixture-only data only through approved application query services.
 
 The [2026-09-10 Security Baseline](security-baseline-2026-09-10.md) adds those
@@ -139,7 +144,11 @@ distribution, not a current development priority.
 #82 produces feasibility evidence; P0 proves the fixture-backed product
 experience; R2 decides production retention. In particular, neither #82 nor P0
 accepts a production toolkit. An explicitly approved experimental P0 path is
-not production ADR acceptance and does not waive Product Gates A/B.
+not production ADR acceptance and does not waive Product Gates A/B. #140's
+packaging acceptance is the bounded `Q4-P0-PROTOTYPE` gate only: it proves
+prototype demonstrability on the approved Windows development/test environment
+and does not satisfy the full Q4 clean-machine, installer, upgrade/rollback,
+release-provenance or production-distribution contract.
 
 The [eval catalog's historical #136 closure discrepancy](evals.md#136-closure-discrepancy)
 records why PR #137 did not implement the domain contract. R1 confirmed the gap,

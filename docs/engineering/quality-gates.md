@@ -145,6 +145,24 @@ Apply Q4 to registry, launcher, build, installation, and release work:
 - WoFF registry access remains read-only and limited to explicitly approved keys and the `CFS3Path` value
 - no activation, serial, product-key, or license credential is queried, enumerated, stored, logged, exported, or transmitted
 
+### Q4-P0-PROTOTYPE: experimental P0 demonstrability
+
+Apply this bounded gate only to #140's approved fixture-backed prototype. It
+requires:
+
+- reproducible source launch and smoke on the approved Windows development/test environment;
+- a prototype PyInstaller folder build plus bundled smoke and launch;
+- physical checks at the required 100%, 125%, 150% and 200% scaling profiles;
+- source and bundle close/reopen;
+- preservation of the synthetic fixture-only boundary; and
+- truthful **prototype, not installer** labeling.
+
+`Q4-P0-PROTOTYPE` does not satisfy, replace or weaken Q4. In particular it
+does not establish clean-machine production validation, a supported installer,
+installation/update/rollback behavior, release checksums/signing/provenance or
+production distribution. Passing it approves no Product Gate and accepts no
+production packaging architecture.
+
 ## Q5: product decision gates
 
 | Gate | Approval question | Required condition |
@@ -208,8 +226,12 @@ returned **HOLD / Conditional No-Go for production retention**. It confirmed
 the fixture-only boundary and found no new priority:P0 or priority:P1 UI defect,
 but the production adoption-readiness evidence is incomplete. `review-r2` and
 `EVAL-R2-REVIEW-001` therefore remain pending: after the relevant evidence work,
-a revision-valid R2 must be repeated before any production-retention ADR
-decision or P1 authorization. No Product Gate is approved by the HOLD record.
+a new revision-bound R2 Full Application Review **MUST** be performed against
+the then-current integrated `main` before any production-retention ADR decision
+or P1 authorization. A scope-impact determination may cover only unrelated,
+non-material changes between that repeated R2 revision and the final decision
+revision; it cannot replace the mandatory repeat review. No Product Gate is
+approved by the HOLD record.
 
 ### Privacy and security release evidence
 
