@@ -1,12 +1,19 @@
 # P0 — Functional Desktop Prototype (Issue #140)
 
-Status: experimental implementation on Issue #140 Draft PR; physical Windows P0 demonstration completed on 2026-09-29. This record is branch evidence, not Product Gate or ADR approval.
+Status: Issue #140 completed and integrated through merged PR #173 at `main`
+`bfa7647ac94cafba658a077e52a55a3c2240a4dd`. The implementation remains an
+experimental, fixture-backed P0 product-demonstrability record, not Product
+Gate approval, production-retention authorization or ADR acceptance.
 
 ## User capability gained
 
 A maintainer can launch an actual Qt Widgets WoFF Mate window, navigate the seven V2 destinations from one persistent shell, switch between two same-name synthetic careers distinguished by stable ID and WoFF slot, inspect the fixture-backed content and six shared states, and use the shell by keyboard. The executable presents the committed V2 icon, portrait, branding and palette. It starts deterministically with synthetic career 02 in Operations, and restart does not use any saved configuration.
 
 **Data class:** `Synthetic fixture-backed only`.
+
+PR #173 merged the P0 implementation after green CI #303 and correction of all
+eight P2 review findings. This integration completes #140/P0 only; it does not
+convert the isolated prototype path into production UI architecture.
 
 The first career (`synthetic-career-02`, WoFF Pilot 2) has ready snapshots for Operations, Dossier, Missions, Squadron, War Diary and Reports. The second (`synthetic-career-03`, WoFF Pilot 3) has authoritative selector identity but no screen payload in the #80 catalog. Switching to it immediately removes prior widgets and portrait and shows `missing/source_missing` under career 03; no record or timestamp from career 02 is reused. Global System Status remains independent of the selected career. This is deliberate fixture coverage, not a live-source failure.
 
@@ -54,8 +61,33 @@ Portable checks: `tests/test_p0_desktop.py` proves seven routes and six states, 
 
 **Physical Windows P0 check — completed 2026-09-29:** The fixture-backed P0 was exercised on the physical Windows 10 developer host from both source and the PyInstaller folder bundle at 100%, 125%, 150% and 200% display scaling. All seven destinations remained reachable; Tab/Shift+Tab, rail arrows, Enter/Space, selector interaction, heading focus and Retry were usable; Pilot 2 → same-name Pilot 3 switching cleared the previous widgets, portrait and data before presenting the expected missing state; resizing remained usable at all four profiles; and source/bundle close and reopen succeeded. The detailed maintainer-observed record is in [`evidence/issue-140-p0/windows-physical-walkthrough.md`](evidence/issue-140-p0/windows-physical-walkthrough.md). No Windows screenshots were captured. The existing representative screenshots remain explicitly Linux Qt offscreen evidence and are not relabelled as Windows observations. This walkthrough is P0 functional evidence only, not Narrator/NVDA, clean-machine, release-certification, ADR-adoption, R2 or Product Gate evidence.
 
+**Post-review physical Windows revalidation — completed 2026-10-02:** After
+the review-driven corrections and before integration, the corrected source and
+rebuilt PyInstaller folder bundle passed again on the same physical Windows 10
+development host at 100%, 125%, 150% and 200% display scaling. The maintainer
+rechecked all seven destinations, standard/compact navigation, career-label
+legibility, stale/unavailable Retry, the Operations payload guard, empty-view
+identity preservation, same-name career isolation, resizing, close and reopen.
+This later pass supplements rather than rewrites the historical 2026-09-29
+walkthrough. Local Windows screenshots from revalidation were not committed;
+the versioned captures remain Linux Qt offscreen evidence. The same detailed
+walkthrough record distinguishes both observation dates and evidence classes.
+
 ## Architecture status and P1 blockers
 
-PySide6 + Qt Widgets **6.11.2** is authorized only for experimental P0. The UI toolkit ADR remains **Proposed**; **R2 is pending** until post-P0 review; no Product Gate is approved. Issue #140 and its graph dependency into R2 remain pending until integration and acceptance.
+PySide6 + Qt Widgets **6.11.2** is authorized only for experimental P0. The UI
+toolkit ADR remains **Proposed**. The [first R2 review](../engineering/r2-ui-architecture-review.md)
+of the exact integrated SHA returned **HOLD / Conditional No-Go for production
+retention**: it found no new priority:P0 or priority:P1 UI defect and confirmed
+the fixture-only boundary, but adoption-readiness evidence remains incomplete.
+P1 is not authorized and no Product Gate is approved. `review-r2` and its final
+eval remain pending until the relevant adoption-readiness work, a revision-valid
+repeat review and the explicit maintainer ADR decision.
 
-Actual blockers to **P1 — Read-only Vertical Slice**: post-P0 R2 architectural decision and applicable ADR adoption gates; approved application query services; and authorization of the narrow real local read-only data path. The physical P0 Windows launch/build/interaction validation is complete. The fixture inventory's second-career screen absence is a P0 demonstration limitation, not a reason to invent live data or reopen #80.
+Actual blockers to **P1 — Read-only Vertical Slice**: completion of the
+adoption-readiness evidence, a revision-valid R2 production-retention decision
+and applicable ADR adoption gates; approved application query services; and
+authorization of the narrow real local read-only data path. The physical P0
+Windows launch/build/interaction validation is complete. The fixture inventory's
+second-career screen absence is a P0 demonstration limitation, not a reason to
+invent live data or reopen #80.

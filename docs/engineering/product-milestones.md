@@ -39,6 +39,15 @@ returned **FAIL — confirmed blocking defects exist**. Product Gate A is not
 approved. That record owns the revision-bound finding classification and links
 each finding to its focused issue or governance disposition.
 
+The first formal [R2 UI Architecture review record](r2-ui-architecture-review.md)
+audited integrated `main` at `bfa7647ac94cafba658a077e52a55a3c2240a4dd`
+after #140/P0 integration and returned **HOLD / Conditional No-Go for production
+retention**. It found no new priority:P0 or priority:P1 UI defect and confirmed
+the fixture-only boundary, but adoption-readiness evidence is incomplete. The
+ADR therefore remains Proposed, P1 remains unauthorized, and no Product Gate is
+approved. A revision-valid R2 must be repeated after the relevant
+adoption-readiness work before an explicit production-retention decision.
+
 ### Revision-bound review record
 
 Every review records the **exact audited `main` commit SHA**, applicable scope,
@@ -114,10 +123,10 @@ The current priority is to convert the strong foundation into demonstrable produ
 4. After the existing P1 correction order, resolve #151's real-root output/input isolation. #152's repository controls are already enforced and recorded; then repeat the affected R1 scope against the corrected integrated revision and produce the reliable-companion/recovery demonstration before Gate A consideration.
 5. Use the completed and integrated **#81** immutable read-only presentation/query contracts, built on the #136 domain contract integrated through PR #164, as authoritative input to the remaining UI evidence sequence.
 6. Use the completed and integrated **#82** Conditional Go feasibility evidence and the [explicit post-spike P0 authorization](../architecture/adr-ui-toolkit.md#post-spike-p0-authorization-2026-09-28): PySide6 + Qt Widgets 6.11.2 for the experimental fixture-backed prototype; the ADR remains Proposed.
-7. Implement **#140 — P0 Functional Desktop Prototype**; its #82 prerequisite is satisfied, while P0 completion remains pending.
-8. Use P0 as the first recurring product-demonstrability checkpoint.
-9. Perform **R2 — UI Architecture Decision** using #81/#82 and P0 evidence; decide explicitly whether the architecture/toolkit may be retained under the ADR adoption gates.
-10. Only after R2 and all applicable adoption gates, move toward **P1 — Read-only Vertical Slice**, replacing fixture-only data only through approved application query services.
+7. Preserve the integrated and completed **#140 — P0 Functional Desktop Prototype** at `bfa7647ac94cafba658a077e52a55a3c2240a4dd` as experimental, fixture-backed product-demonstrability evidence.
+8. Record the first **R2 — UI Architecture Decision** review against that exact integrated revision with its **HOLD / Conditional No-Go for production retention** disposition.
+9. Complete the separate adoption-readiness evidence phase, then repeat a revision-valid R2 and obtain the explicit maintainer production-retention ADR decision.
+10. Only after a passing R2 decision and all applicable adoption gates, authorize movement toward **P1 — Read-only Vertical Slice**, replacing fixture-only data only through approved application query services.
 
 The [2026-09-10 Security Baseline](security-baseline-2026-09-10.md) adds those
 focused Gate A guardrails without creating a separate milestone or changing the

@@ -173,9 +173,9 @@ claim Q5 or approval of Product Gate A or Gate B.
 | `EVAL-UI-CONTRACTS-001` | #81 | Implemented | Six frozen toolkit-independent snapshots enforce context-specific cardinality, safe retained observations, payload-free transitions, exact integer types, warnings unique and sorted by code, canonical nation/service, stable identities, defensive immutable values, sanitized diagnostics and optional-selection request lifecycle protocols, exercised only by #80 fixtures | `tests/test_ui_contracts.py`, `woff/tests/test_architecture_contracts.py` |
 | `EVAL-UI-SPIKE-001` | #82 | Implemented | One PySide6 line records bounded packaging/resource feasibility, actual Python/Windows coverage and explicit deferred adoption/release gaps | `tests/test_ui_spike_evidence.py` |
 | `EVAL-UI-SPIKE-002` | #82 | Implemented | Archived scaling, keyboard use, accessibility exposure, plugin behavior and licensing evidence support the final Conditional Go recommendation within its recorded limits | `tests/test_ui_spike_evidence.py` |
-| `EVAL-P0-FLOW-001` | #140 | Planned | Seven primary destinations, two synthetic careers, six shared states, immutable #81 values, isolation, keyboard/focus and scaling | — |
-| `EVAL-P0-BOUNDARY-001` | #140 | Planned | Fixture-only execution excludes live SQLite/WoFF, repository/parser/watchdog access, writes, launcher control, network, personal data, runtime AI and production social/RPG behavior | — |
-| `EVAL-P0-DEMO-001` | #140 | Planned | Reproducible Windows launch/build, approved experimental toolkit/ADR path, interaction captures and product-demonstrability record | — |
+| `EVAL-P0-FLOW-001` | #140 | Implemented | Seven primary destinations, two synthetic careers, six shared states, immutable #81 values, isolation and automated keyboard/focus/logical-scaling coverage; the Windows walkthrough records physical interaction separately | `tests/test_p0_desktop.py`, `docs/ui/p0-functional-desktop.md`, `docs/ui/evidence/issue-140-p0/windows-physical-walkthrough.md` |
+| `EVAL-P0-BOUNDARY-001` | #140 | Implemented | Fixture-only execution structurally excludes live SQLite/WoFF, repository/parser/watchdog access, writes, launcher control, network, personal data, runtime AI and production social/RPG behavior | `tests/test_p0_desktop.py`, `docs/ui/p0-functional-desktop.md` |
+| `EVAL-P0-DEMO-001` | #140 | Implemented | PR #173/CI #303, reproducible source and prototype-bundle launch, committed Linux Qt-offscreen captures with SHA-256 inventory, and recorded Windows 10 source/bundle walkthroughs at 100/125/150/200% support the experimental product-demonstrability record without accepting a production toolkit | `tests/test_p0_desktop.py`, `docs/ui/p0-functional-desktop.md`, `docs/ui/evidence/issue-140-p0/windows-physical-walkthrough.md`, `docs/ui/evidence/issue-140-p0/SHA256SUMS` |
 | `EVAL-R2-REVIEW-001` | `review-r2` | Planned | Revision-bound Full Application Review of #81/#82/P0, explicit maintainer ADR decision and existing adoption gates before retained production architecture/P1 | — |
 
 The [#82 exploratory report](../ui/pyside6-spike-82.md) archives Windows 10
@@ -195,15 +195,22 @@ only. The ADR remains Proposed. Historical evidence is unchanged, and no new
 external evidence campaign, production adoption or Product Gate is authorized.
 
 The executable sequence is #81 -> #82 -> P0/#140 -> R2 -> retained production
-architecture/P1. #82 now belongs to cycle 3.4.0, and its #81 dependency records
-this near-term order; earlier disposable exploration is not completion of that
-sequence. #140 depends on #79/#80/#81/#82/#139 (all satisfied); P0 remains pending.
-The #82 dependency into R2 is also satisfied, but R2 still awaits #140 evidence.
-Its planned evals prove neither live data integration nor production toolkit
-acceptance. `review-r2` is a repository review work item outside engineering
-cycle membership, not a newly numbered GitHub issue. Future retained production
-UI/P1 work must declare its dependency on `review-r2` and the
-`Q5-UI-ARCHITECTURE` gate, in addition to existing ADR gates.
+architecture/P1. #82 belongs to cycle 3.4.0, and its #81 dependency records the
+near-term order; earlier disposable exploration is not completion of that
+sequence. #140/P0 is integrated and completed, all of its dependencies and its
+dependency into R2 are satisfied, and the three P0 evals above bind automated
+evidence separately from maintainer-observed physical Windows evidence.
+
+The [first R2 review](r2-ui-architecture-review.md) is pinned to integrated
+`main` `bfa7647ac94cafba658a077e52a55a3c2240a4dd` and records **HOLD /
+Conditional No-Go for production retention**. `review-r2` remains backlog and
+`EVAL-R2-REVIEW-001` remains Planned because its contract includes complete
+adoption-readiness evidence and the final explicit maintainer ADR decision,
+neither of which the first pass supplied. A revision-valid R2 must be repeated
+after the relevant evidence changes. The HOLD proves neither live integration
+nor production toolkit acceptance, approves no Product Gate and does not
+authorize P1. `review-r2` remains a repository review work item outside
+engineering cycle membership, not a newly numbered GitHub issue.
 
 ### Product policy enforcement
 
@@ -757,8 +764,9 @@ roster-generation, transfer-baseline, and incomplete-input policy.
 | #140 | `EVAL-P0-FLOW-001`, `EVAL-P0-BOUNDARY-001`, `EVAL-P0-DEMO-001` |
 
 Cycle 3.4.0 is `active`. Issues #28, #35, #37, #38, #41, #74, #75, #79, #80,
-#81, #97, #136, and #139 are complete. Issue #101 remains blocked by #96 after #37
-satisfied its roster-lifecycle dependency.
+#81, #82, #97, #136, #139, and #140 are complete. Issues #44, #43, #76 and #96
+remain incomplete, and #101 remains blocked by #96 after #37 satisfied its
+roster-lifecycle dependency.
 `EVAL-CYCLE-340-001` aggregates all twenty members and remains planned until
 every member acceptance criterion, applicable eval, and `Q6-CYCLE-3.4.0`
 condition passes.

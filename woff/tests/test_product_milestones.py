@@ -13,6 +13,7 @@ from scripts.validate_project_graph import GraphValidationError, load_graph, val
 ROOT = Path(__file__).resolve().parents[2]
 POLICY = "docs/engineering/product-milestones.md"
 R1_RECORD = "docs/engineering/r1-integrity-baseline.md"
+R2_RECORD = "docs/engineering/r2-ui-architecture-review.md"
 SECURITY_BASELINE_RECORD = "docs/engineering/security-baseline-2026-09-10.md"
 MAIN_PROTECTION_RECORD = "docs/engineering/main-protection-2026-09-27.md"
 
@@ -77,10 +78,12 @@ def test_product_path_and_cycle_ownership_are_executable() -> None:
         assert {"Q0", "Q1"} <= set(item["gates"])
         for eval_id in item["evals"]:
             assert item_id in evals[eval_id]["work_items"]
-            expected_status = "implemented" if item_id == "issue-82" else "planned"
+            expected_status = (
+                "implemented" if item_id in {"issue-82", "issue-140"} else "planned"
+            )
             assert evals[eval_id]["status"] == expected_status
     assert items["issue-82"]["state"] == "done"
-    assert items["issue-140"]["state"] == "backlog"
+    assert items["issue-140"]["state"] == "done"
     assert items["review-r2"]["state"] == "backlog"
     assert {"Q4", "Q6-CYCLE-3.4.0"} <= set(items["issue-140"]["gates"])
     assert "Q5-UI-ARCHITECTURE" in items["review-r2"]["gates"]
@@ -92,12 +95,18 @@ def test_product_path_and_cycle_ownership_are_executable() -> None:
     assert items["review-r2"]["depends_on"] == [
         {"id": "issue-81", "status": "satisfied"},
         {"id": "issue-82", "status": "satisfied"},
-        {"id": "issue-140", "status": "unsatisfied"},
+        {"id": "issue-140", "status": "satisfied"},
     ]
     members = set(cycles["cycle-3.4.0"]["members"])
     assert {"issue-136", "issue-139", "issue-140", "issue-81", "issue-82"} <= members
     assert len(members) == 20
     assert set(evals["EVAL-CYCLE-340-001"]["work_items"]) == members
+    assert cycles["cycle-3.4.0"]["state"] == "active"
+    assert evals["EVAL-CYCLE-340-001"]["status"] == "planned"
+    assert {items[item_id]["state"] for item_id in {
+        "issue-44", "issue-43", "issue-76", "issue-96"
+    }} == {"backlog"}
+    assert items["issue-101"]["state"] == "blocked"
     assert "issue-82" not in cycles["cycle-3.5.0"]["members"]
     assert "All twenty 3.4.0 work items" in graph["gates"]["Q6-CYCLE-3.4.0"]["description"]
     quality = _text("docs/engineering/quality-gates.md").split("## Q6-CYCLE-3.4.0:", 1)[1]
@@ -472,6 +481,67 @@ def test_p0_evidence_preserves_fixture_boundary() -> None:
                    "scaling", "SQLite", "WoFF", "network", "launcher", "AI",
                    "product-demonstrability record"):
         assert phrase in evidence
+
+
+def test_post_p0_r2_hold_is_revision_bound_without_authorizing_adoption() -> None:
+    graph = _graph()
+    items, evals, cycles = graph["work_items"], graph["evals"], graph["cycles"]
+    audited_sha = "bfa7647ac94cafba658a077e52a55a3c2240a4dd"
+
+    assert items["issue-140"]["state"] == "done"
+    assert all(
+        evals[eval_id]["status"] == "implemented"
+        for eval_id in items["issue-140"]["evals"]
+    )
+    assert {"id": "issue-140", "status": "satisfied"} in (
+        items["review-r2"]["depends_on"]
+    )
+    assert items["review-r2"]["state"] == "backlog"
+    assert evals["EVAL-R2-REVIEW-001"]["status"] == "planned"
+    assert cycles["cycle-3.4.0"]["state"] == "active"
+    assert evals["EVAL-CYCLE-340-001"]["status"] == "planned"
+
+    record = _text(R2_RECORD)
+    for phrase in (
+        audited_sha,
+        "HOLD / Conditional No-Go for production retention",
+        "PySide6 + Qt Widgets 6.11.2",
+        "No new UI `priority:P0` or `priority:P1` defect was found",
+        "fixture-only/runtime dependency boundary passed",
+        "P1 remains unauthorized",
+        "no Product Gate A, B, C or D is approved",
+        "Windows 11 execution",
+        "remaining supported Python/package matrix",
+        "clean-machine validation",
+        "final-P0 UI accessibility/UIA evidence",
+        "production optional-dependency and entry-point policy",
+        "representative production packaging and startup behavior",
+        "bundle inventory, SBOM and licensing route",
+        "Qt Virtual Keyboard",
+        "R2 must be repeated",
+    ):
+        assert phrase in record
+
+    adr = (ROOT / "docs/architecture/adr-ui-toolkit.md").read_text(encoding="utf-8")
+    assert re.search(r"^Status:\s*Proposed\s*$", adr, re.MULTILINE)
+
+    reconciled_docs = " ".join(
+        _text(path)
+        for path in (
+            "docs/engineering/evals.md",
+            "docs/engineering/quality-gates.md",
+            POLICY,
+            "docs/ui/p0-functional-desktop.md",
+        )
+    )
+    for stale_claim in (
+        "#140 remains pending",
+        "P0 completion remains pending",
+        "R2 still awaits #140 evidence",
+        "Issue #140 and its graph dependency into R2 remain pending",
+        "experimental implementation on Issue #140 Draft PR",
+    ):
+        assert stale_claim not in reconciled_docs
 
 
 def test_post_spike_authorization_is_revision_bound_and_limited_to_p0() -> None:

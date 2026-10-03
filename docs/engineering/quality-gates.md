@@ -202,6 +202,15 @@ before R2. The ADR remains Proposed; all existing ADR adoption gates still apply
 to production retention.
 R2 does not rename, replace or approve any Product Gate A-D.
 
+The [first R2 review](r2-ui-architecture-review.md) audited integrated `main`
+`bfa7647ac94cafba658a077e52a55a3c2240a4dd` after #140/P0 completion and
+returned **HOLD / Conditional No-Go for production retention**. It confirmed
+the fixture-only boundary and found no new priority:P0 or priority:P1 UI defect,
+but the production adoption-readiness evidence is incomplete. `review-r2` and
+`EVAL-R2-REVIEW-001` therefore remain pending: after the relevant evidence work,
+a revision-valid R2 must be repeated before any production-retention ADR
+decision or P1 authorization. No Product Gate is approved by the HOLD record.
+
 ### Privacy and security release evidence
 
 A public release is blocked unless all of the following are true:
@@ -264,7 +273,7 @@ aggregate gate pending; this change does not declare cycle completion.
 ## Q6-CYCLE-3.4.0: parser, roster, presentation, and RPG integrity
 
 Cycle 3.4.0 is active. Issues #28, #35, #37, #38, #41, #75, #79, #80, #97, and
-#139 are complete.
+#139 are complete. Issues #74, #81, #82, #136 and #140 are also complete.
 #79's repository design contract and published UI V2 Site pass the recorded
 rendered WCAG AA contrast thresholds within bounded Audit 4 coverage,
 stable-career isolation, persistent sparse-slot presentation, destination
@@ -294,12 +303,15 @@ Cycle 3.4.0 is approved only when all conditions below pass:
 
 CI success alone does not approve cycle 3.4.0.
 
-#82 now belongs to 3.4.0 on the near-term P0 path. #139 completed the policy
-through PR #141 and its dependency into #140 is satisfied. #81 and #82 are complete;
-#140's #82 prerequisite is satisfied by PR #165 and the explicit experimental P0
-authorization. #140 remains pending and fixture-backed only; R2 still awaits
-P0 evidence, and Product Gates and adoption/release work remain pending. `review-r2` is a
-product-review checkpoint, not another release-cycle issue. The historical
+#82 belongs to 3.4.0 on the P0 path. #139 completed the policy through PR #141,
+and #81, #82 and #140/P0 are integrated and complete. The first R2 review of
+that integrated state returned HOLD; this reconciliation records the completed
+P0 prerequisites while leaving production adoption-readiness, a revision-valid
+repeat R2, the explicit ADR decision and every Product Gate pending. `review-r2`
+is a product-review checkpoint, not another release-cycle issue, and remains
+pending under those semantics. Issues #44, #43, #76 and #96 remain incomplete,
+and #101 remains blocked by #96, so cycle 3.4.0 and `EVAL-CYCLE-340-001` remain
+active/planned. The historical
 [#136 closure discrepancy](evals.md#136-closure-discrepancy) is resolved by the
 implementation merged through PR #164. No aggregate tracker is declared for 3.4.0;
 `EVAL-CYCLE-340-001` and its graph members define the aggregate scope.
