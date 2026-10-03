@@ -201,14 +201,14 @@ The revision-bound [2026-09-10 Security Baseline](security-baseline-2026-09-10.m
 correctly identified #151 as a blocker at its historical audited revision.
 #151 is now implemented in merge commit
 `a585525caca2767fa373c2cbf185431c9fcea76c`; focused local regressions and the
-native Windows CI step verify the output/input-isolation contract on the R2
-revision. Its still-open GitHub issue requires maintainer state reconciliation
-after this governance PR is accepted and integrated, but is not evidence that
-the implementation is absent. Gate A remains unapproved: #142, #96, the
-required affected-scope R1 repeat, applicable cycle evidence, the
-reliable-companion/recovery demonstration and explicit maintainer approval
-remain outstanding. The #152 repository-protection guardrail is complete:
-active GitHub ruleset `24065034` and its
+native Windows CI step verify the output/input-isolation contract. PR #174
+reconciled the versioned governance state, and GitHub Issue #151 is closed as
+Completed. The former **still-open GitHub issue** state is therefore historical
+and resolved; it is not a current implementation or Gate A blocker. Gate A
+remains unapproved: #142, #96, the required affected-scope R1 repeat, applicable
+cycle evidence, the reliable-companion/recovery demonstration and explicit
+maintainer approval remain outstanding. The #152 repository-protection guardrail
+is complete: active GitHub ruleset `24065034` and its
 [revision-bound evidence](main-protection-2026-09-27.md) enforce and record the
 required control. This completion is repository governance, not an application
 or data-integrity change, and does not approve a Product Gate. #153 and #154
@@ -216,30 +216,49 @@ remain staged P3 work and are not current Gate A blockers; #155 is pre-release
 work rather than a current development priority. Product Gate A remains
 unapproved.
 
-### Q5-UI-ARCHITECTURE: R2 production retention decision
+### Q5-UI-ARCHITECTURE: R2 toolkit-retention decision
 
-The graph tracks `review-r2` after #81, #82 and P0/#140. R2 requires the
-revision-bound Full Application Review, P0 demonstration and explicit maintainer
-ADR decision before retaining production UI architecture or beginning P1 work.
-#82 supplies feasibility evidence and P0 supplies fixture-backed experience;
-neither approves a production toolkit. The [post-spike decision](../architecture/adr-ui-toolkit.md#post-spike-p0-authorization-2026-09-28)
-authorizes PySide6 + Qt Widgets 6.11.2 only for experimental fixture-backed P0
-before R2. The ADR remains Proposed; all existing ADR adoption gates still apply
-to production retention.
-R2 does not rename, replace or approve any Product Gate A-D.
+The graph tracks `review-r2` after #81, #82 and P0/#140. The first R2 review
+returned HOLD and remains historical evidence. A future retained-toolkit decision
+requires the bounded UI adoption-readiness evidence defined in the toolkit ADR,
+a new revision-bound R2 Full Application Review after relevant evidence changes
+are integrated, and an explicit maintainer ADR decision.
+
+For this narrower architecture decision, physical Windows 10 is the
+maintainer-validated reference platform. Windows 11 remains target/upstream
+compatibility context but is not physically validated by WoFF Mate; absence of a
+Windows 11 environment does not block toolkit retention. Representative
+packaging/startup in the available environment is required, while clean-machine
+end-user execution remains full-Q4/release/Product-Gate-D evidence rather than a
+toolkit-selection prerequisite. Applicable keyboard/focus/accessibility/UIA,
+Python 3.10–3.14 compatibility, optional-dependency/entry-point, bundle inventory
+and Qt licensing/plugin evidence remain required.
+
+Product Gate A and Product Gate B remain fully authoritative and unapproved.
+They are not evidence of whether PySide6 itself is a suitable retained toolkit.
+Accepting the toolkit later would **not** authorize P1, live WoFF/SQLite data,
+watchdog/query-service integration or launcher behavior. P1/live integration
+requires the retained architecture decision **and explicit approval of every
+applicable Product Gate A/B decision under Q5**. Satisfying technical gate
+conditions without the required revision-valid Full Application Review,
+product-demonstrability record and explicit maintainer approval is insufficient.
+In particular, #96 and #142 remain valid Gate A/P1 blockers until resolved under
+their own contracts.
 
 The [first R2 review](r2-ui-architecture-review.md) audited integrated `main`
 `bfa7647ac94cafba658a077e52a55a3c2240a4dd` after #140/P0 completion and
 returned **HOLD / Conditional No-Go for production retention**. It confirmed
-the fixture-only boundary and found no new priority:P0 or priority:P1 UI defect,
-but the production adoption-readiness evidence is incomplete. `review-r2` and
-`EVAL-R2-REVIEW-001` therefore remain pending: after the relevant evidence work,
-a new revision-bound R2 Full Application Review **MUST** be performed against
-the then-current integrated `main` before any production-retention ADR decision
-or P1 authorization. A scope-impact determination may cover only unrelated,
-non-material changes between that repeated R2 revision and the final decision
-revision; it cannot replace the mandatory repeat review. No Product Gate is
-approved by the HOLD record.
+the fixture-only boundary and found no new priority:P0 or priority:P1 UI defect.
+That historical record truthfully lists Windows 11 and clean-machine evidence as
+gaps under the governance in force at the time; this later re-scope does not
+rewrite the audit. `review-r2` and `EVAL-R2-REVIEW-001` remain pending. After the
+bounded adoption-readiness changes are integrated, a new revision-bound R2 Full
+Application Review **MUST** be performed against the then-current integrated
+`main` before any production-retention ADR decision. A scope-impact
+determination may cover only unrelated, non-material changes between that
+repeated R2 revision and the final decision revision; it cannot replace the
+mandatory repeat review. No Product Gate is approved by the HOLD record or by
+this re-scope.
 
 ### Privacy and security release evidence
 

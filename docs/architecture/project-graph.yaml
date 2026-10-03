@@ -1,5 +1,5 @@
 version: 1
-updated: 2026-09-19
+updated: 2026-10-03
 
 project:
   repository: Malboro66/woff-mate
@@ -217,7 +217,7 @@ gates:
     policy: docs/engineering/product-milestones.md
     required_evidence: [full_application_review, product_demonstrability, revision_scope_impact]
   Q5-UI-ARCHITECTURE:
-    description: R2 requires a revision-bound Full Application Review after issue-81, issue-82 and P0/issue-140, the prototype demonstration, and an explicit maintainer ADR decision before retained production UI architecture or P1; all existing ADR adoption gates remain required, and neither feasibility nor P0 accepts a production toolkit.
+    description: Toolkit retention requires the bounded UI adoption-readiness contract, prototype evidence, a new revision-bound R2 Full Application Review after relevant adoption changes, and an explicit maintainer ADR decision. Physical Windows 10 is the maintainer reference; Windows 11 absence and clean-machine release validation do not block toolkit retention. Product Gates A/B remain separate prerequisites for P1/live integration, and accepting the toolkit does not approve those gates or authorize live data.
   Q6-CYCLE-3.3.0:
     description: All seventeen 3.3.0 work items, applicable evals, functional exit criteria, documentation, and CI are approved.
   Q6-CYCLE-3.4.0:
@@ -774,7 +774,7 @@ evals:
   EVAL-R2-REVIEW-001:
     work_items: [review-r2]
     status: planned
-    evidence: The first Full Application Review is pinned to main bfa7647ac94cafba658a077e52a55a3c2240a4dd in docs/engineering/r2-ui-architecture-review.md and records HOLD / Conditional No-Go for production retention. The eval remains planned because, after relevant adoption-readiness changes are integrated, a new revision-bound R2 Full Application Review MUST be performed against the then-current integrated main before residual-risk dispositions and an explicit maintainer ADR decision. A scope-impact determination may cover only unrelated, non-material intervening changes between that repeated R2 revision and the final decision revision; it cannot replace the repeat review. Existing adoption gates remain required before retained production architecture or P1.
+    evidence: The first Full Application Review is pinned to main bfa7647ac94cafba658a077e52a55a3c2240a4dd in docs/engineering/r2-ui-architecture-review.md and records HOLD / Conditional No-Go for production retention. The eval remains planned because, after relevant bounded UI adoption-readiness changes are integrated, a new revision-bound R2 Full Application Review MUST be performed against the then-current integrated main before residual-risk dispositions and an explicit maintainer ADR decision. A scope-impact determination may cover only unrelated, non-material intervening changes between that repeated R2 revision and the final decision revision; it cannot replace the repeat review. Toolkit retention follows the bounded UI adoption contract; Product Gate A/B remain separate prerequisites for P1/live integration and are not toolkit-suitability evidence.
   EVAL-STARTUP-RECURSIVE-001:
     work_items: [issue-142]
     status: planned
