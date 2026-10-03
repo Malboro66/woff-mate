@@ -12,24 +12,32 @@ exists. Compatibility evidence below was reviewed on **2026-08-19** against
 official primary sources. Versions and platform policies can change and must be
 checked again when adoption is proposed.
 
-The application supports Python 3.10–3.14 and Windows 10/11. A UI must preserve
-that range, remain packageable, be testable without campaign data, and expose
-accessible native-desktop semantics. Only **one Qt binding is permitted in a
-build environment**: PySide and PyQt must never be installed or bundled
-together. Their overlapping Qt modules make imports, plugins, packaging, and
-test selection ambiguous.
+The application targets Python 3.10–3.14 and Windows 10/11. A UI must preserve
+that compatibility intent, remain packageable, be testable without campaign
+data, and expose accessible native-desktop semantics. The project's physically
+validated reference platform for the current UI architecture decision is Windows
+10. Windows 11 remains a target/upstream-compatible platform, but WoFF Mate has
+not physically validated it and must not describe vendor support as project
+runtime evidence. Absence of physical Windows 11 evidence does not block the
+current toolkit-retention decision; future Windows 11 validation may be added if
+resources become available.
+
+Only **one Qt binding is permitted in a build environment**: PySide and PyQt
+must never be installed or bundled together. Their overlapping Qt modules make
+imports, plugins, packaging, and test selection ambiguous.
 
 Qt's current official lifecycle states that Qt 6.12 is the final Qt release to
-support Windows 10. Future adoption must therefore either pin and validate a
-Windows-10-compatible Qt line or explicitly revise WoFF Mate's supported-Windows
-policy. Neither decision is approved by this ADR.
+support Windows 10. Future adoption must therefore pin and validate a
+Windows-10-compatible Qt line for the maintainer-validated reference platform,
+or explicitly revise WoFF Mate's supported-Windows policy. This ADR does not
+promote unperformed Windows 11 execution into project evidence.
 
 ## Candidates
 
 | Candidate | Python and Windows | License and distribution | Tests, accessibility, ownership |
 |---|---|---|---|
-| **PySide6 + Qt Widgets** | Qt for Python publishes wheels for supported Python versions and documents Windows desktop support; adoption must verify wheels and smoke Python 3.10–3.14 on Windows 10/11. | Qt for Python is offered under LGPLv3/GPLv3 and commercial terms. An LGPL distribution review must cover notices, relinking/replacement rights, Qt plugins, and bundled libraries. PyInstaller has Qt/PySide hooks, but a clean-machine packaging spike remains required. | `pytest-qt` supports PySide6. Widgets expose Qt accessibility interfaces and mature desktop controls. Qt Company maintains the official binding alongside Qt. |
-| **PyQt6 + Qt Widgets** | Riverbank publishes current PyQt6 releases and Windows wheels; the complete supported Python/Windows matrix must still be smoke-tested. | PyQt is GPLv3 or commercially licensed, not LGPL. That choice needs explicit project licensing approval. PyInstaller supports PyQt6 hooks, with the same clean-machine spike requirement. | `pytest-qt` supports PyQt6; Qt Widgets accessibility is available. Riverbank owns the binding and SIP ecosystem rather than Qt Company. |
+| **PySide6 + Qt Widgets** | Qt for Python publishes wheels for supported Python versions and documents Windows desktop support; adoption must verify wheel/smoke compatibility for Python 3.10–3.14 and physically validate the retained path on the maintainer's Windows 10 reference environment. Windows 11 vendor support is compatibility context, not WoFF Mate physical evidence. | Qt for Python is offered under LGPLv3/GPLv3 and commercial terms. An LGPL distribution review must cover notices, relinking/replacement rights, Qt plugins, and bundled libraries. PyInstaller has Qt/PySide hooks. Representative packaging is part of toolkit retention; clean-machine end-user validation remains a full-Q4/Gate-D distribution obligation. | `pytest-qt` supports PySide6. Widgets expose Qt accessibility interfaces and mature desktop controls. Qt Company maintains the official binding alongside Qt. |
+| **PyQt6 + Qt Widgets** | Riverbank publishes current PyQt6 releases and Windows wheels; supported Python compatibility and the maintainer's physical reference environment would still require project evidence. | PyQt is GPLv3 or commercially licensed, not LGPL. That choice needs explicit project licensing approval. PyInstaller supports PyQt6 hooks; clean-machine end-user validation remains release/distribution evidence rather than a toolkit-selection prerequisite. | `pytest-qt` supports PyQt6; Qt Widgets accessibility is available. Riverbank owns the binding and SIP ecosystem rather than Qt Company. |
 | **Qt Quick/QML with PySide6 or PyQt6** | Uses a viable Qt 6 binding, so binding compatibility is inherited; QML modules and graphics backends add another Windows validation surface. | Binding terms remain PySide6 LGPL/GPL/commercial or PyQt6 GPL/commercial. Packaging must collect QML imports and plugins. | `pytest-qt` can drive the Qt application, but QML-facing tests need additional seams. Qt Quick has accessibility APIs, while custom controls demand deliberate accessible names, roles, focus, and keyboard behavior. It offers richer composition at greater architecture and packaging cost than this read-only shell needs. |
 | **Legacy Qt 5 bindings (PySide2/PyQt5)** | Rejected/deferred for new work: they do not provide a credible full Python 3.10–3.14 foundation, and Qt 5 is outside the intended current Qt line. | They retain binding-specific LGPL/GPL/commercial obligations and legacy packaging concerns. | Existing ecosystems are mature, but selecting a legacy binding would create avoidable maintenance and migration ownership. |
 
@@ -90,7 +98,8 @@ applicable quality evidence. The [#82 final disposition](../ui/pyside6-spike-82.
 records Conditional Go without extending the spike into release certification.
 Unperformed Windows 11, clean-machine, native DPI, true cold startup, remaining
 Python execution and final distribution checks belong to later adoption/release
-validation where applicable. This does not waive the production gates below.
+validation where applicable. This historical statement records the evidence
+boundary of #82 and does not claim that those runs occurred.
 
 ## Post-spike P0 authorization (2026-09-28)
 
@@ -124,32 +133,91 @@ remain deferred as described above; they are not new prerequisites for #140.
 raw evidence, measurements, hashes and provenance remain unchanged. Completion
 of the spike does not promote its observations into unperformed validation.
 
+## Maintainer-available adoption scope (2026-10-03)
+
+After the first post-P0 R2 review was integrated through PR #174, the maintainer
+explicitly determined that a physical Windows 11 environment and a separate
+clean-machine Windows environment are outside the project's currently available
+physical and financial resources. Issue #175 re-scopes the future toolkit
+retention decision so that unavailable evidence is recorded honestly rather
+than fabricated or retained as a permanent impossible blocker.
+
+For the current UI architecture decision:
+
+- Windows 10 is the physically validated maintainer reference platform;
+- Windows 11 remains a target/upstream-compatible platform but is **not**
+  physically validated by WoFF Mate, and its absence does not block toolkit
+  retention;
+- clean-machine end-user execution remains required where full Q4, Product Gate
+  D, an installer or public-distribution claims apply, but it is not a
+  prerequisite for selecting the retained toolkit architecture;
+- Narrator/NVDA speech certification is not required for toolkit retention;
+  keyboard navigation, logical tab order, visible focus, accessible names/roles
+  and basic UIA exposure remain applicable quality evidence; and
+- Product Gates A and B remain authoritative for reliable data and viable
+  launcher/live-product operation, but they are not evidence of toolkit
+  suitability and are not prerequisites to the narrower PySide6 retention
+  decision.
+
+Accepting this ADR in a later decision would therefore select a production UI
+architecture only. It would **not** authorize P1, live WoFF/SQLite integration,
+launcher integration, or satisfy Product Gate A/B. Those capabilities remain
+blocked by their own applicable conditions, including unresolved P1 findings
+such as #96 and #142.
+
+This re-scope does not change the historical first R2 HOLD record. Relevant
+adoption-readiness changes must still be integrated and followed by a new
+revision-bound R2 Full Application Review before the explicit maintainer ADR
+decision.
+
 ## Adoption gates
 
-This documentation PR adds **no GUI runtime dependency or production UI
-module**. Adoption remains gated by:
+This documentation change adds **no GUI runtime dependency or production UI
+module**. Retaining PySide6 + Qt Widgets as the selected production UI
+architecture remains gated by:
 
-1. explicit acceptance of this ADR following the R2 Full Application Review of
-   #81/#82 and P0/#140 evidence, under
-   [the product-milestone policy](../engineering/product-milestones.md);
-2. applicable Product Gate A (reliable data) and Gate B (viable launcher)
-   decisions—neither is approved here;
-3. an optional-dependency policy that preserves non-UI installation;
-4. Windows 10/11 and Python 3.10–3.14 smoke coverage;
-5. the bounded #82 feasibility report, with clean-machine packaging, representative
-   startup/scaling, applicable accessibility quality and licensing conditions
-   validated before production adoption/release as applicable;
-6. sanitized fixtures and shared states from #80, the approved visual reference from #79, and immutable contracts from #81; and
-7. enforcement that each build environment contains exactly one Qt binding.
+1. the existing #81/#82/#140 fixture-backed, contract and P0-demonstrability
+   evidence plus the applicable adoption-readiness work;
+2. an optional-dependency policy that preserves non-UI/headless installation and
+   a clear production UI entry-point policy;
+3. Python 3.10–3.14 compatibility evidence using an appropriate combination of
+   CI and local/source smoke, with physical Windows 10 validation on the
+   maintainer's available reference system;
+4. representative production packaging and startup behavior in that available
+   environment; physical Windows 11 and clean-machine end-user execution are not
+   prerequisites to toolkit retention;
+5. applicable accessibility quality: keyboard navigation, logical tab order,
+   visible focus, accessible names/roles and basic UIA exposure, without a
+   Narrator/NVDA speech-certification requirement;
+6. a bundle/dependency inventory or SBOM sufficient to evaluate PySide6/Qt
+   components, required notices, relinking/replacement obligations and bundled
+   plugins, including explicit removal or licensing disposition of Qt Virtual
+   Keyboard if present;
+7. enforcement that each build environment contains exactly one Qt binding;
+8. a new revision-bound R2 Full Application Review after relevant
+   adoption-readiness changes are integrated; and
+9. explicit maintainer acceptance of this ADR after that repeated R2.
 
-Issues #79 through #82 collect the missing design, fixture, contract, and
+Product Gate A (reliable data) and Product Gate B (viable launcher) remain
+unapproved and fully authoritative for the capabilities they govern. They are
+not toolkit-retention prerequisites. P1/live integration requires the retained
+architecture decision **and** the applicable Gate A/B conditions; accepting the
+toolkit alone cannot authorize live data, launcher behavior, or P1.
+
+Clean-machine execution, supported installer behavior, installation/update/
+rollback certification, signing/provenance and final public-distribution
+approval remain full-Q4/release/Product-Gate-D work where applicable. Deferring
+them from toolkit retention does not mark them complete or waive their later
+requirements.
+
+Issues #79 through #82 collect the completed design, fixture, contract, and
 feasibility evidence. They do not accept this ADR, add a mandatory Qt
 dependency, create a production UI, or approve Product Gate A or Product Gate B.
 
-The near-term order is #81 -> #82 -> P0/#140 -> R2 -> retained production
-architecture/P1. #82 provides feasibility evidence; P0 proves the fixture-backed
-experience. The post-spike decision above explicitly authorizes the experimental
-P0 implementation path, but the ADR remains Proposed until the post-P0 R2 review
-and all applicable adoption gates are satisfied. Neither the spike nor P0 silently accepts
-PySide6 or any other GUI toolkit. This governance change adds no dependency or
-permission to ship an experimental artifact as production UI.
+The near-term order is #81 -> #82 -> P0/#140 -> first R2 HOLD -> bounded UI
+adoption-readiness -> repeated revision-bound R2 -> explicit toolkit ADR
+decision. Only after the toolkit is retained **and** the applicable Product Gate
+A/B conditions are satisfied may P1/live integration be authorized. Neither the
+spike nor P0 silently accepts PySide6 or any other GUI toolkit, and this
+governance change adds no dependency or permission to ship an experimental
+artifact as production UI.
