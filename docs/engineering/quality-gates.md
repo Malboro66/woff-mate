@@ -203,16 +203,18 @@ correctly identified #151 as a blocker at its historical audited revision.
 `a585525caca2767fa373c2cbf185431c9fcea76c`; focused local regressions and the
 native Windows CI step verify the output/input-isolation contract. PR #174
 reconciled the versioned governance state, and GitHub Issue #151 is closed as
-Completed. Gate A remains unapproved: #142, #96, the required affected-scope R1
-repeat, applicable cycle evidence, the reliable-companion/recovery demonstration
-and explicit maintainer approval remain outstanding. The #152
-repository-protection guardrail is complete: active GitHub ruleset `24065034`
-and its [revision-bound evidence](main-protection-2026-09-27.md) enforce and
-record the required control. This completion is repository governance, not an
-application or data-integrity change, and does not approve a Product Gate. #153
-and #154 remain staged P3 work and are not current Gate A blockers; #155 is
-pre-release work rather than a current development priority. Product Gate A
-remains unapproved.
+Completed. The former **still-open GitHub issue** state is therefore historical
+and resolved; it is not a current implementation or Gate A blocker. Gate A
+remains unapproved: #142, #96, the required affected-scope R1 repeat, applicable
+cycle evidence, the reliable-companion/recovery demonstration and explicit
+maintainer approval remain outstanding. The #152 repository-protection guardrail
+is complete: active GitHub ruleset `24065034` and its
+[revision-bound evidence](main-protection-2026-09-27.md) enforce and record the
+required control. This completion is repository governance, not an application
+or data-integrity change, and does not approve a Product Gate. #153 and #154
+remain staged P3 work and are not current Gate A blockers; #155 is pre-release
+work rather than a current development priority. Product Gate A remains
+unapproved.
 
 ### Q5-UI-ARCHITECTURE: R2 toolkit-retention decision
 

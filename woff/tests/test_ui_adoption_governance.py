@@ -48,7 +48,7 @@ def test_adr_records_maintainer_available_platform_scope_without_claiming_window
     assert "physically validated by WoFF Mate" in adr
     assert "its absence does not block toolkit retention" in adr
     assert "Product Gates A and B remain authoritative" in adr
-    assert "they are not toolkit-retention prerequisites" in adr
+    assert "not prerequisites to the narrower PySide6 retention decision" in adr
     assert "Accepting this ADR in a later decision would therefore select a production UI" in adr
     assert "It would **not** authorize P1" in adr
 
