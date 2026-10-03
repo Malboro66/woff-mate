@@ -173,10 +173,10 @@ claim Q5 or approval of Product Gate A or Gate B.
 | `EVAL-UI-CONTRACTS-001` | #81 | Implemented | Six frozen toolkit-independent snapshots enforce context-specific cardinality, safe retained observations, payload-free transitions, exact integer types, warnings unique and sorted by code, canonical nation/service, stable identities, defensive immutable values, sanitized diagnostics and optional-selection request lifecycle protocols, exercised only by #80 fixtures | `tests/test_ui_contracts.py`, `woff/tests/test_architecture_contracts.py` |
 | `EVAL-UI-SPIKE-001` | #82 | Implemented | One PySide6 line records bounded packaging/resource feasibility, actual Python/Windows coverage and explicit deferred adoption/release gaps | `tests/test_ui_spike_evidence.py` |
 | `EVAL-UI-SPIKE-002` | #82 | Implemented | Archived scaling, keyboard use, accessibility exposure, plugin behavior and licensing evidence support the final Conditional Go recommendation within its recorded limits | `tests/test_ui_spike_evidence.py` |
-| `EVAL-P0-FLOW-001` | #140 | Planned | Seven primary destinations, two synthetic careers, six shared states, immutable #81 values, isolation, keyboard/focus and scaling | — |
-| `EVAL-P0-BOUNDARY-001` | #140 | Planned | Fixture-only execution excludes live SQLite/WoFF, repository/parser/watchdog access, writes, launcher control, network, personal data, runtime AI and production social/RPG behavior | — |
-| `EVAL-P0-DEMO-001` | #140 | Planned | Reproducible Windows launch/build, approved experimental toolkit/ADR path, interaction captures and product-demonstrability record | — |
-| `EVAL-R2-REVIEW-001` | `review-r2` | Planned | Revision-bound Full Application Review of #81/#82/P0, explicit maintainer ADR decision and existing adoption gates before retained production architecture/P1 | — |
+| `EVAL-P0-FLOW-001` | #140 | Implemented | Automated Qt-offscreen checks cover routing/navigation calls, focus results, career switching/isolation, state transitions/rendering, rail/layout behavior and close/reopen; they do not synthesize Tab/Shift+Tab, rail arrows, Enter/Space or selector keys. The maintainer-observed Windows walkthrough supplies those physical keyboard/selector and scaling observations | `tests/test_p0_desktop.py`, `docs/ui/p0-functional-desktop.md`, `docs/ui/evidence/issue-140-p0/windows-physical-walkthrough.md` |
+| `EVAL-P0-BOUNDARY-001` | #140 | Implemented | Fixture-only execution structurally excludes live SQLite/WoFF, repository/parser/watchdog access, writes, launcher control, network, personal data, runtime AI and production social/RPG behavior | `tests/test_p0_desktop.py`, `docs/ui/p0-functional-desktop.md` |
+| `EVAL-P0-DEMO-001` | #140 | Implemented | PR #173/CI #303, reproducible source and prototype-bundle launch, committed Linux Qt-offscreen captures with SHA-256 inventory, and recorded Windows 10 source/bundle walkthroughs at 100/125/150/200% satisfy only `Q4-P0-PROTOTYPE`; they do not satisfy full Q4, establish an installer or production distribution, or accept a production toolkit | `tests/test_p0_desktop.py`, `docs/ui/p0-functional-desktop.md`, `docs/ui/evidence/issue-140-p0/windows-physical-walkthrough.md`, `docs/ui/evidence/issue-140-p0/SHA256SUMS` |
+| `EVAL-R2-REVIEW-001` | `review-r2` | Planned | After relevant adoption-readiness changes are integrated, a new revision-bound R2 Full Application Review of the then-current integrated `main`, followed by the explicit maintainer ADR decision and existing adoption gates, is mandatory before retained production architecture/P1; scope-impact may cover only unrelated, non-material changes between that repeated R2 revision and the final decision revision | — |
 
 The [#82 exploratory report](../ui/pyside6-spike-82.md) archives Windows 10
 measurements and deterministic replay checks in `tests/test_ui_spike_evidence.py`.
@@ -195,15 +195,25 @@ only. The ADR remains Proposed. Historical evidence is unchanged, and no new
 external evidence campaign, production adoption or Product Gate is authorized.
 
 The executable sequence is #81 -> #82 -> P0/#140 -> R2 -> retained production
-architecture/P1. #82 now belongs to cycle 3.4.0, and its #81 dependency records
-this near-term order; earlier disposable exploration is not completion of that
-sequence. #140 depends on #79/#80/#81/#82/#139 (all satisfied); P0 remains pending.
-The #82 dependency into R2 is also satisfied, but R2 still awaits #140 evidence.
-Its planned evals prove neither live data integration nor production toolkit
-acceptance. `review-r2` is a repository review work item outside engineering
-cycle membership, not a newly numbered GitHub issue. Future retained production
-UI/P1 work must declare its dependency on `review-r2` and the
-`Q5-UI-ARCHITECTURE` gate, in addition to existing ADR gates.
+architecture/P1. #82 belongs to cycle 3.4.0, and its #81 dependency records the
+near-term order; earlier disposable exploration is not completion of that
+sequence. #140/P0 is integrated and completed, all of its dependencies and its
+dependency into R2 are satisfied, and the three P0 evals above bind automated
+evidence separately from maintainer-observed physical Windows evidence.
+
+The [first R2 review](r2-ui-architecture-review.md) is pinned to integrated
+`main` `bfa7647ac94cafba658a077e52a55a3c2240a4dd` and records **HOLD /
+Conditional No-Go for production retention**. `review-r2` remains backlog and
+`EVAL-R2-REVIEW-001` remains Planned because its contract includes complete
+adoption-readiness evidence and the final explicit maintainer ADR decision,
+neither of which the first pass supplied. After the relevant adoption-readiness
+changes are integrated, a new revision-bound R2 Full Application Review must be
+performed against the then-current integrated `main`; scope-impact may cover
+only unrelated, non-material changes between that repeated review and the final
+decision and cannot replace it. The HOLD proves neither live integration
+nor production toolkit acceptance, approves no Product Gate and does not
+authorize P1. `review-r2` remains a repository review work item outside
+engineering cycle membership, not a newly numbered GitHub issue.
 
 ### Product policy enforcement
 
@@ -288,7 +298,7 @@ unapproved.
 
 | Eval | Work item | Status | Required evidence |
 |---|---|---|---|
-| `EVAL-OUTPUT-PATH-ISOLATION-001` | #151 | Planned | Persistent outputs cannot overlap monitored WoFF inputs through Windows path/case aliases, and rejection occurs before output creation or source mutation |
+| `EVAL-OUTPUT-PATH-ISOLATION-001` | #151 | Implemented | `woff/tests/test_output_path_isolation.py`, related configuration/handler regressions and the Windows CI step prove equal/descendant rejection, canonical/case/identity alias handling, pre-open validation, sanitized diagnostics, valid external outputs and synthetic-source-byte preservation |
 | `EVAL-MAIN-PROTECTION-001` | #152 | Implemented | [Read-only GitHub verification](main-protection-2026-09-27.md) records that `main` requires pull requests with zero approving reviews, requires exactly `Tests (Python 3.10)`, `Tests (Python 3.14)`, `Pyright`, and `Windows smoke test` from GitHub Actions, blocks force pushes and deletion, and has no configured bypass actors |
 | `EVAL-SUPPLY-CHAIN-001` | #153 | Planned | Reproducible dependency/build inputs, vulnerability-audit policy, immutable full-SHA Actions, and controlled updates are executable |
 | `EVAL-SECURITY-GOVERNANCE-001` | #154 | Planned | The maintained threat model and compact Security Gate compose with Q0-Q6 and have explicit ownership and reassessment rules |
@@ -297,9 +307,13 @@ unapproved.
 `EVAL-MAIN-PROTECTION-001` is implemented. GitHub ruleset `24065034` is the
 live enforcement mechanism; `woff/tests/test_product_milestones.py` validates
 only the recorded evidence contract and repository-governance consistency and
-does not query GitHub. The other four evals remain planned without fabricated
-`enforced_by` paths. #151–#155 remain outside the existing Q6 cycles. #151
-remains an independent Gate A guardrail; #153 and #154 remain staged P3 work,
+does not query GitHub. The three remaining evals remain planned without
+fabricated `enforced_by` paths. #151–#155 remain outside the existing Q6 cycles. #151's
+guardrail is implemented in merge commit
+`a585525caca2767fa373c2cbf185431c9fcea76c`, which is present in the R2-audited
+`main`; its still-open GitHub issue is an external issue-state reconciliation
+for a maintainer after this governance PR is accepted and integrated, not
+evidence that implementation is missing. #153 and #154 remain staged P3 work,
 while #155 is required only before public binary distribution.
 
 ### SDD pilot governance
@@ -311,9 +325,10 @@ exact-revision maintainer approval contract, the custom-agent tool allowlists,
 and the fresh-context Independent Reviewer handoff. PR #158 integrated the SDD
 foundation in `main` commit
 `6d136097c80a3aad9b7a6c339746a7ee28a1168f`. Issue #157 is therefore `done`,
-and the #151 dependency on #157 is `satisfied`. This unlocks only the #151 SDD
-specification/Q0 phase. Production implementation of #151 still requires an
-`Approved` specification satisfying the SDD approval contract.
+and the #151 dependency on #157 is `satisfied`. #151 subsequently completed its
+approved SDD and implementation path in merge commit `a585525caca2767fa373c2cbf185431c9fcea76c`.
+The historical sequencing requirement remains preserved; it is no longer a
+current implementation blocker.
 
 ### #136 closure discrepancy
 
@@ -757,8 +772,9 @@ roster-generation, transfer-baseline, and incomplete-input policy.
 | #140 | `EVAL-P0-FLOW-001`, `EVAL-P0-BOUNDARY-001`, `EVAL-P0-DEMO-001` |
 
 Cycle 3.4.0 is `active`. Issues #28, #35, #37, #38, #41, #74, #75, #79, #80,
-#81, #97, #136, and #139 are complete. Issue #101 remains blocked by #96 after #37
-satisfied its roster-lifecycle dependency.
+#81, #82, #97, #136, #139, and #140 are complete. Issues #44, #43, #76 and #96
+remain incomplete, and #101 remains blocked by #96 after #37 satisfied its
+roster-lifecycle dependency.
 `EVAL-CYCLE-340-001` aggregates all twenty members and remains planned until
 every member acceptance criterion, applicable eval, and `Q6-CYCLE-3.4.0`
 condition passes.

@@ -1,5 +1,6 @@
 """Contracts for revision-bound reviews and the fixture-backed product path."""
 
+import ast
 from copy import deepcopy
 from pathlib import Path
 import re
@@ -13,6 +14,7 @@ from scripts.validate_project_graph import GraphValidationError, load_graph, val
 ROOT = Path(__file__).resolve().parents[2]
 POLICY = "docs/engineering/product-milestones.md"
 R1_RECORD = "docs/engineering/r1-integrity-baseline.md"
+R2_RECORD = "docs/engineering/r2-ui-architecture-review.md"
 SECURITY_BASELINE_RECORD = "docs/engineering/security-baseline-2026-09-10.md"
 MAIN_PROTECTION_RECORD = "docs/engineering/main-protection-2026-09-27.md"
 
@@ -77,12 +79,15 @@ def test_product_path_and_cycle_ownership_are_executable() -> None:
         assert {"Q0", "Q1"} <= set(item["gates"])
         for eval_id in item["evals"]:
             assert item_id in evals[eval_id]["work_items"]
-            expected_status = "implemented" if item_id == "issue-82" else "planned"
+            expected_status = (
+                "implemented" if item_id in {"issue-82", "issue-140"} else "planned"
+            )
             assert evals[eval_id]["status"] == expected_status
     assert items["issue-82"]["state"] == "done"
-    assert items["issue-140"]["state"] == "backlog"
+    assert items["issue-140"]["state"] == "done"
     assert items["review-r2"]["state"] == "backlog"
-    assert {"Q4", "Q6-CYCLE-3.4.0"} <= set(items["issue-140"]["gates"])
+    assert {"Q4-P0-PROTOTYPE", "Q6-CYCLE-3.4.0"} <= set(items["issue-140"]["gates"])
+    assert "Q4" not in items["issue-140"]["gates"]
     assert "Q5-UI-ARCHITECTURE" in items["review-r2"]["gates"]
     assert "Q5-UI-ARCHITECTURE" not in items["issue-140"]["gates"]
     assert items["issue-139"]["state"] == "done"
@@ -92,12 +97,18 @@ def test_product_path_and_cycle_ownership_are_executable() -> None:
     assert items["review-r2"]["depends_on"] == [
         {"id": "issue-81", "status": "satisfied"},
         {"id": "issue-82", "status": "satisfied"},
-        {"id": "issue-140", "status": "unsatisfied"},
+        {"id": "issue-140", "status": "satisfied"},
     ]
     members = set(cycles["cycle-3.4.0"]["members"])
     assert {"issue-136", "issue-139", "issue-140", "issue-81", "issue-82"} <= members
     assert len(members) == 20
     assert set(evals["EVAL-CYCLE-340-001"]["work_items"]) == members
+    assert cycles["cycle-3.4.0"]["state"] == "active"
+    assert evals["EVAL-CYCLE-340-001"]["status"] == "planned"
+    assert {items[item_id]["state"] for item_id in {
+        "issue-44", "issue-43", "issue-76", "issue-96"
+    }} == {"backlog"}
+    assert items["issue-101"]["state"] == "blocked"
     assert "issue-82" not in cycles["cycle-3.5.0"]["members"]
     assert "All twenty 3.4.0 work items" in graph["gates"]["Q6-CYCLE-3.4.0"]["description"]
     quality = _text("docs/engineering/quality-gates.md").split("## Q6-CYCLE-3.4.0:", 1)[1]
@@ -107,6 +118,45 @@ def test_product_path_and_cycle_ownership_are_executable() -> None:
         assert re.search(rf"#{number}\b", quality)
         assert f"| #{number} |" in catalog
     validate_graph(ROOT, graph)
+
+
+def test_p0_prototype_packaging_gate_is_bounded_and_does_not_replace_q4() -> None:
+    graph = _graph()
+    gates = graph["gates"]
+    assert gates["Q4"]["description"] == (
+        "Windows and packaging changes pass supported Python, smoke, build, "
+        "install, upgrade, and rollback checks."
+    )
+    bounded = gates["Q4-P0-PROTOTYPE"]["description"]
+    for phrase in (
+        "approved Windows development/test environment",
+        "prototype PyInstaller folder build",
+        "physical 100/125/150/200% scaling",
+        "synthetic fixture-only boundary",
+        "prototype/not-installer labeling",
+        "does not satisfy or replace Q4",
+        "clean-machine production validation",
+        "upgrade/rollback",
+        "release checksum/signing/provenance",
+        "production-distribution",
+        "approves no Product Gate",
+    ):
+        assert phrase in bounded
+
+    quality = _text("docs/engineering/quality-gates.md")
+    bounded_quality = quality.split(
+        "### Q4-P0-PROTOTYPE: experimental P0 demonstrability", 1
+    )[1].split("## Q5:", 1)[0]
+    for phrase in (
+        "prototype, not installer",
+        "does not satisfy, replace or weaken Q4",
+        "clean-machine production validation",
+        "installation/update/rollback",
+        "release checksums/signing/provenance",
+        "production distribution",
+        "approves no Product Gate",
+    ):
+        assert phrase in bounded_quality
 
 
 def test_nation_contract_is_integrated_before_ui_contract_completion() -> None:
@@ -297,16 +347,16 @@ def test_security_baseline_ownership_and_scheduling_are_reconciled() -> None:
         tuple[str, set[str], str, set[tuple[str, str]], str, str],
     ] = {
         "issue-151": (
-                "platform",
-                {"Q0", "Q1", "Q3", "Q4", "Q5"},
-                "EVAL-OUTPUT-PATH-ISOLATION-001",
-                {
-                    ("issue-45", "satisfied"),
-                    ("issue-157", "satisfied"),
-                },
-                "backlog",
-                "planned",
-            ),
+            "platform",
+            {"Q0", "Q1", "Q3", "Q4", "Q5"},
+            "EVAL-OUTPUT-PATH-ISOLATION-001",
+            {
+                ("issue-45", "satisfied"),
+                ("issue-157", "satisfied"),
+            },
+            "done",
+            "implemented",
+        ),
         "issue-152": (
             "governance", {"Q0", "Q1", "Q5"},
             "EVAL-MAIN-PROTECTION-001", set(), "done", "implemented",
@@ -380,15 +430,37 @@ def test_security_baseline_ownership_and_scheduling_are_reconciled() -> None:
         assert f"#{issue_number}" in record
         assert f"#{issue_number}" in catalog
     assert "not added to a q6 cycle" in record.lower()
-    assert "#151 must be resolved" in quality
+    output_eval = evals["EVAL-OUTPUT-PATH-ISOLATION-001"]
+    assert output_eval["enforced_by"] == [
+        "woff/tests/test_output_path_isolation.py",
+        "woff/tests/test_config.py",
+        "woff/tests/test_handler_integration.py",
+        ".github/workflows/ci.yml",
+    ]
+    for evidence_path in output_eval["enforced_by"]:
+        assert (ROOT / evidence_path).is_file()
+    assert "#151 must be resolved" not in quality
+    assert "#151 is now implemented" in quality
+    assert "still-open GitHub issue" in quality
+    assert "#142, #96" in quality
     assert "The #152 repository-protection guardrail is complete" in quality
     assert "#153 and #154 remain staged P3 work" in quality
     assert "#155 is pre-release work" in quality
     assert "Product Gate A remains unapproved." in quality
-    assert "After the existing P1 correction order, resolve #151" in policy
-    assert "#152's repository controls are already enforced and recorded" in policy
+    assert "Treat #151's real-root output/input isolation as implemented" in policy
+    assert "open GitHub issue awaits maintainer reconciliation" in policy
+    assert "#152's repository controls are also enforced and recorded" in policy
     assert "#153 supply-chain hardening and #154 permanent security-governance" in policy
     assert "#155 remains pre-release work" in policy
+    assert "The newly reproduced P2 output/input path-isolation defect is owned by #151" in record
+    assert "complete before Gate A can claim safe operation against real WoFF roots" in record
+    current_governance = " ".join((quality, catalog, policy, _text(R2_RECORD)))
+    for stale_current_claim in (
+        "#151 must be resolved",
+        "Production implementation of #151 still requires",
+        "#151 is an outstanding Gate A implementation blocker",
+    ):
+        assert stale_current_claim not in current_governance
     validate_graph(ROOT, graph)
 
 
@@ -472,6 +544,269 @@ def test_p0_evidence_preserves_fixture_boundary() -> None:
                    "scaling", "SQLite", "WoFF", "network", "launcher", "AI",
                    "product-demonstrability record"):
         assert phrase in evidence
+
+    flow = graph["evals"]["EVAL-P0-FLOW-001"]["evidence"]
+    for automated_claim in (
+        "routing/navigation calls",
+        "state transitions",
+        "focus results",
+        "rail/layout behavior",
+        "career isolation",
+        "close/reopen",
+    ):
+        assert automated_claim in flow
+    for physical_claim in (
+        "Tab/Shift+Tab",
+        "rail-arrow",
+        "Enter/Space",
+        "selector interaction",
+        "does not synthesize those key events",
+    ):
+        assert physical_claim in flow
+    assert "automated keyboard" not in flow
+
+    catalog = _text("docs/engineering/evals.md")
+    assert "they do not synthesize Tab/Shift+Tab, rail arrows, Enter/Space or selector keys" in catalog
+    assert "maintainer-observed Windows walkthrough supplies those physical keyboard/selector" in catalog
+
+
+def test_keyboard_walkthrough_is_bound_to_the_audited_revision() -> None:
+    physical_revision = "46b18097be490f1741f5792c84d945f6077c465b"
+    audited_revision = "bfa7647ac94cafba658a077e52a55a3c2240a4dd"
+    source_path = "woff/p0_desktop/window.py"
+
+    def keyboard_blocks(source: str) -> tuple[dict[str, str], bool]:
+        tree = ast.parse(source)
+        window = next(
+            node
+            for node in tree.body
+            if isinstance(node, ast.ClassDef) and node.name == "P0Window"
+        )
+        methods = {
+            node.name: node
+            for node in window.body
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+        }
+        init = methods["__init__"]
+        render = methods["_render"]
+
+        def dump(nodes: list[ast.stmt]) -> str:
+            return "\n".join(
+                ast.dump(node, include_attributes=False) for node in nodes
+            )
+
+        selected = {
+            "skip_focus": dump(
+                [node for node in init.body if "self.skip" in ast.unparse(node)]
+            ),
+            "navigation_construction": dump(
+                [
+                    node
+                    for node in init.body
+                    if "self.nav_buttons" in ast.unparse(node)
+                    or "self._nav_button" in ast.unparse(node)
+                ]
+            ),
+            "career_selector": dump(
+                [node for node in init.body if "self.career" in ast.unparse(node)]
+            ),
+            "tab_order": dump(
+                [
+                    node
+                    for node in init.body
+                    if "setTabOrder" in ast.unparse(node)
+                    or (
+                        isinstance(node, ast.AnnAssign)
+                        and ast.unparse(node.target) == "previous"
+                    )
+                ]
+            ),
+            "_nav_button": dump([methods["_nav_button"]]),
+            "eventFilter": dump([methods["eventFilter"]]),
+            "navigate": dump([methods["navigate"]]),
+            "heading_focus_transfer": dump(
+                [
+                    node
+                    for node in render.body
+                    if "self.heading" in ast.unparse(node)
+                ]
+            ),
+        }
+        return selected, "keyPressEvent" in methods
+
+    current_source = (ROOT / source_path).read_text(encoding="utf-8")
+    current_blocks, current_override = keyboard_blocks(current_source)
+    expected_hashes = {
+        "skip_focus": "5b0208b742b72a02d03a84629440cb6b7835c8dfdb84ce926e9255b2d602daa0",
+        "navigation_construction": "df1ba6b540424425d1694da5493dbbf52979d5af2ff0a578549d6fa56b85ec3f",
+        "career_selector": "0b52289aa2eb51eff11540507c59584d9d6a1d60aa3a1bea8d0951837f42984c",
+        "tab_order": "7002e860eaed6b70eb7310369c183f18fad85bf296f158b1958387006ed511b1",
+        "_nav_button": "6d14a9df962da5c518a8dd833eef28175921c6d004f248d48fdf91de2ed80105",
+        "eventFilter": "02b5c428c3a5e20f124e9b447b9726cb129792fbf455690d0cc86d6d75372277",
+        "navigate": "dc9d8d54947b3c3a27b546b8e900f5cc00c3393495fc78ef1ccf4e40376cbae7",
+        "heading_focus_transfer": "74320a54eac8767efd9c634dca019eaf93dfc27248aded48e519da0994c14f39",
+    }
+    assert set(current_blocks) == set(expected_hashes)
+    assert all(current_blocks.values())
+    assert not current_override
+    for construct in (
+        'self.skip = QPushButton("Skip to content")',
+        "self.skip.clicked.connect(lambda: self.heading.setFocus())",
+        "self.nav_buttons: dict[str, QPushButton] = {}",
+        "button = self._nav_button(screen, title, icon)",
+        "self.career = QComboBox()",
+        "QWidget.setTabOrder(self.skip, self.career)",
+        "QWidget.setTabOrder(previous, self.nav_buttons[screen])",
+        "button = QPushButton(title.replace(\"&\", \"&&\"))",
+        "button.installEventFilter(self)",
+        "Qt.Key.Key_Up, Qt.Key.Key_Down",
+        "self.navigate(target)",
+        "self.heading.setFocus()",
+    ):
+        assert construct in current_source
+
+    record = _text(R2_RECORD)
+    p0_record = _text("docs/ui/p0-functional-desktop.md")
+    for evidence in (
+        physical_revision,
+        audited_revision,
+        "RESULT: 8/8 keyboard-relevant AST blocks identical",
+        "The whole `window.py` file is not identical",
+        "no new physical keyboard walkthrough was required",
+    ):
+        assert evidence in record
+    for name, digest in expected_hashes.items():
+        assert f"{name}: IDENTICAL sha256={digest}" in record
+    for unrelated_change in (
+        "destination-specific empty messages",
+        "standard rail width `224` → `256`",
+        "muted selector-label styling",
+        "warning/failure message de-duplication",
+        "stale Operations Retry availability",
+        "Operations latest-mission card",
+    ):
+        assert unrelated_change in record
+    assert "original 2026-09-29 run" in p0_record
+    assert "is not claimed to be wholly identical" in p0_record
+    assert "no physical rerun was required" in p0_record
+
+
+def test_post_p0_r2_hold_is_revision_bound_without_authorizing_adoption() -> None:
+    graph = _graph()
+    items, evals, cycles = graph["work_items"], graph["evals"], graph["cycles"]
+    audited_sha = "bfa7647ac94cafba658a077e52a55a3c2240a4dd"
+
+    assert items["issue-140"]["state"] == "done"
+    assert all(
+        evals[eval_id]["status"] == "implemented"
+        for eval_id in items["issue-140"]["evals"]
+    )
+    assert {"id": "issue-140", "status": "satisfied"} in (
+        items["review-r2"]["depends_on"]
+    )
+    assert items["review-r2"]["state"] == "backlog"
+    assert evals["EVAL-R2-REVIEW-001"]["status"] == "planned"
+    assert cycles["cycle-3.4.0"]["state"] == "active"
+    assert evals["EVAL-CYCLE-340-001"]["status"] == "planned"
+
+    record = _text(R2_RECORD)
+    for phrase in (
+        audited_sha,
+        "HOLD / Conditional No-Go for production retention",
+        "PySide6 + Qt Widgets 6.11.2",
+        "No new UI `priority:P0` or `priority:P1` defect was found",
+        "fixture-only/runtime dependency boundary passed",
+        "P1 remains unauthorized",
+        "no Product Gate A, B, C or D is approved",
+        "Windows 11 execution",
+        "remaining supported Python/package matrix",
+        "clean-machine validation",
+        "final-P0 UI accessibility/UIA evidence",
+        "production optional-dependency and entry-point policy",
+        "representative production packaging and startup behavior",
+        "bundle inventory, SBOM and licensing route",
+        "Qt Virtual Keyboard",
+        "R2 Full Application Review **MUST** be performed",
+    ):
+        assert phrase in record
+
+    for command_or_result in (
+        "git rev-parse HEAD",
+        "git rev-parse origin/main",
+        "python scripts/validate_project_graph.py",
+        "1025 passed in 21.65s",
+        "UI fixtures valid: 30 synthetic cases, 6 shared states.",
+        "6 passed, 3 skipped in 0.04s",
+        "sha256sum --check docs/ui/evidence/issue-140-p0/SHA256SUMS",
+        "1927 passed, 7 skipped, 1 deselected, 175 subtests passed",
+        "8 errors, 0 warnings, 0 informations",
+        "git diff --check",
+        "CI #303 was not an R2 audit command",
+    ):
+        assert command_or_result in record
+
+    for scope in (
+        "Architecture/module dependencies",
+        "Career/slot/campaign/wingman identity",
+        "Transactions/rollback/atomicity",
+        "Ingestion/retry/coalescing/startup/shutdown",
+        "Data preservation/authority/provenance",
+        "Schema migration/backward compatibility",
+        "Parser known/missing/unsupported/invalid semantics",
+        "SQLite/concurrency behavior",
+        "Privacy/local-only/credential exclusions",
+        "CLI/editor/presentation contracts",
+        "Windows packaging and supported Python compatibility",
+        "Test/eval blind spots",
+        "Project graph/gates/issues/docs/code consistency",
+        "Residual risks and explicit maintainer decisions",
+    ):
+        assert scope in record
+
+    for blocker in ("#142", "#96"):
+        assert blocker in record
+    assert "#151 is not a current technical blocker" in record
+    assert "governance drift discovered by R2" in record
+    assert "Issue #151 remains open" in record
+    assert "14 passed, 4 skipped in 0.08s" in record
+    assert "122 passed in 9.90s" in record
+    assert "issue151_ancestor_exit=0" in record
+
+    for revision_or_tree in (
+        "64710a0b1bc46c19f267db10e4168403ce974066",
+        "691749ce3e2c9e9c807142c1c6b326846c4bc269",
+        "6927873b08f3867fa3d43bb620f1de9910b4e560",
+        "git diff --exit-code 64710a0b1bc46c19f267db10e4168403ce974066",
+        "git diff --name-only 64710a0b1bc46c19f267db10e4168403ce974066",
+        "This does not relabel the run as post-merge execution",
+    ):
+        assert revision_or_tree in record
+
+    assert "R2 Full Application Review **MUST** be performed" in record
+    assert "it cannot replace the mandatory repeat R2" in record
+
+    adr = (ROOT / "docs/architecture/adr-ui-toolkit.md").read_text(encoding="utf-8")
+    assert re.search(r"^Status:\s*Proposed\s*$", adr, re.MULTILINE)
+
+    reconciled_docs = " ".join(
+        _text(path)
+        for path in (
+            "docs/engineering/evals.md",
+            "docs/engineering/quality-gates.md",
+            POLICY,
+            "docs/ui/p0-functional-desktop.md",
+        )
+    )
+    for stale_claim in (
+        "#140 remains pending",
+        "P0 completion remains pending",
+        "R2 still awaits #140 evidence",
+        "Issue #140 and its graph dependency into R2 remain pending",
+        "experimental implementation on Issue #140 Draft PR",
+    ):
+        assert stale_claim not in reconciled_docs
+    assert "repeat review or scope-impact determination" not in reconciled_docs
+    assert "scope-impact determination may cover only unrelated, non-material" in reconciled_docs
 
 
 def test_post_spike_authorization_is_revision_bound_and_limited_to_p0() -> None:
