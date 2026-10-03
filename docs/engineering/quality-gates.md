@@ -199,7 +199,7 @@ CI success alone cannot satisfy or approve this gate.
 
 The revision-bound [2026-09-10 Security Baseline](security-baseline-2026-09-10.md)
 correctly identified #151 as a blocker at its historical audited revision.
-#151 is implemented in merge commit
+#151 is now implemented in merge commit
 `a585525caca2767fa373c2cbf185431c9fcea76c`; focused local regressions and the
 native Windows CI step verify the output/input-isolation contract. PR #174
 reconciled the versioned governance state, and GitHub Issue #151 is closed as

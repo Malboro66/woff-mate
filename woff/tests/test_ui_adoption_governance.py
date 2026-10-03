@@ -13,6 +13,10 @@ def _text(path: str) -> str:
     return (ROOT / path).read_text(encoding="utf-8")
 
 
+def _normalized_text(path: str) -> str:
+    return " ".join(_text(path).split())
+
+
 def _graph() -> dict[str, Any]:
     return cast(dict[str, Any], load_graph(ROOT / "docs/architecture/project-graph.yaml"))
 
@@ -36,7 +40,7 @@ def test_ui_toolkit_retention_is_separate_from_p1_live_gates() -> None:
 
 
 def test_adr_records_maintainer_available_platform_scope_without_claiming_windows11() -> None:
-    adr = _text("docs/architecture/adr-ui-toolkit.md")
+    adr = _normalized_text("docs/architecture/adr-ui-toolkit.md")
 
     assert "Status: Proposed" in adr
     assert "Windows 10 is the physically validated maintainer reference platform" in adr
@@ -50,8 +54,8 @@ def test_adr_records_maintainer_available_platform_scope_without_claiming_window
 
 
 def test_clean_machine_and_release_obligations_remain_deferred_not_waived() -> None:
-    quality = _text("docs/engineering/quality-gates.md")
-    policy = _text("docs/engineering/product-milestones.md")
+    quality = _normalized_text("docs/engineering/quality-gates.md")
+    policy = _normalized_text("docs/engineering/product-milestones.md")
 
     q4 = quality.split("## Q4: Windows and packaging", 1)[1].split(
         "### Q4-P0-PROTOTYPE", 1
@@ -76,9 +80,9 @@ def test_clean_machine_and_release_obligations_remain_deferred_not_waived() -> N
 
 
 def test_first_r2_record_remains_historically_truthful_after_rescope() -> None:
-    record = _text("docs/engineering/r2-ui-architecture-review.md")
-    quality = _text("docs/engineering/quality-gates.md")
-    policy = _text("docs/engineering/product-milestones.md")
+    record = _normalized_text("docs/engineering/r2-ui-architecture-review.md")
+    quality = _normalized_text("docs/engineering/quality-gates.md")
+    policy = _normalized_text("docs/engineering/product-milestones.md")
 
     assert "HOLD / Conditional No-Go for production retention" in record
     assert "Windows 11 execution" in record
