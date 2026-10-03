@@ -82,6 +82,18 @@ def test_live_r2_eval_catalog_matches_the_rescoped_decision_path() -> None:
     assert "retained production architecture/P1" not in catalog
 
 
+def test_p0_record_requires_explicit_gate_approvals_before_p1() -> None:
+    p0 = _normalized_text("docs/ui/p0-functional-desktop.md")
+
+    blockers = p0.split("Actual blockers to **P1 — Read-only Vertical Slice**:", 1)[1]
+    assert "explicit maintainer acceptance of the UI toolkit ADR" in blockers
+    assert "explicit approval of every applicable Product Gate A/B decision under Q5" in blockers
+    assert "revision-valid Full Application Review" in blockers
+    assert "product-demonstrability record" in blockers
+    assert "maintainer approval for each applicable gate" in blockers
+    assert "Toolkit retention alone does not authorize P1/live integration" in blockers
+
+
 def test_clean_machine_and_release_obligations_remain_deferred_not_waived() -> None:
     quality = _normalized_text("docs/engineering/quality-gates.md")
     policy = _normalized_text("docs/engineering/product-milestones.md")
