@@ -210,6 +210,8 @@ gates:
     description: File and concurrency changes prove bounded queues, retries, snapshots, moves, and shutdown.
   Q4:
     description: Windows and packaging changes pass supported Python, smoke, build, install, upgrade, and rollback checks.
+  Q4-P0-PROTOTYPE:
+    description: Experimental P0 demonstrability is limited to the approved Windows development/test environment, reproducible source launch and smoke, a prototype PyInstaller folder build and bundled launch/smoke, physical 100/125/150/200% scaling and close/reopen, the synthetic fixture-only boundary, and truthful prototype/not-installer labeling. It does not satisfy or replace Q4 clean-machine production validation, installer, upgrade/rollback, release checksum/signing/provenance, or production-distribution obligations and approves no Product Gate.
   Q5:
     description: Product Gates A-D retain their data reliability, launcher viability, social core, and public release conditions; each additionally requires the applicable Full Application Review and product-demonstrability record valid for the exact integrated decision revision, plus explicit maintainer approval.
     policy: docs/engineering/product-milestones.md
@@ -756,20 +758,23 @@ evals:
     enforced_by: [scripts/validate_project_graph.py, woff/tests/test_product_milestones.py]
   EVAL-P0-FLOW-001:
     work_items: [issue-140]
-    status: planned
-    evidence: A launchable V2 desktop prototype exposes all seven primary destinations, two synthetic careers isolated by stable career_id, six shared states and immutable issue-81-compatible values; career switching clears prior-career content and keyboard focus and scaling follow the approved contracts.
+    status: implemented
+    evidence: The integrated fixture-backed V2 desktop exposes all seven primary destinations, two synthetic careers isolated by stable career_id, six shared states and immutable issue-81-compatible values; automated Qt-offscreen coverage proves routing/navigation calls, state transitions and rendering, immediate prior-career clearing, focus results, rail/layout behavior, career isolation and close/reopen. The recorded maintainer-observed Windows walkthrough supplies the physical keyboard evidence for Tab/Shift+Tab, rail-arrow, Enter/Space and selector interaction plus scaling; the automated test does not synthesize those key events.
+    enforced_by: [tests/test_p0_desktop.py, docs/ui/p0-functional-desktop.md, docs/ui/evidence/issue-140-p0/windows-physical-walkthrough.md]
   EVAL-P0-BOUNDARY-001:
     work_items: [issue-140]
-    status: planned
-    evidence: Deterministic synthetic fixtures alone drive P0, with no SQLite, WoFF files, parsers, watchdog, repositories, network, launcher control, configuration or campaign mutation, production social/RPG behavior, personal data, or runtime AI.
+    status: implemented
+    evidence: Deterministic synthetic fixtures alone drive the integrated P0; structural tests exclude SQLite, WoFF files, parsers, watchdog, repositories, network, launcher control, configuration or campaign mutation, production social/RPG behavior, personal data and runtime AI from the P0 boundary.
+    enforced_by: [tests/test_p0_desktop.py, docs/ui/p0-functional-desktop.md]
   EVAL-P0-DEMO-001:
     work_items: [issue-140]
-    status: planned
-    evidence: Reproducible Windows launch/build and close/reopen evidence, approved prototype toolkit/version and ADR status, keyboard/scaling walkthrough and sanitized captures support a product-demonstrability record of new capability, limitations and P1 blockers; packaging measurements follow issue-82 and do not claim a supported installer or production toolkit acceptance.
+    status: implemented
+    evidence: The integrated product-demonstrability record satisfies only Q4-P0-PROTOTYPE by binding PR 173 and green CI 303 to reproducible source and prototype-bundle launch, committed Linux Qt-offscreen captures with a SHA-256 manifest, and maintainer-observed Windows 10 source/bundle walkthroughs at 100%, 125%, 150% and 200%; it preserves the approved experimental toolkit/version and Proposed ADR status, records limitations and P1 blockers, and does not satisfy full Q4, claim a supported installer, authorize production distribution or accept a production toolkit.
+    enforced_by: [tests/test_p0_desktop.py, docs/ui/p0-functional-desktop.md, docs/ui/evidence/issue-140-p0/windows-physical-walkthrough.md, docs/ui/evidence/issue-140-p0/SHA256SUMS]
   EVAL-R2-REVIEW-001:
     work_items: [review-r2]
     status: planned
-    evidence: A Full Application Review pins the exact audited main commit SHA and assesses issue-81 contracts, issue-82 feasibility and P0/issue-140 demonstration; a revision-valid scope-impact determination, residual-risk dispositions and explicit maintainer ADR decision precede retained production architecture or P1, without waiving existing adoption gates.
+    evidence: The first Full Application Review is pinned to main bfa7647ac94cafba658a077e52a55a3c2240a4dd in docs/engineering/r2-ui-architecture-review.md and records HOLD / Conditional No-Go for production retention. The eval remains planned because, after relevant adoption-readiness changes are integrated, a new revision-bound R2 Full Application Review MUST be performed against the then-current integrated main before residual-risk dispositions and an explicit maintainer ADR decision. A scope-impact determination may cover only unrelated, non-material intervening changes between that repeated R2 revision and the final decision revision; it cannot replace the repeat review. Existing adoption gates remain required before retained production architecture or P1.
   EVAL-STARTUP-RECURSIVE-001:
     work_items: [issue-142]
     status: planned
@@ -825,12 +830,17 @@ evals:
   EVAL-SDD-GOVERNANCE-001:
     work_items: [issue-157]
     status: implemented
-    evidence: The SDD pilot requires maintainer approval bound to the exact specification path, revision, and Git commit; capability-level read-only independent review starts from a fresh context; and issue-151 may enter only its specification/Q0 phase after issue-157 is complete.
+    evidence: The SDD pilot requires maintainer approval bound to the exact specification path, revision, and Git commit; capability-level read-only independent review starts from a fresh context; and issue-151 entered its specification/Q0 phase only after issue-157 was complete.
     enforced_by: [woff/tests/test_sdd_governance.py]
   EVAL-OUTPUT-PATH-ISOLATION-001:
     work_items: [issue-151]
-    status: planned
+    status: implemented
     evidence: Canonical Windows path and case aliases cannot place SQLite or discovery-log outputs at or beneath a monitored WoFF root, validation fails before either output is opened or created, and synthetic source bytes remain unchanged.
+    enforced_by:
+      - woff/tests/test_output_path_isolation.py
+      - woff/tests/test_config.py
+      - woff/tests/test_handler_integration.py
+      - .github/workflows/ci.yml
   EVAL-MAIN-PROTECTION-001:
     work_items: [issue-152]
     status: implemented
@@ -1317,9 +1327,9 @@ work_items:
   issue-140:
     title: Build the P0 fixture-backed functional desktop prototype
     module: presentation
-    state: backlog
+    state: done
     evals: [EVAL-P0-FLOW-001, EVAL-P0-BOUNDARY-001, EVAL-P0-DEMO-001]
-    gates: [Q0, Q1, Q4, Q6-CYCLE-3.4.0]
+    gates: [Q0, Q1, Q4-P0-PROTOTYPE, Q6-CYCLE-3.4.0]
     depends_on:
       - {id: issue-79, status: satisfied}
       - {id: issue-80, status: satisfied}
@@ -1390,7 +1400,7 @@ work_items:
   issue-151:
     title: Prevent output paths from overlapping monitored WoFF inputs
     module: platform
-    state: backlog
+    state: done
     evals: [EVAL-OUTPUT-PATH-ISOLATION-001]
     gates: [Q0, Q1, Q3, Q4, Q5]
     depends_on:
@@ -1450,7 +1460,7 @@ work_items:
     depends_on:
       - {id: issue-81, status: satisfied}
       - {id: issue-82, status: satisfied}
-      - {id: issue-140, status: unsatisfied}
+      - {id: issue-140, status: satisfied}
 
 cycles:
   cycle-3.2.1:

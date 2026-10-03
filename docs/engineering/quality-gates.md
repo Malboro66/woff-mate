@@ -43,9 +43,10 @@ the exact specification revision to satisfy the approval contract in
 [`spec-driven-development.md`](spec-driven-development.md#approval-contract).
 An `Approved` status without the complete, current, revision-bound maintainer
 approval record does not authorize implementation. The project graph may add a
-foundation dependency that must be satisfied before the pilot issue is ready;
-Issue #151 therefore remains blocked on Issue #157 until that governance
-foundation is integrated and the graph is reconciled.
+foundation dependency that must be satisfied before the pilot issue is ready.
+Historically, Issue #151 was blocked on Issue #157; #157 was completed first,
+and #151 was then implemented in merge commit
+`a585525caca2767fa373c2cbf185431c9fcea76c`.
 
 ## Q1: local behavior
 
@@ -145,6 +146,24 @@ Apply Q4 to registry, launcher, build, installation, and release work:
 - WoFF registry access remains read-only and limited to explicitly approved keys and the `CFS3Path` value
 - no activation, serial, product-key, or license credential is queried, enumerated, stored, logged, exported, or transmitted
 
+### Q4-P0-PROTOTYPE: experimental P0 demonstrability
+
+Apply this bounded gate only to #140's approved fixture-backed prototype. It
+requires:
+
+- reproducible source launch and smoke on the approved Windows development/test environment;
+- a prototype PyInstaller folder build plus bundled smoke and launch;
+- physical checks at the required 100%, 125%, 150% and 200% scaling profiles;
+- source and bundle close/reopen;
+- preservation of the synthetic fixture-only boundary; and
+- truthful **prototype, not installer** labeling.
+
+`Q4-P0-PROTOTYPE` does not satisfy, replace or weaken Q4. In particular it
+does not establish clean-machine production validation, a supported installer,
+installation/update/rollback behavior, release checksums/signing/provenance or
+production distribution. Passing it approves no Product Gate and accepts no
+production packaging architecture.
+
 ## Q5: product decision gates
 
 | Gate | Approval question | Required condition |
@@ -179,10 +198,17 @@ reliable-companion/recovery demonstration, and explicit maintainer approval.
 CI success alone cannot satisfy or approve this gate.
 
 The revision-bound [2026-09-10 Security Baseline](security-baseline-2026-09-10.md)
-adds two focused guardrails without changing the existing P1 correction order:
-#151 must be resolved before Gate A can claim safe operation against real WoFF
-roots. The #152 repository-protection guardrail is complete: active GitHub
-ruleset `24065034` and its
+correctly identified #151 as a blocker at its historical audited revision.
+#151 is now implemented in merge commit
+`a585525caca2767fa373c2cbf185431c9fcea76c`; focused local regressions and the
+native Windows CI step verify the output/input-isolation contract on the R2
+revision. Its still-open GitHub issue requires maintainer state reconciliation
+after this governance PR is accepted and integrated, but is not evidence that
+the implementation is absent. Gate A remains unapproved: #142, #96, the
+required affected-scope R1 repeat, applicable cycle evidence, the
+reliable-companion/recovery demonstration and explicit maintainer approval
+remain outstanding. The #152 repository-protection guardrail is complete:
+active GitHub ruleset `24065034` and its
 [revision-bound evidence](main-protection-2026-09-27.md) enforce and record the
 required control. This completion is repository governance, not an application
 or data-integrity change, and does not approve a Product Gate. #153 and #154
@@ -201,6 +227,19 @@ authorizes PySide6 + Qt Widgets 6.11.2 only for experimental fixture-backed P0
 before R2. The ADR remains Proposed; all existing ADR adoption gates still apply
 to production retention.
 R2 does not rename, replace or approve any Product Gate A-D.
+
+The [first R2 review](r2-ui-architecture-review.md) audited integrated `main`
+`bfa7647ac94cafba658a077e52a55a3c2240a4dd` after #140/P0 completion and
+returned **HOLD / Conditional No-Go for production retention**. It confirmed
+the fixture-only boundary and found no new priority:P0 or priority:P1 UI defect,
+but the production adoption-readiness evidence is incomplete. `review-r2` and
+`EVAL-R2-REVIEW-001` therefore remain pending: after the relevant evidence work,
+a new revision-bound R2 Full Application Review **MUST** be performed against
+the then-current integrated `main` before any production-retention ADR decision
+or P1 authorization. A scope-impact determination may cover only unrelated,
+non-material changes between that repeated R2 revision and the final decision
+revision; it cannot replace the mandatory repeat review. No Product Gate is
+approved by the HOLD record.
 
 ### Privacy and security release evidence
 
@@ -264,7 +303,7 @@ aggregate gate pending; this change does not declare cycle completion.
 ## Q6-CYCLE-3.4.0: parser, roster, presentation, and RPG integrity
 
 Cycle 3.4.0 is active. Issues #28, #35, #37, #38, #41, #75, #79, #80, #97, and
-#139 are complete.
+#139 are complete. Issues #74, #81, #82, #136 and #140 are also complete.
 #79's repository design contract and published UI V2 Site pass the recorded
 rendered WCAG AA contrast thresholds within bounded Audit 4 coverage,
 stable-career isolation, persistent sparse-slot presentation, destination
@@ -294,12 +333,15 @@ Cycle 3.4.0 is approved only when all conditions below pass:
 
 CI success alone does not approve cycle 3.4.0.
 
-#82 now belongs to 3.4.0 on the near-term P0 path. #139 completed the policy
-through PR #141 and its dependency into #140 is satisfied. #81 and #82 are complete;
-#140's #82 prerequisite is satisfied by PR #165 and the explicit experimental P0
-authorization. #140 remains pending and fixture-backed only; R2 still awaits
-P0 evidence, and Product Gates and adoption/release work remain pending. `review-r2` is a
-product-review checkpoint, not another release-cycle issue. The historical
+#82 belongs to 3.4.0 on the P0 path. #139 completed the policy through PR #141,
+and #81, #82 and #140/P0 are integrated and complete. The first R2 review of
+that integrated state returned HOLD; this reconciliation records the completed
+P0 prerequisites while leaving production adoption-readiness, a revision-valid
+repeat R2, the explicit ADR decision and every Product Gate pending. `review-r2`
+is a product-review checkpoint, not another release-cycle issue, and remains
+pending under those semantics. Issues #44, #43, #76 and #96 remain incomplete,
+and #101 remains blocked by #96, so cycle 3.4.0 and `EVAL-CYCLE-340-001` remain
+active/planned. The historical
 [#136 closure discrepancy](evals.md#136-closure-discrepancy) is resolved by the
 implementation merged through PR #164. No aggregate tracker is declared for 3.4.0;
 `EVAL-CYCLE-340-001` and its graph members define the aggregate scope.
