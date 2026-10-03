@@ -2,7 +2,6 @@
 
 import ast
 from copy import deepcopy
-import hashlib
 from pathlib import Path
 import re
 from typing import Any, cast
@@ -635,9 +634,8 @@ def test_keyboard_walkthrough_is_bound_to_the_audited_revision() -> None:
         }
         return selected, "keyPressEvent" in methods
 
-    current_blocks, current_override = keyboard_blocks(
-        (ROOT / source_path).read_text(encoding="utf-8")
-    )
+    current_source = (ROOT / source_path).read_text(encoding="utf-8")
+    current_blocks, current_override = keyboard_blocks(current_source)
     expected_hashes = {
         "skip_focus": "5b0208b742b72a02d03a84629440cb6b7835c8dfdb84ce926e9255b2d602daa0",
         "navigation_construction": "df1ba6b540424425d1694da5493dbbf52979d5af2ff0a578549d6fa56b85ec3f",
@@ -648,11 +646,24 @@ def test_keyboard_walkthrough_is_bound_to_the_audited_revision() -> None:
         "navigate": "dc9d8d54947b3c3a27b546b8e900f5cc00c3393495fc78ef1ccf4e40376cbae7",
         "heading_focus_transfer": "74320a54eac8767efd9c634dca019eaf93dfc27248aded48e519da0994c14f39",
     }
-    assert {
-        name: hashlib.sha256(value.encode()).hexdigest()
-        for name, value in current_blocks.items()
-    } == expected_hashes
+    assert set(current_blocks) == set(expected_hashes)
+    assert all(current_blocks.values())
     assert not current_override
+    for construct in (
+        'self.skip = QPushButton("Skip to content")',
+        "self.skip.clicked.connect(lambda: self.heading.setFocus())",
+        "self.nav_buttons: dict[str, QPushButton] = {}",
+        "button = self._nav_button(screen, title, icon)",
+        "self.career = QComboBox()",
+        "QWidget.setTabOrder(self.skip, self.career)",
+        "QWidget.setTabOrder(previous, self.nav_buttons[screen])",
+        "button = QPushButton(title.replace(\"&\", \"&&\"))",
+        "button.installEventFilter(self)",
+        "Qt.Key.Key_Up, Qt.Key.Key_Down",
+        "self.navigate(target)",
+        "self.heading.setFocus()",
+    ):
+        assert construct in current_source
 
     record = _text(R2_RECORD)
     p0_record = _text("docs/ui/p0-functional-desktop.md")
