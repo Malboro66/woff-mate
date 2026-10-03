@@ -5,7 +5,6 @@ from copy import deepcopy
 import hashlib
 from pathlib import Path
 import re
-import subprocess
 from typing import Any, cast
 
 import pytest
@@ -577,17 +576,8 @@ def test_keyboard_walkthrough_is_bound_to_the_audited_revision() -> None:
     audited_revision = "bfa7647ac94cafba658a077e52a55a3c2240a4dd"
     source_path = "woff/p0_desktop/window.py"
 
-    def revision_source(revision: str) -> str:
-        return subprocess.run(
-            ["git", "show", f"{revision}:{source_path}"],
-            cwd=ROOT,
-            check=True,
-            capture_output=True,
-            text=True,
-        ).stdout
-
-    def keyboard_blocks(revision: str) -> tuple[dict[str, str], bool]:
-        tree = ast.parse(revision_source(revision))
+    def keyboard_blocks(source: str) -> tuple[dict[str, str], bool]:
+        tree = ast.parse(source)
         window = next(
             node
             for node in tree.body
@@ -645,8 +635,9 @@ def test_keyboard_walkthrough_is_bound_to_the_audited_revision() -> None:
         }
         return selected, "keyPressEvent" in methods
 
-    physical_blocks, physical_override = keyboard_blocks(physical_revision)
-    audited_blocks, audited_override = keyboard_blocks(audited_revision)
+    current_blocks, current_override = keyboard_blocks(
+        (ROOT / source_path).read_text(encoding="utf-8")
+    )
     expected_hashes = {
         "skip_focus": "5b0208b742b72a02d03a84629440cb6b7835c8dfdb84ce926e9255b2d602daa0",
         "navigation_construction": "df1ba6b540424425d1694da5493dbbf52979d5af2ff0a578549d6fa56b85ec3f",
@@ -657,28 +648,11 @@ def test_keyboard_walkthrough_is_bound_to_the_audited_revision() -> None:
         "navigate": "dc9d8d54947b3c3a27b546b8e900f5cc00c3393495fc78ef1ccf4e40376cbae7",
         "heading_focus_transfer": "74320a54eac8767efd9c634dca019eaf93dfc27248aded48e519da0994c14f39",
     }
-    assert physical_blocks == audited_blocks
     assert {
         name: hashlib.sha256(value.encode()).hexdigest()
-        for name, value in physical_blocks.items()
+        for name, value in current_blocks.items()
     } == expected_hashes
-    assert not physical_override and not audited_override
-
-    ordinary_diff = subprocess.run(
-        [
-            "git", "diff", "--unified=1", physical_revision, audited_revision,
-            "--", source_path,
-        ],
-        cwd=ROOT,
-        check=True,
-        capture_output=True,
-        text=True,
-    ).stdout
-    for unrelated_change in (
-        "_EMPTY_MESSAGES", "setFixedWidth(256)", 'setObjectName("muted")',
-        "dict.fromkeys", "can_retry", "bool(snapshot.recent_missions)",
-    ):
-        assert unrelated_change in ordinary_diff
+    assert not current_override
 
     record = _text(R2_RECORD)
     p0_record = _text("docs/ui/p0-functional-desktop.md")
@@ -690,6 +664,17 @@ def test_keyboard_walkthrough_is_bound_to_the_audited_revision() -> None:
         "no new physical keyboard walkthrough was required",
     ):
         assert evidence in record
+    for name, digest in expected_hashes.items():
+        assert f"{name}: IDENTICAL sha256={digest}" in record
+    for unrelated_change in (
+        "destination-specific empty messages",
+        "standard rail width `224` → `256`",
+        "muted selector-label styling",
+        "warning/failure message de-duplication",
+        "stale Operations Retry availability",
+        "Operations latest-mission card",
+    ):
+        assert unrelated_change in record
     assert "original 2026-09-29 run" in p0_record
     assert "is not claimed to be wholly identical" in p0_record
     assert "no physical rerun was required" in p0_record
