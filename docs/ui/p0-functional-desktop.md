@@ -154,10 +154,14 @@ P1 is not authorized and no Product Gate is approved. `review-r2` and its final
 eval remain pending until the relevant adoption-readiness work, a revision-valid
 repeat review and the explicit maintainer ADR decision.
 
-Actual blockers to **P1 — Read-only Vertical Slice**: completion of the
-adoption-readiness evidence, a revision-valid R2 production-retention decision
-and applicable ADR adoption gates; approved application query services; and
-authorization of the narrow real local read-only data path. The physical P0
+Actual blockers to **P1 — Read-only Vertical Slice**: completion of the bounded
+UI adoption-readiness evidence, a revision-valid repeated R2 production-retention
+decision and explicit maintainer acceptance of the UI toolkit ADR; **explicit
+approval of every applicable Product Gate A/B decision under Q5** (including
+the required revision-valid Full Application Review, product-demonstrability
+record and maintainer approval for each applicable gate); approved application
+query services; and authorization of the narrow real local read-only data path.
+Toolkit retention alone does not authorize P1/live integration. The physical P0
 Windows launch/build/interaction validation is complete. The fixture inventory's
 second-career screen absence is a P0 demonstration limitation, not a reason to
 invent live data or reopen #80.
