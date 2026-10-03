@@ -830,12 +830,17 @@ evals:
   EVAL-SDD-GOVERNANCE-001:
     work_items: [issue-157]
     status: implemented
-    evidence: The SDD pilot requires maintainer approval bound to the exact specification path, revision, and Git commit; capability-level read-only independent review starts from a fresh context; and issue-151 may enter only its specification/Q0 phase after issue-157 is complete.
+    evidence: The SDD pilot requires maintainer approval bound to the exact specification path, revision, and Git commit; capability-level read-only independent review starts from a fresh context; and issue-151 entered its specification/Q0 phase only after issue-157 was complete.
     enforced_by: [woff/tests/test_sdd_governance.py]
   EVAL-OUTPUT-PATH-ISOLATION-001:
     work_items: [issue-151]
-    status: planned
+    status: implemented
     evidence: Canonical Windows path and case aliases cannot place SQLite or discovery-log outputs at or beneath a monitored WoFF root, validation fails before either output is opened or created, and synthetic source bytes remain unchanged.
+    enforced_by:
+      - woff/tests/test_output_path_isolation.py
+      - woff/tests/test_config.py
+      - woff/tests/test_handler_integration.py
+      - .github/workflows/ci.yml
   EVAL-MAIN-PROTECTION-001:
     work_items: [issue-152]
     status: implemented
@@ -1395,7 +1400,7 @@ work_items:
   issue-151:
     title: Prevent output paths from overlapping monitored WoFF inputs
     module: platform
-    state: backlog
+    state: done
     evals: [EVAL-OUTPUT-PATH-ISOLATION-001]
     gates: [Q0, Q1, Q3, Q4, Q5]
     depends_on:

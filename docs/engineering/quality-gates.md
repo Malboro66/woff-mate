@@ -43,9 +43,10 @@ the exact specification revision to satisfy the approval contract in
 [`spec-driven-development.md`](spec-driven-development.md#approval-contract).
 An `Approved` status without the complete, current, revision-bound maintainer
 approval record does not authorize implementation. The project graph may add a
-foundation dependency that must be satisfied before the pilot issue is ready;
-Issue #151 therefore remains blocked on Issue #157 until that governance
-foundation is integrated and the graph is reconciled.
+foundation dependency that must be satisfied before the pilot issue is ready.
+Historically, Issue #151 was blocked on Issue #157; #157 was completed first,
+and #151 was then implemented in merge commit
+`a585525caca2767fa373c2cbf185431c9fcea76c`.
 
 ## Q1: local behavior
 
@@ -197,10 +198,17 @@ reliable-companion/recovery demonstration, and explicit maintainer approval.
 CI success alone cannot satisfy or approve this gate.
 
 The revision-bound [2026-09-10 Security Baseline](security-baseline-2026-09-10.md)
-adds two focused guardrails without changing the existing P1 correction order:
-#151 must be resolved before Gate A can claim safe operation against real WoFF
-roots. The #152 repository-protection guardrail is complete: active GitHub
-ruleset `24065034` and its
+correctly identified #151 as a blocker at its historical audited revision.
+#151 is now implemented in merge commit
+`a585525caca2767fa373c2cbf185431c9fcea76c`; focused local regressions and the
+native Windows CI step verify the output/input-isolation contract on the R2
+revision. Its still-open GitHub issue requires maintainer state reconciliation
+after this governance PR is accepted and integrated, but is not evidence that
+the implementation is absent. Gate A remains unapproved: #142, #96, the
+required affected-scope R1 repeat, applicable cycle evidence, the
+reliable-companion/recovery demonstration and explicit maintainer approval
+remain outstanding. The #152 repository-protection guardrail is complete:
+active GitHub ruleset `24065034` and its
 [revision-bound evidence](main-protection-2026-09-27.md) enforce and record the
 required control. This completion is repository governance, not an application
 or data-integrity change, and does not approve a Product Gate. #153 and #154

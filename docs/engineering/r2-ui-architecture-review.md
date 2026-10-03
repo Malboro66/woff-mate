@@ -40,6 +40,9 @@ beginning `../.audit-r2-venv/` refer to its isolated virtual environment.
 | `git rev-parse origin/main` | `bfa7647ac94cafba658a077e52a55a3c2240a4dd`; exit 0 |
 | `../.audit-r2-venv/bin/python --version` | `Python 3.12.14`; exit 0 |
 | `../.audit-r2-venv/bin/python scripts/validate_project_graph.py` | `project graph is valid: docs/architecture/project-graph.yaml`; exit 0 |
+| `git merge-base --is-ancestor a585525caca2767fa373c2cbf185431c9fcea76c bfa7647ac94cafba658a077e52a55a3c2240a4dd; printf 'issue151_ancestor_exit=%s\n' "$?"` | `issue151_ancestor_exit=0`; command exit 0. The #151 implementation merge is present in the audited revision. |
+| `PYTHONPATH=. ../.audit-r2-venv/bin/python -m pytest -q -p no:cacheprovider woff/tests/test_output_path_isolation.py` | `14 passed, 4 skipped in 0.08s`; exit 0. The four skips are the Windows-only ordinary-junction cases unavailable on the Linux audit executor. |
+| `PYTHONPATH=. ../.audit-r2-venv/bin/python -m pytest -q -p no:cacheprovider woff/tests/test_config.py woff/tests/test_handler_integration.py woff/tests/test_command_contracts.py woff/tests/test_privacy_contracts.py woff/tests/test_persistence_retry.py` | `122 passed in 9.90s`; exit 0 |
 | `PYTHONPATH=. ../.audit-r2-venv/bin/python -m pytest -q -p no:cacheprovider woff/tests/test_architecture_contracts.py woff/tests/test_product_milestones.py woff/tests/test_ui_development_standard.py woff/tests/test_ui_v2_evidence.py tests/test_ui_contracts.py tests/test_ui_state_fixtures.py tests/test_ui_spike_evidence.py tests/test_ui_icon_assets.py tests/test_ui_portrait_assets.py` | `1025 passed in 21.65s`; exit 0 |
 | `../.audit-r2-venv/bin/python -I -S scripts/validate_ui_fixtures.py` | `UI fixtures valid: 30 synthetic cases, 6 shared states.`; exit 0 |
 | `PYTHONPATH=. QT_QPA_PLATFORM=offscreen ../.audit-r2-venv/bin/python -m pytest -q -p no:cacheprovider tests/test_p0_desktop.py` | `6 passed, 3 skipped in 0.04s`; exit 0. The three optional Qt tests were skipped because PySide6 was unavailable locally. |
@@ -85,6 +88,15 @@ PyInstaller/bundle-smoke job, and Windows smoke/build checks. CI #303 was not an
 R2 audit command and is not presented as one; it is inherited GitHub Actions
 evidence attached to the audited integration.
 
+For #151 specifically, GitHub Actions run `34737872695` on implementation merge
+`a585525caca2767fa373c2cbf185431c9fcea76c` completed successfully. Its four
+jobs — Tests (Python 3.10), Tests (Python 3.14), Pyright and Windows smoke test —
+all succeeded; within the Windows job, `Exercise output-path isolation on
+Windows` succeeded. The implementation PR's reconciled head
+`956562e5bd254cfd7f37fd44141853e79cb2940b` also had a fully successful run
+`34736611146`. These are inherited supported-environment results, not newly
+executed R2 audit commands.
+
 ### Unavailable in the audit environment
 
 The audit executor did not provide PySide6, a physical Windows host, the
@@ -99,6 +111,37 @@ release signing/provenance. Consequently:
 - none of the unavailable adoption/release checks is inferred from green CI or
   historical P0 evidence. Their absence is part of the HOLD.
 
+## Issue #151 verification and current disposition
+
+#151 was a valid R1/Security Baseline finding at those records' historical
+audited revisions. It is not a current technical Gate A blocker at the R2
+revision. Merge commit `a585525caca2767fa373c2cbf185431c9fcea76c` is an
+ancestor of audited `bfa7647ac94cafba658a077e52a55a3c2240a4dd`, as the exact
+ancestry command and zero exit status above establish.
+
+The focused audit execution verifies export output equal to the watched root;
+both export and discovery-log descendants; component-aware external sibling
+acceptance; Windows canonical/case aliases using supported
+`Pilot1Dossier.txt` and `Mission.log` source names; rejection before database
+or discovery-logger construction; preservation of synthetic source bytes;
+sanitized field-specific diagnostics; malformed paths; and fail-closed
+filesystem-identity behavior. The four locally skipped cases cover ordinary
+Windows directory-junction aliases in both output-to-root and root-to-output
+directions, plus broken-junction fail-closed behavior for both output fields;
+the native Windows CI step passed for the exact implementation merge. Related
+configuration, watchdog/handler, command, privacy and persistence-retry tests
+also passed as recorded above. The workflow's Python 3.10 and 3.14 jobs and
+Pyright job passed, providing the supported-version compatibility evidence.
+
+The stale graph/eval/issue-state values were governance drift discovered by
+R2, not a missing implementation. This correction changes the versioned graph
+state to done and the eval to implemented without approving Gate A. GitHub
+Issue #151 remains open; external issue-state reconciliation is a maintainer
+action only after this governance PR is accepted and integrated. Its open state
+is not implementation evidence. Current Gate A blockers still include #142 and
+#96, together with the affected-scope R1 repeat, applicable cycle evidence,
+reliable-companion/recovery demonstration and explicit maintainer decision.
+
 ## Standard Full Application Review scope
 
 The review covered every repository-policy category against exact revision
@@ -111,7 +154,7 @@ existing blockers, risks or gate requirements.
 | Career/slot/campaign/wingman identity | **reviewed — existing unrelated blocker/risk retained** | P0's two same-name synthetic careers remain isolated by stable `career_id`, but this does not close production identity work. Existing Gate A/cycle risk including #96 remains unchanged. |
 | Transactions/rollback/atomicity | **not changed by the UI architecture/P0 path, with the relevant existing evidence** | P0 performs no writes. Existing transaction/rollback evidence, completed #143 work and residual #146 recovery risk remain authoritative and are not reopened or waived. |
 | Ingestion/retry/coalescing/startup/shutdown | **reviewed — existing unrelated blocker/risk retained** | P0 structurally excludes watchdog, parsers and ingestion. The Gate A startup blocker #142 and bounded-acquisition risk #147 remain independent of R2. |
-| Data preservation/authority/provenance | **reviewed — existing unrelated blocker/risk retained** | Immutable fixtures/contracts and SHA-256 evidence are satisfactory for P0, not live data. Gate A remains blocked, including #151 output/input isolation; P0 supplies no production authority or preservation proof. |
+| Data preservation/authority/provenance | **reviewed — existing unrelated blocker/risk retained** | Immutable fixtures/contracts and SHA-256 evidence are satisfactory for P0, not live data. #151 output/input isolation is implemented and verified at this revision; P0 still supplies no production authority or preservation proof, and the independent #142/#96 Gate A risks remain. |
 | Schema migration/backward compatibility | **not changed by the UI architecture/P0 path, with the relevant existing evidence** | P0 opens no database and changes no schema. Existing Q2 migration, integrity, reopen and rollback contracts remain required for applicable work. |
 | Parser known/missing/unsupported/invalid semantics | **not changed by the UI architecture/P0 path, with the relevant existing evidence** | The P0 runtime excludes parsers and uses the closed synthetic catalog. Existing parser evals/tests and known/missing/unsupported/invalid distinctions remain authoritative. |
 | SQLite/concurrency behavior | **reviewed — existing unrelated blocker/risk retained** | Structural checks exclude SQLite from P0. Existing Q2/Q3 evidence remains, including the independent #29 writer-ownership/concurrency risk; this review neither fixes nor waives it. |
@@ -119,8 +162,8 @@ existing blockers, risks or gate requirements.
 | CLI/editor/presentation contracts | **reviewed — relevant and satisfactory for this R2 decision** | #81 immutable presentation contracts and the focused architecture/UI suites pass. P0 changes no CLI/editor contract, and its widgets do not perform SQL, parsing or domain inference. |
 | Windows packaging and supported Python compatibility | **reviewed — existing unrelated blocker/risk retained** | #82 and #140 prove bounded feasibility/demonstrability only. Windows 11, remaining supported Python/package combinations, clean-machine behavior, production optional dependencies/entry points and representative production packaging remain adoption blockers. |
 | Test/eval blind spots | **reviewed — existing unrelated blocker/risk retained** | Automation covers routing/navigation calls, focus results, career switching/isolation, states, rail/layout and close/reopen, but does not synthesize Tab/Shift+Tab, rail arrows, Enter/Space or selector interaction. Those are maintainer-observed Windows evidence; local Qt/UIA coverage was unavailable. |
-| Project graph/gates/issues/docs/code consistency | **reviewed — relevant and satisfactory for this R2 decision** | Audited `main` contained governance drift after #140 completion. This correction records #140 as done under bounded `Q4-P0-PROTOTYPE`; `review-r2`/its eval remain pending and all Product Gates remain unapproved. |
-| Residual risks and explicit maintainer decisions | **reviewed — existing unrelated blocker/risk retained** | No new UI `priority:P0` or `priority:P1` defect was found, but adoption gaps and existing #142, #96 and #151 Gate A blockers remain. The ADR is Proposed; no production-retention, P1 or Product Gate decision is authorized. |
+| Project graph/gates/issues/docs/code consistency | **reviewed — relevant and satisfactory for this R2 decision** | Audited `main` contained governance drift after #140 completion and after #151 implementation. This correction records #140 as done under bounded `Q4-P0-PROTOTYPE` and #151/its eval as implemented; `review-r2`/its eval remain pending and all Product Gates remain unapproved. |
+| Residual risks and explicit maintainer decisions | **reviewed — existing unrelated blocker/risk retained** | No new UI `priority:P0` or `priority:P1` defect was found. #151 is not a current technical blocker, but adoption gaps and existing #142/#96 Gate A blockers remain. The ADR is Proposed; no production-retention, P1 or Product Gate decision is authorized. |
 
 ## Physical Windows evidence bound to the audited merge
 
@@ -145,6 +188,123 @@ Therefore the physical run is applicable to the audited squash merge because
 its runtime/build-input tree is proven identical. This does not relabel the run
 as post-merge execution.
 
+### Keyboard-walkthrough revision binding
+
+The keyboard walkthrough that explicitly exercised Tab/Shift+Tab, rail
+Up/Down, Enter/Space and career-selector interaction ran on
+`46b18097be490f1741f5792c84d945f6077c465b`. The later physical revalidation at
+`64710a0b1bc46c19f267db10e4168403ce974066` did not enumerate those key
+sequences, and neither run is relabelled as post-merge testing.
+
+The whole `window.py` file is not identical. The ordinary comparison was:
+
+| Exact command | Exact recorded result |
+|---|---|
+| `git diff --stat 46b18097be490f1741f5792c84d945f6077c465b bfa7647ac94cafba658a077e52a55a3c2240a4dd -- woff/p0_desktop/window.py` | `woff/p0_desktop/window.py \| 39 +++++++++++++++++++++++++++++++--------`; `1 file changed, 31 insertions(+), 8 deletions(-)`; exit 0 |
+| `git diff --unified=1 46b18097be490f1741f5792c84d945f6077c465b bfa7647ac94cafba658a077e52a55a3c2240a4dd -- woff/p0_desktop/window.py` | exit 0; hunks were limited to adding destination-specific empty messages, standard rail width `224` → `256`, muted selector-label styling, warning/failure message de-duplication, stale Operations Retry availability and a guard on the Operations latest-mission card. |
+
+Those changes affect presentation/state rendering, not the keyboard interaction
+contract. The following exact deterministic command parsed both revisions,
+extracted the normalized keyboard-relevant AST statements/functions and
+compared them:
+
+```bash
+python - 46b18097be490f1741f5792c84d945f6077c465b bfa7647ac94cafba658a077e52a55a3c2240a4dd <<'PY'
+import ast
+import hashlib
+import subprocess
+import sys
+
+path = "woff/p0_desktop/window.py"
+revisions = sys.argv[1:]
+
+def source(revision):
+    return subprocess.run(
+        ["git", "show", f"{revision}:{path}"],
+        check=True, capture_output=True, text=True,
+    ).stdout
+
+def blocks(revision):
+    tree = ast.parse(source(revision))
+    window = next(
+        node for node in tree.body
+        if isinstance(node, ast.ClassDef) and node.name == "P0Window"
+    )
+    methods = {
+        node.name: node for node in window.body
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+    }
+    init = methods["__init__"]
+    render = methods["_render"]
+    dump = lambda nodes: "\n".join(
+        ast.dump(node, include_attributes=False) for node in nodes
+    )
+    selected = {
+        "skip_focus": dump([
+            node for node in init.body if "self.skip" in ast.unparse(node)
+        ]),
+        "navigation_construction": dump([
+            node for node in init.body
+            if "self.nav_buttons" in ast.unparse(node)
+            or "self._nav_button" in ast.unparse(node)
+        ]),
+        "career_selector": dump([
+            node for node in init.body if "self.career" in ast.unparse(node)
+        ]),
+        "tab_order": dump([
+            node for node in init.body
+            if "setTabOrder" in ast.unparse(node)
+            or (isinstance(node, ast.AnnAssign)
+                and ast.unparse(node.target) == "previous")
+        ]),
+        "_nav_button": dump([methods["_nav_button"]]),
+        "eventFilter": dump([methods["eventFilter"]]),
+        "navigate": dump([methods["navigate"]]),
+        "heading_focus_transfer": dump([
+            node for node in render.body if "self.heading" in ast.unparse(node)
+        ]),
+    }
+    return selected, "keyPressEvent" in methods
+
+left, left_override = blocks(revisions[0])
+right, right_override = blocks(revisions[1])
+for name in left:
+    assert left[name] == right[name], name
+    digest = hashlib.sha256(left[name].encode()).hexdigest()
+    print(f"{name}: IDENTICAL sha256={digest}")
+print(f"{revisions[0]} keyPressEvent override: {'present' if left_override else 'absent'}")
+print(f"{revisions[1]} keyPressEvent override: {'present' if right_override else 'absent'}")
+assert not left_override and not right_override
+print(f"RESULT: {len(left)}/{len(left)} keyboard-relevant AST blocks identical")
+PY
+```
+
+Exact result, exit 0:
+
+```text
+skip_focus: IDENTICAL sha256=5b0208b742b72a02d03a84629440cb6b7835c8dfdb84ce926e9255b2d602daa0
+navigation_construction: IDENTICAL sha256=df1ba6b540424425d1694da5493dbbf52979d5af2ff0a578549d6fa56b85ec3f
+career_selector: IDENTICAL sha256=0b52289aa2eb51eff11540507c59584d9d6a1d60aa3a1bea8d0951837f42984c
+tab_order: IDENTICAL sha256=7002e860eaed6b70eb7310369c183f18fad85bf296f158b1958387006ed511b1
+_nav_button: IDENTICAL sha256=6d14a9df962da5c518a8dd833eef28175921c6d004f248d48fdf91de2ed80105
+eventFilter: IDENTICAL sha256=02b5c428c3a5e20f124e9b447b9726cb129792fbf455690d0cc86d6d75372277
+navigate: IDENTICAL sha256=dc9d8d54947b3c3a27b546b8e900f5cc00c3393495fc78ef1ccf4e40376cbae7
+heading_focus_transfer: IDENTICAL sha256=74320a54eac8767efd9c634dca019eaf93dfc27248aded48e519da0994c14f39
+46b18097be490f1741f5792c84d945f6077c465b keyPressEvent override: absent
+bfa7647ac94cafba658a077e52a55a3c2240a4dd keyPressEvent override: absent
+RESULT: 8/8 keyboard-relevant AST blocks identical
+```
+
+This proves unchanged construction/focus participation for the skip control,
+native career `QComboBox` and navigation `QPushButton`s; unchanged explicit
+`QWidget.setTabOrder(...)`; unchanged `_nav_button` and `eventFilter` Up/Down
+rail handling; and unchanged `navigate(...)`/`heading.setFocus()` transfer.
+Because neither revision overrides `keyPressEvent`, Enter/Space activation and
+selector interaction remain the native `QPushButton` and `QComboBox` behavior
+that the original physical run observed. The keyboard-relevant implementation
+is therefore equivalent at the audited merge, so no new physical keyboard
+walkthrough was required.
+
 ## Findings
 
 ### Technical result within approved P0 scope
@@ -163,13 +323,16 @@ satisfy full Q4 or establish production adoption readiness.
 
 ### Verified governance defect
 
-The audited `main` retained pre-integration governance values after #140 was
-completed: `issue-140` and its three evals were pending, the R2 dependency on
-#140 was unsatisfied, milestone/gate/eval narratives still awaited P0, the P0
-record still described a branch/Draft PR, and the governance tests enforced
-those stale claims. This is verified governance drift, not a P0 runtime defect.
-The focused reconciliation following this review corrects only those versioned
-records and their assertions.
+The audited `main` retained pre-integration governance values after #140 and
+#151 were completed. `issue-140` and its three evals were pending, the R2
+dependency on #140 was unsatisfied, milestone/gate/eval narratives still
+awaited P0, and the P0 record still described a branch/Draft PR. Separately,
+`issue-151` and its eval still read backlog/planned and current narratives
+treated it as unimplemented even though merge commit `a585525...` was present.
+The governance tests enforced those stale claims. This is verified governance
+drift, not a P0 runtime defect or a missing #151 implementation. The focused
+reconciliation following this review corrects only those versioned records and
+their assertions.
 
 ### Blocking adoption evidence gaps
 

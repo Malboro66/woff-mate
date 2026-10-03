@@ -119,6 +119,28 @@ git rev-parse bfa7647ac94cafba658a077e52a55a3c2240a4dd^{tree}
 This is direct content equivalence across the squash boundary, not an ancestry
 claim and not a relabeling of the physical run as post-merge testing.
 
+The explicit keyboard observations came from the original 2026-09-29 run at
+`46b18097be490f1741f5792c84d945f6077c465b`; the 2026-10-02 revalidation did
+not enumerate Tab/Shift+Tab, rail Up/Down, Enter/Space or selector sequences.
+`window.py` is not claimed to be wholly identical between that original head
+and audited `bfa7647...`. The ordinary command
+`git diff --unified=1 46b18097be490f1741f5792c84d945f6077c465b bfa7647ac94cafba658a077e52a55a3c2240a4dd -- woff/p0_desktop/window.py`
+showed only destination-specific empty messages, rail width, selector-label
+styling, warning de-duplication, stale Operations Retry and an Operations-card
+guard — no keyboard-contract change.
+
+The [R2 keyboard-walkthrough revision binding](../engineering/r2-ui-architecture-review.md#keyboard-walkthrough-revision-binding)
+records the full exact AST extraction/comparison command and its hashes. It
+returned exit 0 and `RESULT: 8/8 keyboard-relevant AST blocks identical` for
+the skip-control focus, navigation-button construction, career `QComboBox`,
+`QWidget.setTabOrder(...)`, `_nav_button`, `eventFilter`, `navigate(...)` and
+heading-focus-transfer blocks. Both revisions lack a `keyPressEvent` override,
+so the physical Enter/Space and selector observations continue to bind to the
+unchanged native `QPushButton`/`QComboBox` behavior. Thus the original keyboard
+walkthrough remains applicable to audited `bfa7647...` by reproducible source
+equivalence; it is not relabelled as post-merge, and no physical rerun was
+required.
+
 ## Architecture status and P1 blockers
 
 PySide6 + Qt Widgets **6.11.2** is authorized only for experimental P0. The UI

@@ -298,7 +298,7 @@ unapproved.
 
 | Eval | Work item | Status | Required evidence |
 |---|---|---|---|
-| `EVAL-OUTPUT-PATH-ISOLATION-001` | #151 | Planned | Persistent outputs cannot overlap monitored WoFF inputs through Windows path/case aliases, and rejection occurs before output creation or source mutation |
+| `EVAL-OUTPUT-PATH-ISOLATION-001` | #151 | Implemented | `woff/tests/test_output_path_isolation.py`, related configuration/handler regressions and the Windows CI step prove equal/descendant rejection, canonical/case/identity alias handling, pre-open validation, sanitized diagnostics, valid external outputs and synthetic-source-byte preservation |
 | `EVAL-MAIN-PROTECTION-001` | #152 | Implemented | [Read-only GitHub verification](main-protection-2026-09-27.md) records that `main` requires pull requests with zero approving reviews, requires exactly `Tests (Python 3.10)`, `Tests (Python 3.14)`, `Pyright`, and `Windows smoke test` from GitHub Actions, blocks force pushes and deletion, and has no configured bypass actors |
 | `EVAL-SUPPLY-CHAIN-001` | #153 | Planned | Reproducible dependency/build inputs, vulnerability-audit policy, immutable full-SHA Actions, and controlled updates are executable |
 | `EVAL-SECURITY-GOVERNANCE-001` | #154 | Planned | The maintained threat model and compact Security Gate compose with Q0-Q6 and have explicit ownership and reassessment rules |
@@ -307,9 +307,13 @@ unapproved.
 `EVAL-MAIN-PROTECTION-001` is implemented. GitHub ruleset `24065034` is the
 live enforcement mechanism; `woff/tests/test_product_milestones.py` validates
 only the recorded evidence contract and repository-governance consistency and
-does not query GitHub. The other four evals remain planned without fabricated
-`enforced_by` paths. #151–#155 remain outside the existing Q6 cycles. #151
-remains an independent Gate A guardrail; #153 and #154 remain staged P3 work,
+does not query GitHub. The three remaining evals remain planned without
+fabricated `enforced_by` paths. #151–#155 remain outside the existing Q6 cycles. #151's
+guardrail is implemented in merge commit
+`a585525caca2767fa373c2cbf185431c9fcea76c`, which is present in the R2-audited
+`main`; its still-open GitHub issue is an external issue-state reconciliation
+for a maintainer after this governance PR is accepted and integrated, not
+evidence that implementation is missing. #153 and #154 remain staged P3 work,
 while #155 is required only before public binary distribution.
 
 ### SDD pilot governance
@@ -321,9 +325,10 @@ exact-revision maintainer approval contract, the custom-agent tool allowlists,
 and the fresh-context Independent Reviewer handoff. PR #158 integrated the SDD
 foundation in `main` commit
 `6d136097c80a3aad9b7a6c339746a7ee28a1168f`. Issue #157 is therefore `done`,
-and the #151 dependency on #157 is `satisfied`. This unlocks only the #151 SDD
-specification/Q0 phase. Production implementation of #151 still requires an
-`Approved` specification satisfying the SDD approval contract.
+and the #151 dependency on #157 is `satisfied`. #151 subsequently completed its
+approved SDD and implementation path in merge commit `a585525caca2767fa373c2cbf185431c9fcea76c`.
+The historical sequencing requirement remains preserved; it is no longer a
+current implementation blocker.
 
 ### #136 closure discrepancy
 

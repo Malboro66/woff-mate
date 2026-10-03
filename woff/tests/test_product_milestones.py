@@ -1,8 +1,11 @@
 """Contracts for revision-bound reviews and the fixture-backed product path."""
 
+import ast
 from copy import deepcopy
+import hashlib
 from pathlib import Path
 import re
+import subprocess
 from typing import Any, cast
 
 import pytest
@@ -346,16 +349,16 @@ def test_security_baseline_ownership_and_scheduling_are_reconciled() -> None:
         tuple[str, set[str], str, set[tuple[str, str]], str, str],
     ] = {
         "issue-151": (
-                "platform",
-                {"Q0", "Q1", "Q3", "Q4", "Q5"},
-                "EVAL-OUTPUT-PATH-ISOLATION-001",
-                {
-                    ("issue-45", "satisfied"),
-                    ("issue-157", "satisfied"),
-                },
-                "backlog",
-                "planned",
-            ),
+            "platform",
+            {"Q0", "Q1", "Q3", "Q4", "Q5"},
+            "EVAL-OUTPUT-PATH-ISOLATION-001",
+            {
+                ("issue-45", "satisfied"),
+                ("issue-157", "satisfied"),
+            },
+            "done",
+            "implemented",
+        ),
         "issue-152": (
             "governance", {"Q0", "Q1", "Q5"},
             "EVAL-MAIN-PROTECTION-001", set(), "done", "implemented",
@@ -429,15 +432,37 @@ def test_security_baseline_ownership_and_scheduling_are_reconciled() -> None:
         assert f"#{issue_number}" in record
         assert f"#{issue_number}" in catalog
     assert "not added to a q6 cycle" in record.lower()
-    assert "#151 must be resolved" in quality
+    output_eval = evals["EVAL-OUTPUT-PATH-ISOLATION-001"]
+    assert output_eval["enforced_by"] == [
+        "woff/tests/test_output_path_isolation.py",
+        "woff/tests/test_config.py",
+        "woff/tests/test_handler_integration.py",
+        ".github/workflows/ci.yml",
+    ]
+    for evidence_path in output_eval["enforced_by"]:
+        assert (ROOT / evidence_path).is_file()
+    assert "#151 must be resolved" not in quality
+    assert "#151 is now implemented" in quality
+    assert "still-open GitHub issue" in quality
+    assert "#142, #96" in quality
     assert "The #152 repository-protection guardrail is complete" in quality
     assert "#153 and #154 remain staged P3 work" in quality
     assert "#155 is pre-release work" in quality
     assert "Product Gate A remains unapproved." in quality
-    assert "After the existing P1 correction order, resolve #151" in policy
-    assert "#152's repository controls are already enforced and recorded" in policy
+    assert "Treat #151's real-root output/input isolation as implemented" in policy
+    assert "open GitHub issue awaits maintainer reconciliation" in policy
+    assert "#152's repository controls are also enforced and recorded" in policy
     assert "#153 supply-chain hardening and #154 permanent security-governance" in policy
     assert "#155 remains pre-release work" in policy
+    assert "The newly reproduced P2 output/input path-isolation defect is owned by #151" in record
+    assert "complete before Gate A can claim safe operation against real WoFF roots" in record
+    current_governance = " ".join((quality, catalog, policy, _text(R2_RECORD)))
+    for stale_current_claim in (
+        "#151 must be resolved",
+        "Production implementation of #151 still requires",
+        "#151 is an outstanding Gate A implementation blocker",
+    ):
+        assert stale_current_claim not in current_governance
     validate_graph(ROOT, graph)
 
 
@@ -547,6 +572,129 @@ def test_p0_evidence_preserves_fixture_boundary() -> None:
     assert "maintainer-observed Windows walkthrough supplies those physical keyboard/selector" in catalog
 
 
+def test_keyboard_walkthrough_is_bound_to_the_audited_revision() -> None:
+    physical_revision = "46b18097be490f1741f5792c84d945f6077c465b"
+    audited_revision = "bfa7647ac94cafba658a077e52a55a3c2240a4dd"
+    source_path = "woff/p0_desktop/window.py"
+
+    def revision_source(revision: str) -> str:
+        return subprocess.run(
+            ["git", "show", f"{revision}:{source_path}"],
+            cwd=ROOT,
+            check=True,
+            capture_output=True,
+            text=True,
+        ).stdout
+
+    def keyboard_blocks(revision: str) -> tuple[dict[str, str], bool]:
+        tree = ast.parse(revision_source(revision))
+        window = next(
+            node
+            for node in tree.body
+            if isinstance(node, ast.ClassDef) and node.name == "P0Window"
+        )
+        methods = {
+            node.name: node
+            for node in window.body
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+        }
+        init = methods["__init__"]
+        render = methods["_render"]
+
+        def dump(nodes: list[ast.stmt]) -> str:
+            return "\n".join(
+                ast.dump(node, include_attributes=False) for node in nodes
+            )
+
+        selected = {
+            "skip_focus": dump(
+                [node for node in init.body if "self.skip" in ast.unparse(node)]
+            ),
+            "navigation_construction": dump(
+                [
+                    node
+                    for node in init.body
+                    if "self.nav_buttons" in ast.unparse(node)
+                    or "self._nav_button" in ast.unparse(node)
+                ]
+            ),
+            "career_selector": dump(
+                [node for node in init.body if "self.career" in ast.unparse(node)]
+            ),
+            "tab_order": dump(
+                [
+                    node
+                    for node in init.body
+                    if "setTabOrder" in ast.unparse(node)
+                    or (
+                        isinstance(node, ast.AnnAssign)
+                        and ast.unparse(node.target) == "previous"
+                    )
+                ]
+            ),
+            "_nav_button": dump([methods["_nav_button"]]),
+            "eventFilter": dump([methods["eventFilter"]]),
+            "navigate": dump([methods["navigate"]]),
+            "heading_focus_transfer": dump(
+                [
+                    node
+                    for node in render.body
+                    if "self.heading" in ast.unparse(node)
+                ]
+            ),
+        }
+        return selected, "keyPressEvent" in methods
+
+    physical_blocks, physical_override = keyboard_blocks(physical_revision)
+    audited_blocks, audited_override = keyboard_blocks(audited_revision)
+    expected_hashes = {
+        "skip_focus": "5b0208b742b72a02d03a84629440cb6b7835c8dfdb84ce926e9255b2d602daa0",
+        "navigation_construction": "df1ba6b540424425d1694da5493dbbf52979d5af2ff0a578549d6fa56b85ec3f",
+        "career_selector": "0b52289aa2eb51eff11540507c59584d9d6a1d60aa3a1bea8d0951837f42984c",
+        "tab_order": "7002e860eaed6b70eb7310369c183f18fad85bf296f158b1958387006ed511b1",
+        "_nav_button": "6d14a9df962da5c518a8dd833eef28175921c6d004f248d48fdf91de2ed80105",
+        "eventFilter": "02b5c428c3a5e20f124e9b447b9726cb129792fbf455690d0cc86d6d75372277",
+        "navigate": "dc9d8d54947b3c3a27b546b8e900f5cc00c3393495fc78ef1ccf4e40376cbae7",
+        "heading_focus_transfer": "74320a54eac8767efd9c634dca019eaf93dfc27248aded48e519da0994c14f39",
+    }
+    assert physical_blocks == audited_blocks
+    assert {
+        name: hashlib.sha256(value.encode()).hexdigest()
+        for name, value in physical_blocks.items()
+    } == expected_hashes
+    assert not physical_override and not audited_override
+
+    ordinary_diff = subprocess.run(
+        [
+            "git", "diff", "--unified=1", physical_revision, audited_revision,
+            "--", source_path,
+        ],
+        cwd=ROOT,
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout
+    for unrelated_change in (
+        "_EMPTY_MESSAGES", "setFixedWidth(256)", 'setObjectName("muted")',
+        "dict.fromkeys", "can_retry", "bool(snapshot.recent_missions)",
+    ):
+        assert unrelated_change in ordinary_diff
+
+    record = _text(R2_RECORD)
+    p0_record = _text("docs/ui/p0-functional-desktop.md")
+    for evidence in (
+        physical_revision,
+        audited_revision,
+        "RESULT: 8/8 keyboard-relevant AST blocks identical",
+        "The whole `window.py` file is not identical",
+        "no new physical keyboard walkthrough was required",
+    ):
+        assert evidence in record
+    assert "original 2026-09-29 run" in p0_record
+    assert "is not claimed to be wholly identical" in p0_record
+    assert "no physical rerun was required" in p0_record
+
+
 def test_post_p0_r2_hold_is_revision_bound_without_authorizing_adoption() -> None:
     graph = _graph()
     items, evals, cycles = graph["work_items"], graph["evals"], graph["cycles"]
@@ -619,8 +767,14 @@ def test_post_p0_r2_hold_is_revision_bound_without_authorizing_adoption() -> Non
     ):
         assert scope in record
 
-    for blocker in ("#142", "#96", "#151"):
+    for blocker in ("#142", "#96"):
         assert blocker in record
+    assert "#151 is not a current technical blocker" in record
+    assert "governance drift discovered by R2" in record
+    assert "Issue #151 remains open" in record
+    assert "14 passed, 4 skipped in 0.08s" in record
+    assert "122 passed in 9.90s" in record
+    assert "issue151_ancestor_exit=0" in record
 
     for revision_or_tree in (
         "64710a0b1bc46c19f267db10e4168403ce974066",
