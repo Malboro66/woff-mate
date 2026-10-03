@@ -162,8 +162,10 @@ For the current UI architecture decision:
 Accepting this ADR in a later decision would therefore select a production UI
 architecture only. It would **not** authorize P1, live WoFF/SQLite integration,
 launcher integration, or satisfy Product Gate A/B. Those capabilities remain
-blocked by their own applicable conditions, including unresolved P1 findings
-such as #96 and #142.
+blocked until every applicable Product Gate A/B decision has been explicitly
+approved under Q5; satisfying technical gate conditions alone is insufficient.
+Unresolved P1 findings such as #96 and #142 remain blockers under those gate
+contracts.
 
 This re-scope does not change the historical first R2 HOLD record. Relevant
 adoption-readiness changes must still be integrated and followed by a new
@@ -201,8 +203,11 @@ architecture remains gated by:
 Product Gate A (reliable data) and Product Gate B (viable launcher) remain
 unapproved and fully authoritative for the capabilities they govern. They are
 not toolkit-retention prerequisites. P1/live integration requires the retained
-architecture decision **and** the applicable Gate A/B conditions; accepting the
-toolkit alone cannot authorize live data, launcher behavior, or P1.
+architecture decision **and explicit approval of every applicable Product Gate
+A/B decision under Q5**; satisfying a gate's technical conditions without the
+required revision-valid review, demonstrability record and maintainer approval
+is insufficient. Accepting the toolkit alone cannot authorize live data,
+launcher behavior, or P1.
 
 Clean-machine execution, supported installer behavior, installation/update/
 rollback certification, signing/provenance and final public-distribution
@@ -216,8 +221,8 @@ dependency, create a production UI, or approve Product Gate A or Product Gate B.
 
 The near-term order is #81 -> #82 -> P0/#140 -> first R2 HOLD -> bounded UI
 adoption-readiness -> repeated revision-bound R2 -> explicit toolkit ADR
-decision. Only after the toolkit is retained **and** the applicable Product Gate
-A/B conditions are satisfied may P1/live integration be authorized. Neither the
-spike nor P0 silently accepts PySide6 or any other GUI toolkit, and this
-governance change adds no dependency or permission to ship an experimental
-artifact as production UI.
+decision. Only after the toolkit is retained **and every applicable Product Gate
+A/B decision is explicitly approved under Q5** may P1/live integration be
+authorized. Neither the spike nor P0 silently accepts PySide6 or any other GUI
+toolkit, and this governance change adds no dependency or permission to ship an
+experimental artifact as production UI.

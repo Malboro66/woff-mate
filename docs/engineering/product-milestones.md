@@ -20,8 +20,8 @@ The identifiers below are product/review checkpoints. They do not replace semant
 | **R0 — Foundation Baseline** | Historical foundation checkpoint | Existing integrated engineering baseline; no new audit is required merely to adopt this policy |
 | **R1 — Integrity Baseline** | Integrated review before Product Gate A approval | Full Application Review of the reliable-companion boundary and explicit residual-risk decision |
 | **P0 — Functional Desktop Prototype** | First launchable/navigable desktop WoFF Mate prototype | Fixture-backed shell, synthetic careers, primary navigation, shared states, keyboard/scaling evidence, no live SQLite/WoFF binding, bounded `Q4-P0-PROTOTYPE` evidence |
-| **R2 — UI Architecture Decision** | Cross-system review after P0 and presentation contracts/toolkit evidence | #81/#82/#140 evidence, bounded UI adoption-readiness results, boundary review and explicit ADR decision before retained production UI architecture; P1/live integration remains separately governed by applicable Product Gate A/B conditions |
-| **P1 — Read-only Vertical Slice** | First narrow end-to-end real local read flow | Retained UI architecture plus applicable Gate A/B prerequisites, stable career selection and approved core screens driven through application query services, with no widget-side SQL/parsing/inference |
+| **R2 — UI Architecture Decision** | Cross-system review after P0 and presentation contracts/toolkit evidence | #81/#82/#140 evidence, bounded UI adoption-readiness results, boundary review and explicit ADR decision before retained production UI architecture; P1/live integration remains separately governed by applicable Product Gate A/B decisions |
+| **P1 — Read-only Vertical Slice** | First narrow end-to-end real local read flow | Retained UI architecture plus explicit approval of every applicable Product Gate A/B decision, stable career selection and approved core screens driven through application query services, with no widget-side SQL/parsing/inference |
 | **P2 — Installable Alpha** | First installable Windows alpha usable by a non-developer for approved scope | Clean-machine install/start, diagnostics, bounded alpha flow, packaging evidence and known limitations |
 | **P3 — Companion Beta** | Normal companion flow suitable for broader controlled testing | Stable ordinary usage path, recovery evidence, regression coverage and user-facing limitations |
 | **P4 — Social/RPG Alpha** | First coherent persistent social/RPG loop | Deterministic domain model, persistence, identity, safe simulation and demonstrable loop |
@@ -137,7 +137,7 @@ The current priority is to convert the strong foundation into demonstrable produ
 8. Preserve the first **R2 — UI Architecture Decision** review against that exact integrated revision with its historical **HOLD / Conditional No-Go for production retention** disposition.
 9. Complete the bounded UI adoption-readiness phase defined by the current toolkit ADR: physical Windows 10 reference validation, supported Python 3.10–3.14 compatibility evidence, applicable keyboard/focus/UIA quality, optional-dependency and entry-point policy, representative packaging/startup, bundle inventory/SBOM-equivalent evidence, Qt licensing/plugin disposition, and single-binding enforcement. Physical Windows 11 and clean-machine end-user execution are not prerequisites to toolkit retention; clean-machine remains later full-Q4/release/Gate-D evidence.
 10. After those relevant changes are integrated, perform a new revision-bound R2 Full Application Review against the then-current integrated `main`, then obtain the explicit maintainer toolkit-retention ADR decision. Scope-impact may cover only unrelated, non-material changes after that repeat review and before the final decision; it cannot replace the repeat R2.
-11. Only after the toolkit is retained **and** all applicable Product Gate A/B conditions are satisfied may movement toward **P1 — Read-only Vertical Slice** be authorized. Fixture-only data may then be replaced only through approved application query services.
+11. Only after the toolkit is retained **and every applicable Product Gate A/B decision is explicitly approved under Q5** may movement toward **P1 — Read-only Vertical Slice** be authorized. Satisfying technical gate conditions without the revision-valid review, product-demonstrability record and explicit maintainer approval required for the gate decision is insufficient. Fixture-only data may then be replaced only through approved application query services.
 
 The [2026-09-10 Security Baseline](security-baseline-2026-09-10.md) adds those
 focused Gate A guardrails without creating a separate milestone or changing the
@@ -219,8 +219,11 @@ gate governs. This policy adds two requirements to a gate decision:
 R2 is a separate toolkit-architecture decision. Product Gate A/B approval is
 not required merely to select the retained UI toolkit, and toolkit acceptance
 never auto-approves those gates. Before P1/live integration, however, the
-retained toolkit decision and the applicable Gate A/B conditions must both be
-satisfied. This separation changes no Gate A-D technical condition.
+retained toolkit decision and every applicable Product Gate A/B decision must
+both be complete and explicitly approved under Q5. Merely satisfying a gate's
+technical conditions is insufficient without its revision-valid review,
+product-demonstrability record and explicit maintainer approval. This separation
+changes no Gate A-D technical condition.
 
 A product checkpoint never auto-approves a Product Gate, and completion of an engineering cycle never auto-approves a product checkpoint.
 
@@ -244,5 +247,6 @@ architecture decision, not a replacement name or approval for Gates A-D.
 - `priority:P0` / `priority:P1` findings block the applicable transition until corrected or explicitly handled under existing governance; this policy grants no new risk-acceptance exception.
 - Evidence gaps remain evidence gaps; they cannot be closed by assumption.
 - Toolkit retention does not authorize P1/live integration or approve Product Gate A/B.
+- P1/live integration requires explicit approval of every applicable Product Gate A/B decision, not only satisfaction of its technical conditions.
 - No checkpoint bypasses Q0-Q6, data protection, privacy, migration policy, Codex Review gates or human approval.
 - Changes to these milestone definitions require an explicit governance change.

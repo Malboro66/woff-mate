@@ -238,9 +238,12 @@ Product Gate A and Product Gate B remain fully authoritative and unapproved.
 They are not evidence of whether PySide6 itself is a suitable retained toolkit.
 Accepting the toolkit later would **not** authorize P1, live WoFF/SQLite data,
 watchdog/query-service integration or launcher behavior. P1/live integration
-requires the retained architecture decision **plus** the applicable Gate A/B
-conditions. In particular, #96 and #142 remain valid Gate A/P1 blockers until
-resolved under their own contracts.
+requires the retained architecture decision **and explicit approval of every
+applicable Product Gate A/B decision under Q5**. Satisfying technical gate
+conditions without the required revision-valid Full Application Review,
+product-demonstrability record and explicit maintainer approval is insufficient.
+In particular, #96 and #142 remain valid Gate A/P1 blockers until resolved under
+their own contracts.
 
 The [first R2 review](r2-ui-architecture-review.md) audited integrated `main`
 `bfa7647ac94cafba658a077e52a55a3c2240a4dd` after #140/P0 completion and

@@ -176,44 +176,53 @@ claim Q5 or approval of Product Gate A or Gate B.
 | `EVAL-P0-FLOW-001` | #140 | Implemented | Automated Qt-offscreen checks cover routing/navigation calls, focus results, career switching/isolation, state transitions/rendering, rail/layout behavior and close/reopen; they do not synthesize Tab/Shift+Tab, rail arrows, Enter/Space or selector keys. The maintainer-observed Windows walkthrough supplies those physical keyboard/selector and scaling observations | `tests/test_p0_desktop.py`, `docs/ui/p0-functional-desktop.md`, `docs/ui/evidence/issue-140-p0/windows-physical-walkthrough.md` |
 | `EVAL-P0-BOUNDARY-001` | #140 | Implemented | Fixture-only execution structurally excludes live SQLite/WoFF, repository/parser/watchdog access, writes, launcher control, network, personal data, runtime AI and production social/RPG behavior | `tests/test_p0_desktop.py`, `docs/ui/p0-functional-desktop.md` |
 | `EVAL-P0-DEMO-001` | #140 | Implemented | PR #173/CI #303, reproducible source and prototype-bundle launch, committed Linux Qt-offscreen captures with SHA-256 inventory, and recorded Windows 10 source/bundle walkthroughs at 100/125/150/200% satisfy only `Q4-P0-PROTOTYPE`; they do not satisfy full Q4, establish an installer or production distribution, or accept a production toolkit | `tests/test_p0_desktop.py`, `docs/ui/p0-functional-desktop.md`, `docs/ui/evidence/issue-140-p0/windows-physical-walkthrough.md`, `docs/ui/evidence/issue-140-p0/SHA256SUMS` |
-| `EVAL-R2-REVIEW-001` | `review-r2` | Planned | After relevant adoption-readiness changes are integrated, a new revision-bound R2 Full Application Review of the then-current integrated `main`, followed by the explicit maintainer ADR decision and existing adoption gates, is mandatory before retained production architecture/P1; scope-impact may cover only unrelated, non-material changes between that repeated R2 revision and the final decision revision | — |
+| `EVAL-R2-REVIEW-001` | `review-r2` | Planned | After relevant bounded UI adoption-readiness changes are integrated, a new revision-bound R2 Full Application Review of the then-current integrated `main` and the explicit maintainer toolkit ADR decision are mandatory before retained production UI architecture. Physical Windows 11 and clean-machine end-user execution are not toolkit-retention prerequisites under #175. P1/live integration remains separately blocked until every applicable Product Gate A/B decision is explicitly approved under Q5. Scope-impact may cover only unrelated, non-material changes between that repeated R2 revision and the final decision revision | — |
 
 The [#82 exploratory report](../ui/pyside6-spike-82.md) archives Windows 10
 measurements and deterministic replay checks in `tests/test_ui_spike_evidence.py`.
 The report's 2026-09-27 maintainer disposition concludes evidence collection
-with Conditional Go for the architecture/product process. Windows 11/clean-machine
-runs, remaining Python execution, true cold starts, native DPI and final
-distribution validation are deferred to adoption/release; screen-reader speech
-is not a current product requirement and was not manually verified. Keyboard,
-focus, semantics, UIA and scaling remain relevant. PR #165 is now squash-merged
-and #82 is closed as Completed. Both spike evals are Implemented through the
-existing deterministic evidence replay; this records bounded feasibility, not
-completion of the deferred adoption/release matrix. The [post-spike ADR decision](../architecture/adr-ui-toolkit.md#post-spike-p0-authorization-2026-09-28)
+with Conditional Go for the architecture/product process. Windows 11 and
+clean-machine runs were not performed and remain historical evidence gaps;
+under #175 neither is a toolkit-retention prerequisite. Windows 11 remains
+unvalidated project runtime evidence, while clean-machine validation remains
+full-Q4/release/Product-Gate-D work. Remaining Python execution, true cold
+starts, native DPI and final distribution validation retain their applicable
+future scopes; screen-reader speech is not a current product requirement and
+was not manually verified. Keyboard, focus, semantics, UIA and scaling remain
+relevant. PR #165 is now squash-merged and #82 is closed as Completed. Both
+spike evals are Implemented through the existing deterministic evidence replay;
+this records bounded feasibility, not completion of deferred release work. The
+[post-spike ADR decision](../architecture/adr-ui-toolkit.md#post-spike-p0-authorization-2026-09-28)
 records integrated `main` at `20f742868a71e2092b8a82397304fef668638bed` and the
 maintainer's authorization of PySide6 + Qt Widgets 6.11.2 for experimental P0
 only. The ADR remains Proposed. Historical evidence is unchanged, and no new
 external evidence campaign, production adoption or Product Gate is authorized.
 
-The executable sequence is #81 -> #82 -> P0/#140 -> R2 -> retained production
-architecture/P1. #82 belongs to cycle 3.4.0, and its #81 dependency records the
-near-term order; earlier disposable exploration is not completion of that
-sequence. #140/P0 is integrated and completed, all of its dependencies and its
-dependency into R2 are satisfied, and the three P0 evals above bind automated
-evidence separately from maintainer-observed physical Windows evidence.
+The executable UI-architecture sequence is #81 -> #82 -> P0/#140 -> first R2
+HOLD -> bounded UI adoption-readiness -> repeated revision-bound R2 -> explicit
+toolkit ADR decision. P1/live integration is a separate subsequent transition:
+it requires the retained toolkit **and explicit approval of every applicable
+Product Gate A/B decision under Q5**. #82 belongs to cycle 3.4.0, and its #81
+dependency records the near-term order; earlier disposable exploration is not
+completion of that sequence. #140/P0 is integrated and completed, all of its
+dependencies and its dependency into R2 are satisfied, and the three P0 evals
+above bind automated evidence separately from maintainer-observed physical
+Windows evidence.
 
 The [first R2 review](r2-ui-architecture-review.md) is pinned to integrated
 `main` `bfa7647ac94cafba658a077e52a55a3c2240a4dd` and records **HOLD /
 Conditional No-Go for production retention**. `review-r2` remains backlog and
-`EVAL-R2-REVIEW-001` remains Planned because its contract includes complete
-adoption-readiness evidence and the final explicit maintainer ADR decision,
-neither of which the first pass supplied. After the relevant adoption-readiness
-changes are integrated, a new revision-bound R2 Full Application Review must be
-performed against the then-current integrated `main`; scope-impact may cover
-only unrelated, non-material changes between that repeated review and the final
-decision and cannot replace it. The HOLD proves neither live integration
-nor production toolkit acceptance, approves no Product Gate and does not
-authorize P1. `review-r2` remains a repository review work item outside
-engineering cycle membership, not a newly numbered GitHub issue.
+`EVAL-R2-REVIEW-001` remains Planned because its contract includes the bounded
+UI adoption-readiness evidence and final explicit maintainer ADR decision,
+neither of which the first pass supplied. Issue #175 later re-scopes the future
+toolkit decision without rewriting that historical record. After the relevant
+adoption-readiness changes are integrated, a new revision-bound R2 Full
+Application Review must be performed against the then-current integrated
+`main`; scope-impact may cover only unrelated, non-material changes between that
+repeated review and the final decision and cannot replace it. The HOLD proves
+neither live integration nor production toolkit acceptance, approves no Product
+Gate and does not authorize P1. `review-r2` remains a repository review work
+item outside engineering cycle membership, not a newly numbered GitHub issue.
 
 ### Product policy enforcement
 
@@ -308,13 +317,13 @@ unapproved.
 live enforcement mechanism; `woff/tests/test_product_milestones.py` validates
 only the recorded evidence contract and repository-governance consistency and
 does not query GitHub. The three remaining evals remain planned without
-fabricated `enforced_by` paths. #151–#155 remain outside the existing Q6 cycles. #151's
-guardrail is implemented in merge commit
+fabricated `enforced_by` paths. #151–#155 remain outside the existing Q6 cycles.
+#151's guardrail is implemented in merge commit
 `a585525caca2767fa373c2cbf185431c9fcea76c`, which is present in the R2-audited
-`main`; its still-open GitHub issue is an external issue-state reconciliation
-for a maintainer after this governance PR is accepted and integrated, not
-evidence that implementation is missing. #153 and #154 remain staged P3 work,
-while #155 is required only before public binary distribution.
+`main`; PR #174 reconciled its graph/eval state and GitHub Issue #151 is closed
+as Completed. The former still-open issue state is historical and no longer a
+current implementation blocker. #153 and #154 remain staged P3 work, while
+#155 is required only before public binary distribution.
 
 ### SDD pilot governance
 
