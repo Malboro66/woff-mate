@@ -204,28 +204,51 @@ The whole `window.py` file is not identical. The ordinary comparison was:
 | `git diff --unified=1 46b18097be490f1741f5792c84d945f6077c465b bfa7647ac94cafba658a077e52a55a3c2240a4dd -- woff/p0_desktop/window.py` | exit 0; hunks were limited to adding destination-specific empty messages, standard rail width `224` → `256`, muted selector-label styling, warning/failure message de-duplication, stale Operations Retry availability and a guard on the Operations latest-mission card. |
 
 Those changes affect presentation/state rendering, not the keyboard interaction
-contract. The following exact deterministic command parsed both revisions,
-extracted the normalized keyboard-relevant AST statements/functions and
-compared them:
+contract. The earlier `ast.dump()` digest set was interpreter-dependent and is
+superseded; none of those old hashes remains authoritative evidence.
+
+The corrected comparison uses the AST only to locate the `P0Window` class,
+named methods and top-level statements. It obtains each selected node's exact
+original text with `ast.get_source_segment(...)`, normalizes CRLF and lone CR to
+LF, applies `textwrap.dedent`, removes only leading/trailing whitespace with
+`strip()`, and joins multiple statements in one named block with exactly two LF
+characters. SHA-256 is computed over the resulting UTF-8 source bytes. Selection
+uses method names and literal markers found in original source segments; neither
+`ast.dump()` nor `ast.unparse()` supplies selection or hash content.
+
+The exact command below was executed from the repository containing both Git
+objects. The two additional isolated interpreters were installed outside the
+repository with
+`/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/uv python install 3.10 3.14`,
+which installed CPython 3.10.21 and 3.14.7; the audit interpreter was CPython
+3.12.14.
 
 ```bash
-python - 46b18097be490f1741f5792c84d945f6077c465b bfa7647ac94cafba658a077e52a55a3c2240a4dd <<'PY'
+for PYTHON in /root/.local/bin/python3.10 ../.audit-r2-venv/bin/python /root/.local/bin/python3.14; do
+"$PYTHON" - 46b18097be490f1741f5792c84d945f6077c465b bfa7647ac94cafba658a077e52a55a3c2240a4dd <<'PY'
 import ast
 import hashlib
+import platform
 import subprocess
 import sys
+import textwrap
 
-path = "woff/p0_desktop/window.py"
-revisions = sys.argv[1:]
+PATH = "woff/p0_desktop/window.py"
+REVISIONS = sys.argv[1:]
 
 def source(revision):
     return subprocess.run(
-        ["git", "show", f"{revision}:{path}"],
+        ["git", "show", f"{revision}:{PATH}"],
         check=True, capture_output=True, text=True,
     ).stdout
 
+def normalize(segment):
+    segment = segment.replace("\r\n", "\n").replace("\r", "\n")
+    return textwrap.dedent(segment).strip()
+
 def blocks(revision):
-    tree = ast.parse(source(revision))
+    original = source(revision)
+    tree = ast.parse(original)
     window = next(
         node for node in tree.body
         if isinstance(node, ast.ClassDef) and node.name == "P0Window"
@@ -234,66 +257,73 @@ def blocks(revision):
         node.name: node for node in window.body
         if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
     }
+
+    def segment(node):
+        value = ast.get_source_segment(original, node)
+        assert value is not None
+        return value
+
+    def select(statements, markers):
+        selected = [
+            normalize(segment(node))
+            for node in statements
+            if any(marker in segment(node) for marker in markers)
+        ]
+        assert selected
+        return "\n\n".join(selected)
+
     init = methods["__init__"]
     render = methods["_render"]
-    dump = lambda nodes: "\n".join(
-        ast.dump(node, include_attributes=False) for node in nodes
-    )
     selected = {
-        "skip_focus": dump([
-            node for node in init.body if "self.skip" in ast.unparse(node)
-        ]),
-        "navigation_construction": dump([
-            node for node in init.body
-            if "self.nav_buttons" in ast.unparse(node)
-            or "self._nav_button" in ast.unparse(node)
-        ]),
-        "career_selector": dump([
-            node for node in init.body if "self.career" in ast.unparse(node)
-        ]),
-        "tab_order": dump([
-            node for node in init.body
-            if "setTabOrder" in ast.unparse(node)
-            or (isinstance(node, ast.AnnAssign)
-                and ast.unparse(node.target) == "previous")
-        ]),
-        "_nav_button": dump([methods["_nav_button"]]),
-        "eventFilter": dump([methods["eventFilter"]]),
-        "navigate": dump([methods["navigate"]]),
-        "heading_focus_transfer": dump([
-            node for node in render.body if "self.heading" in ast.unparse(node)
-        ]),
+        "skip_focus": select(init.body, ("self.skip",)),
+        "navigation_construction": select(
+            init.body, ("self.nav_buttons", "self._nav_button")
+        ),
+        "career_selector": select(init.body, ("self.career",)),
+        "tab_order": select(
+            init.body, ("QWidget.setTabOrder(", "previous: QWidget = self.career")
+        ),
+        "_nav_button": normalize(segment(methods["_nav_button"])),
+        "eventFilter": normalize(segment(methods["eventFilter"])),
+        "navigate": normalize(segment(methods["navigate"])),
+        "heading_focus_transfer": select(render.body, ("self.heading",)),
     }
     return selected, "keyPressEvent" in methods
 
-left, left_override = blocks(revisions[0])
-right, right_override = blocks(revisions[1])
+left, left_override = blocks(REVISIONS[0])
+right, right_override = blocks(REVISIONS[1])
+assert set(left) == set(right)
 for name in left:
     assert left[name] == right[name], name
-    digest = hashlib.sha256(left[name].encode()).hexdigest()
+    digest = hashlib.sha256(left[name].encode("utf-8")).hexdigest()
     print(f"{name}: IDENTICAL sha256={digest}")
-print(f"{revisions[0]} keyPressEvent override: {'present' if left_override else 'absent'}")
-print(f"{revisions[1]} keyPressEvent override: {'present' if right_override else 'absent'}")
 assert not left_override and not right_override
-print(f"RESULT: {len(left)}/{len(left)} keyboard-relevant AST blocks identical")
+print(f"{REVISIONS[0]} keyPressEvent override: absent")
+print(f"{REVISIONS[1]} keyPressEvent override: absent")
+print(f"RESULT: 8/8 source-normalized blocks identical on Python {platform.python_version()}")
 PY
+done
 ```
 
-Exact result, exit 0:
+The command exited 0 for Python 3.10.21, Python 3.12.14 and Python 3.14.7. Every
+interpreter produced the same eight SHA-256 values, and for each interpreter
+the corresponding block at `46b18097...` was identical to the block at
+`bfa7647...`:
 
 ```text
-skip_focus: IDENTICAL sha256=5b0208b742b72a02d03a84629440cb6b7835c8dfdb84ce926e9255b2d602daa0
-navigation_construction: IDENTICAL sha256=df1ba6b540424425d1694da5493dbbf52979d5af2ff0a578549d6fa56b85ec3f
-career_selector: IDENTICAL sha256=0b52289aa2eb51eff11540507c59584d9d6a1d60aa3a1bea8d0951837f42984c
-tab_order: IDENTICAL sha256=7002e860eaed6b70eb7310369c183f18fad85bf296f158b1958387006ed511b1
-_nav_button: IDENTICAL sha256=6d14a9df962da5c518a8dd833eef28175921c6d004f248d48fdf91de2ed80105
-eventFilter: IDENTICAL sha256=02b5c428c3a5e20f124e9b447b9726cb129792fbf455690d0cc86d6d75372277
-navigate: IDENTICAL sha256=dc9d8d54947b3c3a27b546b8e900f5cc00c3393495fc78ef1ccf4e40376cbae7
-heading_focus_transfer: IDENTICAL sha256=74320a54eac8767efd9c634dca019eaf93dfc27248aded48e519da0994c14f39
-46b18097be490f1741f5792c84d945f6077c465b keyPressEvent override: absent
-bfa7647ac94cafba658a077e52a55a3c2240a4dd keyPressEvent override: absent
-RESULT: 8/8 keyboard-relevant AST blocks identical
+skip_focus: IDENTICAL sha256=d9c010a8b64f2f56b7da3a15e38114cecc651267dcb902e22a0af29bc8bc463a
+navigation_construction: IDENTICAL sha256=4d81ff22a821188af03434f401fc4f36346216794a63f6bc99e6536ed45e90f7
+career_selector: IDENTICAL sha256=a81d1dc68d4e985526461454fb2ef26fb17334caea327c5e3c61bcdcc5ade797
+tab_order: IDENTICAL sha256=b263037199ca7dbb34264647874cb088a264e18c2210c112f85e0ffe8ec3016f
+_nav_button: IDENTICAL sha256=0a2f054b22ee7f5caba38ec4e5e9c78a9db254c43f972df540e61c0f7a16e255
+eventFilter: IDENTICAL sha256=1cdf74eb818c80d75d501dfd16c9ae3e5451c3bf920c3b23560f5805d94b8e38
+navigate: IDENTICAL sha256=675832e6afbf017fe68f2b349e6ac554506501433402c2082c8c59a440519df5
+heading_focus_transfer: IDENTICAL sha256=856d5814979ebdb63ffc3323ea0e5be4d2cb6c3fea03ca47963e000bf755175b
 ```
+
+Each execution also reported both exact revisions with `keyPressEvent override:
+absent` and `RESULT: 8/8 source-normalized blocks identical` for its Python
+version.
 
 This proves unchanged construction/focus participation for the skip control,
 native career `QComboBox` and navigation `QPushButton`s; unchanged explicit

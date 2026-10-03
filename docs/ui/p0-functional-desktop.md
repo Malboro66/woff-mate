@@ -130,16 +130,18 @@ styling, warning de-duplication, stale Operations Retry and an Operations-card
 guard — no keyboard-contract change.
 
 The [R2 keyboard-walkthrough revision binding](../engineering/r2-ui-architecture-review.md#keyboard-walkthrough-revision-binding)
-records the full exact AST extraction/comparison command and its hashes. It
-returned exit 0 and `RESULT: 8/8 keyboard-relevant AST blocks identical` for
-the skip-control focus, navigation-button construction, career `QComboBox`,
-`QWidget.setTabOrder(...)`, `_nav_button`, `eventFilter`, `navigate(...)` and
-heading-focus-transfer blocks. Both revisions lack a `keyPressEvent` override,
-so the physical Enter/Space and selector observations continue to bind to the
-unchanged native `QPushButton`/`QComboBox` behavior. Thus the original keyboard
-walkthrough remains applicable to audited `bfa7647...` by reproducible source
-equivalence; it is not relabelled as post-merge, and no physical rerun was
-required.
+records the exact version-stable source-normalization comparison and hashes.
+The AST locates the eight blocks, while SHA-256 covers normalized original
+source rather than serialized AST output. Python 3.10.21, Python 3.12.14 and
+Python 3.14.7 all returned the same hashes and `RESULT: 8/8 source-normalized blocks
+identical` for the skip-control focus, navigation-button construction, career
+`QComboBox`, `QWidget.setTabOrder(...)`, `_nav_button`, `eventFilter`,
+`navigate(...)` and heading-focus-transfer blocks. Both revisions lack a
+`keyPressEvent` override, so the physical Enter/Space and selector observations
+continue to bind to the unchanged native `QPushButton`/`QComboBox` behavior.
+Thus the original keyboard walkthrough remains applicable to audited
+`bfa7647...` by reproducible source equivalence; it is not relabelled as
+post-merge, and no physical rerun was required.
 
 ## Architecture status and P1 blockers
 

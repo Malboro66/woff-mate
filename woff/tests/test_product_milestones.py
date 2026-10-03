@@ -2,8 +2,10 @@
 
 import ast
 from copy import deepcopy
+import hashlib
 from pathlib import Path
 import re
+import textwrap
 from typing import Any, cast
 
 import pytest
@@ -575,6 +577,10 @@ def test_keyboard_walkthrough_is_bound_to_the_audited_revision() -> None:
     audited_revision = "bfa7647ac94cafba658a077e52a55a3c2240a4dd"
     source_path = "woff/p0_desktop/window.py"
 
+    def normalize_source(segment: str) -> str:
+        segment = segment.replace("\r\n", "\n").replace("\r", "\n")
+        return textwrap.dedent(segment).strip()
+
     def keyboard_blocks(source: str) -> tuple[dict[str, str], bool]:
         tree = ast.parse(source)
         window = next(
@@ -590,46 +596,35 @@ def test_keyboard_walkthrough_is_bound_to_the_audited_revision() -> None:
         init = methods["__init__"]
         render = methods["_render"]
 
-        def dump(nodes: list[ast.stmt]) -> str:
-            return "\n".join(
-                ast.dump(node, include_attributes=False) for node in nodes
-            )
+        def segment(node: ast.AST) -> str:
+            value = ast.get_source_segment(source, node)
+            assert value is not None
+            return value
+
+        def select(statements: list[ast.stmt], markers: tuple[str, ...]) -> str:
+            selected = [
+                normalize_source(segment(node))
+                for node in statements
+                if any(marker in segment(node) for marker in markers)
+            ]
+            assert selected
+            return "\n\n".join(selected)
 
         selected = {
-            "skip_focus": dump(
-                [node for node in init.body if "self.skip" in ast.unparse(node)]
+            "skip_focus": select(init.body, ("self.skip",)),
+            "navigation_construction": select(
+                init.body, ("self.nav_buttons", "self._nav_button")
             ),
-            "navigation_construction": dump(
-                [
-                    node
-                    for node in init.body
-                    if "self.nav_buttons" in ast.unparse(node)
-                    or "self._nav_button" in ast.unparse(node)
-                ]
+            "career_selector": select(init.body, ("self.career",)),
+            "tab_order": select(
+                init.body,
+                ("QWidget.setTabOrder(", "previous: QWidget = self.career"),
             ),
-            "career_selector": dump(
-                [node for node in init.body if "self.career" in ast.unparse(node)]
-            ),
-            "tab_order": dump(
-                [
-                    node
-                    for node in init.body
-                    if "setTabOrder" in ast.unparse(node)
-                    or (
-                        isinstance(node, ast.AnnAssign)
-                        and ast.unparse(node.target) == "previous"
-                    )
-                ]
-            ),
-            "_nav_button": dump([methods["_nav_button"]]),
-            "eventFilter": dump([methods["eventFilter"]]),
-            "navigate": dump([methods["navigate"]]),
-            "heading_focus_transfer": dump(
-                [
-                    node
-                    for node in render.body
-                    if "self.heading" in ast.unparse(node)
-                ]
+            "_nav_button": normalize_source(segment(methods["_nav_button"])),
+            "eventFilter": normalize_source(segment(methods["eventFilter"])),
+            "navigate": normalize_source(segment(methods["navigate"])),
+            "heading_focus_transfer": select(
+                render.body, ("self.heading",)
             ),
         }
         return selected, "keyPressEvent" in methods
@@ -637,17 +632,19 @@ def test_keyboard_walkthrough_is_bound_to_the_audited_revision() -> None:
     current_source = (ROOT / source_path).read_text(encoding="utf-8")
     current_blocks, current_override = keyboard_blocks(current_source)
     expected_hashes = {
-        "skip_focus": "5b0208b742b72a02d03a84629440cb6b7835c8dfdb84ce926e9255b2d602daa0",
-        "navigation_construction": "df1ba6b540424425d1694da5493dbbf52979d5af2ff0a578549d6fa56b85ec3f",
-        "career_selector": "0b52289aa2eb51eff11540507c59584d9d6a1d60aa3a1bea8d0951837f42984c",
-        "tab_order": "7002e860eaed6b70eb7310369c183f18fad85bf296f158b1958387006ed511b1",
-        "_nav_button": "6d14a9df962da5c518a8dd833eef28175921c6d004f248d48fdf91de2ed80105",
-        "eventFilter": "02b5c428c3a5e20f124e9b447b9726cb129792fbf455690d0cc86d6d75372277",
-        "navigate": "dc9d8d54947b3c3a27b546b8e900f5cc00c3393495fc78ef1ccf4e40376cbae7",
-        "heading_focus_transfer": "74320a54eac8767efd9c634dca019eaf93dfc27248aded48e519da0994c14f39",
+        "skip_focus": "d9c010a8b64f2f56b7da3a15e38114cecc651267dcb902e22a0af29bc8bc463a",
+        "navigation_construction": "4d81ff22a821188af03434f401fc4f36346216794a63f6bc99e6536ed45e90f7",
+        "career_selector": "a81d1dc68d4e985526461454fb2ef26fb17334caea327c5e3c61bcdcc5ade797",
+        "tab_order": "b263037199ca7dbb34264647874cb088a264e18c2210c112f85e0ffe8ec3016f",
+        "_nav_button": "0a2f054b22ee7f5caba38ec4e5e9c78a9db254c43f972df540e61c0f7a16e255",
+        "eventFilter": "1cdf74eb818c80d75d501dfd16c9ae3e5451c3bf920c3b23560f5805d94b8e38",
+        "navigate": "675832e6afbf017fe68f2b349e6ac554506501433402c2082c8c59a440519df5",
+        "heading_focus_transfer": "856d5814979ebdb63ffc3323ea0e5be4d2cb6c3fea03ca47963e000bf755175b",
     }
-    assert set(current_blocks) == set(expected_hashes)
-    assert all(current_blocks.values())
+    assert {
+        name: hashlib.sha256(value.encode("utf-8")).hexdigest()
+        for name, value in current_blocks.items()
+    } == expected_hashes
     assert not current_override
     for construct in (
         'self.skip = QPushButton("Skip to content")',
@@ -670,9 +667,12 @@ def test_keyboard_walkthrough_is_bound_to_the_audited_revision() -> None:
     for evidence in (
         physical_revision,
         audited_revision,
-        "RESULT: 8/8 keyboard-relevant AST blocks identical",
+        "RESULT: 8/8 source-normalized blocks identical",
         "The whole `window.py` file is not identical",
         "no new physical keyboard walkthrough was required",
+        "Python 3.10.21",
+        "Python 3.12.14",
+        "Python 3.14.7",
     ):
         assert evidence in record
     for name, digest in expected_hashes.items():
@@ -686,6 +686,15 @@ def test_keyboard_walkthrough_is_bound_to_the_audited_revision() -> None:
         "Operations latest-mission card",
     ):
         assert unrelated_change in record
+    keyboard_record = record.split("Keyboard-walkthrough revision binding", 1)[1].split(
+        "Findings", 1
+    )[0]
+    assert "ast.get_source_segment" in keyboard_record
+    assert "textwrap.dedent" in keyboard_record
+    assert "ast.dump(node" not in keyboard_record
+    assert "ast.unparse(node" not in keyboard_record
+    assert 'hashlib.sha256(left[name].encode("utf-8"))' in keyboard_record
+    assert "same eight SHA-256 values" in keyboard_record
     assert "original 2026-09-29 run" in p0_record
     assert "is not claimed to be wholly identical" in p0_record
     assert "no physical rerun was required" in p0_record
