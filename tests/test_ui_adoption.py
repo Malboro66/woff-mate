@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import ast
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -93,3 +94,43 @@ def test_actual_candidate_keyboard_and_accessibility(tmp_path):
     assert len(data['controls']) == 10
     assert data['environment']['qt'] == policy.VERSION
     assert data['basic_windows_uia'] == 'not measured by Qt interface probe'
+
+
+def test_recorded_candidate_evidence_is_current_and_truthful():
+    evidence = ROOT / 'docs/ui/evidence/issue-177-adoption'
+    if not evidence.exists():
+        pytest.skip('Candidate evidence collection is in progress')
+    index = json.loads((evidence / 'index.json').read_text())
+    assert index['physical_windows10_delta'] == 'pending'
+    assert index['adr_status'] == 'Proposed'
+    assert index['p1_authorized'] is False
+    for relative, expected in index['sha256'].items():
+        path = evidence / relative
+        assert hashlib.sha256(path.read_bytes()).hexdigest() == expected
+        report = json.loads(path.read_text(encoding='utf-8-sig'))
+        record = report['provenance']
+        assert record['input_tree_dirty'] is False
+        assert len(record['revision']) == 40
+        inputs = record['input_sha256']
+        assert record['input_digest'] == hashlib.sha256(json.dumps(inputs, sort_keys=True).encode()).hexdigest()
+        for name, digest in inputs.items():
+            data = (ROOT / name).read_bytes()
+            candidates = [data]
+            try:
+                data.decode('utf-8')
+            except UnicodeDecodeError:
+                pass
+            else:
+                # Raw evidence retains native bytes; Git checkouts may use CRLF.
+                canonical = data.replace(b'\r\n', b'\n')
+                candidates.extend([canonical, canonical.replace(b'\n', b'\r\n')])
+            assert digest in {hashlib.sha256(value).hexdigest() for value in candidates}, name
+        if 'inventory' in relative:
+            assert all(policy.allowed_qt_file(f['path']) for f in report['files'])
+            assert report['provenance']['environment']['qt'] == policy.VERSION
+        else:
+            assert report['status'] == 'passed'
+        if 'hosted-uia' in relative:
+            assert report['physical_windows10'] is False
+            assert len(report['controls']) == 10
+            assert all(c['focusable'] for c in report['controls'])

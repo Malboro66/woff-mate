@@ -139,6 +139,7 @@ def test_offscreen_shell_navigation_switch_focus_and_retry() -> None:
     # Subprocess isolates QApplication and proves clean exit/reopen without a display.
     code = '''
 from PySide6.QtWidgets import QApplication
+from PySide6.QtTest import QTest
 from woff.p0_desktop.window import P0Window
 from woff.ui_contracts import ScreenState
 app = QApplication([])
@@ -159,9 +160,10 @@ for _ in range(2):
  w.career.setCurrentIndex(0); w.set_fixture_state('error'); app.processEvents()
  assert w.current_snapshot.envelope.state is ScreenState.ERROR
  w.resize(680, 520); app.processEvents()
+ QTest.qWait(100); app.processEvents()
  assert w.rail.width() == 184 and '\\n' in w.nav_buttons['SYS-01'].text()
  assert all(button.text() and button.accessibleName() for button in w.nav_buttons.values())
- assert w.brand_name.fontMetrics().horizontalAdvance(w.brand_name.text()) <= w.brand_name.width()
+ assert w.brand_name.fontMetrics().horizontalAdvance(w.brand_name.text()) <= w.brand_name.width(), (w.brand_name.fontMetrics().horizontalAdvance(w.brand_name.text()), w.brand_name.width(), w.brand_name.font().family())
  w.close()
 '''
     env = dict(os.environ, QT_QPA_PLATFORM='offscreen', QT_SCALE_FACTOR='2')
