@@ -177,9 +177,9 @@ claim Q5 or approval of Product Gate A or Gate B.
 | `EVAL-P0-BOUNDARY-001` | #140 | Implemented | Fixture-only execution structurally excludes live SQLite/WoFF, repository/parser/watchdog access, writes, launcher control, network, personal data, runtime AI and production social/RPG behavior | `tests/test_p0_desktop.py`, `docs/ui/p0-functional-desktop.md` |
 | `EVAL-P0-DEMO-001` | #140 | Implemented | PR #173/CI #303, reproducible source and prototype-bundle launch, committed Linux Qt-offscreen captures with SHA-256 inventory, and recorded Windows 10 source/bundle walkthroughs at 100/125/150/200% satisfy only `Q4-P0-PROTOTYPE`; they do not satisfy full Q4, establish an installer or production distribution, or accept a production toolkit | `tests/test_p0_desktop.py`, `docs/ui/p0-functional-desktop.md`, `docs/ui/evidence/issue-140-p0/windows-physical-walkthrough.md`, `docs/ui/evidence/issue-140-p0/SHA256SUMS` |
 | `EVAL-UI-ADOPTION-MATRIX-001` | #177 | Implemented | Optional pinned UI extra, Qt-free base, mixed-binding rejection and executed Python 3.10–3.14 source key/accessibility probe; results are revision-bound in the readiness record | `tests/test_ui_adoption.py`, `scripts/ui_adoption_probe.py`, `.github/workflows/ui-adoption.yml` |
-| `EVAL-UI-ADOPTION-PACKAGE-001` | #177 | Implemented | Separate fixture candidate, endpoint package/startup and native UIA harness; physical Windows 10 Pro build 19045 delta passed at real 100/125/150/200% with raw physical reports for the run #8 candidate and separate maintainer attestation; bounded evidence complete, integration/R2/ADR decision remain separate | `ui_adoption.spec`, `scripts/validate_ui_adoption_windows.ps1`, `docs/ui/ui-adoption-readiness.md`, `docs/ui/evidence/issue-177-physical-windows10/README.md` |
+| `EVAL-UI-ADOPTION-PACKAGE-001` | #177 | Implemented | Separate fixture candidate, endpoint package/startup and native UIA harness; physical Windows 10 Pro build 19045 delta passed at real 100/125/150/200% with raw physical reports for the run #8 candidate and separate maintainer attestation; bounded evidence complete and integrated at `f394ece9`; repeated R2 recommends retention; explicit ADR decision remains separate | `ui_adoption.spec`, `scripts/validate_ui_adoption_windows.ps1`, `docs/ui/ui-adoption-readiness.md`, `docs/ui/evidence/issue-177-physical-windows10/README.md` |
 | `EVAL-UI-ADOPTION-LICENSE-001` | #177 | Implemented | Actual bundle inventory, source/hash identities, restricted modules/plugins and explicit engineering LGPL disposition; Virtual Keyboard prohibited; public-release obligations deferred | `scripts/ui_adoption_inventory.py`, `docs/ui/ui-adoption-licensing.md`, `tests/test_ui_adoption.py` |
-| `EVAL-R2-REVIEW-001` | `review-r2` | Planned | After relevant bounded UI adoption-readiness changes are integrated, a new revision-bound R2 Full Application Review of the then-current integrated `main` and the explicit maintainer toolkit ADR decision are mandatory before retained production UI architecture. Physical Windows 11 and clean-machine end-user execution are not toolkit-retention prerequisites under #175. P1/live integration remains separately blocked until every applicable Product Gate A/B decision is explicitly approved under Q5. Scope-impact may cover only unrelated, non-material changes between that repeated R2 revision and the final decision revision | — |
+| `EVAL-R2-REVIEW-001` | `review-r2` | Implemented | Repeated R2 at integrated `main` `f394ece9d139b9af1a0ae14faea5d7982816a33a`: GO / Recommend Retain — PySide6 + Qt Widgets 6.11.2. Records completed technical review, not formal ADR acceptance; ADR remains Proposed pending a separate explicit maintainer decision after the record is reviewed and integrated. Physical Windows 11 and clean-machine end-user execution are not toolkit-retention prerequisites under #175. P1/live integration remains separately blocked until every applicable Product Gate A/B decision is explicitly approved under Q5 | `docs/engineering/r2-ui-architecture-review-repeat.md`, `woff/tests/test_ui_adoption_governance.py`, `woff/tests/test_product_milestones.py` |
 
 The [#82 exploratory report](../ui/pyside6-spike-82.md) archives Windows 10
 measurements and deterministic replay checks in `tests/test_ui_spike_evidence.py`.
@@ -214,18 +214,20 @@ Windows evidence.
 
 The [first R2 review](r2-ui-architecture-review.md) is pinned to integrated
 `main` `bfa7647ac94cafba658a077e52a55a3c2240a4dd` and records **HOLD /
-Conditional No-Go for production retention**. `review-r2` remains backlog and
-`EVAL-R2-REVIEW-001` remains Planned because its contract includes the bounded
-UI adoption-readiness evidence and final explicit maintainer ADR decision,
-neither of which the first pass supplied. Issue #175 later re-scopes the future
-toolkit decision without rewriting that historical record. After the relevant
-adoption-readiness changes are integrated, a new revision-bound R2 Full
-Application Review must be performed against the then-current integrated
-`main`; scope-impact may cover only unrelated, non-material changes between that
-repeated review and the final decision and cannot replace it. The HOLD proves
-neither live integration nor production toolkit acceptance, approves no Product
-Gate and does not authorize P1. `review-r2` remains a repository review work
-item outside engineering cycle membership, not a newly numbered GitHub issue.
+Conditional No-Go for production retention**. Its earlier backlog/Planned state
+belongs to that historical checkpoint; the original record remains unchanged.
+Issue #175 re-scoped retention evidence and #177/PR #178 completed and integrated
+that evidence. The [repeated R2](r2-ui-architecture-review-repeat.md) audits
+`f394ece9d139b9af1a0ae14faea5d7982816a33a` and records **GO / Recommend Retain —
+PySide6 + Qt Widgets 6.11.2**. `review-r2` is now done and `EVAL-R2-REVIEW-001` is
+Implemented for the completed technical review. Neither state includes or implies
+formal ADR acceptance: the ADR remains Proposed until a separate explicit
+maintainer decision after this governance record is reviewed and integrated.
+A scope-impact determination may cover only unrelated, non-material intervening
+changes between the audited revision and the final decision; it cannot replace
+review of material changes. P1 remains unauthorized and Product Gates A–D remain
+unapproved. `review-r2` remains a repository review work item outside engineering
+cycle membership, not a newly numbered GitHub issue.
 
 ### Product policy enforcement
 

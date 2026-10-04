@@ -149,14 +149,17 @@ PySide6 + Qt Widgets **6.11.2** is authorized only for experimental P0. The UI
 toolkit ADR remains **Proposed**. The [first R2 review](../engineering/r2-ui-architecture-review.md)
 of the exact integrated SHA returned **HOLD / Conditional No-Go for production
 retention**: it found no new priority:P0 or priority:P1 UI defect and confirmed
-the fixture-only boundary, but adoption-readiness evidence remains incomplete.
-P1 is not authorized and no Product Gate is approved. `review-r2` and its final
-eval remain pending until the relevant adoption-readiness work, a revision-valid
-repeat review and the explicit maintainer ADR decision.
+the fixture-only boundary, but adoption-readiness evidence was incomplete at that
+historical revision. Bounded readiness is now complete and integrated through
+PR #178. The [repeated R2](../engineering/r2-ui-architecture-review-repeat.md) at
+`f394ece9d139b9af1a0ae14faea5d7982816a33a` records **GO / Recommend Retain —
+PySide6 + Qt Widgets 6.11.2**. `review-r2` is done and its eval Implemented for the
+technical review. The ADR remains Proposed; P1 is not authorized and no Product
+Gate is approved.
 
-Actual blockers to **P1 — Read-only Vertical Slice**: completion of the bounded
-UI adoption-readiness evidence, a revision-valid repeated R2 production-retention
-decision and explicit maintainer acceptance of the UI toolkit ADR; **explicit
+Actual blockers to **P1 — Read-only Vertical Slice**: review/integration of the
+repeated R2 governance record and explicit maintainer acceptance of the UI toolkit ADR;
+**explicit
 approval of every applicable Product Gate A/B decision under Q5** (including
 the required revision-valid Full Application Review, product-demonstrability
 record and maintainer approval for each applicable gate); approved application

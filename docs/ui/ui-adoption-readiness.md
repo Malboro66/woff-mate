@@ -1,7 +1,13 @@
 # Bounded UI Adoption Readiness — Issue #177
 
-Bounded evidence scope complete for candidate head
-`f1346f99287df4202ad6495eae17acef520d4c34`; integration remains pending.
+Bounded UI Adoption Readiness is complete and integrated through PR #178 at
+`main` `f394ece9d139b9af1a0ae14faea5d7982816a33a`. The physical candidate remains
+bound to head `f1346f99287df4202ad6495eae17acef520d4c34`; the final pre-merge
+evidence head is `e70c040b82496f1108d34a914885f9e5fb04799c`. The final evidence
+head and integrated squash commit share tree `30ff40214a23d46776c5b74b29e3b2227f2065ef`.
+The [repeated R2 record](../engineering/r2-ui-architecture-review-repeat.md)
+recommends **GO / Recommend Retain — PySide6 + Qt Widgets 6.11.2**; this is not
+formal ADR acceptance.
 Implementation started from verified main
 `741bad8192517c4ade38e9e718845f086beff849` after #175 / PR #176.
 
@@ -34,7 +40,10 @@ validator does not encode scale; manual observation resolves their unchanged
 pending placeholders. No authorized readiness evidence requirement remains open.
 Earlier archive status fields remain historical snapshots of their executions;
 the separate physical attestation supplies the current completion result.
-Integration, repeated R2 and the explicit ADR decision remain future steps.
+Integration is complete and the repeated R2 is recorded against that integrated
+revision. Review/integration of the governance record precedes the separate
+explicit maintainer ADR decision. Historical archive and issue/PR status wording
+remains unchanged as a record of its original checkpoint.
 
 ## Canonical entry and optional installation
 
@@ -118,9 +127,9 @@ and its observed target in `programmatic_combo_focus_warnings`; it does not
 relabel those requests as successful. The updated collector also sends Tab/Shift+Tab
 and Up/Down to the foreground candidate, verifying native UIA focus state and
 selection values independently of SetFocus. The Qt probe separately checks the
-native control, widget focus and accessible state. This residual limitation must
-be presented to future
-R2; full UIA interaction/speech certification is not claimed.
+native control, widget focus and accessible state. This residual limitation is
+preserved in the repeated R2 as a toolkit/platform characteristic; full UIA
+interaction/speech certification is not claimed.
 The physical flag is an explicit maintainer attestation;
 the script verifies Windows 10 but cannot infer physical hardware from an OS name.
 Hosted Windows results always remain labelled non-physical.
@@ -134,9 +143,11 @@ outside the evidence scope.
 
 ## Decision sequence and exclusions
 
-Implementation → future integration into main → mandatory new revision-bound R2
-Full Application Review → explicit maintainer ADR decision. No repeated R2 is
-performed in this initial implementation pass.
+Implementation and main integration are complete. The revision-bound repeated R2
+records GO / Recommend Retain. The current step is review and integration of that
+governance record, followed by a separate explicit maintainer ADR decision.
+`review-r2` is done and `EVAL-R2-REVIEW-001` is Implemented for the technical review;
+the ADR remains Proposed, P1 unauthorized and Product Gates A–D unapproved.
 
 Physical Windows 11, clean-machine/installer/updater/install-update-rollback,
 signing, public provenance/distribution/release SBOM, Narrator/NVDA speech,

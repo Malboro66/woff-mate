@@ -50,10 +50,14 @@ P1 remains unauthorized, and no Product Gate is approved.
 Issue #175 later re-scopes the future toolkit-retention evidence to the
 maintainer's available validation environment. That governance change does not
 rewrite the historical R2 HOLD or claim that Windows 11 or clean-machine runs
-occurred. After the relevant bounded adoption-readiness changes are integrated,
-a new revision-bound R2 Full Application Review **MUST** be performed against
-the then-current integrated `main`. Only after that repeat review may the
-explicit maintainer toolkit-retention ADR decision occur. A scope-impact
+occurred. The requirement that a new revision-bound R2 Full Application Review
+**MUST** be performed after relevant readiness changes are integrated is now
+satisfied by the [repeated R2](r2-ui-architecture-review-repeat.md) at integrated
+`main` `f394ece9d139b9af1a0ae14faea5d7982816a33a`. It records **GO / Recommend
+Retain — PySide6 + Qt Widgets 6.11.2**. `review-r2` is done and its eval is
+Implemented for the completed technical review; this does not accept the ADR.
+After this governance record is reviewed and integrated, the separate explicit
+maintainer toolkit-retention ADR decision may occur. A scope-impact
 determination may cover only unrelated, non-material intervening changes between
 the repeated R2 review revision and the final decision revision; it cannot
 replace the mandatory repeat R2.
@@ -135,8 +139,8 @@ The current priority is to convert the strong foundation into demonstrable produ
 6. Use the completed and integrated **#82** Conditional Go feasibility evidence and the [explicit post-spike P0 authorization](../architecture/adr-ui-toolkit.md#post-spike-p0-authorization-2026-09-28): PySide6 + Qt Widgets 6.11.2 for the experimental fixture-backed prototype; the ADR remains Proposed.
 7. Preserve the integrated and completed **#140 — P0 Functional Desktop Prototype** at `bfa7647ac94cafba658a077e52a55a3c2240a4dd` as experimental, fixture-backed product-demonstrability evidence.
 8. Preserve the first **R2 — UI Architecture Decision** review against that exact integrated revision with its historical **HOLD / Conditional No-Go for production retention** disposition.
-9. Complete the bounded UI adoption-readiness phase defined by the current toolkit ADR: physical Windows 10 reference validation, supported Python 3.10–3.14 compatibility evidence, applicable keyboard/focus/UIA quality, optional-dependency and entry-point policy, representative packaging/startup, bundle inventory/SBOM-equivalent evidence, Qt licensing/plugin disposition, and single-binding enforcement. Physical Windows 11 and clean-machine end-user execution are not prerequisites to toolkit retention; clean-machine remains later full-Q4/release/Gate-D evidence.
-10. After those relevant changes are integrated, perform a new revision-bound R2 Full Application Review against the then-current integrated `main`, then obtain the explicit maintainer toolkit-retention ADR decision. Scope-impact may cover only unrelated, non-material changes after that repeat review and before the final decision; it cannot replace the repeat R2.
+9. Preserve the completed bounded UI adoption-readiness phase (#177), integrated through PR #178 at `f394ece9`, under the current toolkit ADR: physical Windows 10 reference validation, supported Python 3.10–3.14 compatibility evidence, applicable keyboard/focus/UIA quality, optional-dependency and entry-point policy, representative packaging/startup, bundle inventory/SBOM-equivalent evidence, Qt licensing/plugin disposition, and single-binding enforcement. Physical Windows 11 and clean-machine end-user execution are not prerequisites to toolkit retention; clean-machine remains later full-Q4/release/Gate-D evidence.
+10. Review and integrate the [repeated R2 GO / Recommend Retain record](r2-ui-architecture-review-repeat.md), bound to integrated `main` `f394ece9d139b9af1a0ae14faea5d7982816a33a`, then obtain the separate explicit maintainer toolkit-retention ADR decision. The technical review is complete; ADR acceptance remains pending. Scope-impact may cover only unrelated, non-material changes after that repeat review and before the final decision; it cannot replace the repeat R2 or review of material subsequent changes.
 11. Only after the toolkit is retained **and every applicable Product Gate A/B decision is explicitly approved under Q5** may movement toward **P1 — Read-only Vertical Slice** be authorized. Satisfying technical gate conditions without the revision-valid review, product-demonstrability record and explicit maintainer approval required for the gate decision is insufficient. Fixture-only data may then be replaced only through approved application query services.
 
 The [2026-09-10 Security Baseline](security-baseline-2026-09-10.md) adds those
