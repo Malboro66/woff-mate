@@ -98,12 +98,17 @@ def test_actual_candidate_keyboard_and_accessibility(tmp_path):
 
 def test_recorded_candidate_evidence_is_current_and_truthful():
     evidence = ROOT / 'docs/ui/evidence/issue-177-adoption'
-    if not evidence.exists():
-        pytest.skip('Candidate evidence collection is in progress')
+    assert evidence.is_dir(), 'Committed adoption evidence must not disappear'
     index = json.loads((evidence / 'index.json').read_text())
     assert index['physical_windows10_delta'] == 'pending'
     assert index['adr_status'] == 'Proposed'
     assert index['p1_authorized'] is False
+    required = {f'source-linux-py{v}.json' for v in ('310', '311', '312', '313', '314')}
+    required |= {f'{kind}-{system}-py{v}.json' for system in ('linux', 'windows')
+                 for v in ('310', '314') for kind in ('bundled', 'inventory')}
+    required |= {f'{kind}-windows-py{v}.json' for v in ('310', '314') for kind in ('source', 'hosted-uia')}
+    assert set(index['sha256']) == required
+    expected_inputs = set(policy.provenance()['input_sha256'])
     for relative, expected in index['sha256'].items():
         path = evidence / relative
         assert hashlib.sha256(path.read_bytes()).hexdigest() == expected
@@ -112,6 +117,7 @@ def test_recorded_candidate_evidence_is_current_and_truthful():
         assert record['input_tree_dirty'] is False
         assert len(record['revision']) == 40
         inputs = record['input_sha256']
+        assert set(inputs) == expected_inputs
         assert record['input_digest'] == hashlib.sha256(json.dumps(inputs, sort_keys=True).encode()).hexdigest()
         for name, digest in inputs.items():
             data = (ROOT / name).read_bytes()

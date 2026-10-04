@@ -1,0 +1,2 @@
+# Raw reports are hashed evidence. Preserve native report bytes on every checkout.
+*.json -text

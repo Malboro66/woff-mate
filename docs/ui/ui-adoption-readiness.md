@@ -20,8 +20,10 @@ not toolkit-retention blockers.
   engineering licensing disposition; remove Qt Virtual Keyboard and unnecessary
   modules/plugins and prevent their reintroduction.
 
-Evidence is pending until executed and revision-bound. Linux offscreen and hosted
-Windows CI cannot substitute for the maintainer's physical Windows 10 delta.
+Executed evidence is archived under [issue-177-adoption](evidence/issue-177-adoption/README.md).
+Readiness is **not complete**: the compact Windows layout finding and physical
+Windows 10 delta remain open. Linux offscreen and hosted Windows CI cannot
+substitute for the maintainer's physical Windows 10 delta.
 Unchanged P0 rendering/scaling evidence may be reused with explicit source hashes.
 
 ## Canonical entry and optional installation

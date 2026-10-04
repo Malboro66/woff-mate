@@ -1,0 +1,66 @@
+{
+  "schema": 1,
+  "issue": 177,
+  "draft_pr": 178,
+  "status": "partial; readiness not complete",
+  "physical_windows10_delta": "pending",
+  "adr_status": "Proposed",
+  "p1_authorized": false,
+  "product_gates_approved": [],
+  "historical_first_r2": "HOLD / Conditional No-Go for production retention",
+  "source_matrix": [
+    "3.10",
+    "3.11",
+    "3.12",
+    "3.13",
+    "3.14"
+  ],
+  "local_candidate_revision": "3326bec1a00c2653cbb7d37908d9c53258d7e005",
+  "open_findings": [
+    "Windows compact brand text: 135px advance in 120px label at 680x520 / QT_SCALE_FACTOR=2",
+    "Native UIA SetFocus does not acquire combo selector focus; basic name/role/focusability separately observed"
+  ],
+  "sha256": {
+    "bundled-linux-py310.json": "8ec8f577e1879f159e7fdd0576f858757641e199834a1f82e7da28367c173de0",
+    "bundled-linux-py314.json": "2c951b0734c0fbddcf5d9d3e197ecb5fdac68104bdcb5162a949b3e95eddefa9",
+    "bundled-windows-py310.json": "8ea113c9662fd025c8fddc6d17dfeacec121f3992798c40db11cc6974b84edc5",
+    "bundled-windows-py314.json": "b2c84195eda7abca4f606ecf81fc789e060e87b189d18ec73a6570120651c9ab",
+    "hosted-uia-windows-py310.json": "1cf5f1311813d7460766ef1d909f5dca54583b90f4e3af21299103c01b36709f",
+    "hosted-uia-windows-py314.json": "690dca59a3d648b0eeb146f24a9e472f723b6c5533c54bc92110e0ef88c4d1f7",
+    "inventory-linux-py310.json": "af7be4d6df2cb93e9ef3a879b87011057eb916edc7d5122d59a6336e970ce442",
+    "inventory-linux-py314.json": "3b1dbd6635d469f56e0aa8eda35c328701b7fa894cc4211ca834f120b07bcfce",
+    "inventory-windows-py310.json": "64875d534a0d351da92cf99228955a016a9d0c945985fc20052947305eb806b5",
+    "inventory-windows-py314.json": "f01cc6185de7bba1c73f9904cfbd78198ef6465c6d3e62f91e73347e9018e625",
+    "source-linux-py310.json": "5dd25cf2d9823ea452d2a4e2fb3fa6f601eb5b62731ba8c5cc462be6086834cc",
+    "source-linux-py311.json": "a9366283431fe4f5b41ae86d75140e68b4ce0a44ca4977e0127c0643c9aeae88",
+    "source-linux-py312.json": "01a59a3da79a80f65a4a355a5628710f6faee4d4f78824324379e1e89dabb8c3",
+    "source-linux-py313.json": "ccbe2d0d61f41f5690994f8f3025f2a80268c18bee081946816bc999e00e759b",
+    "source-linux-py314.json": "706b8ce72fadfe71f6998527ff5460f5f639ded1431d8886db9b2201c97cc6f3",
+    "source-windows-py310.json": "e56d43f048c27771d564f49e93ece0fad1659f6e3c62a0c1d23b6ed42b9189bd",
+    "source-windows-py314.json": "1d7385669f4ada39877fec67b46b3fcd80ea8c23b78eae41fb969af03e618b78"
+  },
+  "ci_candidate_revision": "b695c3e2b5eaad24565a2ba00e16f4931f7c6524",
+  "ci_runs": {
+    "standard_ci": {
+      "id": 37192998585,
+      "number": 324,
+      "conclusion": "success"
+    },
+    "ui_adoption": {
+      "id": 37192998653,
+      "number": 5,
+      "conclusion": "failure",
+      "reason": "Historical P0 compact 200% brand-width assertion on Windows; separate candidate evidence steps passed"
+    }
+  },
+  "windows_reports": {
+    "310": {
+      "artifact_id": 11300095511,
+      "zip_sha256": "21b09a2bbd3d55aa4d4699dcfdc94b757f113cadf9088727f5bfd6c4596e7f67"
+    },
+    "314": {
+      "artifact_id": 11299333587,
+      "zip_sha256": "2364fd521f99fe9110475aa33a84a00cd287c17fd4b141807a8917b81650afba"
+    }
+  }
+}
