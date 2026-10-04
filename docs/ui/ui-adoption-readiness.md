@@ -73,6 +73,24 @@ source origin. CI artifacts retain reports and Windows candidate bundles private
 
 ## Physical Windows 10 delta — pending
 
+### Open compact-layout finding
+
+Hosted Windows on both Python endpoints reproduced an inherited compact-layout
+failure in `test_offscreen_shell_navigation_switch_focus_and_retry`: at 680×520
+and `QT_SCALE_FACTOR=2`, the Georgia brand text measured 135 logical pixels in a
+120-pixel label. Waiting for layout settlement did not remove the failure.
+Run [37171816406](https://github.com/Malboro66/woff-mate/actions/runs/37171816406)
+binds this observation to `fba2516abc96665223221cd65bfac0391570717f`.
+
+The failing historical P0 test remains an enforced readiness workflow step.
+It runs after independent source/package/UIA evidence collection so that the
+failure does not erase unrelated observations. This finding is **not waived or
+fixed**. The issue remains open. Window rendering is unchanged in this bounded
+configuration/evidence pass; any UI correction requires an explicitly authorized
+scope extension. Add one targeted compact/200% observation to the physical delta
+to determine whether the offscreen finding also appears on the reference desktop;
+do not automatically repeat every page/state/scale combination.
+
 After obtaining a passing Windows endpoint candidate and its matching inventory,
 run from the checkout root in PowerShell (do not set the offscreen platform):
 

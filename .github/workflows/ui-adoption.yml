@@ -42,7 +42,7 @@ jobs:
         env:
           QT_QPA_PLATFORM: offscreen
         run: |
-          python -m pytest tests/test_ui_adoption.py tests/test_p0_desktop.py -q
+          python -m pytest tests/test_ui_adoption.py -q
           python ui_adoption_launcher.py --smoke --evidence build/adoption/source.json
       - name: Build representative endpoint candidate
         if: matrix.python == '3.10' || matrix.python == '3.14'
@@ -74,3 +74,10 @@ jobs:
           path: dist/WoFFMateAdoption/
           if-no-files-found: error
           retention-days: 7
+      # Keep the inherited layout regression as a failing gate, but do not lose
+      # independent candidate packaging/UIA evidence when it detects a defect.
+      - name: Historical P0 regressions (includes compact 200% layout)
+        shell: bash
+        env:
+          QT_QPA_PLATFORM: offscreen
+        run: python -m pytest tests/test_p0_desktop.py -q
