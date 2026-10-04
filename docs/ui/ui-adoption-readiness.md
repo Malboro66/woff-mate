@@ -21,8 +21,10 @@ not toolkit-retention blockers.
   modules/plugins and prevent their reintroduction.
 
 Executed evidence is archived under [issue-177-adoption](evidence/issue-177-adoption/README.md).
-Readiness is **not complete**: the compact Windows layout finding and physical
-Windows 10 delta remain open. Linux offscreen and hosted Windows CI cannot
+Readiness is **not complete**. The maintainer authorized a bounded corrective pass
+on 2026-10-04 for the compact layout and selector investigation. See
+[correction evidence](ui-adoption-correction.md) for the separate pre-fix,
+implementation and post-fix facts. Physical Windows 10 remains pending. Linux offscreen and hosted Windows CI cannot
 substitute for the maintainer's physical Windows 10 delta.
 Unchanged P0 rendering/scaling evidence may be reused with explicit source hashes.
 
@@ -41,10 +43,10 @@ installation. A final installed production UI entry point belongs to a later
 authorized architecture/integration step. Do not advertise `python -m
 woff.p0_desktop` as the guarded candidate entry: that is the historical P0 command.
 
-`ui_adoption.spec` wraps the unchanged P0 window/fixtures and excludes live
+`ui_adoption.spec` wraps the P0 window with a localized metric-sized brand rail and unchanged fixtures and excludes live
 database/parser/repository/watchdog code. It does not modify `build.spec` or
 `p0_desktop.spec`. Linux offscreen is evidence only; physical Windows 10 remains
-the reference desktop. No rendering/layout changes justify a repeated DPI suite.
+the reference desktop. The rail sizing delta requires targeted compact/normal viewport checks; no full page/state DPI suite is required.
 
 ## Reproduction
 
@@ -75,7 +77,7 @@ source origin. CI artifacts retain reports and Windows candidate bundles private
 
 ## Physical Windows 10 delta — pending
 
-### Open compact-layout finding
+### Historical compact-layout finding and corrective pass
 
 Hosted Windows on both Python endpoints reproduced an inherited compact-layout
 failure in `test_offscreen_shell_navigation_switch_focus_and_retry`: at 680×520
@@ -84,14 +86,12 @@ and `QT_SCALE_FACTOR=2`, the Georgia brand text measured 135 logical pixels in a
 Run [37171816406](https://github.com/Malboro66/woff-mate/actions/runs/37171816406)
 binds this observation to `fba2516abc96665223221cd65bfac0391570717f`.
 
-The failing historical P0 test remains an enforced readiness workflow step.
-It runs after independent source/package/UIA evidence collection so that the
-failure does not erase unrelated observations. This finding is **not waived or
-fixed**. The issue remains open. Window rendering is unchanged in this bounded
-configuration/evidence pass; any UI correction requires an explicitly authorized
-scope extension. Add one targeted compact/200% observation to the physical delta
-to determine whether the offscreen finding also appears on the reference desktop;
-do not automatically repeat every page/state/scale combination.
+The historical failure remains preserved in the original archive. The correction
+reserves the measured brand text width plus the existing icon, spacing and margins;
+it retains the 184/256 logical-pixel rail baselines whenever they suffice. The
+original regression remains enforced, alongside four-scale viewport transition
+checks. See the correction record for execution status. One compact/200% physical
+observation and the maintainer's normal-scale check remain required.
 
 After obtaining a passing Windows endpoint candidate and its matching inventory,
 run from the checkout root in PowerShell (do not set the offscreen platform):
@@ -105,8 +105,7 @@ checks representative native UIA names, roles, enabled/focusable status and butt
 focus acquisition. Hosted runs found that UIA `SetFocus` did not move focus into
 the combo selectors. The collector records each unsuccessful combo focus request
 and its observed target in `programmatic_combo_focus_warnings`; it does not
-relabel those requests as successful. Keyboard Tab/selector navigation is tested
-separately by the Qt probe. This residual limitation must be presented to future
+relabel those requests as successful. The updated collector also sends Tab/Shift+Tab and Up/Down to the foreground candidate, verifying native UIA focus state and selection values independently of SetFocus. The Qt probe separately checks the native control, widget focus and accessible state. This residual limitation must be presented to future
 R2; full UIA interaction/speech certification is not claimed.
 The physical flag is an explicit maintainer attestation;
 the script verifies Windows 10 but cannot infer physical hardware from an OS name.
@@ -116,8 +115,7 @@ At the maintainer's normal scale, observe one launch, visible focus using
 Tab/Shift+Tab, navigation with arrows/Space, the career selector, and normal close.
 Return the JSON plus the scale and visible-focus observation. Screenshots are
 needed only if a changed behavior or defect appears. The historical four-scale
-P0 walkthrough remains reusable because full window/fixture/contract hashes are
-unchanged. Speech, Windows 11 and clean-machine certification are not requested.
+P0 walkthrough remains historical; keyboard blocks, fixtures and contracts remain unchanged. The brand rail sizing is the explicit rendering delta and must receive the targeted checks above. Speech, Windows 11 and clean-machine certification are not requested.
 
 ## Decision sequence and exclusions
 

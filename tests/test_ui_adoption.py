@@ -74,7 +74,7 @@ def test_candidate_boundary_and_historical_render_inputs_unchanged():
             names = ([n.name for n in node.names] if isinstance(node, ast.Import) else
                      [node.module or ''] if isinstance(node, ast.ImportFrom) else [])
             assert not any(n == f or n.startswith(f + '.') for n in names for f in forbidden)
-    for name in ['woff/p0_desktop/window.py', 'woff/p0_desktop/fixtures.py',
+    for name in ['woff/p0_desktop/fixtures.py',
                  'woff/ui_contracts.py', 'p0_desktop.spec', 'build.spec']:
         prior = subprocess.check_output(['git', 'rev-parse', f'741bad8192517c4ade38e9e718845f086beff849:{name}'], cwd=ROOT).strip()
         # Git's canonical blob respects checkout LF/CRLF filters on Windows.
@@ -83,20 +83,25 @@ def test_candidate_boundary_and_historical_render_inputs_unchanged():
 
 
 @pytest.mark.skipif(policy.importlib.util.find_spec('PySide6') is None, reason='Optional UI extra unavailable')
-def test_actual_candidate_keyboard_and_accessibility(tmp_path):
+@pytest.mark.parametrize('scale', ['1', '1.25', '1.5', '2'])
+def test_actual_candidate_keyboard_and_accessibility(tmp_path, scale):
     output = tmp_path / 'smoke.json'
     result = subprocess.run([sys.executable, 'ui_adoption_launcher.py', '--smoke', '--evidence', str(output)],
-                            cwd=ROOT, env=dict(os.environ, QT_QPA_PLATFORM='offscreen'),
+                            cwd=ROOT, env=dict(os.environ, QT_QPA_PLATFORM='offscreen', QT_SCALE_FACTOR=scale),
                             capture_output=True, text=True, timeout=30)
     assert result.returncode == 0, result.stderr
     data = json.loads(output.read_text())
     assert data['status'] == 'passed'
     assert len(data['controls']) == 10
     assert data['environment']['qt'] == policy.VERSION
+    assert len(data['layout']) == 5
+    assert all(row['brand_advance'] <= row['brand_available'] for row in data['layout'])
+    assert len(data['selector_focus']) == 3
+    assert all(row['qt_accessible_focused'] for row in data['selector_focus'])
     assert data['basic_windows_uia'] == 'not measured by Qt interface probe'
 
 
-def test_recorded_candidate_evidence_is_current_and_truthful():
+def test_pre_fix_evidence_remains_intact_and_truthful():
     evidence = ROOT / 'docs/ui/evidence/issue-177-adoption'
     assert evidence.is_dir(), 'Committed adoption evidence must not disappear'
     index = json.loads((evidence / 'index.json').read_text())
@@ -119,7 +124,13 @@ def test_recorded_candidate_evidence_is_current_and_truthful():
         inputs = record['input_sha256']
         assert set(inputs) == expected_inputs
         assert record['input_digest'] == hashlib.sha256(json.dumps(inputs, sort_keys=True).encode()).hexdigest()
+        # Authorized correction supersedes these inputs; the pre-fix archive
+        # stays byte-identical and is never advertised as current execution.
+        corrected = {'woff/p0_desktop/window.py', 'scripts/ui_adoption_probe.py',
+                     'scripts/validate_ui_adoption_windows.ps1'}
         for name, digest in inputs.items():
+            if name in corrected:
+                continue
             data = (ROOT / name).read_bytes()
             candidates = [data]
             try:
@@ -140,3 +151,29 @@ def test_recorded_candidate_evidence_is_current_and_truthful():
             assert report['physical_windows10'] is False
             assert len(report['controls']) == 10
             assert all(c['focusable'] for c in report['controls'])
+
+
+@pytest.mark.skipif(policy.importlib.util.find_spec('PySide6') is None, reason='Optional UI extra unavailable')
+def test_compact_rail_reserves_native_brand_metrics():
+    # Deterministically exercise metrics wider than the original 120px slot,
+    # including on hosts without the Windows Georgia font.
+    code = """
+from PySide6.QtWidgets import QApplication
+from PySide6.QtTest import QTest
+from woff.p0_desktop.window import P0Window
+app = QApplication([])
+w = P0Window()
+w.show()
+w.brand_name.setText('WoFF Mate WWWW')
+w.resize(680, 520)
+QTest.qWait(100)
+advance = w.brand_name.fontMetrics().horizontalAdvance(w.brand_name.text())
+assert advance > 120
+assert w.brand_name.width() >= advance, (advance, w.brand_name.width())
+assert w.brand_symbol.geometry().right() < w.brand_name.geometry().left()
+w.close()
+"""
+    result = subprocess.run([sys.executable, '-c', code], cwd=ROOT,
+                            env=dict(os.environ, QT_QPA_PLATFORM='offscreen'),
+                            capture_output=True, text=True, timeout=30)
+    assert result.returncode == 0, result.stderr

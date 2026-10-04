@@ -44,6 +44,9 @@ jobs:
         run: |
           python -m pytest tests/test_ui_adoption.py -q
           python ui_adoption_launcher.py --smoke --evidence build/adoption/source.json
+          for scale in 1.25 1.5 2; do
+            QT_SCALE_FACTOR=$scale python ui_adoption_launcher.py --smoke --evidence build/adoption/source-scale-$scale.json
+          done
       - name: Build representative endpoint candidate
         if: matrix.python == '3.10' || matrix.python == '3.14'
         run: python -m PyInstaller --clean --noconfirm ui_adoption.spec

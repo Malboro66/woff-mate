@@ -8,6 +8,34 @@ param(
 $ErrorActionPreference = 'Stop'
 Add-Type -AssemblyName UIAutomationClient
 Add-Type -AssemblyName UIAutomationTypes
+Add-Type -AssemblyName System.Windows.Forms
+Add-Type @'
+using System;
+using System.Runtime.InteropServices;
+public static class AdoptionKeyboardWindow {
+    [DllImport("user32.dll")] public static extern bool SetForegroundWindow(IntPtr handle);
+    [DllImport("user32.dll")] public static extern IntPtr GetForegroundWindow();
+}
+'@
+function Send-AdoptionKey([string]$Key) {
+    if ([AdoptionKeyboardWindow]::GetForegroundWindow() -ne $adoptionHandle) {
+        throw 'Refusing keyboard input outside candidate foreground window'
+    }
+    [System.Windows.Forms.SendKeys]::SendWait($Key)
+    Start-Sleep -Milliseconds 200
+}
+function Get-AdoptionControl([string]$Name) {
+    $condition = New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::NameProperty, $Name)
+    return $adoptionRoot.FindFirst([System.Windows.Automation.TreeScope]::Descendants, $condition)
+}
+function Assert-AdoptionKeyboardFocus($Control) {
+    for ($attempt = 0; $attempt -lt 20; $attempt++) {
+        $focused = [System.Windows.Automation.AutomationElement]::FocusedElement
+        if ([System.Windows.Automation.Automation]::Compare($focused, $Control) -and $Control.Current.HasKeyboardFocus) { return }
+        Start-Sleep -Milliseconds 100
+    }
+    throw "Native keyboard/UIA focus mismatch: $($Control.Current.Name); observed $($focused.Current.Name)"
+}
 $adoptionBundle = (Resolve-Path -LiteralPath $Bundle).Path
 $adoptionInventory = Get-Content -Raw -LiteralPath $Inventory | ConvertFrom-Json
 $adoptionBuild = Get-Content -Raw -LiteralPath (Join-Path $adoptionBundle '_internal/adoption-build.json') | ConvertFrom-Json
@@ -94,17 +122,54 @@ try {
         }
         $adoptionElements += @{ name=$adoptionName; role=$adoptionCurrent.ControlType.ProgrammaticName; focusable=$true; focus_verified=$adoptionFocusVerified; focused_role=$adoptionFocused.Current.ControlType.ProgrammaticName }
     }
+    # UIA SetFocus is not implemented by native QAccessibleComboBox 6.11.2.
+    # Independently exercise real keyboard input and observe focus/value via UIA.
+    [void][AdoptionKeyboardWindow]::SetForegroundWindow($adoptionHandle)
+    Start-Sleep -Milliseconds 200
+    $adoptionKeyboard = @()
+    foreach ($selector in @(
+        @{name='Select synthetic career'; predecessor='Skip to content'},
+        @{name='P0 fixture state'; predecessor='Data & System Status'}
+    )) {
+        $control = Get-AdoptionControl $selector.name
+        $predecessor = Get-AdoptionControl $selector.predecessor
+        $predecessor.SetFocus()
+        Assert-AdoptionKeyboardFocus $predecessor
+        Send-AdoptionKey '{TAB}'
+        Assert-AdoptionKeyboardFocus $control
+        $valuePattern = $control.GetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern)
+        $before = $valuePattern.Current.Value
+        Send-AdoptionKey '{DOWN}'
+        $after = $valuePattern.Current.Value
+        if ($after -eq $before) { throw "Selector Down key did not change UIA value: $($selector.name)" }
+        # Career changes intentionally transfer focus to the content heading.
+        # Re-enter by the documented tab path before reversing the selection.
+        $predecessor.SetFocus()
+        Assert-AdoptionKeyboardFocus $predecessor
+        Send-AdoptionKey '{TAB}'
+        Assert-AdoptionKeyboardFocus $control
+        Send-AdoptionKey '{UP}'
+        if ($valuePattern.Current.Value -ne $before) { throw "Selector Up key did not restore value: $($selector.name)" }
+        $predecessor.SetFocus()
+        Assert-AdoptionKeyboardFocus $predecessor
+        Send-AdoptionKey '{TAB}'
+        Assert-AdoptionKeyboardFocus $control
+        Send-AdoptionKey '+{TAB}'
+        Assert-AdoptionKeyboardFocus $predecessor
+        $adoptionKeyboard += @{name=$selector.name; tab_focus_verified=$true; has_keyboard_focus_observed=$true;
+            shift_tab_verified=$true; before=$before; after_down=$after; up_restored=$true}
+    }
     $adoptionResult = @{
-        schema=1; eval='EVAL-UI-ADOPTION-PACKAGE-001'; status='passed';
+        schema=2; eval='EVAL-UI-ADOPTION-PACKAGE-001'; status='passed';
         physical_windows10=[bool]$PhysicalWindows10;
         physical_attestation='The PhysicalWindows10 switch is a maintainer assertion; OS checks alone cannot prove physical hardware';
         os=@{caption=$adoptionOS.Caption; version=$adoptionOS.Version; build=$adoptionOS.BuildNumber};
         provenance=$adoptionBuild; executable_sha256=(Get-FileHash -Algorithm SHA256 -LiteralPath $adoptionExecutable).Hash.ToLowerInvariant();
         inventory_sha256=(Get-FileHash -Algorithm SHA256 -LiteralPath $Inventory).Hash.ToLowerInvariant();
-        controls=$adoptionElements; programmatic_combo_focus_warnings=$adoptionFocusWarnings;
-        acceptance_scope='native UIA names/roles/focusability and representative button focus; combo SetFocus limitations retained for R2';
+        selector_keyboard=$adoptionKeyboard; controls=$adoptionElements; programmatic_combo_focus_warnings=$adoptionFocusWarnings;
+        acceptance_scope='native UIA names/roles/focusability; button SetFocus; selector Tab/Shift+Tab focus and Up/Down values; native combo SetFocus limitation retained';
         visible_focus_manual='pending maintainer observation';
-        speech_certification='out of scope'; full_dpi_repeat='not required: unchanged rendering inputs'
+        speech_certification='out of scope'; physical_layout_delta='pending: metric-sized brand rail at compact/200% and maintainer normal scale; no full page/state suite'
     }
     $adoptionResult | ConvertTo-Json -Depth 12 | Set-Content -Encoding UTF8 -LiteralPath $Output
 } finally {

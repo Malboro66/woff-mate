@@ -194,9 +194,13 @@ class P0Window(QMainWindow):
 
     def resizeEvent(self, event: QResizeEvent) -> None:
         compact = self.width() < 1000
-        self.rail.setFixedWidth(184 if compact else 256)
         self.brand_name.setStyleSheet("font-size: 15px;" if compact else "")
         size = 24 if compact else 32
+        # Native font metrics vary by platform. Reserve the brand's actual
+        # width plus symbol, layout spacing and rail margins before shrinking.
+        self.brand_name.ensurePolished()
+        brand_width = self.brand_name.fontMetrics().horizontalAdvance(self.brand_name.text())
+        self.rail.setFixedWidth(max(184 if compact else 256, brand_width + size + 8 + 32 + 2))
         self.brand_symbol.setPixmap(_svg_icon(_ASSETS / "branding/woff_mate_symbol_light.svg", "#F4EFE2", size).pixmap(size, size))
         self.nav_buttons["SYS-01"].setText("Data && System\nStatus" if compact else "Data && System Status")
         super().resizeEvent(event)
