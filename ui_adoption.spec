@@ -34,8 +34,8 @@ for package in PACKAGES:
 a = Analysis(['ui_adoption_launcher.py'], pathex=[str(root)], binaries=[], datas=datas,
     hiddenimports=[], hookspath=[], hooksconfig={}, runtime_hooks=[],
     excludes=['sqlite3', '_sqlite3', 'watchdog', 'woff.database', 'woff.parsers',
-              'woff.repositories', 'woff.woff_watchdog', 'requests', 'PyQt5', 'PyQt6',
-              'PySide2', 'PySide6.QtNetwork', 'PySide6.QtQml', 'PySide6.QtQuick'],
+              'woff.repositories', 'woff.woff_watchdog', 'requests', 'PyQt4', 'PyQt5', 'PyQt6',
+              'PySide', 'PySide2', 'PySide6.QtNetwork', 'PySide6.QtQml', 'PySide6.QtQuick'],
     noarchive=False)
 # PyInstaller's broad QtGui hooks collect image/platform plugins the fixture shell
 # never uses. Filter both TOCs and validate the resulting actual bundle separately.

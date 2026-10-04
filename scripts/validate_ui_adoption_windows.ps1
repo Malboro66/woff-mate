@@ -63,9 +63,29 @@ try {
             throw "UIA control unavailable: $adoptionName"
         }
         $adoptionControl.SetFocus()
-        Start-Sleep -Milliseconds 100
-        if (-not $adoptionControl.Current.HasKeyboardFocus) { throw "UIA focus failed: $adoptionName" }
-        $adoptionElements += @{ name=$adoptionName; role=$adoptionCurrent.ControlType.ProgrammaticName; focusable=$true; focus_verified=$true }
+        $adoptionFocused = $null
+        $adoptionFocusVerified = $false
+        # UIA focus notifications are asynchronous; composite controls may focus
+        # a child. Accept only the requested element or one of its descendants.
+        for ($adoptionFocusAttempt = 0; $adoptionFocusAttempt -lt 20; $adoptionFocusAttempt++) {
+            Start-Sleep -Milliseconds 100
+            $adoptionFocused = [System.Windows.Automation.AutomationElement]::FocusedElement
+            $adoptionAncestor = $adoptionFocused
+            for ($adoptionDepth = 0; $null -ne $adoptionAncestor -and $adoptionDepth -lt 12; $adoptionDepth++) {
+                if ([System.Windows.Automation.Automation]::Compare($adoptionAncestor, $adoptionControl)) {
+                    $adoptionFocusVerified = $true; break
+                }
+                if ([System.Windows.Automation.Automation]::Compare($adoptionAncestor, $adoptionRoot)) { break }
+                $adoptionAncestor = [System.Windows.Automation.TreeWalker]::ControlViewWalker.GetParent($adoptionAncestor)
+            }
+            if ($adoptionFocusVerified) { break }
+        }
+        if (-not $adoptionFocusVerified) {
+            $adoptionDiagnostic = @{status='failed'; requested=$adoptionName; focused_name=$adoptionFocused.Current.Name; focused_role=$adoptionFocused.Current.ControlType.ProgrammaticName; controls=$adoptionElements; provenance=$adoptionBuild}
+            $adoptionDiagnostic | ConvertTo-Json -Depth 12 | Set-Content -Encoding UTF8 -LiteralPath $Output
+            throw "UIA focus failed: $adoptionName; observed $($adoptionFocused.Current.Name) / $($adoptionFocused.Current.ControlType.ProgrammaticName)"
+        }
+        $adoptionElements += @{ name=$adoptionName; role=$adoptionCurrent.ControlType.ProgrammaticName; focusable=$true; focus_verified=$true; focused_role=$adoptionFocused.Current.ControlType.ProgrammaticName }
     }
     $adoptionResult = @{
         schema=1; eval='EVAL-UI-ADOPTION-PACKAGE-001'; status='passed';

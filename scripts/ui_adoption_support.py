@@ -76,7 +76,7 @@ def allowed_qt_file(name: str) -> bool:
     """Only constrain Qt/binding files; inventory records all other libraries."""
     normalized = name.replace("\\", "/")
     lower = normalized.lower()
-    if any(token in lower for token in ("virtualkeyboard", "pyqt", "pyside2", "/qml/")):
+    if any(token in lower for token in ("virtualkeyboard", "pyqt", "pyside2", "pyside/", "qt5", "/qml/")):
         return False
     if "/plugins/" in normalized:
         return normalized.split("/plugins/", 1)[1] in PLUGINS
@@ -92,7 +92,7 @@ def allowed_qt_file(name: str) -> bool:
 
 def binary_origin(path: Path) -> dict:
     """Sanitized collection identity; never persist a developer's absolute path."""
-    result = {'source_name': path.name, 'source_sha256': sha256(path)}
+    result: dict = {'source_name': path.name, 'source_sha256': sha256(path)}
     for package in PACKAGES:
         dist = metadata.distribution(package)
         for entry in dist.files or []:
@@ -110,6 +110,8 @@ def binary_origin(path: Path) -> dict:
                 result.update(origin='build-host Debian package', package=package, version=version)
                 if copyright_path.is_file():
                     result['copyright_sha256'] = sha256(copyright_path)
+                    result['copyright_identifiers'] = sorted(set(re.findall(
+                        r'^License: (.+)$', copyright_path.read_text(errors='replace'), re.MULTILINE)))
                 return result
     result['origin'] = 'Python/toolchain runtime collection; source file identity retained'
     return result
