@@ -126,7 +126,10 @@ def test_qt_and_forbidden_live_modules_do_not_cross_boundary() -> None:
     for path in (ROOT / 'woff').glob('*.py'):
         assert 'PySide6' not in path.read_text(encoding='utf-8')
     assert 'PySide6' not in (ROOT / 'build.spec').read_text(encoding='utf-8')
-    assert 'PySide6' not in (ROOT / 'pyproject.toml').read_text()
+    # #177 permits the pinned optional UI extra, never a base Qt dependency.
+    project = (ROOT / 'pyproject.toml').read_text()
+    base = project.split('dependencies = [', 1)[1].split(']', 1)[0]
+    assert 'PySide' not in base and 'PyQt' not in base
     assert '"woff.p0_desktop"' in (ROOT / 'pyproject.toml').read_text()
 
 

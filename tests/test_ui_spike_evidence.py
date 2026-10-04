@@ -118,9 +118,12 @@ def test_shell_recipe_has_no_application_integration():
             imported.add((node.module or '').split('.')[0])
     assert imported <= {'time', 'json', 'os', 'sys', 'pathlib', 'PySide6', 'psutil'}
     assert 'Status: Proposed' in (ROOT / 'docs/architecture/adr-ui-toolkit.md').read_text(encoding='utf-8')
-    for name in ['pyproject.toml', 'requirements.txt']:
+    # #177 adds an optional pinned UI extra; historical #82 evidence stays intact.
+    for name in ['requirements.txt']:
         content = (ROOT / name).read_text(encoding='utf-8').lower()
         assert 'pyside' not in content and 'pyqt' not in content
+    base = (ROOT / 'pyproject.toml').read_text().split('dependencies = [', 1)[1].split(']', 1)[0].lower()
+    assert 'pyside' not in base and 'pyqt' not in base
 
 
 def test_packaging_evidence_preserves_distribution_blocker():

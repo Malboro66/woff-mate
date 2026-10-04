@@ -1007,7 +1007,9 @@ def test_contract_module_has_no_forbidden_runtime_or_toolkit_boundary_imports() 
         }
     )
 
+    # #177 explicitly authorizes an optional UI extra, not a mandatory binding.
     pyproject = (ROOT / "pyproject.toml").read_text(encoding="utf-8").casefold()
+    pyproject = pyproject.split('dependencies = [', 1)[1].split(']', 1)[0]
     requirements = (ROOT / "requirements.txt").read_text(encoding="utf-8").casefold()
     for qt_name in ("pyside2", "pyside6", "pyqt5", "pyqt6"):
         assert qt_name not in pyproject
