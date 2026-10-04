@@ -68,8 +68,11 @@ def provenance() -> dict:
 
 
 def environment() -> dict:
+    from PySide6.QtCore import qVersion
+    if qVersion() != VERSION:
+        raise RuntimeError(f'Expected Qt {VERSION}; found {qVersion()}')
     return {"python": platform.python_version(), "system": platform.system(),
-            "machine": platform.machine(), **check_bindings()}
+            "machine": platform.machine(), "qt": qVersion(), **check_bindings()}
 
 
 def allowed_qt_file(name: str) -> bool:

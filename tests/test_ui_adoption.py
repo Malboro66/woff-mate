@@ -75,8 +75,10 @@ def test_candidate_boundary_and_historical_render_inputs_unchanged():
             assert not any(n == f or n.startswith(f + '.') for n in names for f in forbidden)
     for name in ['woff/p0_desktop/window.py', 'woff/p0_desktop/fixtures.py',
                  'woff/ui_contracts.py', 'p0_desktop.spec', 'build.spec']:
-        prior = subprocess.check_output(['git', 'show', f'741bad8192517c4ade38e9e718845f086beff849:{name}'], cwd=ROOT)
-        assert (ROOT / name).read_bytes() == prior
+        prior = subprocess.check_output(['git', 'rev-parse', f'741bad8192517c4ade38e9e718845f086beff849:{name}'], cwd=ROOT).strip()
+        # Git's canonical blob respects checkout LF/CRLF filters on Windows.
+        current = subprocess.check_output(['git', 'hash-object', f'--path={name}', name], cwd=ROOT).strip()
+        assert current == prior
 
 
 @pytest.mark.skipif(policy.importlib.util.find_spec('PySide6') is None, reason='Optional UI extra unavailable')

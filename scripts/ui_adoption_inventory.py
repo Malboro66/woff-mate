@@ -14,8 +14,15 @@ def classify(name: str) -> tuple[str, str]:
     lower = name.lower()
     if 'pyside6' in lower or 'shiboken6' in lower or 'qt6' in lower:
         return 'LGPL-3.0 route plus upstream third-party terms', 'retain bounded dynamic Qt candidate; release notices/source obligations pending'
+    filename = lower.rsplit('/', 1)[-1]
+    if filename.startswith(('api-ms-win-', 'vcruntime', 'msvcp')) or filename == 'ucrtbase.dll':
+        return 'Microsoft Visual C++/Universal CRT redistributable terms', 'retain Python/Qt native runtime; release redistributable notices pending'
+    if filename.startswith('libcrypto-1_1'):
+        return 'OpenSSL AND SSLeay (OpenSSL 1.1 lineage)', 'retain Python hashlib dependency; not a network feature; exact release notices pending'
+    if filename.startswith(('libcrypto-3', 'libssl-3')):
+        return 'Apache-2.0 (OpenSSL 3 lineage)', 'retain interpreter dependency; no runtime network integration; release notices pending'
     if lower.endswith(('.dll', '.so', '.pyd')) or '.so.' in lower:
-        if 'python' in lower or 'lib-dynload/' in lower:
+        if 'python' in lower or 'lib-dynload/' in lower or lower.endswith('.pyd'):
             return 'PSF-2.0 plus stdlib third-party terms', 'retain interpreter runtime; exact release notices pending'
         return 'platform/transitive native library; component-specific terms', 'retain collected dependency; release attribution reconciliation pending'
     if 'woff/assets/' in lower or lower.startswith('notices/'):
@@ -44,9 +51,12 @@ def inventory(bundle: Path) -> dict:
         if not allowed_qt_file(name):
             rejected.append(relative)
         license_route, disposition = classify(name)
+        origin = collection['binary_origins'].get(name)
+        if origin and origin.get('copyright_identifiers'):
+            license_route = 'build-host package-declared licensing contexts: ' + '; '.join(origin['copyright_identifiers'])
         files.append({'path': relative, 'bytes': path.stat().st_size, 'sha256': sha256(path),
                       'license_classification': license_route, 'disposition': disposition,
-                      'collection_origin': collection['binary_origins'].get(name)})
+                      'collection_origin': origin})
     if rejected:
         raise ValueError(f'Forbidden Qt bundle components: {rejected}')
     paths = [f['path'] for f in files]

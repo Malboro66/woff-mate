@@ -30,6 +30,8 @@ The inventory distinguishes distribution identity from collected binary contents
 | PySide6, shiboken6 and retained Qt modules/plugins | LGPL-3.0 route; dynamically linked, unmodified libraries in a one-directory bundle | Complete corresponding-source availability, copyright/license/third-party notices, replacement/relinking instructions and LGPL user rights; do not prohibit reverse engineering needed to debug modifications |
 | Qt third-party code (including compiled-in code) | Upstream module attributions remain applicable; inventory is not proof that embedded third-party code is absent | Complete per-version upstream source/SBOM attribution reconciliation under release work |
 | Python and stdlib extensions | PSF license plus per-module third-party terms | Include exact interpreter notices and upstream third-party notices |
+| Windows Python hashlib crypto library | OpenSSL 1.1 lineage uses OpenSSL/SSLeay terms; OpenSSL 3 lineage uses Apache-2.0; exact collected file identity is inventoried | Include the notices matching the actual interpreter build; this is hashing support, not a network runtime feature |
+| Windows VC/UCRT/API-set libraries | Microsoft runtime redistributable terms, collected with Python/Qt; versions/hashes remain bundle-specific | Verify applicable redistribution terms and notices before public distribution |
 | PyInstaller bootloader | GPL with bootloader exception; build tool identity recorded | Preserve applicable exception and notices; no claim that the whole application becomes GPL |
 | System/transitive native libraries | Actual filenames, hashes and collection source identifiers retained; platform-specific attribution review recorded separately | Complete native-library license/source reconciliation for the release platform |
 | WoFF Mate and committed UI assets | Repository LICENSE and asset-specific notices govern | Retain the included project/asset notices; synthetic assets do not supply campaign facts |
@@ -49,3 +51,8 @@ Engineering retention suitability is bounded to this explicit candidate scope.
 
 Exact installed wheel METADATA/RECORD hashes and upstream package URLs are recorded
 in the inventory. This engineering inventory is not the final public release SBOM.
+For Linux host libraries the collection record also preserves Debian package
+identity/version and copyright hash, with machine-readable package-declared license
+contexts where available. These package-wide identifiers are attribution evidence,
+not a claim that every license applies to every binary byte. Windows native files
+are classified separately as interpreter, OpenSSL or Microsoft runtime components.

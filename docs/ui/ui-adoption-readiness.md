@@ -81,8 +81,14 @@ run from the checkout root in PowerShell (do not set the offscreen platform):
 ```
 
 This verifies the exact file set/hashes, launches only the candidate window and
-checks representative native UIA names, roles, enabled/focusable status and actual
-UIA focus acquisition. The physical flag is an explicit maintainer attestation;
+checks representative native UIA names, roles, enabled/focusable status and button
+focus acquisition. Hosted runs found that UIA `SetFocus` did not move focus into
+the combo selectors. The collector records each unsuccessful combo focus request
+and its observed target in `programmatic_combo_focus_warnings`; it does not
+relabel those requests as successful. Keyboard Tab/selector navigation is tested
+separately by the Qt probe. This residual limitation must be presented to future
+R2; full UIA interaction/speech certification is not claimed.
+The physical flag is an explicit maintainer attestation;
 the script verifies Windows 10 but cannot infer physical hardware from an OS name.
 Hosted Windows results always remain labelled non-physical.
 
