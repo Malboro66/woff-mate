@@ -776,12 +776,12 @@ evals:
   EVAL-UI-ADOPTION-MATRIX-001:
     work_items: [issue-177]
     status: implemented
-    evidence: The optional ui extra pins PySide6 6.11.2 without adding Qt to the base install. The candidate validates exactly one binding and executes source keyboard/accessibility smoke on Python 3.10 through 3.14. Revision-bound results and remaining physical evidence are recorded in docs/ui/ui-adoption-readiness.md.
+    evidence: The optional ui extra pins PySide6 6.11.2 without adding Qt to the base install. The candidate validates exactly one binding and executes source keyboard/accessibility smoke on Python 3.10 through 3.14. Revision-bound results and completed physical evidence are recorded in docs/ui/ui-adoption-readiness.md.
     enforced_by: [tests/test_ui_adoption.py, scripts/ui_adoption_probe.py, .github/workflows/ui-adoption.yml]
   EVAL-UI-ADOPTION-PACKAGE-001:
     work_items: [issue-177]
     status: implemented
-    evidence: Separate fixture-only adoption spec and endpoint packaging/startup probes preserve historical P0 and headless specs. Native UIA collection is window-scoped and revision/hash-bound. Physical Windows 10 delta remains pending until an actual maintainer run; implemented harness is not completed physical evidence or toolkit acceptance.
+    evidence: Separate fixture-only adoption spec and endpoint packaging/startup probes preserve historical P0 and headless specs. Native UIA collection is window-scoped and revision/hash-bound. Physical Windows 10 Pro build 19045 delta passed at real 100/125/150/200 percent scaling, with unchanged raw physical reports for the run 8 candidate and separate maintainer attestation in docs/ui/evidence/issue-177-physical-windows10/README.md. Bounded evidence is complete on the implementation branch; integration into main, repeated R2 and ADR acceptance remain separate future steps.
     enforced_by: [ui_adoption.spec, scripts/validate_ui_adoption_windows.ps1, tests/test_ui_adoption.py]
   EVAL-UI-ADOPTION-LICENSE-001:
     work_items: [issue-177]
@@ -1471,7 +1471,7 @@ work_items:
   issue-177:
     title: Complete bounded PySide6 UI Adoption Readiness evidence
     module: p0_desktop
-    state: in_progress
+    state: done
     evals: [EVAL-UI-ADOPTION-MATRIX-001, EVAL-UI-ADOPTION-PACKAGE-001, EVAL-UI-ADOPTION-LICENSE-001]
     gates: [Q0, Q1]
     depends_on:
@@ -1488,7 +1488,7 @@ work_items:
       - {id: issue-81, status: satisfied}
       - {id: issue-82, status: satisfied}
       - {id: issue-140, status: satisfied}
-      - {id: issue-177, status: unsatisfied}
+      - {id: issue-177, status: satisfied}
 
 cycles:
   cycle-3.2.1:

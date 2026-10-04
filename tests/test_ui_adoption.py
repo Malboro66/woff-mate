@@ -233,3 +233,79 @@ def test_post_fix_evidence_is_complete_and_bound_to_current_candidate():
                        and row['before'] != row['after_down'] for row in report['selector_keyboard'])
             inventory = path.with_name('inventory.json')
             assert report['inventory_sha256'] == hashlib.sha256(inventory.read_bytes()).hexdigest()
+
+
+def test_physical_windows10_completion_preserves_raw_reports_and_attestation():
+    root = ROOT / 'docs/ui/evidence/issue-177-physical-windows10'
+    index = json.loads((root / 'index.json').read_text())
+    assert index['bounded_adoption_readiness'] == 'complete'
+    assert index['tested_head'] == 'f1346f99287df4202ad6495eae17acef520d4c34'
+    assert index['ci_merge_checkout'] == 'c35fe885c7f8ffeabfd3d00c773042f2fa01845b'
+    assert index['tested_head'] != index['ci_merge_checkout']
+    assert index['workflow_run'] == 37215636055
+    assert index['adr_status'] == 'Proposed' and not index['p1_authorized']
+    assert not index['product_gates_approved'] and not index['repeated_r2_performed']
+    assert index['real_windows_display_scales_percent'] == [100, 125, 150, 200]
+    assert index['raw_reports_byte_identical'] is True
+    expected_names = {f'physical-windows10-{scale}.json' for scale in (100, 125, 150, 200)}
+    assert set(index['sha256']) == expected_names | {'run-8-inventory.json'}
+    inventory_path = root / 'run-8-inventory.json'
+    inventory = json.loads(inventory_path.read_text(encoding='utf-8-sig'))
+    assert hashlib.sha256(inventory_path.read_bytes()).hexdigest() == index['inventory_sha256']
+    assert all(policy.allowed_qt_file(item['path']) for item in inventory['files'])
+    executable = next(item for item in inventory['files'] if item['path'] == 'WoFFMateAdoption.exe')
+    assert executable['sha256'] == index['executable_sha256']
+    expected_roles = {'Skip to content': 'ControlType.Button',
+                      'Select synthetic career': 'ControlType.ComboBox',
+                      'P0 fixture state': 'ControlType.ComboBox'}
+    expected_roles.update({name: 'ControlType.CheckBox' for name in
+                           ('Operations', 'Pilot Dossier', 'Missions', 'Squadron',
+                            'War Diary', 'Reports', 'Data & System Status')})
+    for name in expected_names:
+        data = (root / name).read_bytes()
+        digest = hashlib.sha256(data).hexdigest()
+        assert digest == index['sha256'][name] == '56441592b93c933fed2edc6cc3ae33859322db272a0d70cc083f4d6aa4d5f6f1'
+        assert len(data) == 29491
+        report = json.loads(data.decode('utf-8-sig'))
+        assert report['status'] == 'passed' and report['physical_windows10'] is True
+        assert report['os'] == {'caption': 'Microsoft Windows 10 Pro', 'version': '10.0.19045', 'build': '19045'}
+        assert report['inventory_sha256'] == index['inventory_sha256']
+        assert report['executable_sha256'] == index['executable_sha256']
+        assert report['provenance'] == inventory['provenance']
+        assert {c['name']: c['role'] for c in report['controls']} == expected_roles
+        assert all(c['focusable'] for c in report['controls'])
+        assert {c['name'] for c in report['selector_keyboard']} == {'Select synthetic career', 'P0 fixture state'}
+        assert all(c['tab_focus_verified'] and c['shift_tab_verified'] and c['has_keyboard_focus_observed']
+                   and c['up_restored'] and c['before'] != c['after_down'] for c in report['selector_keyboard'])
+        assert len(report['programmatic_combo_focus_warnings']) == 2
+        assert report['visible_focus_manual'] == 'pending maintainer observation'
+        assert report['physical_layout_delta'].startswith('pending:')
+    record = inventory['provenance']
+    assert record['revision'] == index['ci_merge_checkout'] and record['input_tree_dirty'] is False
+    assert record['environment']['bindings'] == ['PySide6']
+    assert record['environment']['qt'] == policy.VERSION
+    assert record['environment']['python'] == '3.10.11'
+    assert all(v == policy.VERSION for v in record['environment']['versions'].values())
+    inputs = record['input_sha256']
+    assert set(inputs) == set(policy.provenance()['input_sha256'])
+    assert record['input_digest'] == hashlib.sha256(json.dumps(inputs, sort_keys=True).encode()).hexdigest()
+    for name, expected in inputs.items():
+        data = (ROOT / name).read_bytes()
+        candidates = [data]
+        try:
+            data.decode('utf-8')
+        except UnicodeDecodeError:
+            pass
+        else:
+            canonical = data.replace(b'\r\n', b'\n')
+            candidates.extend([canonical, canonical.replace(b'\n', b'\r\n')])
+        assert expected in {hashlib.sha256(value).hexdigest() for value in candidates}, name
+    attestation = (root / index['manual_attestation']).read_text()
+    for scale, checks in index['manual_checks_by_scale'].items():
+        assert set(checks.values()) == {'passed'}
+        assert f'| {scale}% | passed | passed | passed | passed | passed | passed | passed | none |' in attestation
+    assert 'validator does not encode active Windows display' in attestation
+    assert 'separate manual attestation above resolves' in attestation
+    graph = (ROOT / 'docs/architecture/project-graph.yaml').read_text()
+    item = graph.split('  issue-177:\n', 1)[1].split('  review-r2:\n', 1)[0]
+    assert 'state: done' in item

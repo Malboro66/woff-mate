@@ -100,7 +100,7 @@ def test_product_path_and_cycle_ownership_are_executable() -> None:
         {"id": "issue-81", "status": "satisfied"},
         {"id": "issue-82", "status": "satisfied"},
         {"id": "issue-140", "status": "satisfied"},
-        {"id": "issue-177", "status": "unsatisfied"},
+        {"id": "issue-177", "status": "satisfied"},
     ]
     members = set(cycles["cycle-3.4.0"]["members"])
     assert {"issue-136", "issue-139", "issue-140", "issue-81", "issue-82"} <= members

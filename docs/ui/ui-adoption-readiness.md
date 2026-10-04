@@ -1,6 +1,8 @@
 # Bounded UI Adoption Readiness — Issue #177
 
-Implementation in progress from verified main
+Bounded evidence scope complete for candidate head
+`f1346f99287df4202ad6495eae17acef520d4c34`; integration remains pending.
+Implementation started from verified main
 `741bad8192517c4ade38e9e718845f086beff849` after #175 / PR #176.
 
 This candidate validates PySide6 + Qt Widgets 6.11.2 with deterministic synthetic
@@ -22,12 +24,17 @@ not toolkit-retention blockers.
 
 Pre-fix evidence remains under [issue-177-adoption](evidence/issue-177-adoption/README.md).
 Current corrected evidence is under [issue-177-correction](evidence/issue-177-correction/README.md).
-Readiness is **not complete**. The maintainer authorized a bounded corrective pass
-on 2026-10-04 for the compact layout and selector investigation. See
-[correction evidence](ui-adoption-correction.md) for the separate pre-fix,
-implementation and post-fix facts. Physical Windows 10 remains pending. Linux offscreen and hosted Windows CI cannot
-substitute for the maintainer's physical Windows 10 delta.
-Unchanged P0 rendering/scaling evidence may be reused with explicit source hashes.
+**Bounded Adoption Readiness is complete.** The maintainer performed the physical
+Windows 10 Pro build 19045 delta at real 100%, 125%, 150% and 200% scaling.
+[Raw physical reports and separate manual attestation](evidence/issue-177-physical-windows10/README.md)
+record successful startup, unclipped compact layout, visible focus, navigation and
+both keyboard-operated selectors. The raw merge-checkout provenance remains
+separate from the tested PR head. Identical raw reports are expected because the
+validator does not encode scale; manual observation resolves their unchanged
+pending placeholders. No authorized readiness evidence requirement remains open.
+Earlier archive status fields remain historical snapshots of their executions;
+the separate physical attestation supplies the current completion result.
+Integration, repeated R2 and the explicit ADR decision remain future steps.
 
 ## Canonical entry and optional installation
 
@@ -78,7 +85,7 @@ policy and licensing input. Inventories list every collected file, its hash,
 Qt module/plugin classification, package metadata identities and sanitized binary
 source origin. CI artifacts retain reports and Windows candidate bundles privately.
 
-## Physical Windows 10 delta — pending
+## Physical Windows 10 delta — passed
 
 ### Historical compact-layout finding and corrective pass
 
@@ -93,10 +100,10 @@ The historical failure remains preserved in the original archive. The correction
 reserves the measured brand text width plus the existing icon, spacing and margins;
 it retains the 184/256 logical-pixel rail baselines whenever they suffice. The
 original regression remains enforced, alongside four-scale viewport transition
-checks. See the correction record for execution status. One compact/200% physical
-observation and the maintainer's normal-scale check remain required.
+checks. The subsequent physical delta passed at all four real Windows scales;
+see the separate physical archive and maintainer attestation above.
 
-After obtaining a passing Windows endpoint candidate and its matching inventory,
+The completed run used the matching run #8 candidate/inventory. For reproduction,
 run from the checkout root in PowerShell (do not set the offscreen platform):
 
 ```powershell
@@ -118,14 +125,12 @@ The physical flag is an explicit maintainer attestation;
 the script verifies Windows 10 but cannot infer physical hardware from an OS name.
 Hosted Windows results always remain labelled non-physical.
 
-At the maintainer's normal scale, observe one launch, visible focus using
-Tab/Shift+Tab, navigation with arrows/Space, the career selector, and normal close.
-Return the JSON plus the scale and visible-focus observation. Screenshots are
-needed only if a changed behavior or defect appears. The historical four-scale
-P0 walkthrough remains historical; keyboard blocks, fixtures and contracts remain
-unchanged. The brand rail sizing is the explicit rendering delta and must receive
-the targeted checks above. Speech, Windows 11 and clean-machine certification are
-not requested.
+The maintainer has supplied successful manual observations at all four real
+Windows scaling values. No screenshots are required in the absence of regression.
+Historical P0/automated reports remain historical and unmodified. The known native
+Qt ComboBox SetFocus limitation remains disclosed, while physical keyboard focus
+and operation passed. Speech, Windows 11 and clean-machine certification remain
+outside the evidence scope.
 
 ## Decision sequence and exclusions
 
