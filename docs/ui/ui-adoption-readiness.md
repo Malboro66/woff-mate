@@ -20,7 +20,8 @@ not toolkit-retention blockers.
   engineering licensing disposition; remove Qt Virtual Keyboard and unnecessary
   modules/plugins and prevent their reintroduction.
 
-Executed evidence is archived under [issue-177-adoption](evidence/issue-177-adoption/README.md).
+Pre-fix evidence remains under [issue-177-adoption](evidence/issue-177-adoption/README.md).
+Current corrected evidence is under [issue-177-correction](evidence/issue-177-correction/README.md).
 Readiness is **not complete**. The maintainer authorized a bounded corrective pass
 on 2026-10-04 for the compact layout and selector investigation. See
 [correction evidence](ui-adoption-correction.md) for the separate pre-fix,
@@ -43,10 +44,12 @@ installation. A final installed production UI entry point belongs to a later
 authorized architecture/integration step. Do not advertise `python -m
 woff.p0_desktop` as the guarded candidate entry: that is the historical P0 command.
 
-`ui_adoption.spec` wraps the P0 window with a localized metric-sized brand rail and unchanged fixtures and excludes live
+`ui_adoption.spec` wraps the P0 window with a localized metric-sized brand rail,
+retains unchanged fixtures and excludes live
 database/parser/repository/watchdog code. It does not modify `build.spec` or
 `p0_desktop.spec`. Linux offscreen is evidence only; physical Windows 10 remains
-the reference desktop. The rail sizing delta requires targeted compact/normal viewport checks; no full page/state DPI suite is required.
+the reference desktop. The rail sizing delta requires targeted compact/normal
+viewport checks; no full page/state DPI suite is required.
 
 ## Reproduction
 
@@ -105,7 +108,11 @@ checks representative native UIA names, roles, enabled/focusable status and butt
 focus acquisition. Hosted runs found that UIA `SetFocus` did not move focus into
 the combo selectors. The collector records each unsuccessful combo focus request
 and its observed target in `programmatic_combo_focus_warnings`; it does not
-relabel those requests as successful. The updated collector also sends Tab/Shift+Tab and Up/Down to the foreground candidate, verifying native UIA focus state and selection values independently of SetFocus. The Qt probe separately checks the native control, widget focus and accessible state. This residual limitation must be presented to future
+relabel those requests as successful. The updated collector also sends Tab/Shift+Tab
+and Up/Down to the foreground candidate, verifying native UIA focus state and
+selection values independently of SetFocus. The Qt probe separately checks the
+native control, widget focus and accessible state. This residual limitation must
+be presented to future
 R2; full UIA interaction/speech certification is not claimed.
 The physical flag is an explicit maintainer attestation;
 the script verifies Windows 10 but cannot infer physical hardware from an OS name.
@@ -115,7 +122,10 @@ At the maintainer's normal scale, observe one launch, visible focus using
 Tab/Shift+Tab, navigation with arrows/Space, the career selector, and normal close.
 Return the JSON plus the scale and visible-focus observation. Screenshots are
 needed only if a changed behavior or defect appears. The historical four-scale
-P0 walkthrough remains historical; keyboard blocks, fixtures and contracts remain unchanged. The brand rail sizing is the explicit rendering delta and must receive the targeted checks above. Speech, Windows 11 and clean-machine certification are not requested.
+P0 walkthrough remains historical; keyboard blocks, fixtures and contracts remain
+unchanged. The brand rail sizing is the explicit rendering delta and must receive
+the targeted checks above. Speech, Windows 11 and clean-machine certification are
+not requested.
 
 ## Decision sequence and exclusions
 

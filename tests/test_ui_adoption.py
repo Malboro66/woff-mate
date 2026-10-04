@@ -104,6 +104,7 @@ def test_actual_candidate_keyboard_and_accessibility(tmp_path, scale):
 def test_pre_fix_evidence_remains_intact_and_truthful():
     evidence = ROOT / 'docs/ui/evidence/issue-177-adoption'
     assert evidence.is_dir(), 'Committed adoption evidence must not disappear'
+    assert hashlib.sha256((evidence / 'index.json').read_bytes()).hexdigest() == '74d2f06ac5a7299bd39eea336dc4c8f245438d0788c0b0881c8f5133964f58b6'
     index = json.loads((evidence / 'index.json').read_text())
     assert index['physical_windows10_delta'] == 'pending'
     assert index['adr_status'] == 'Proposed'
@@ -177,3 +178,58 @@ w.close()
                             env=dict(os.environ, QT_QPA_PLATFORM='offscreen'),
                             capture_output=True, text=True, timeout=30)
     assert result.returncode == 0, result.stderr
+
+
+def test_post_fix_evidence_is_complete_and_bound_to_current_candidate():
+    root = ROOT / 'docs/ui/evidence/issue-177-correction'
+    index = json.loads((root / 'index.json').read_text())
+    assert index['physical_windows10_delta'] == 'pending'
+    assert index['adr_status'] == 'Proposed' and not index['p1_authorized']
+    assert index['adoption_conclusion'] == 'success'
+    matrix = [f'linux-py{v}' for v in ('310', '311', '312', '313', '314')]
+    matrix += ['windows-py310', 'windows-py314']
+    required = {f'{case}/{name}.json' for case in matrix
+                for name in ('source', 'source-scale-1.25', 'source-scale-1.5', 'source-scale-2')}
+    required |= {f'{system}-py{v}/{name}.json' for system in ('linux', 'windows')
+                 for v in ('310', '314') for name in ('bundled', 'inventory')}
+    required |= {f'windows-py{v}/hosted-uia.json' for v in ('310', '314')}
+    assert set(index['sha256']) == required
+    current = policy.provenance()['input_sha256']
+    for relative, digest in index['sha256'].items():
+        path = root / relative
+        assert hashlib.sha256(path.read_bytes()).hexdigest() == digest
+        report = json.loads(path.read_text(encoding='utf-8-sig'))
+        record = report['provenance']
+        assert record['revision'] == index['execution_revision']
+        assert record['input_tree_dirty'] is False
+        inputs = record['input_sha256']
+        assert set(inputs) == set(current)
+        assert record['input_digest'] == hashlib.sha256(json.dumps(inputs, sort_keys=True).encode()).hexdigest()
+        for name, expected in inputs.items():
+            raw = (ROOT / name).read_bytes()
+            candidates = [raw]
+            try:
+                raw.decode('utf-8')
+            except UnicodeDecodeError:
+                pass
+            else:
+                canonical = raw.replace(b'\r\n', b'\n')
+                candidates.extend([canonical, canonical.replace(b'\n', b'\r\n')])
+            assert expected in {hashlib.sha256(data).hexdigest() for data in candidates}, name
+        if path.name == 'inventory.json':
+            assert all(policy.allowed_qt_file(item['path']) for item in report['files'])
+        else:
+            assert report['status'] == 'passed'
+        if path.name.startswith('source') or path.name == 'bundled.json':
+            assert len(report['layout']) == 5
+            assert all(row['brand_advance'] <= row['brand_available'] for row in report['layout'])
+            assert len(report['selector_focus']) == 3
+            assert all(row['widget_focus'] and row['qt_accessible_focused'] for row in report['selector_focus'])
+        if path.name == 'hosted-uia.json':
+            assert report['physical_windows10'] is False
+            assert len(report['selector_keyboard']) == 2
+            assert all(row['tab_focus_verified'] and row['has_keyboard_focus_observed']
+                       and row['shift_tab_verified'] and row['up_restored']
+                       and row['before'] != row['after_down'] for row in report['selector_keyboard'])
+            inventory = path.with_name('inventory.json')
+            assert report['inventory_sha256'] == hashlib.sha256(inventory.read_bytes()).hexdigest()

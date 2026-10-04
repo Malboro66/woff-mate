@@ -62,11 +62,30 @@ fails if those required interactions are not observed. Speech is out of scope.
 
 ## Post-fix evidence status
 
-Focused local correction tests passed (34 tests). Broader suite, current Windows
-endpoint packages, four-scale source evidence and native UIA keyboard results are
-being collected on the implementation revision; no Windows pass is inferred from
-Linux or upstream source inspection. A separate post-fix archive will retain
-actual execution revisions and input hashes without replacing the original reports.
+Implementation revision: **`1b8fe1361b291bf6e6e3e3cfebe708a2adf0a527`**.
+[Adoption workflow #7](https://github.com/Malboro66/woff-mate/actions/runs/37215243168)
+passed all seven jobs. [General CI #326](https://github.com/Malboro66/woff-mate/actions/runs/37215243189) also passed. Coverage includes both Windows endpoint packages and the preserved
+historical compact regression. Raw reports retain the actual PR merge checkout
+`94085c99942279e807929dee33e6722cb3c95d3d` and complete input hashes.
+
+The separate [post-fix archive](evidence/issue-177-correction/README.md) contains
+38 reports: source 3.10–3.14 on Linux plus Windows endpoints at all four scales,
+endpoint bundle startup/inventories on both systems, and two Windows UIA runs.
+At compact size, Windows brand advance **135px now fits a 135px label**, with
+rail width **201px**, across all four scales. The actual viewport remains 680×520.
+No assertion was weakened to permit clipping.
+
+Both Windows selectors passed native UIA-observed Tab/Shift+Tab focus,
+HasKeyboardFocus and Up/Down value changes. Their SetFocus warnings remain in the
+same reports. This closes the basic automated keyboard/UIA evidence gap while
+retaining the narrower native Qt programmatic-action limitation for future R2.
+The Windows host is **Server 2025**, not physical Windows 10.
+
+Local full suite on the implementation revision: **1965 passed, 4 skipped,
+175 subtests passed**. Focused correction suite: 34 passed; Pyright: zero errors;
+project graph and diff checks passed. Archive integrity plus focused/governance validation passed 60 tests in
+the evidence commit; later documentation/test-only commits do not relabel these
+executions. The physical Windows 10 check below remains mandatory.
 
 ## Physical Windows 10 delta (still required)
 

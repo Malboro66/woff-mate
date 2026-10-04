@@ -1,0 +1,3105 @@
+{
+  "schema": 1,
+  "eval": "EVAL-UI-ADOPTION-LICENSE-001",
+  "scope": "private engineering candidate, not public release SBOM/legal certification",
+  "status": "bounded Qt disposition passed; release obligations deferred",
+  "provenance": {
+    "revision": "94085c99942279e807929dee33e6722cb3c95d3d",
+    "input_tree_dirty": false,
+    "input_sha256": {
+      "docs/ui/ui-adoption-licensing.md": "db1f9ee300b275844253644aca62468b964fa40fbef734d94c61bfca68b7a976",
+      "LICENSE": "8bb01cdb5ecdff4172a8aa60e8d50300697b0571d265dbe3dcaf7965f8a630d2",
+      "pyproject.toml": "be0c23bedaaede848d0812e797d670821a613050185d8719c86cc13c6012e3f3",
+      "scripts/ui_adoption_inventory.py": "25cca4a1e5b71a087271b399f52d84c129c8f1164824dabfd01b0d0ae1764125",
+      "scripts/ui_adoption_probe.py": "8b213479cc37e9ef33a71bf4118c9a25ac3c7086ab87ac85b819df9c64b86f1d",
+      "scripts/ui_adoption_support.py": "d723df9749c8cf7f101e2168200c5c174fb188cef32fb84d8b3233fe4298c5c4",
+      "scripts/validate_ui_adoption_windows.ps1": "f8cac770b4135aeb349ca576a4d97ef03156d18ff0ee801423533689934cb24f",
+      "ui_adoption.spec": "bdece59b255ce0f08956afa5d8e442a7a2d7804912321d8b78b1cd1c57606266",
+      "ui_adoption_launcher.py": "4c369ea45ef3f99ae7b3feaa3c71ac0cb62fa6b37301308affa032ad25e2c77e",
+      "woff/assets/ui/branding/manifest.json": "cb54fce840bef80357bea7bae9151705f5f15cac7706d7c85b9e00ccf149bd94",
+      "woff/assets/ui/branding/README.md": "1f31b4223b3c889b76e66d6c2b419dd38f4d34f37fa1bf34eefe6f6fe42650d9",
+      "woff/assets/ui/branding/SHA256SUMS": "4dad33e6083dbd3cc685cc60627908018b8ca8b2f60a05f71a70ae536d86c99d",
+      "woff/assets/ui/branding/woff_mate_app.ico": "e39faee12c89c944aa413a57fc3103a8a666c9ce6f54a0978a59ad9ae7285360",
+      "woff/assets/ui/branding/woff_mate_app_icon_master.svg": "1108a26df7e09905a76f800c7bc746921dde0ec5268c3785733dc07e91993183",
+      "woff/assets/ui/branding/woff_mate_app_icon_small.svg": "7edfcd0771e7eef0a4346b9eebc8684f2d130ff7bb03d7c4603f26ba05ce5f46",
+      "woff/assets/ui/branding/woff_mate_symbol_dark.svg": "d124e196c9b1ed66cbab95970ac3264f29c8123ea1a101f9e56d518000705e1e",
+      "woff/assets/ui/branding/woff_mate_symbol_light.svg": "9fc32d80c8b7025ae4051a7e3abae68da1de1b814d67368cc4a7bab97be9c73f",
+      "woff/assets/ui/branding/woff_mate_symbol_v2.svg": "e9fabb73c02dae3a1638ea9aa39cffe58b379774f991626527a54d1b61e2aa50",
+      "woff/assets/ui/branding/woff_mate_wordmark_dark.svg": "b0074cbd9e39e4bcc82012f4af598f8fc50f96fdb786891a4414be5a71c0a7ab",
+      "woff/assets/ui/branding/woff_mate_wordmark_light.svg": "bfe263f03c219066c0942f4e0e065db419c3635d9f4112a95854bf01ccbbda73",
+      "woff/assets/ui/branding/woff_mate_wordmark_v2.svg": "eaccf2c633d308674ae3e9a98dd57f90952984af119c1f2a0d255938990f0375",
+      "woff/assets/ui/icons/LICENSES/FLUENT-SYSTEM-ICONS-LICENSE.txt": "69bc45dc42b9acb96a69823adbc6ae538374e3c0bde169b855b32c48eaaef52f",
+      "woff/assets/ui/icons/LICENSES/FLUENT-SYSTEM-ICONS-NOTICE.txt": "2fb367a84df52c8b6f8401119708014b327f595554d41712d7407151c9ce73ef",
+      "woff/assets/ui/icons/manifest.json": "1d08ac7913883f9e3bed0211030793d8980cc1249978ed77699d7787a14e0c2f",
+      "woff/assets/ui/icons/README.md": "4295c6349eb347118c7e1bda3c3c20cf15ac5a9280700c899a99edd9bdeb865c",
+      "woff/assets/ui/icons/SHA256SUMS": "e0dbb387f44c80e7c622cabcb226ab4e243480b1636b932a5f521a4e623b48f9",
+      "woff/assets/ui/icons/ui_action_back_16_regular.svg": "48a173228771802182c40736c1e06db3257ad7e7cb40fe7663c877e9a2ce10f6",
+      "woff/assets/ui/icons/ui_action_back_20_regular.svg": "c67d1600cf501a294bf70183aecbd1fdd2ba35ea2f11f10de18e8736dd351b00",
+      "woff/assets/ui/icons/ui_action_back_24_regular.svg": "cd61d4ce407657c170e5a27a3630357ab6d326ee84f1349274223b4dd44bdc78",
+      "woff/assets/ui/icons/ui_action_back_32_regular.svg": "e6f384af2228543faa03ee6f7a8001dc1304ac69db8da49b3bca24c9b7278621",
+      "woff/assets/ui/icons/ui_action_disclosure_16_regular.svg": "25a94760a821a4556f7d993150e7ab123e07784f2218ca6a95bec41759128c10",
+      "woff/assets/ui/icons/ui_action_disclosure_20_regular.svg": "6e295cc05079e2e35ed1140cfc734ebd0dd603eb7919f79ac1567787918e4529",
+      "woff/assets/ui/icons/ui_action_disclosure_24_regular.svg": "0e09c14f40ba64c50d50be9f01e6b8bebca5c4ec49976551bc357a96461b6986",
+      "woff/assets/ui/icons/ui_action_disclosure_32_regular.svg": "d7c7966358f54d3edd99346ec169903472c40082c5e9636dac180445d7204874",
+      "woff/assets/ui/icons/ui_action_retry_16_regular.svg": "fa60238dedee0bb892e7d89e1b342329735b84353bbd0518edb7a8c3aed7ca92",
+      "woff/assets/ui/icons/ui_action_retry_20_regular.svg": "363bc0553c749ebcb197d67545646e808d5d8e20edebe4814525e60e5c582402",
+      "woff/assets/ui/icons/ui_action_retry_24_regular.svg": "e35b3c9cec5e8d6d6627487c873ac5932221ff334ff5a4f475e9302123b20270",
+      "woff/assets/ui/icons/ui_action_retry_32_regular.svg": "bb020ac9b4e8bb5fe259c4b0b2b0ba8f03871a71be81af0d8655a2ef8d3f7ca0",
+      "woff/assets/ui/icons/ui_nav_missions_16_filled.svg": "862766391c994d01722adf25816b83c0c084f029f71550d1283c8b1e8ad939a1",
+      "woff/assets/ui/icons/ui_nav_missions_16_regular.svg": "d718f88bee6aa1ac5118721325d5b518dfa041dfb65d5d744f5729235edad39c",
+      "woff/assets/ui/icons/ui_nav_missions_20_filled.svg": "ad47990214e1681d60e981af631c917b54b10215a707510751b72f49422fa45d",
+      "woff/assets/ui/icons/ui_nav_missions_20_regular.svg": "8bd9e20e6e69a89d18289895978d8ec32de5be4e0c81e1a177badbca95994067",
+      "woff/assets/ui/icons/ui_nav_missions_24_filled.svg": "707b28236d05abfdda27729c988723a0239c34db2f0bef3071397d1711c2b2cf",
+      "woff/assets/ui/icons/ui_nav_missions_24_regular.svg": "b932ebee8e693020f6a0a38d1155e7f581b003b1c2a8388cc888ed51c6e1ce1b",
+      "woff/assets/ui/icons/ui_nav_missions_32_filled.svg": "93a22a91f04176210826fb01abecd18f36d37aa408ceb80f1ef39570c0acf4f3",
+      "woff/assets/ui/icons/ui_nav_missions_32_regular.svg": "681cc24b5fec19a96094eeeb3356f72436b57a48d06ffc5560dce05faf8ba81f",
+      "woff/assets/ui/icons/ui_nav_operations_16_filled.svg": "27c8b1fe873c22a091e113bdf2ea2f2d5a7f6e1945b8ade0a404a3803aa3aa28",
+      "woff/assets/ui/icons/ui_nav_operations_16_regular.svg": "7da34d6b602cd84d442793af3fbda6365c5efda69f2e8b93dedd4f8edff7351b",
+      "woff/assets/ui/icons/ui_nav_operations_20_filled.svg": "c6efaa9004e9e244624c7fe09a93930d3042e5c7d1f8e5e62ac9281b3f20f4a1",
+      "woff/assets/ui/icons/ui_nav_operations_20_regular.svg": "cce4297735bea0d76fdbc41f7ab7fb765ecc6fb5e36980341d95c678d11062db",
+      "woff/assets/ui/icons/ui_nav_operations_24_filled.svg": "0726c64fde1f8eb9be4826df17cd3317e18051bc60f0d9ff55d5bea5461ee1f9",
+      "woff/assets/ui/icons/ui_nav_operations_24_regular.svg": "d503af1340d9aa16a04b2b81e34aee29f8fe277ec6a7a3cce39a9914591492ca",
+      "woff/assets/ui/icons/ui_nav_operations_32_filled.svg": "8a424a1b10262328575ee37a2641265c3deb0930990a0885b7217222dd157de1",
+      "woff/assets/ui/icons/ui_nav_operations_32_regular.svg": "c158829818f493f406470ba3c0869a987eaee9685004295f0344e98f3e1d18a1",
+      "woff/assets/ui/icons/ui_nav_pilot_dossier_16_filled.svg": "79d3d857e2d7b85a39372bc2ae4b7fae5fd04c66ec499a2f6c3684cd19c9fd90",
+      "woff/assets/ui/icons/ui_nav_pilot_dossier_16_regular.svg": "e87e6ac4686dee566cc8b026cdc59c06f295f89b7bb7df7533f087dc8a50e66c",
+      "woff/assets/ui/icons/ui_nav_pilot_dossier_20_filled.svg": "82bad8bb29d48383df62e40b618a7bf72fbfdf7fa4c7e0d279e7a6844cf20f71",
+      "woff/assets/ui/icons/ui_nav_pilot_dossier_20_regular.svg": "10d8c46d0b01f446e92ecfc58f8ce970a342c63f1f6ce7444aa9dbda22bcd26d",
+      "woff/assets/ui/icons/ui_nav_pilot_dossier_24_filled.svg": "00f6df147e35ebe5c9b447393df9cbb2a2277c782910c56ea11667c760391411",
+      "woff/assets/ui/icons/ui_nav_pilot_dossier_24_regular.svg": "5c9e49d8000532e62c835a5494ec67767abbd4dc19d7715c3948be6d31b82de4",
+      "woff/assets/ui/icons/ui_nav_pilot_dossier_32_filled.svg": "acfb5ed008dc99f68d24ca9e58b40e987bd9c5104a96d406f654d21c6e7afc1c",
+      "woff/assets/ui/icons/ui_nav_pilot_dossier_32_regular.svg": "574139d14fd44fc3e6810ccaee6b81f8557724ec5db7317c046ea1099f09212e",
+      "woff/assets/ui/icons/ui_nav_reports_16_filled.svg": "6667ebf89dd57ba527e98344f3ed34250e82cba406edd409bdead319b1961b81",
+      "woff/assets/ui/icons/ui_nav_reports_16_regular.svg": "567dd6ef6d015e2ea8b1402c5e581988c5907e67016662802003d1a7d2b9dd1e",
+      "woff/assets/ui/icons/ui_nav_reports_20_filled.svg": "fca340d0766e16fec07b277e56385263559f91bd132cfd00483d5b0ee92064de",
+      "woff/assets/ui/icons/ui_nav_reports_20_regular.svg": "963a5279e91361fe2be54efb80d73c211fa08cfc9d209951bef92ab3843a3f5f",
+      "woff/assets/ui/icons/ui_nav_reports_24_filled.svg": "39523b2d179a4576468df7265afad5aec86cf6a6c37548452cda84ac414868cc",
+      "woff/assets/ui/icons/ui_nav_reports_24_regular.svg": "e9e4ec8dc650aa288c09e92f361e627ab28394bce740a8de621a0c3c20c2ae93",
+      "woff/assets/ui/icons/ui_nav_reports_32_filled.svg": "a1951f3286a71bdd8db120441e813cafcc837f5fdb29cc2d92a64f8ff4e3f559",
+      "woff/assets/ui/icons/ui_nav_reports_32_regular.svg": "6af217982a55eefb12f26c2c33e80aa9a3984514cd3185caf7b19fab22cdf638",
+      "woff/assets/ui/icons/ui_nav_squadron_16_filled.svg": "4eb093ac2d26f0b123bd3ca280f5342d3fe9a25bbdd386189cc5f27c67cfa542",
+      "woff/assets/ui/icons/ui_nav_squadron_16_regular.svg": "62932e1ac414cd131be56083f9025e61dc0be92004884aaf7d16a1811da1ba20",
+      "woff/assets/ui/icons/ui_nav_squadron_20_filled.svg": "4d0d4eb1e868b814363cec4c56cd509460727fe5c884fdb612d931b8f1c80e8d",
+      "woff/assets/ui/icons/ui_nav_squadron_20_regular.svg": "462b2b25ecfdb0bc8e5060cbd216d18800bb1aec97823015f56b5ff9c0c376fd",
+      "woff/assets/ui/icons/ui_nav_squadron_24_filled.svg": "28e68072d11782bd89766812d8b6954b1ff2639450756625ff45d4000c1759ba",
+      "woff/assets/ui/icons/ui_nav_squadron_24_regular.svg": "e8109a6304a6259c0654024afd89e3bec24c7b85860f14f236b98dfb555a6478",
+      "woff/assets/ui/icons/ui_nav_squadron_32_filled.svg": "767218456a45df520bda3013925815c5cee6dd45abe35460319983cb662b9d54",
+      "woff/assets/ui/icons/ui_nav_squadron_32_regular.svg": "748a1987aaffe5981d1bbc32906c9a05fcb3311464447c2ce09c8ced26ed27d7",
+      "woff/assets/ui/icons/ui_nav_system_status_16_filled.svg": "8af219dbf5717843ce6a5f60f1d24893da6a32ec6473699f07d3b34e45949186",
+      "woff/assets/ui/icons/ui_nav_system_status_16_regular.svg": "ad6545ae685230bbe2de1e725c768dbbaeda9ca76caac131748edae35187a85e",
+      "woff/assets/ui/icons/ui_nav_system_status_20_filled.svg": "139c06ed5ade8143a526c3c362fae2cb07a964c978321fd71b5afbc946ca95a6",
+      "woff/assets/ui/icons/ui_nav_system_status_20_regular.svg": "cf0a8354a61267cf90aa24b29f19b65fa6601e3066506e93f625121e771ee4a9",
+      "woff/assets/ui/icons/ui_nav_system_status_24_filled.svg": "2b8b11bda13b7fe2488692fe32f295b4ff588bfa659f454436d24857eb7fee2f",
+      "woff/assets/ui/icons/ui_nav_system_status_24_regular.svg": "9d7dc4a6ff85de81db72613ec4f4a1fb2488d8f5b11cd45204cf01a0723e1b70",
+      "woff/assets/ui/icons/ui_nav_system_status_32_filled.svg": "bb0aaa7207b83b7bc6e293e35eb0f6ac2b97dc5fa9253ddb172bdac6cd5cff37",
+      "woff/assets/ui/icons/ui_nav_system_status_32_regular.svg": "40b50f6b22142741a36a13b81f2c6070cdcafab5c9fba3aa76fca0f41b3c229f",
+      "woff/assets/ui/icons/ui_nav_war_diary_16_filled.svg": "5f49d11c9cbdc5a9565280b7dee5f311baa885702707320ba270a9abc2861397",
+      "woff/assets/ui/icons/ui_nav_war_diary_16_regular.svg": "c0c4cf1f96bac8f902dae3518e5e70e56152df4185eaea888e6e3e26508fc9c5",
+      "woff/assets/ui/icons/ui_nav_war_diary_20_filled.svg": "30fdcefb64c2cb9282a0a9031832495a500249e1032a42be3dedfd28dc44eb9f",
+      "woff/assets/ui/icons/ui_nav_war_diary_20_regular.svg": "881f0b6baab6e284205d2a8de0e3e19ebf52f15e7334b5774330809c7b7118e1",
+      "woff/assets/ui/icons/ui_nav_war_diary_24_filled.svg": "b1c714cad78b45fa74f2485cb87a1c0531ede90b54a7220ed5ecad16e052d233",
+      "woff/assets/ui/icons/ui_nav_war_diary_24_regular.svg": "fee4429ce1edca85bda985e27ae3badafebf9daf167c7246941c7db95eb2bd6c",
+      "woff/assets/ui/icons/ui_nav_war_diary_32_filled.svg": "5a6abb697add0921d672b20bbd89b06995a3676749ba9fecd87878ce0474da53",
+      "woff/assets/ui/icons/ui_nav_war_diary_32_regular.svg": "6df66c9033a0e68cc74e04f6cf7b3b0a2edabf60d2d3b7f00444a989fb09fac6",
+      "woff/assets/ui/icons/ui_state_complete_16_regular.svg": "f916e839803620245304cb1412655be623daa5d81e4fb86794e01d909d11abde",
+      "woff/assets/ui/icons/ui_state_complete_20_regular.svg": "76917771d8dec835dca340ba8c8f2d130b24ad8a056bb2508b65d031cf33fe61",
+      "woff/assets/ui/icons/ui_state_complete_24_regular.svg": "405e3a7d2435d734f1fbaa9d918432c30dd497c90941e588521da8d479271212",
+      "woff/assets/ui/icons/ui_state_complete_32_regular.svg": "0983ba021109803fbdc7315029cd108e8940ac53dba65f430e8738a28e596f89",
+      "woff/assets/ui/icons/ui_state_error_16_regular.svg": "c3efa7bdea177d283e1040ed58ddf35142542d2245bc4ff36276e3841cc83493",
+      "woff/assets/ui/icons/ui_state_error_20_regular.svg": "e4f5a701901c2a8944d4da82ff3d47d79acdd2cea1912d2405b681ca9212ef12",
+      "woff/assets/ui/icons/ui_state_error_24_regular.svg": "409c34f8bc49193d6c7886bda9d2ebab9ece18a59349eaf5711f1afa6882386d",
+      "woff/assets/ui/icons/ui_state_error_32_regular.svg": "d4f906b8d22a832071efa69cbe71cbc2ac860af7ae8f8fa1390e3ccf0945d84a",
+      "woff/assets/ui/icons/ui_state_information_16_regular.svg": "d25861a080e023569fe8e7099e28fbf636edad0995dc44ccfb2354023601da4f",
+      "woff/assets/ui/icons/ui_state_information_20_regular.svg": "56e64dcf46b0eca37b7e4dfdf8636c202e12cc1a825dd3738ece49f05cb1fabb",
+      "woff/assets/ui/icons/ui_state_information_24_regular.svg": "f28c4994d3e409f7092b85b49df1eb4abff813fbdaf13c31a5cefff299c3655f",
+      "woff/assets/ui/icons/ui_state_information_32_regular.svg": "0c09e4b7f4e1914e803f5c408f62c25b52433c6f88de5086991e801fadd029a7",
+      "woff/assets/ui/icons/ui_state_partial_16_regular.svg": "7afd36b2f62f8da63fe0631d457d1248e1ddf832490c1ee11aa2e81f866d61c5",
+      "woff/assets/ui/icons/ui_state_partial_20_regular.svg": "1f2f18e8494242308143c82aeda880e6eef188217a2d920a01654ddd28d30317",
+      "woff/assets/ui/icons/ui_state_partial_24_regular.svg": "223e04a36af074ee191ecb192f4526fe04f95db52e2df90bb8c893f997b87de1",
+      "woff/assets/ui/icons/ui_state_partial_32_regular.svg": "005de32117cbb55242be3ad1e27504c7da242116832de481e0d98ac3e9e3a31a",
+      "woff/assets/ui/icons/ui_state_stale_16_regular.svg": "6d9f24d651d8ebbedb2adf63c91e80a69341721b9513415361bb7c7e8bd4c267",
+      "woff/assets/ui/icons/ui_state_stale_20_regular.svg": "91587daa48edcc4dcc3296188211ecd66569c7c8721c88ad762c1d86d53eeabc",
+      "woff/assets/ui/icons/ui_state_stale_24_regular.svg": "aa6c5fac1386dd94973e5ebd20b5ff9115e30c56424d10f476cc8c28d36f84d4",
+      "woff/assets/ui/icons/ui_state_stale_32_regular.svg": "794de20e9e0aae1437067e6b3ef2c38c2c135050bbb7d00b3512b10eec3c20ab",
+      "woff/assets/ui/icons/ui_state_unavailable_16_regular.svg": "013b8bb8e9e85375de77ce5667a2c1b10dc7e978428e01e9aaab6a67c5ec29b4",
+      "woff/assets/ui/icons/ui_state_unavailable_20_regular.svg": "875a8b53e6d3ad580f82ca76bfd7f1a9b1e024a72ec0ccd9fc73ce2c35b87bf0",
+      "woff/assets/ui/icons/ui_state_unavailable_24_regular.svg": "bddb90a1e7f0dd21e4b4b7bcf7202d6c32eaf96f712803658174eb3f7bab14bb",
+      "woff/assets/ui/icons/ui_state_unavailable_32_regular.svg": "b5632e172aa1457117a0409cde5dbf6e168dee75ead618e10fed62d33616f64f",
+      "woff/assets/ui/portraits/GENERATION.md": "7ab6e3f0ff888f0acc3f944d22597ae0d49d41d765b71c9bb93d6a137f69931d",
+      "woff/assets/ui/portraits/manifest.json": "d0784ede59a437a7ec5ea87492a28015abf8bab357f2193af29eef2f3923b515",
+      "woff/assets/ui/portraits/README.md": "a9a9f1b7d3baea476b91870da2ffd7e06bbd009be40c0fd2d463ed43a84d4812",
+      "woff/assets/ui/portraits/SHA256SUMS": "1799fdb917547d268f5318ba37faaa5cba6e8ab66866f50e2cf17a3b06316cb1",
+      "woff/assets/ui/portraits/ui_portrait_synthetic_aster_master.png": "f545dd5db17775d14a1e6bb991caf8f064f24a6a93d0627b31a96171dfe1316a",
+      "woff/assets/ui/portraits/ui_portrait_unavailable.svg": "e5bab1e5212d3220833c6aece808145afd5773f3066bedc6fa008c8c2b8e2a9a",
+      "woff/nation.py": "fa2b40438a8941cd3af97ec526b233885ae065bf8b0230c6f19ca5c2700c8864",
+      "woff/p0_desktop/__init__.py": "c553bd3dc199d5ad6db90e6a81f95e4c1facac507a1453e76a7fcaae537cf4bd",
+      "woff/p0_desktop/__main__.py": "ebab6235d40b39aebe2fecddc2029b8e5ec6bee03582fa9c20571c4daa675cb7",
+      "woff/p0_desktop/fixtures.py": "0a0ec316255c128ced80fed418860cd3c2a643b4d6a987608494207aa59f52d6",
+      "woff/p0_desktop/window.py": "f4a52e7a2a101ea2cca3a2a9853d6db303ad1691e16a2d0464d949a69eafca31",
+      "woff/tests/fixtures/ui_states/catalog.json": "d54ce04dd6816d1ddc2ea633d74e69131dc85d0525fb63e462799b5cf4d9f837",
+      "woff/ui_contracts.py": "ac3ed535b99ce785b0d6dc68abd20cc559c7c1d8e077878bb1b637730486bfa5"
+    },
+    "input_digest": "40578865354c51961b8afa8d9b6fbda8f56ceeb25e2f1bc2f73c207de1b13df0",
+    "environment": {
+      "python": "3.14.7",
+      "system": "Windows",
+      "machine": "AMD64",
+      "qt": "6.11.2",
+      "bindings": [
+        "PySide6"
+      ],
+      "versions": {
+        "PySide6": "6.11.2",
+        "PySide6_Essentials": "6.11.2",
+        "PySide6_Addons": "6.11.2",
+        "shiboken6": "6.11.2"
+      }
+    }
+  },
+  "packages": [
+    {
+      "name": "PySide6",
+      "version": "6.11.2",
+      "origin": "https://pypi.org/project/PySide6/6.11.2/",
+      "license_metadata": "LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only",
+      "metadata_sha256": {
+        "METADATA": "bddd6d1e6f840de4ecf6464c1afe885491c76d1081c72ce30744deaa74949276",
+        "RECORD": "af0eba9b8239b4d5b2293d1ae5cb5aaaa1a9f5bfbfec987abbc79c4c7184fad9",
+        "WHEEL": "9526c8d29c3958609101dfed90e2a08287d73bcaf50fca46fa97b90a310280e4"
+      }
+    },
+    {
+      "name": "PySide6_Essentials",
+      "version": "6.11.2",
+      "origin": "https://pypi.org/project/PySide6_Essentials/6.11.2/",
+      "license_metadata": "LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only",
+      "metadata_sha256": {
+        "METADATA": "a9bdd4937ee837eb46e0c38f9c0ab6c59a6f788d711b96b63c726247ca7a2379",
+        "RECORD": "5a6b85b28645e7f41e4cee423a9dcf992f958a7206f557cdae1b7d17c9871543",
+        "WHEEL": "9526c8d29c3958609101dfed90e2a08287d73bcaf50fca46fa97b90a310280e4"
+      }
+    },
+    {
+      "name": "PySide6_Addons",
+      "version": "6.11.2",
+      "origin": "https://pypi.org/project/PySide6_Addons/6.11.2/",
+      "license_metadata": "LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only",
+      "metadata_sha256": {
+        "METADATA": "6c14f94cb03f754a3d8e9ada4d726dbc08aff04d4f0b4377483f9921aa646952",
+        "RECORD": "db0d604db5646463184fb23cdae87f28c5c6bb67a48838476bb9845454ba71c2",
+        "WHEEL": "9526c8d29c3958609101dfed90e2a08287d73bcaf50fca46fa97b90a310280e4"
+      }
+    },
+    {
+      "name": "shiboken6",
+      "version": "6.11.2",
+      "origin": "https://pypi.org/project/shiboken6/6.11.2/",
+      "license_metadata": "LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only",
+      "metadata_sha256": {
+        "METADATA": "d118511674eb858e7e0666fae0de10ac79ae31800ad1215ad57285953d4ad241",
+        "RECORD": "9e2220194cd3483e9737f6b66477d5190991ab5098525ea941ccd7795055b174",
+        "WHEEL": "9526c8d29c3958609101dfed90e2a08287d73bcaf50fca46fa97b90a310280e4"
+      }
+    },
+    {
+      "name": "pyinstaller",
+      "version": "6.22.3",
+      "origin": "https://pypi.org/project/pyinstaller/6.22.3/",
+      "license_metadata": "GPLv2-or-later with a special exception which allows to use PyInstaller to build and distribute non-free programs (including commercial ones)",
+      "metadata_sha256": {
+        "METADATA": "2991d3dcd53fe9966b8c16586322a7f9bbc564dd4752c190bd4fe8d6747f7046",
+        "RECORD": "96411aadd0ce63538cb3564ba1ae2e72970c4814c5b36ed96841b094943fbe14",
+        "WHEEL": "6ee7891b54f8afc3e852fb9312fe9bc24f78dbd8827bfc1e93439bb86d2adbd6"
+      }
+    },
+    {
+      "name": "pyinstaller-hooks-contrib",
+      "version": "2026.8",
+      "origin": "https://pypi.org/project/pyinstaller-hooks-contrib/2026.8/",
+      "license_metadata": null,
+      "metadata_sha256": {
+        "METADATA": "686e63d76cb494d44c4533ed64a7d797970a1253493a4f875d39defc190396c4",
+        "RECORD": "90a55e85004e7743df5cefe43a6db8b1bdf13800cfe61cffff19240f375a921a",
+        "WHEEL": "61532836a2b3111b7ec23519c09df7c41180c27165fb872a6d8913b566b88ad1"
+      }
+    }
+  ],
+  "file_count": 324,
+  "bundle_bytes": 96607287,
+  "plugins": [
+    "_internal/PySide6/plugins/imageformats/qico.dll",
+    "_internal/PySide6/plugins/platforms/qoffscreen.dll",
+    "_internal/PySide6/plugins/platforms/qwindows.dll",
+    "_internal/PySide6/plugins/styles/qmodernwindowsstyle.dll"
+  ],
+  "qt_libraries": [
+    "_internal/PySide6/Qt6Core.dll",
+    "_internal/PySide6/Qt6Gui.dll",
+    "_internal/PySide6/Qt6Svg.dll",
+    "_internal/PySide6/Qt6Test.dll",
+    "_internal/PySide6/Qt6Widgets.dll"
+  ],
+  "removed_by_policy": [
+    "PySide6\\Qt6Network.dll",
+    "PySide6\\Qt6OpenGL.dll",
+    "PySide6\\Qt6Pdf.dll",
+    "PySide6\\Qt6Qml.dll",
+    "PySide6\\Qt6QmlMeta.dll",
+    "PySide6\\Qt6QmlModels.dll",
+    "PySide6\\Qt6QmlWorkerScript.dll",
+    "PySide6\\Qt6Quick.dll",
+    "PySide6\\Qt6VirtualKeyboard.dll",
+    "PySide6\\plugins\\generic\\qtuiotouchplugin.dll",
+    "PySide6\\plugins\\iconengines\\qsvgicon.dll",
+    "PySide6\\plugins\\imageformats\\qgif.dll",
+    "PySide6\\plugins\\imageformats\\qicns.dll",
+    "PySide6\\plugins\\imageformats\\qjpeg.dll",
+    "PySide6\\plugins\\imageformats\\qpdf.dll",
+    "PySide6\\plugins\\imageformats\\qsvg.dll",
+    "PySide6\\plugins\\imageformats\\qtga.dll",
+    "PySide6\\plugins\\imageformats\\qtiff.dll",
+    "PySide6\\plugins\\imageformats\\qwbmp.dll",
+    "PySide6\\plugins\\imageformats\\qwebp.dll",
+    "PySide6\\plugins\\platforminputcontexts\\qtvirtualkeyboardplugin.dll",
+    "PySide6\\plugins\\platforms\\qdirect2d.dll",
+    "PySide6\\plugins\\platforms\\qminimal.dll"
+  ],
+  "files": [
+    {
+      "path": "_internal/_bz2.pyd",
+      "bytes": 88288,
+      "sha256": "b938073c85cf6b9fe80556d7899ed1901e5e60b7adea2832442376239fb36b36",
+      "license_classification": "PSF-2.0 plus stdlib third-party terms",
+      "disposition": "retain interpreter runtime; exact release notices pending",
+      "collection_origin": {
+        "source_name": "_bz2.pyd",
+        "source_sha256": "b938073c85cf6b9fe80556d7899ed1901e5e60b7adea2832442376239fb36b36",
+        "origin": "Python/toolchain runtime collection; source file identity retained"
+      }
+    },
+    {
+      "path": "_internal/_ctypes.pyd",
+      "bytes": 142560,
+      "sha256": "408cc4e7a22ffa418ca52f5e13fe9268a3c50a2bc9de02b0530b555ef591bc5a",
+      "license_classification": "PSF-2.0 plus stdlib third-party terms",
+      "disposition": "retain interpreter runtime; exact release notices pending",
+      "collection_origin": {
+        "source_name": "_ctypes.pyd",
+        "source_sha256": "408cc4e7a22ffa418ca52f5e13fe9268a3c50a2bc9de02b0530b555ef591bc5a",
+        "origin": "Python/toolchain runtime collection; source file identity retained"
+      }
+    },
+    {
+      "path": "_internal/_decimal.pyd",
+      "bytes": 291552,
+      "sha256": "bc3a61685825ae37a4cd2b2b87fa27af12e01575c4f920788ea806e6781a2c79",
+      "license_classification": "PSF-2.0 plus stdlib third-party terms",
+      "disposition": "retain interpreter runtime; exact release notices pending",
+      "collection_origin": {
+        "source_name": "_decimal.pyd",
+        "source_sha256": "bc3a61685825ae37a4cd2b2b87fa27af12e01575c4f920788ea806e6781a2c79",
+        "origin": "Python/toolchain runtime collection; source file identity retained"
+      }
+    },
+    {
+      "path": "_internal/_hashlib.pyd",
+      "bytes": 69344,
+      "sha256": "5933ef5eda7c0bca0b3874a6e2c5f13b91b8f2cfc29bc46160df3212a1dbee79",
+      "license_classification": "PSF-2.0 plus stdlib third-party terms",
+      "disposition": "retain interpreter runtime; exact release notices pending",
+      "collection_origin": {
+        "source_name": "_hashlib.pyd",
+        "source_sha256": "5933ef5eda7c0bca0b3874a6e2c5f13b91b8f2cfc29bc46160df3212a1dbee79",
+        "origin": "Python/toolchain runtime collection; source file identity retained"
+      }
+    },
+    {
+      "path": "_internal/_lzma.pyd",
+      "bytes": 160992,
+      "sha256": "d2abf8db7fb0cf6285663b177991691a41b37e215c3d71fd087a98d8ec1bee63",
+      "license_classification": "PSF-2.0 plus stdlib third-party terms",
+      "disposition": "retain interpreter runtime; exact release notices pending",
+      "collection_origin": {
+        "source_name": "_lzma.pyd",
+        "source_sha256": "d2abf8db7fb0cf6285663b177991691a41b37e215c3d71fd087a98d8ec1bee63",
+        "origin": "Python/toolchain runtime collection; source file identity retained"
+      }
+    },
+    {
+      "path": "_internal/_socket.pyd",
+      "bytes": 87776,
+      "sha256": "02265dd0d0287f3ffd287ea5d8e3c918a5a056e8ef2c4529857f5e84ec9e2519",
+      "license_classification": "PSF-2.0 plus stdlib third-party terms",
+      "disposition": "retain interpreter runtime; exact release notices pending",
+      "collection_origin": {
+        "source_name": "_socket.pyd",
+        "source_sha256": "02265dd0d0287f3ffd287ea5d8e3c918a5a056e8ef2c4529857f5e84ec9e2519",
+        "origin": "Python/toolchain runtime collection; source file identity retained"
+      }
+    },
+    {
+      "path": "_internal/_ssl.pyd",
+      "bytes": 190688,
+      "sha256": "4cfb154c7cc525d57020c0e64f2dd876a78b46cd38419446392478de6b7b13b8",
+      "license_classification": "PSF-2.0 plus stdlib third-party terms",
+      "disposition": "retain interpreter runtime; exact release notices pending",
+      "collection_origin": {
+        "source_name": "_ssl.pyd",
+        "source_sha256": "4cfb154c7cc525d57020c0e64f2dd876a78b46cd38419446392478de6b7b13b8",
+        "origin": "Python/toolchain runtime collection; source file identity retained"
+      }
+    },
+    {
+      "path": "_internal/_wmi.pyd",
+      "bytes": 40160,
+      "sha256": "b6fd41f079da0c0054829855360e88b8b762f5c42bb474c2fa02eae367839ad2",
+      "license_classification": "PSF-2.0 plus stdlib third-party terms",
+      "disposition": "retain interpreter runtime; exact release notices pending",
+      "collection_origin": {
+        "source_name": "_wmi.pyd",
+        "source_sha256": "b6fd41f079da0c0054829855360e88b8b762f5c42bb474c2fa02eae367839ad2",
+        "origin": "Python/toolchain runtime collection; source file identity retained"
+      }
+    },
+    {
+      "path": "_internal/_zstd.pyd",
+      "bytes": 503520,
+      "sha256": "33c6eca99470c3eb9d776b617c550ad41b002a668336f062a9ab7be677a7409a",
+      "license_classification": "PSF-2.0 plus stdlib third-party terms",
+      "disposition": "retain interpreter runtime; exact release notices pending",
+      "collection_origin": {
+        "source_name": "_zstd.pyd",
+        "source_sha256": "33c6eca99470c3eb9d776b617c550ad41b002a668336f062a9ab7be677a7409a",
+        "origin": "Python/toolchain runtime collection; source file identity retained"
+      }
+    },
+    {
+      "path": "_internal/adoption-build.json",
+      "bytes": 16864,
+      "sha256": "bf0d7e6333d64c342b7ead4761073efd4b8662c9c1f762b723756674b48a1d61",
+      "license_classification": "metadata/data/archive; component terms apply",
+      "disposition": "engineering inventory; not public release SBOM",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/adoption-collection.json",
+      "bytes": 26668,
+      "sha256": "ea9a941ec813f8ae7ac0136a47c3eb12c4fa84a212c841a2ab12fc02fb708996",
+      "license_classification": "metadata/data/archive; component terms apply",
+      "disposition": "engineering inventory; not public release SBOM",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/api-ms-win-core-console-l1-1-0.dll",
+      "bytes": 22072,
+      "sha256": "88ace577a9c51061cb7d1a36babbbefa48212fadc838ffde98fdfff60de18386",
+      "license_classification": "Microsoft Visual C++/Universal CRT redistributable terms",
+      "disposition": "retain Python/Qt native runtime; release redistributable notices pending",
+      "collection_origin": {
+        "source_name": "api-ms-win-core-console-l1-1-0.dll",
+        "source_sha256": "88ace577a9c51061cb7d1a36babbbefa48212fadc838ffde98fdfff60de18386",
+        "origin": "Python/toolchain runtime collection; source file identity retained"
+      }
+    },
+    {
+      "path": "_internal/api-ms-win-core-datetime-l1-1-0.dll",
+      "bytes": 22056,
+      "sha256": "1bd81dfd19204b44662510d9054852fb77c9f25c1088d647881c9b976cc16818",
+      "license_classification": "Microsoft Visual C++/Universal CRT redistributable terms",
+      "disposition": "retain Python/Qt native runtime; release redistributable notices pending",
+      "collection_origin": {
+        "source_name": "api-ms-win-core-datetime-l1-1-0.dll",
+        "source_sha256": "1bd81dfd19204b44662510d9054852fb77c9f25c1088d647881c9b976cc16818",
+        "origin": "Python/toolchain runtime collection; source file identity retained"
+      }
+    },
+    {
+      "path": "_internal/api-ms-win-core-debug-l1-1-0.dll",
+      "bytes": 21944,
+      "sha256": "591358eb4d1531e9563ee0813e4301c552ce364c912ce684d16576eabf195dc3",
+      "license_classification": "Microsoft Visual C++/Universal CRT redistributable terms",
+      "disposition": "retain Python/Qt native runtime; release redistributable notices pending",
+      "collection_origin": {
+        "source_name": "api-ms-win-core-debug-l1-1-0.dll",
+        "source_sha256": "591358eb4d1531e9563ee0813e4301c552ce364c912ce684d16576eabf195dc3",
+        "origin": "Python/toolchain runtime collection; source file identity retained"
+      }
+    },
+    {
+      "path": "_internal/api-ms-win-core-errorhandling-l1-1-0.dll",
+      "bytes": 22096,
+      "sha256": "d56ce7b1cd76108ad6c137326ec694a14c99d48c3d7b0ace8c3ff4d9bcee3ce8",
+      "license_classification": "Microsoft Visual C++/Universal CRT redistributable terms",
+      "disposition": "retain Python/Qt native runtime; release redistributable notices pending",
+      "collection_origin": {
+        "source_name": "api-ms-win-core-errorhandling-l1-1-0.dll",
+        "source_sha256": "d56ce7b1cd76108ad6c137326ec694a14c99d48c3d7b0ace8c3ff4d9bcee3ce8",
+        "origin": "Python/toolchain runtime collection; source file identity retained"
+      }
+    },
+    {
+      "path": "_internal/api-ms-win-core-fibers-l1-1-0.dll",
+      "bytes": 22072,
+      "sha256": "91d249d7bc0e38ef6bcb17158b1fdc6dd8888dc086615c9b8b750b87e52a5fb3",
+      "license_classification": "Microsoft Visual C++/Universal CRT redistributable terms",
+      "disposition": "retain Python/Qt native runtime; release redistributable notices pending",
+      "collection_origin": {
+        "source_name": "api-ms-win-core-fibers-l1-1-0.dll",
+        "source_sha256": "91d249d7bc0e38ef6bcb17158b1fdc6dd8888dc086615c9b8b750b87e52a5fb3",
+        "origin": "Python/toolchain runtime collection; source file identity retained"
+      }
+    },
+    {
+      "path": "_internal/api-ms-win-core-fibers-l1-1-1.dll",
+      "bytes": 22072,
+      "sha256": "fc9d86cec621383eab636ebc87ddd3f5c19a3cb2a33d97be112c051d0b275429",
+      "license_classification": "Microsoft Visual C++/Universal CRT redistributable terms",
+      "disposition": "retain Python/Qt native runtime; release redistributable notices pending",
+      "collection_origin": {
+        "source_name": "api-ms-win-core-fibers-l1-1-1.dll",
+        "source_sha256": "fc9d86cec621383eab636ebc87ddd3f5c19a3cb2a33d97be112c051d0b275429",
+        "origin": "Python/toolchain runtime collection; source file identity retained"
+      }
+    },
+    {
+      "path": "_internal/api-ms-win-core-file-l1-1-0.dll",
+      "bytes": 26152,
+      "sha256": "1ca895aba4e7435563a6b43e85eba67a0f8c74aa6a6a94d0fc48fa35535e2585",
+      "license_classification": "Microsoft Visual C++/Universal CRT redistributable terms",
+      "disposition": "retain Python/Qt native runtime; release redistributable notices pending",
+      "collection_origin": {
+        "source_name": "api-ms-win-core-file-l1-1-0.dll",
+        "source_sha256": "1ca895aba4e7435563a6b43e85eba67a0f8c74aa6a6a94d0fc48fa35535e2585",
+        "origin": "Python/toolchain runtime collection; source file identity retained"
+      }
+    },
+    {
+      "path": "_internal/api-ms-win-core-file-l1-2-0.dll",
+      "bytes": 22056,
+      "sha256": "4cadbc0c39da7c6722206fdcebd670abe5b8d261e7b041dd94f9397a89d1990d",
+      "license_classification": "Microsoft Visual C++/Universal CRT redistributable terms",
+      "disposition": "retain Python/Qt native runtime; release redistributable notices pending",
+      "collection_origin": {
+        "source_name": "api-ms-win-core-file-l1-2-0.dll",
+        "source_sha256": "4cadbc0c39da7c6722206fdcebd670abe5b8d261e7b041dd94f9397a89d1990d",
+        "origin": "Python/toolchain runtime collection; source file identity retained"
+      }
+    },
+    {
+      "path": "_internal/api-ms-win-core-file-l2-1-0.dll",
+      "bytes": 21960,
+      "sha256": "93c624b366ba16c643fc8933070a26f03b073ad0cf7f80173266d67536c61989",
+      "license_classification": "Microsoft Visual C++/Universal CRT redistributable terms",
+      "disposition": "retain Python/Qt native runtime; release redistributable notices pending",
+      "collection_origin": {
+        "source_name": "api-ms-win-core-file-l2-1-0.dll",
+        "source_sha256": "93c624b366ba16c643fc8933070a26f03b073ad0cf7f80173266d67536c61989",
+        "origin": "Python/toolchain runtime collection; source file identity retained"
+      }
+    },
+    {
+      "path": "_internal/api-ms-win-core-handle-l1-1-0.dll",
+      "bytes": 21944,
+      "sha256": "39095f59c41d76ec81bb2723d646fde4c148e7cc3402f4980d2ade95cb9c84f9",
+      "license_classification": "Microsoft Visual C++/Universal CRT redistributable terms",
+      "disposition": "retain Python/Qt native runtime; release redistributable notices pending",
+      "collection_origin": {
+        "source_name": "api-ms-win-core-handle-l1-1-0.dll",
+        "source_sha256": "39095f59c41d76ec81bb2723d646fde4c148e7cc3402f4980d2ade95cb9c84f9",
+        "origin": "Python/toolchain runtime collection; source file identity retained"
+      }
+    },
+    {
+      "path": "_internal/api-ms-win-core-heap-l1-1-0.dll",
+      "bytes": 22072,
+      "sha256": "8f105771b236dbcb859de271f0a6822ce1cb79c36988dd42c9e3f6f55c5f7eb9",
+      "license_classification": "Microsoft Visual C++/Universal CRT redistributable terms",
+      "disposition": "retain Python/Qt native runtime; release redistributable notices pending",
+      "collection_origin": {
+        "source_name": "api-ms-win-core-heap-l1-1-0.dll",
+        "source_sha256": "8f105771b236dbcb859de271f0a6822ce1cb79c36988dd42c9e3f6f55c5f7eb9",
+        "origin": "Python/toolchain runtime collection; source file identity retained"
+      }
+    },
+    {
+      "path": "_internal/api-ms-win-core-interlocked-l1-1-0.dll",
+      "bytes": 22072,
+      "sha256": "53b25e753ca785bf8b695d89dde5818a318890211dc992a89146f16658f0b606",
+      "license_classification": "Microsoft Visual C++/Universal CRT redistributable terms",
+      "disposition": "retain Python/Qt native runtime; release redistributable notices pending",
+      "collection_origin": {
+        "source_name": "api-ms-win-core-interlocked-l1-1-0.dll",
+        "source_sha256": "53b25e753ca785bf8b695d89dde5818a318890211dc992a89146f16658f0b606",
+        "origin": "Python/toolchain runtime collection; source file identity retained"
+      }
+    },
+    {
+      "path": "_internal/api-ms-win-core-kernel32-legacy-l1-1-1.dll",
+      "bytes": 22080,
+      "sha256": "a9b13a1cd1b8c19b0c6b4afcd5bb0dd29c0e2288231ac9e6db8510094ce68ba6",
+      "license_classification": "Microsoft Visual C++/Universal CRT redistributable terms",
+      "disposition": "retain Python/Qt native runtime; release redistributable notices pending",
+      "collection_origin": {
+        "source_name": "api-ms-win-core-kernel32-legacy-l1-1-1.dll",
+        "source_sha256": "a9b13a1cd1b8c19b0c6b4afcd5bb0dd29c0e2288231ac9e6db8510094ce68ba6",
+        "origin": "Python/toolchain runtime collection; source file identity retained"
+      }
+    },
+    {
+      "path": "_internal/api-ms-win-core-libraryloader-l1-1-0.dll",
+      "bytes": 22056,
+      "sha256": "7f39ba298b41e4963047341288cab36b6a241835ee11ba4ad70f44dacd40906c",
+      "license_classification": "Microsoft Visual C++/Universal CRT redistributable terms",
+      "disposition": "retain Python/Qt native runtime; release redistributable notices pending",
+      "collection_origin": {
+        "source_name": "api-ms-win-core-libraryloader-l1-1-0.dll",
+        "source_sha256": "7f39ba298b41e4963047341288cab36b6a241835ee11ba4ad70f44dacd40906c",
+        "origin": "Python/toolchain runtime collection; source file identity retained"
+      }
+    },
+    {
+      "path": "_internal/api-ms-win-core-localization-l1-2-0.dll",
+      "bytes": 22080,
+      "sha256": "6ee44dd0d8510dc024c9f7c79b1b9fa88c987b26b6beb6653ddd11751c34e5dc",
+      "license_classification": "Microsoft Visual C++/Universal CRT redistributable terms",
+      "disposition": "retain Python/Qt native runtime; release redistributable notices pending",
+      "collection_origin": {
+        "source_name": "api-ms-win-core-localization-l1-2-0.dll",
+        "source_sha256": "6ee44dd0d8510dc024c9f7c79b1b9fa88c987b26b6beb6653ddd11751c34e5dc",
+        "origin": "Python/toolchain runtime collection; source file identity retained"
+      }
+    },
+    {
+      "path": "_internal/api-ms-win-core-memory-l1-1-0.dll",
+      "bytes": 22056,
+      "sha256": "0512a35316ec9180437f86696a84c5c06a7e4e82e050055a656e5bf9fca206f9",
+      "license_classification": "Microsoft Visual C++/Universal CRT redistributable terms",
+      "disposition": "retain Python/Qt native runtime; release redistributable notices pending",
+      "collection_origin": {
+        "source_name": "api-ms-win-core-memory-l1-1-0.dll",
+        "source_sha256": "0512a35316ec9180437f86696a84c5c06a7e4e82e050055a656e5bf9fca206f9",
+        "origin": "Python/toolchain runtime collection; source file identity retained"
+      }
+    },
+    {
+      "path": "_internal/api-ms-win-core-namedpipe-l1-1-0.dll",
+      "bytes": 22096,
+      "sha256": "c05f1fffe3b5a2738ea54ce9485cca026fb9635f982626fba1e1dcc531897273",
+      "license_classification": "Microsoft Visual C++/Universal CRT redistributable terms",
+      "disposition": "retain Python/Qt native runtime; release redistributable notices pending",
+      "collection_origin": {
+        "source_name": "api-ms-win-core-namedpipe-l1-1-0.dll",
+        "source_sha256": "c05f1fffe3b5a2738ea54ce9485cca026fb9635f982626fba1e1dcc531897273",
+        "origin": "Python/toolchain runtime collection; source file identity retained"
+      }
+    },
+    {
+      "path": "_internal/api-ms-win-core-processenvironment-l1-1-0.dll",
+      "bytes": 21968,
+      "sha256": "c4eca98c3c67b6395d5b005b00ac1eb0318b86b23aa71035a44c2b1602befba9",
+      "license_classification": "Microsoft Visual C++/Universal CRT redistributable terms",
+      "disposition": "retain Python/Qt native runtime; release redistributable notices pending",
+      "collection_origin": {
+        "source_name": "api-ms-win-core-processenvironment-l1-1-0.dll",
+        "source_sha256": "c4eca98c3c67b6395d5b005b00ac1eb0318b86b23aa71035a44c2b1602befba9",
+        "origin": "Python/toolchain runtime collection; source file identity retained"
+      }
+    },
+    {
+      "path": "_internal/api-ms-win-core-processthreads-l1-1-0.dll",
+      "bytes": 22096,
+      "sha256": "5ccb89e93d67bc3288d4e84649c5346e66e15e3d7cd65d989daf3f4cb584be9a",
+      "license_classification": "Microsoft Visual C++/Universal CRT redistributable terms",
+      "disposition": "retain Python/Qt native runtime; release redistributable notices pending",
+      "collection_origin": {
+        "source_name": "api-ms-win-core-processthreads-l1-1-0.dll",
+        "source_sha256": "5ccb89e93d67bc3288d4e84649c5346e66e15e3d7cd65d989daf3f4cb584be9a",
+        "origin": "Python/toolchain runtime collection; source file identity retained"
+      }
+    },
+    {
+      "path": "_internal/api-ms-win-core-processthreads-l1-1-1.dll",
+      "bytes": 22072,
+      "sha256": "4ad565a8ba3ef0ea8ab87221ad11f83ee0bc844ce236607958406663b407333e",
+      "license_classification": "Microsoft Visual C++/Universal CRT redistributable terms",
+      "disposition": "retain Python/Qt native runtime; release redistributable notices pending",
+      "collection_origin": {
+        "source_name": "api-ms-win-core-processthreads-l1-1-1.dll",
+        "source_sha256": "4ad565a8ba3ef0ea8ab87221ad11f83ee0bc844ce236607958406663b407333e",
+        "origin": "Python/toolchain runtime collection; source file identity retained"
+      }
+    },
+    {
+      "path": "_internal/api-ms-win-core-profile-l1-1-0.dll",
+      "bytes": 22080,
+      "sha256": "7809160932f44e59b021699f5bc68799eb7293ee1fa926d6fcca3c3445302e61",
+      "license_classification": "Microsoft Visual C++/Universal CRT redistributable terms",
+      "disposition": "retain Python/Qt native runtime; release redistributable notices pending",
+      "collection_origin": {
+        "source_name": "api-ms-win-core-profile-l1-1-0.dll",
+        "source_sha256": "7809160932f44e59b021699f5bc68799eb7293ee1fa926d6fcca3c3445302e61",
+        "origin": "Python/toolchain runtime collection; source file identity retained"
+      }
+    },
+    {
+      "path": "_internal/api-ms-win-core-rtlsupport-l1-1-0.dll",
+      "bytes": 21960,
+      "sha256": "9dc1e91e71c7c054854bd1487cb4e6946d82c9f463430f1c4e8d1471005172b1",
+      "license_classification": "Microsoft Visual C++/Universal CRT redistributable terms",
+      "disposition": "retain Python/Qt native runtime; release redistributable notices pending",
+      "collection_origin": {
+        "source_name": "api-ms-win-core-rtlsupport-l1-1-0.dll",
+        "source_sha256": "9dc1e91e71c7c054854bd1487cb4e6946d82c9f463430f1c4e8d1471005172b1",
+        "origin": "Python/toolchain runtime collection; source file identity retained"
+      }
+    },
+    {
+      "path": "_internal/api-ms-win-core-string-l1-1-0.dll",
+      "bytes": 22056,
+      "sha256": "60fc31d2a0c634412f529dba76af3b9bf991352877c6dae528186d3935704cfd",
+      "license_classification": "Microsoft Visual C++/Universal CRT redistributable terms",
+      "disposition": "retain Python/Qt native runtime; release redistributable notices pending",
+      "collection_origin": {
+        "source_name": "api-ms-win-core-string-l1-1-0.dll",
+        "source_sha256": "60fc31d2a0c634412f529dba76af3b9bf991352877c6dae528186d3935704cfd",
+        "origin": "Python/toolchain runtime collection; source file identity retained"
+      }
+    },
+    {
+      "path": "_internal/api-ms-win-core-synch-l1-1-0.dll",
+      "bytes": 22056,
+      "sha256": "3a72b4f29f39a265d32ad12f0ce15dbf60129c840e10d84d427829ede45e78ad",
+      "license_classification": "Microsoft Visual C++/Universal CRT redistributable terms",
+      "disposition": "retain Python/Qt native runtime; release redistributable notices pending",
+      "collection_origin": {
+        "source_name": "api-ms-win-core-synch-l1-1-0.dll",
+        "source_sha256": "3a72b4f29f39a265d32ad12f0ce15dbf60129c840e10d84d427829ede45e78ad",
+        "origin": "Python/toolchain runtime collection; source file identity retained"
+      }
+    },
+    {
+      "path": "_internal/api-ms-win-core-synch-l1-2-0.dll",
+      "bytes": 22080,
+      "sha256": "efc1e4460984a73cf47a3def033af1c8f3b1dbc1a56cd27781d3aacf3e3330cb",
+      "license_classification": "Microsoft Visual C++/Universal CRT redistributable terms",
+      "disposition": "retain Python/Qt native runtime; release redistributable notices pending",
+      "collection_origin": {
+        "source_name": "api-ms-win-core-synch-l1-2-0.dll",
+        "source_sha256": "efc1e4460984a73cf47a3def033af1c8f3b1dbc1a56cd27781d3aacf3e3330cb",
+        "origin": "Python/toolchain runtime collection; source file identity retained"
+      }
+    },
+    {
+      "path": "_internal/api-ms-win-core-sysinfo-l1-1-0.dll",
+      "bytes": 22072,
+      "sha256": "b203d862ddef1dd62bf623fc866c7f7a9c317c1c2ae30d1f52cb41f955b5698e",
+      "license_classification": "Microsoft Visual C++/Universal CRT redistributable terms",
+      "disposition": "retain Python/Qt native runtime; release redistributable notices pending",
+      "collection_origin": {
+        "source_name": "api-ms-win-core-sysinfo-l1-1-0.dll",
+        "source_sha256": "b203d862ddef1dd62bf623fc866c7f7a9c317c1c2ae30d1f52cb41f955b5698e",
+        "origin": "Python/toolchain runtime collection; source file identity retained"
+      }
+    },
+    {
+      "path": "_internal/api-ms-win-core-sysinfo-l1-2-0.dll",
+      "bytes": 22080,
+      "sha256": "2703635d835396afd0f138d7c73751afe7e33a24f4225d08c1690b0a371932c0",
+      "license_classification": "Microsoft Visual C++/Universal CRT redistributable terms",
+      "disposition": "retain Python/Qt native runtime; release redistributable notices pending",
+      "collection_origin": {
+        "source_name": "api-ms-win-core-sysinfo-l1-2-0.dll",
+        "source_sha256": "2703635d835396afd0f138d7c73751afe7e33a24f4225d08c1690b0a371932c0",
+        "origin": "Python/toolchain runtime collection; source file identity retained"
+      }
+    },
+    {
+      "path": "_internal/api-ms-win-core-timezone-l1-1-0.dll",
+      "bytes": 22056,
+      "sha256": "33f4fddc181066fce06b2227bded813f95e94ed1f3d785e982c6b6b56c510c57",
+      "license_classification": "Microsoft Visual C++/Universal CRT redistributable terms",
+      "disposition": "retain Python/Qt native runtime; release redistributable notices pending",
+      "collection_origin": {
+        "source_name": "api-ms-win-core-timezone-l1-1-0.dll",
+        "source_sha256": "33f4fddc181066fce06b2227bded813f95e94ed1f3d785e982c6b6b56c510c57",
+        "origin": "Python/toolchain runtime collection; source file identity retained"
+      }
+    },
+    {
+      "path": "_internal/api-ms-win-core-util-l1-1-0.dll",
+      "bytes": 21944,
+      "sha256": "6eda016742a6171205a387a14b3c0b331841567740376f56768f8c151724207d",
+      "license_classification": "Microsoft Visual C++/Universal CRT redistributable terms",
+      "disposition": "retain Python/Qt native runtime; release redistributable notices pending",
+      "collection_origin": {
+        "source_name": "api-ms-win-core-util-l1-1-0.dll",
+        "source_sha256": "6eda016742a6171205a387a14b3c0b331841567740376f56768f8c151724207d",
+        "origin": "Python/toolchain runtime collection; source file identity retained"
+      }
+    },
+    {
+      "path": "_internal/api-ms-win-crt-conio-l1-1-0.dll",
+      "bytes": 22056,
+      "sha256": "b762061b688aae679afe788904d2c9970f74a7dac98f3b42463d08f25e483d3f",
+      "license_classification": "Microsoft Visual C++/Universal CRT redistributable terms",
+      "disposition": "retain Python/Qt native runtime; release redistributable notices pending",
+      "collection_origin": {
+        "source_name": "api-ms-win-crt-conio-l1-1-0.dll",
+        "source_sha256": "b762061b688aae679afe788904d2c9970f74a7dac98f3b42463d08f25e483d3f",
+        "origin": "Python/toolchain runtime collection; source file identity retained"
+      }
+    },
+    {
+      "path": "_internal/api-ms-win-crt-convert-l1-1-0.dll",
+      "bytes": 26056,
+      "sha256": "ebb2ae5535a64f65daeab8235585114fc9dd2cf1a49f5852d446250b998b6ae4",
+      "license_classification": "Microsoft Visual C++/Universal CRT redistributable terms",
+      "disposition": "retain Python/Qt native runtime; release redistributable notices pending",
+      "collection_origin": {
+        "source_name": "api-ms-win-crt-convert-l1-1-0.dll",
+        "source_sha256": "ebb2ae5535a64f65daeab8235585114fc9dd2cf1a49f5852d446250b998b6ae4",
+        "origin": "Python/toolchain runtime collection; source file identity retained"
+      }
+    },
+    {
+      "path": "_internal/api-ms-win-crt-environment-l1-1-0.dll",
+      "bytes": 22080,
+      "sha256": "17d63275d00bdd8670422b95bd264c532998e0a1b041079e54fce4b6b7a55819",
+      "license_classification": "Microsoft Visual C++/Universal CRT redistributable terms",
+      "disposition": "retain Python/Qt native runtime; release redistributable notices pending",
+      "collection_origin": {
+        "source_name": "api-ms-win-crt-environment-l1-1-0.dll",
+        "source_sha256": "17d63275d00bdd8670422b95bd264c532998e0a1b041079e54fce4b6b7a55819",
+        "origin": "Python/toolchain runtime collection; source file identity retained"
+      }
+    },
+    {
+      "path": "_internal/api-ms-win-crt-filesystem-l1-1-0.dll",
+      "bytes": 22056,
+      "sha256": "9a9e2a65a281644e368d0f272b95ba5f6b445d1c35910d06056c5ebeb77402db",
+      "license_classification": "Microsoft Visual C++/Universal CRT redistributable terms",
+      "disposition": "retain Python/Qt native runtime; release redistributable notices pending",
+      "collection_origin": {
+        "source_name": "api-ms-win-crt-filesystem-l1-1-0.dll",
+        "source_sha256": "9a9e2a65a281644e368d0f272b95ba5f6b445d1c35910d06056c5ebeb77402db",
+        "origin": "Python/toolchain runtime collection; source file identity retained"
+      }
+    },
+    {
+      "path": "_internal/api-ms-win-crt-heap-l1-1-0.dll",
+      "bytes": 22096,
+      "sha256": "bab9ac3ec83e380ae51e4295ef3bf2c738627812d3a49d1e713661abbc8dc57a",
+      "license_classification": "Microsoft Visual C++/Universal CRT redistributable terms",
+      "disposition": "retain Python/Qt native runtime; release redistributable notices pending",
+      "collection_origin": {
+        "source_name": "api-ms-win-crt-heap-l1-1-0.dll",
+        "source_sha256": "bab9ac3ec83e380ae51e4295ef3bf2c738627812d3a49d1e713661abbc8dc57a",
+        "origin": "Python/toolchain runtime collection; source file identity retained"
+      }
+    },
+    {
+      "path": "_internal/api-ms-win-crt-locale-l1-1-0.dll",
+      "bytes": 22080,
+      "sha256": "bd14c67ea28e21d6257ad780a37122c9b5773f69e693f5db6bffaee4d839526e",
+      "license_classification": "Microsoft Visual C++/Universal CRT redistributable terms",
+      "disposition": "retain Python/Qt native runtime; release redistributable notices pending",
+      "collection_origin": {
+        "source_name": "api-ms-win-crt-locale-l1-1-0.dll",
+        "source_sha256": "bd14c67ea28e21d6257ad780a37122c9b5773f69e693f5db6bffaee4d839526e",
+        "origin": "Python/toolchain runtime collection; source file identity retained"
+      }
+    },
+    {
+      "path": "_internal/api-ms-win-crt-math-l1-1-0.dll",
+      "bytes": 30248,
+      "sha256": "606d66d82db562ea7979179d06486a0f94d079941d26b80a1e2c49d29959df6f",
+      "license_classification": "Microsoft Visual C++/Universal CRT redistributable terms",
+      "disposition": "retain Python/Qt native runtime; release redistributable notices pending",
+      "collection_origin": {
+        "source_name": "api-ms-win-crt-math-l1-1-0.dll",
+        "source_sha256": "606d66d82db562ea7979179d06486a0f94d079941d26b80a1e2c49d29959df6f",
+        "origin": "Python/toolchain runtime collection; source file identity retained"
+      }
+    },
+    {
+      "path": "_internal/api-ms-win-crt-process-l1-1-0.dll",
+      "bytes": 22096,
+      "sha256": "f6156b1020380ec4f0e48577ebedaaef5fb1ab1f337d8b4e72e6a33a7567a9cc",
+      "license_classification": "Microsoft Visual C++/Universal CRT redistributable terms",
+      "disposition": "retain Python/Qt native runtime; release redistributable notices pending",
+      "collection_origin": {
+        "source_name": "api-ms-win-crt-process-l1-1-0.dll",
+        "source_sha256": "f6156b1020380ec4f0e48577ebedaaef5fb1ab1f337d8b4e72e6a33a7567a9cc",
+        "origin": "Python/toolchain runtime collection; source file identity retained"
+      }
+    },
+    {
+      "path": "_internal/api-ms-win-crt-runtime-l1-1-0.dll",
+      "bytes": 26152,
+      "sha256": "c5902934d026d7e15fbe9917d474f3322846a41a25e66f4b2b1f758801879f4b",
+      "license_classification": "Microsoft Visual C++/Universal CRT redistributable terms",
+      "disposition": "retain Python/Qt native runtime; release redistributable notices pending",
+      "collection_origin": {
+        "source_name": "api-ms-win-crt-runtime-l1-1-0.dll",
+        "source_sha256": "c5902934d026d7e15fbe9917d474f3322846a41a25e66f4b2b1f758801879f4b",
+        "origin": "Python/toolchain runtime collection; source file identity retained"
+      }
+    },
+    {
+      "path": "_internal/api-ms-win-crt-stdio-l1-1-0.dll",
+      "bytes": 26168,
+      "sha256": "a9c5a153d8c0286f9b41a2b1c65854ad9e6471b8755b7de87bae4470e60bcab6",
+      "license_classification": "Microsoft Visual C++/Universal CRT redistributable terms",
+      "disposition": "retain Python/Qt native runtime; release redistributable notices pending",
+      "collection_origin": {
+        "source_name": "api-ms-win-crt-stdio-l1-1-0.dll",
+        "source_sha256": "a9c5a153d8c0286f9b41a2b1c65854ad9e6471b8755b7de87bae4470e60bcab6",
+        "origin": "Python/toolchain runtime collection; source file identity retained"
+      }
+    },
+    {
+      "path": "_internal/api-ms-win-crt-string-l1-1-0.dll",
+      "bytes": 26176,
+      "sha256": "25b8f83a7767211b11132775a0e27a45aa4ec8ab4e6572599f9c172ae3606b40",
+      "license_classification": "Microsoft Visual C++/Universal CRT redistributable terms",
+      "disposition": "retain Python/Qt native runtime; release redistributable notices pending",
+      "collection_origin": {
+        "source_name": "api-ms-win-crt-string-l1-1-0.dll",
+        "source_sha256": "25b8f83a7767211b11132775a0e27a45aa4ec8ab4e6572599f9c172ae3606b40",
+        "origin": "Python/toolchain runtime collection; source file identity retained"
+      }
+    },
+    {
+      "path": "_internal/api-ms-win-crt-time-l1-1-0.dll",
+      "bytes": 22096,
+      "sha256": "7c7f6393f06de11750adb09cc5698ae55cd9fb27b2e51e207286feb1b5b2b156",
+      "license_classification": "Microsoft Visual C++/Universal CRT redistributable terms",
+      "disposition": "retain Python/Qt native runtime; release redistributable notices pending",
+      "collection_origin": {
+        "source_name": "api-ms-win-crt-time-l1-1-0.dll",
+        "source_sha256": "7c7f6393f06de11750adb09cc5698ae55cd9fb27b2e51e207286feb1b5b2b156",
+        "origin": "Python/toolchain runtime collection; source file identity retained"
+      }
+    },
+    {
+      "path": "_internal/api-ms-win-crt-utility-l1-1-0.dll",
+      "bytes": 21952,
+      "sha256": "d8ba5f17b9ffcbf3aeaf3fa1da226832d2fa90f81acce0cd669464e76ce434ac",
+      "license_classification": "Microsoft Visual C++/Universal CRT redistributable terms",
+      "disposition": "retain Python/Qt native runtime; release redistributable notices pending",
+      "collection_origin": {
+        "source_name": "api-ms-win-crt-utility-l1-1-0.dll",
+        "source_sha256": "d8ba5f17b9ffcbf3aeaf3fa1da226832d2fa90f81acce0cd669464e76ce434ac",
+        "origin": "Python/toolchain runtime collection; source file identity retained"
+      }
+    },
+    {
+      "path": "_internal/base_library.zip",
+      "bytes": 1394319,
+      "sha256": "4b73df0d85dd63530c0cd0f667b8b41969c75e0510515e36d1d7537a8a1efb5f",
+      "license_classification": "metadata/data/archive; component terms apply",
+      "disposition": "engineering inventory; not public release SBOM",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/libcrypto-3.dll",
+      "bytes": 6242552,
+      "sha256": "53c529145339fb042a3dcd3a09c2d7753204f8b4fc79d99e0d31e69a33985958",
+      "license_classification": "Apache-2.0 (OpenSSL 3 lineage)",
+      "disposition": "retain interpreter dependency; no runtime network integration; release notices pending",
+      "collection_origin": {
+        "source_name": "libcrypto-3.dll",
+        "source_sha256": "53c529145339fb042a3dcd3a09c2d7753204f8b4fc79d99e0d31e69a33985958",
+        "origin": "Python/toolchain runtime collection; source file identity retained"
+      }
+    },
+    {
+      "path": "_internal/libffi-8.dll",
+      "bytes": 39696,
+      "sha256": "eff52743773eb550fcc6ce3efc37c85724502233b6b002a35496d828bd7b280a",
+      "license_classification": "platform/transitive native library; component-specific terms",
+      "disposition": "retain collected dependency; release attribution reconciliation pending",
+      "collection_origin": {
+        "source_name": "libffi-8.dll",
+        "source_sha256": "eff52743773eb550fcc6ce3efc37c85724502233b6b002a35496d828bd7b280a",
+        "origin": "Python/toolchain runtime collection; source file identity retained"
+      }
+    },
+    {
+      "path": "_internal/libssl-3.dll",
+      "bytes": 1329912,
+      "sha256": "b17a87979862d19241edc4318f967e24c3ec356ed6c2368f561179fab2311001",
+      "license_classification": "Apache-2.0 (OpenSSL 3 lineage)",
+      "disposition": "retain interpreter dependency; no runtime network integration; release notices pending",
+      "collection_origin": {
+        "source_name": "libssl-3.dll",
+        "source_sha256": "b17a87979862d19241edc4318f967e24c3ec356ed6c2368f561179fab2311001",
+        "origin": "Python/toolchain runtime collection; source file identity retained"
+      }
+    },
+    {
+      "path": "_internal/notices/LICENSE",
+      "bytes": 1099,
+      "sha256": "8bb01cdb5ecdff4172a8aa60e8d50300697b0571d265dbe3dcaf7965f8a630d2",
+      "license_classification": "repository/asset notices",
+      "disposition": "retain notices and fixture-only assets",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/notices/ui-adoption-licensing.md",
+      "bytes": 4710,
+      "sha256": "db1f9ee300b275844253644aca62468b964fa40fbef734d94c61bfca68b7a976",
+      "license_classification": "repository/asset notices",
+      "disposition": "retain notices and fixture-only assets",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/PySide6/MSVCP140.dll",
+      "bytes": 549176,
+      "sha256": "4c667b706893593812cd111b369ba6a77f54d1f1b1ae87cf3bf37692663cfba2",
+      "license_classification": "LGPL-3.0 route plus upstream third-party terms",
+      "disposition": "retain bounded dynamic Qt candidate; release notices/source obligations pending",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/PySide6/MSVCP140_1.dll",
+      "bytes": 27448,
+      "sha256": "d419d24b0a76366f5c9d908b0e45fe70e9e9154bb8ad5f3de42070f2337f857b",
+      "license_classification": "LGPL-3.0 route plus upstream third-party terms",
+      "disposition": "retain bounded dynamic Qt candidate; release notices/source obligations pending",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/PySide6/MSVCP140_2.dll",
+      "bytes": 271672,
+      "sha256": "89917964abb6ca16a260cab258e180c3abc239b5af00eed659d0edf0efdd339c",
+      "license_classification": "LGPL-3.0 route plus upstream third-party terms",
+      "disposition": "retain bounded dynamic Qt candidate; release notices/source obligations pending",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/PySide6/opengl32sw.dll",
+      "bytes": 20639544,
+      "sha256": "34b444c016289b560662ff896deceb7f4b2c0723aed3d319ae167c9186ce42b3",
+      "license_classification": "LGPL-3.0 route plus upstream third-party terms",
+      "disposition": "retain bounded dynamic Qt candidate; release notices/source obligations pending",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/PySide6/plugins/imageformats/qico.dll",
+      "bytes": 46904,
+      "sha256": "1684fd56f1758167f7b3ac011264ae5859b3cf6113e381626ec3dc1d3122fe52",
+      "license_classification": "LGPL-3.0 route plus upstream third-party terms",
+      "disposition": "retain bounded dynamic Qt candidate; release notices/source obligations pending",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/PySide6/plugins/platforms/qoffscreen.dll",
+      "bytes": 110904,
+      "sha256": "e776251668440169ed18a2fe1b236762d514ef5244639cbb559b5a77ddd38954",
+      "license_classification": "LGPL-3.0 route plus upstream third-party terms",
+      "disposition": "retain bounded dynamic Qt candidate; release notices/source obligations pending",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/PySide6/plugins/platforms/qwindows.dll",
+      "bytes": 991032,
+      "sha256": "bf6dbc3009f386fa22f0ced560bea6bbf3e0e0b4442d2fb855db67cffce49dbf",
+      "license_classification": "LGPL-3.0 route plus upstream third-party terms",
+      "disposition": "retain bounded dynamic Qt candidate; release notices/source obligations pending",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/PySide6/plugins/styles/qmodernwindowsstyle.dll",
+      "bytes": 240440,
+      "sha256": "a7a6424c23bf371bd28a404a196b210971726f6f2a87b63aac185a5e6e40da71",
+      "license_classification": "LGPL-3.0 route plus upstream third-party terms",
+      "disposition": "retain bounded dynamic Qt candidate; release notices/source obligations pending",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/PySide6/pyside6.abi3.dll",
+      "bytes": 255288,
+      "sha256": "d0b5c701fb3a8ea839e72b602058f3960935156ebeca084893c54c99e54dd707",
+      "license_classification": "LGPL-3.0 route plus upstream third-party terms",
+      "disposition": "retain bounded dynamic Qt candidate; release notices/source obligations pending",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/PySide6/Qt6Core.dll",
+      "bytes": 10363704,
+      "sha256": "d6a3c37c5263c5d418fc0e80b722bc9fca7c0859e6f635f9624a2fde00bdc653",
+      "license_classification": "LGPL-3.0 route plus upstream third-party terms",
+      "disposition": "retain bounded dynamic Qt candidate; release notices/source obligations pending",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/PySide6/Qt6Gui.dll",
+      "bytes": 9546552,
+      "sha256": "ae29b005f51b6850bf57fa06fced0dc8c7039fd6fafc3bfbcfe76e38adc7abf1",
+      "license_classification": "LGPL-3.0 route plus upstream third-party terms",
+      "disposition": "retain bounded dynamic Qt candidate; release notices/source obligations pending",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/PySide6/Qt6Svg.dll",
+      "bytes": 609080,
+      "sha256": "1eac8f7415b311a88cb3cb4e25c3098d0e059c24c831fbbb13f43a80f0df06b7",
+      "license_classification": "LGPL-3.0 route plus upstream third-party terms",
+      "disposition": "retain bounded dynamic Qt candidate; release notices/source obligations pending",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/PySide6/Qt6Test.dll",
+      "bytes": 382264,
+      "sha256": "db459676d4b4a869fea1eedb5e9e28895a3adaa079d5dd0d7ff38c400edf1ad0",
+      "license_classification": "LGPL-3.0 route plus upstream third-party terms",
+      "disposition": "retain bounded dynamic Qt candidate; release notices/source obligations pending",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/PySide6/Qt6Widgets.dll",
+      "bytes": 6497080,
+      "sha256": "ff0df9e2e6827e035f0731a4cedfc6333f4602bca00775e56346f27032406b74",
+      "license_classification": "LGPL-3.0 route plus upstream third-party terms",
+      "disposition": "retain bounded dynamic Qt candidate; release notices/source obligations pending",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/PySide6/QtCore.pyd",
+      "bytes": 3345720,
+      "sha256": "74f96322c5e9cea73aefd2ed5870e5275336b31f552fcd32f12fc81d23f1bc6f",
+      "license_classification": "LGPL-3.0 route plus upstream third-party terms",
+      "disposition": "retain bounded dynamic Qt candidate; release notices/source obligations pending",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/PySide6/QtGui.pyd",
+      "bytes": 3901240,
+      "sha256": "7bef20046045199c037b7cbfedaa1c5464730fa948b2c9ec8afbf718e63774d4",
+      "license_classification": "LGPL-3.0 route plus upstream third-party terms",
+      "disposition": "retain bounded dynamic Qt candidate; release notices/source obligations pending",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/PySide6/QtSvg.pyd",
+      "bytes": 116024,
+      "sha256": "2d128bbd2839aaad93f96d4d0705912065d2dcc20c92cb028f0441979bdb7280",
+      "license_classification": "LGPL-3.0 route plus upstream third-party terms",
+      "disposition": "retain bounded dynamic Qt candidate; release notices/source obligations pending",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/PySide6/QtTest.pyd",
+      "bytes": 185144,
+      "sha256": "99d71955c692c7c62f295aef42fc4bf02a800bdb350d1ee32d3373a816a63e2a",
+      "license_classification": "LGPL-3.0 route plus upstream third-party terms",
+      "disposition": "retain bounded dynamic Qt candidate; release notices/source obligations pending",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/PySide6/QtWidgets.pyd",
+      "bytes": 4857656,
+      "sha256": "f12f4ca641998e5706d5f7b0023147d573f0f2d2361e26dadf31bdbf05fbfd1d",
+      "license_classification": "LGPL-3.0 route plus upstream third-party terms",
+      "disposition": "retain bounded dynamic Qt candidate; release notices/source obligations pending",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/PySide6/translations/qt_ar.qm",
+      "bytes": 104,
+      "sha256": "b11333c520ccd8e375cde20985df402d586a1a95e0796313bbeb9f717d4db22e",
+      "license_classification": "LGPL-3.0 route plus upstream third-party terms",
+      "disposition": "retain bounded dynamic Qt candidate; release notices/source obligations pending",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/PySide6/translations/qt_bg.qm",
+      "bytes": 91,
+      "sha256": "1e22ee126ec9f76031d880285a907b3a0c4510392319ff700dcdee964abbb1ad",
+      "license_classification": "LGPL-3.0 route plus upstream third-party terms",
+      "disposition": "retain bounded dynamic Qt candidate; release notices/source obligations pending",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/PySide6/translations/qt_ca.qm",
+      "bytes": 91,
+      "sha256": "17ab2623c7f6e8def44b3dbcb517544185817d65f1298ddb10ef71136f232bdc",
+      "license_classification": "LGPL-3.0 route plus upstream third-party terms",
+      "disposition": "retain bounded dynamic Qt candidate; release notices/source obligations pending",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/PySide6/translations/qt_cs.qm",
+      "bytes": 95,
+      "sha256": "c585918fb1d4821a054ea40bdcf279f275ca76c88a5793f433dac6a611ac7e8f",
+      "license_classification": "LGPL-3.0 route plus upstream third-party terms",
+      "disposition": "retain bounded dynamic Qt candidate; release notices/source obligations pending",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/PySide6/translations/qt_da.qm",
+      "bytes": 91,
+      "sha256": "f6773c672acb73fdef6e092060d69d1e5dfee840012bac912d1e92de28714386",
+      "license_classification": "LGPL-3.0 route plus upstream third-party terms",
+      "disposition": "retain bounded dynamic Qt candidate; release notices/source obligations pending",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/PySide6/translations/qt_de.qm",
+      "bytes": 91,
+      "sha256": "0401c316aa3b50a172eb44a4ff1ec384924073beec7c928ef888ec48e4612688",
+      "license_classification": "LGPL-3.0 route plus upstream third-party terms",
+      "disposition": "retain bounded dynamic Qt candidate; release notices/source obligations pending",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/PySide6/translations/qt_en.qm",
+      "bytes": 33,
+      "sha256": "494ac9a2b2cb2fdeced353f4a9f898ed8dcf616e9bc667438c62681e3f7f79cf",
+      "license_classification": "LGPL-3.0 route plus upstream third-party terms",
+      "disposition": "retain bounded dynamic Qt candidate; release notices/source obligations pending",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/PySide6/translations/qt_es.qm",
+      "bytes": 91,
+      "sha256": "648ed4519bc45d7a4779479a7626ea16cf9aa23e93a0b178546cc47bea0591ab",
+      "license_classification": "LGPL-3.0 route plus upstream third-party terms",
+      "disposition": "retain bounded dynamic Qt candidate; release notices/source obligations pending",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/PySide6/translations/qt_fa.qm",
+      "bytes": 84,
+      "sha256": "3f4c989c6b2990d80cc6299408214b31698923b52f154483b3371875de91f88e",
+      "license_classification": "LGPL-3.0 route plus upstream third-party terms",
+      "disposition": "retain bounded dynamic Qt candidate; release notices/source obligations pending",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/PySide6/translations/qt_fi.qm",
+      "bytes": 91,
+      "sha256": "342d01c7eeb234e431d0506821c4cd03c0433115d8d63fee3357be2331858879",
+      "license_classification": "LGPL-3.0 route plus upstream third-party terms",
+      "disposition": "retain bounded dynamic Qt candidate; release notices/source obligations pending",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/PySide6/translations/qt_fr.qm",
+      "bytes": 91,
+      "sha256": "c896a38892a92346b033793d56440993236b23e47e06f3974afdb0552f628387",
+      "license_classification": "LGPL-3.0 route plus upstream third-party terms",
+      "disposition": "retain bounded dynamic Qt candidate; release notices/source obligations pending",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/PySide6/translations/qt_gd.qm",
+      "bytes": 70,
+      "sha256": "49df855a004a17950338af3146466f6df4d5852410bd0b58ea80e0d0203a9d24",
+      "license_classification": "LGPL-3.0 route plus upstream third-party terms",
+      "disposition": "retain bounded dynamic Qt candidate; release notices/source obligations pending",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/PySide6/translations/qt_gl.qm",
+      "bytes": 323590,
+      "sha256": "204a01ac7deb6b5bae193afecbd1e50d18c73bf7d94badeb2bbfdf6123c4ed93",
+      "license_classification": "LGPL-3.0 route plus upstream third-party terms",
+      "disposition": "retain bounded dynamic Qt candidate; release notices/source obligations pending",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/PySide6/translations/qt_he.qm",
+      "bytes": 57,
+      "sha256": "36f01fff2f25e116d4b7af78097b7e49520fd5b7fb6fb120e40be228c05c045f",
+      "license_classification": "LGPL-3.0 route plus upstream third-party terms",
+      "disposition": "retain bounded dynamic Qt candidate; release notices/source obligations pending",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/PySide6/translations/qt_help_ar.qm",
+      "bytes": 8743,
+      "sha256": "222088c9752d1cc3bab985ef2dc77e5ae78578dce18a61ec15b39f02e588163d",
+      "license_classification": "LGPL-3.0 route plus upstream third-party terms",
+      "disposition": "retain bounded dynamic Qt candidate; release notices/source obligations pending",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/PySide6/translations/qt_help_bg.qm",
+      "bytes": 10599,
+      "sha256": "cbcdd1e0bbae332d80ddb0a286056f17c824fa28d353d7fdf12fc97d9f6fe054",
+      "license_classification": "LGPL-3.0 route plus upstream third-party terms",
+      "disposition": "retain bounded dynamic Qt candidate; release notices/source obligations pending",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/PySide6/translations/qt_help_ca.qm",
+      "bytes": 7435,
+      "sha256": "fe40962c814a9f489e18d033e4aaabe435232c9bcf760830c6165af507cca80e",
+      "license_classification": "LGPL-3.0 route plus upstream third-party terms",
+      "disposition": "retain bounded dynamic Qt candidate; release notices/source obligations pending",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/PySide6/translations/qt_help_cs.qm",
+      "bytes": 15297,
+      "sha256": "4ac56fc63e400943bab13f1d4c418502138908e1d488c24aee6131d3d17552aa",
+      "license_classification": "LGPL-3.0 route plus upstream third-party terms",
+      "disposition": "retain bounded dynamic Qt candidate; release notices/source obligations pending",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/PySide6/translations/qt_help_da.qm",
+      "bytes": 4795,
+      "sha256": "6bb092552a398687119f6d52145f04bf8373977446d8f00c0dcbd56b96829f0f",
+      "license_classification": "LGPL-3.0 route plus upstream third-party terms",
+      "disposition": "retain bounded dynamic Qt candidate; release notices/source obligations pending",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/PySide6/translations/qt_help_de.qm",
+      "bytes": 7569,
+      "sha256": "037bc99abf98571ae9375c2513536c15b571d66406c36c1de447b547ff539c07",
+      "license_classification": "LGPL-3.0 route plus upstream third-party terms",
+      "disposition": "retain bounded dynamic Qt candidate; release notices/source obligations pending",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/PySide6/translations/qt_help_en.qm",
+      "bytes": 33,
+      "sha256": "494ac9a2b2cb2fdeced353f4a9f898ed8dcf616e9bc667438c62681e3f7f79cf",
+      "license_classification": "LGPL-3.0 route plus upstream third-party terms",
+      "disposition": "retain bounded dynamic Qt candidate; release notices/source obligations pending",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/PySide6/translations/qt_help_es.qm",
+      "bytes": 10704,
+      "sha256": "fd16b279f8cf69077f75e94d90c9c07a2afff3948a579e3789f5ffb5e5f4202d",
+      "license_classification": "LGPL-3.0 route plus upstream third-party terms",
+      "disposition": "retain bounded dynamic Qt candidate; release notices/source obligations pending",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/PySide6/translations/qt_help_fr.qm",
+      "bytes": 3573,
+      "sha256": "875ee2dcdc64e3dea888d84048e382d3921a175f12847de2e6b1cb12ad9add50",
+      "license_classification": "LGPL-3.0 route plus upstream third-party terms",
+      "disposition": "retain bounded dynamic Qt candidate; release notices/source obligations pending",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/PySide6/translations/qt_help_gl.qm",
+      "bytes": 10891,
+      "sha256": "7399a248609974773f60866c87b78ea7dfbc4f750313d692f7886cd763883c9f",
+      "license_classification": "LGPL-3.0 route plus upstream third-party terms",
+      "disposition": "retain bounded dynamic Qt candidate; release notices/source obligations pending",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/PySide6/translations/qt_help_hr.qm",
+      "bytes": 5170,
+      "sha256": "8c8cc3c5b1ab2b074f82937001b896603420ef75592b3b78172177360dd7ea61",
+      "license_classification": "LGPL-3.0 route plus upstream third-party terms",
+      "disposition": "retain bounded dynamic Qt candidate; release notices/source obligations pending",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/PySide6/translations/qt_help_hu.qm",
+      "bytes": 7255,
+      "sha256": "7be32e015119c969453abb6e8f3fb377963a69fafb10c27b796737b5eb283eaf",
+      "license_classification": "LGPL-3.0 route plus upstream third-party terms",
+      "disposition": "retain bounded dynamic Qt candidate; release notices/source obligations pending",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/PySide6/translations/qt_help_it.qm",
+      "bytes": 10612,
+      "sha256": "316fe8d0815e2b4b396895beb38ef1a40431915b5e054df80f4c0cd556f26e4b",
+      "license_classification": "LGPL-3.0 route plus upstream third-party terms",
+      "disposition": "retain bounded dynamic Qt candidate; release notices/source obligations pending",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/PySide6/translations/qt_help_ja.qm",
+      "bytes": 7917,
+      "sha256": "ae603b2c0d434d40cde433ffcba65f9ee27978a9e19316007be7fe782a5b8b47",
+      "license_classification": "LGPL-3.0 route plus upstream third-party terms",
+      "disposition": "retain bounded dynamic Qt candidate; release notices/source obligations pending",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/PySide6/translations/qt_help_ka.qm",
+      "bytes": 7091,
+      "sha256": "159c74f94b384b5ee6afdf38b6cfc4806bc99ecf73be02d4a7021d4ceba7ec7e",
+      "license_classification": "LGPL-3.0 route plus upstream third-party terms",
+      "disposition": "retain bounded dynamic Qt candidate; release notices/source obligations pending",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/PySide6/translations/qt_help_ko.qm",
+      "bytes": 5708,
+      "sha256": "f11c64694e8e34e1d2c46c1a1d15d6ba9f2db7b61de4fdf54eca5ab977c3e052",
+      "license_classification": "LGPL-3.0 route plus upstream third-party terms",
+      "disposition": "retain bounded dynamic Qt candidate; release notices/source obligations pending",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/PySide6/translations/qt_help_nl.qm",
+      "bytes": 5087,
+      "sha256": "44a8a0daf775d14352180052d13f623814d7bdf98e2c5c80144b7bf74214e3b0",
+      "license_classification": "LGPL-3.0 route plus upstream third-party terms",
+      "disposition": "retain bounded dynamic Qt candidate; release notices/source obligations pending",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/PySide6/translations/qt_help_nn.qm",
+      "bytes": 6934,
+      "sha256": "4c8a7213942078e4f72f5babd26c41b77ace70189714a58b5504a7d5ad0193dc",
+      "license_classification": "LGPL-3.0 route plus upstream third-party terms",
+      "disposition": "retain bounded dynamic Qt candidate; release notices/source obligations pending",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/PySide6/translations/qt_help_pl.qm",
+      "bytes": 9673,
+      "sha256": "cc6cb4d8c54086224672f2e49e623c8cb7c0c1cd65b8d5ecd42fc9ba3a6065bd",
+      "license_classification": "LGPL-3.0 route plus upstream third-party terms",
+      "disposition": "retain bounded dynamic Qt candidate; release notices/source obligations pending",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/PySide6/translations/qt_help_pt_BR.qm",
+      "bytes": 16030,
+      "sha256": "b4015c5d519b4fe93c00bf734d1742e4f0094d89862664d548eb64a46a2feae7",
+      "license_classification": "LGPL-3.0 route plus upstream third-party terms",
+      "disposition": "retain bounded dynamic Qt candidate; release notices/source obligations pending",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/PySide6/translations/qt_help_ru.qm",
+      "bytes": 7288,
+      "sha256": "557b644e6da5f1ec720ef93965617087e4d1f40b2494cc5aa524cf3796108de7",
+      "license_classification": "LGPL-3.0 route plus upstream third-party terms",
+      "disposition": "retain bounded dynamic Qt candidate; release notices/source obligations pending",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/PySide6/translations/qt_help_sk.qm",
+      "bytes": 10388,
+      "sha256": "f41e33e1d790bd0d3eb180f1f875bc191fe74773628f25c2cad95e1402e66867",
+      "license_classification": "LGPL-3.0 route plus upstream third-party terms",
+      "disposition": "retain bounded dynamic Qt candidate; release notices/source obligations pending",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/PySide6/translations/qt_help_sl.qm",
+      "bytes": 10363,
+      "sha256": "2ec955e662407ebcd8dcdae5aaa21e4108e0b5b0aee0e9db712c27072943535f",
+      "license_classification": "LGPL-3.0 route plus upstream third-party terms",
+      "disposition": "retain bounded dynamic Qt candidate; release notices/source obligations pending",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/PySide6/translations/qt_help_sv.qm",
+      "bytes": 6934,
+      "sha256": "95bdb03dbaa6dbdfda46c249e9ccce9a353f71ddb8b112961e8b005b2c60b13c",
+      "license_classification": "LGPL-3.0 route plus upstream third-party terms",
+      "disposition": "retain bounded dynamic Qt candidate; release notices/source obligations pending",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/PySide6/translations/qt_help_tr.qm",
+      "bytes": 6723,
+      "sha256": "81da2f88cd624097581f2d29b10311796bcd9ab289e65883346d276110542d28",
+      "license_classification": "LGPL-3.0 route plus upstream third-party terms",
+      "disposition": "retain bounded dynamic Qt candidate; release notices/source obligations pending",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/PySide6/translations/qt_help_uk.qm",
+      "bytes": 9750,
+      "sha256": "497cfc473684692ee44d7a3795e8fb2270c57069fd9eb98a615dd29ab9be8a7c",
+      "license_classification": "LGPL-3.0 route plus upstream third-party terms",
+      "disposition": "retain bounded dynamic Qt candidate; release notices/source obligations pending",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/PySide6/translations/qt_help_zh_CN.qm",
+      "bytes": 5115,
+      "sha256": "e256d1f6034a5a5521c62f129f91731216e474f71e1d9caea3d3dcb11b670deb",
+      "license_classification": "LGPL-3.0 route plus upstream third-party terms",
+      "disposition": "retain bounded dynamic Qt candidate; release notices/source obligations pending",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/PySide6/translations/qt_help_zh_TW.qm",
+      "bytes": 5160,
+      "sha256": "40112812abb43853d678cc6d97729f21f21b3a7321c827fc9d18f6c936447d1e",
+      "license_classification": "LGPL-3.0 route plus upstream third-party terms",
+      "disposition": "retain bounded dynamic Qt candidate; release notices/source obligations pending",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/PySide6/translations/qt_hr.qm",
+      "bytes": 102,
+      "sha256": "fc9e4146f33be3d09b234be01e56235d3037d8d82d64f0700b4d4a6e253a61a7",
+      "license_classification": "LGPL-3.0 route plus upstream third-party terms",
+      "disposition": "retain bounded dynamic Qt candidate; release notices/source obligations pending",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/PySide6/translations/qt_hu.qm",
+      "bytes": 84,
+      "sha256": "c2fa649f167cdb801d1cc0cb69c1d93594fd5bf8c0b7e79b969935da5c3e19aa",
+      "license_classification": "LGPL-3.0 route plus upstream third-party terms",
+      "disposition": "retain bounded dynamic Qt candidate; release notices/source obligations pending",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/PySide6/translations/qt_it.qm",
+      "bytes": 91,
+      "sha256": "9e7a18bc20ebeec54baaaf41c918a74534511271f796dffffd0f9b9ec31c68d3",
+      "license_classification": "LGPL-3.0 route plus upstream third-party terms",
+      "disposition": "retain bounded dynamic Qt candidate; release notices/source obligations pending",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/PySide6/translations/qt_ja.qm",
+      "bytes": 84,
+      "sha256": "0f5fe50452947d1ee9755249d860354bff6977279b4c496a5bc77e5b89dd745e",
+      "license_classification": "LGPL-3.0 route plus upstream third-party terms",
+      "disposition": "retain bounded dynamic Qt candidate; release notices/source obligations pending",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/PySide6/translations/qt_ka.qm",
+      "bytes": 94,
+      "sha256": "00b67c6dfc255079b5b98a5640f82519c96b2520a028682fba4078b39d743eaa",
+      "license_classification": "LGPL-3.0 route plus upstream third-party terms",
+      "disposition": "retain bounded dynamic Qt candidate; release notices/source obligations pending",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/PySide6/translations/qt_ko.qm",
+      "bytes": 84,
+      "sha256": "1d254b535e1cb35cbcad8210b15b89f4488159826bf35b4504696263dd102fa3",
+      "license_classification": "LGPL-3.0 route plus upstream third-party terms",
+      "disposition": "retain bounded dynamic Qt candidate; release notices/source obligations pending",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/PySide6/translations/qt_lg.qm",
+      "bytes": 57,
+      "sha256": "6ba668501f4c040c66da1bdc022362da3c8cf663da6aa484cbdb599028da98ed",
+      "license_classification": "LGPL-3.0 route plus upstream third-party terms",
+      "disposition": "retain bounded dynamic Qt candidate; release notices/source obligations pending",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/PySide6/translations/qt_lt.qm",
+      "bytes": 165383,
+      "sha256": "47eb5f97467df769261421d54a5bea1131c9fb9b6388791d38bb6574335b64bf",
+      "license_classification": "LGPL-3.0 route plus upstream third-party terms",
+      "disposition": "retain bounded dynamic Qt candidate; release notices/source obligations pending",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/PySide6/translations/qt_lv.qm",
+      "bytes": 63,
+      "sha256": "addeca285282338294f24ca50d37d08a5f68d3785d0a94af86dd4ec8f2a3b449",
+      "license_classification": "LGPL-3.0 route plus upstream third-party terms",
+      "disposition": "retain bounded dynamic Qt candidate; release notices/source obligations pending",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/PySide6/translations/qt_nl.qm",
+      "bytes": 91,
+      "sha256": "39e870cbd25c0f97fa9b1828d5ea1ed9849857a2e26c5321b3f13c76be8f0548",
+      "license_classification": "LGPL-3.0 route plus upstream third-party terms",
+      "disposition": "retain bounded dynamic Qt candidate; release notices/source obligations pending",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/PySide6/translations/qt_nn.qm",
+      "bytes": 91,
+      "sha256": "4e544e23f75eafe1553dc896973db23b5795cd243786d5c653cc0f36a46ca74f",
+      "license_classification": "LGPL-3.0 route plus upstream third-party terms",
+      "disposition": "retain bounded dynamic Qt candidate; release notices/source obligations pending",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/PySide6/translations/qt_pl.qm",
+      "bytes": 99,
+      "sha256": "e6890afa0caf0f6db0248e4c94f6016b8ec8bc266f1e0e9b8f01e8ea912cf968",
+      "license_classification": "LGPL-3.0 route plus upstream third-party terms",
+      "disposition": "retain bounded dynamic Qt candidate; release notices/source obligations pending",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/PySide6/translations/qt_pt_BR.qm",
+      "bytes": 106,
+      "sha256": "0e24c58e35271853f8cdfb3f0f7b0741b5a9a588e43cdec62ae85a3842771e0a",
+      "license_classification": "LGPL-3.0 route plus upstream third-party terms",
+      "disposition": "retain bounded dynamic Qt candidate; release notices/source obligations pending",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/PySide6/translations/qt_pt_PT.qm",
+      "bytes": 70334,
+      "sha256": "2c1e7bbf5168a64b43752dd4c547601c0bde6d610f8671fa3e3af38597e84783",
+      "license_classification": "LGPL-3.0 route plus upstream third-party terms",
+      "disposition": "retain bounded dynamic Qt candidate; release notices/source obligations pending",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/PySide6/translations/qt_ru.qm",
+      "bytes": 102,
+      "sha256": "1b388e2d6d1bd405603e794e498c6d7ec5f5a5ad819243546f6399181da36758",
+      "license_classification": "LGPL-3.0 route plus upstream third-party terms",
+      "disposition": "retain bounded dynamic Qt candidate; release notices/source obligations pending",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/PySide6/translations/qt_sk.qm",
+      "bytes": 95,
+      "sha256": "840c3b01c89df976fc1d2e5bfc6fc84b65666b8a3ceb4cbf5aa0c22af3d2a383",
+      "license_classification": "LGPL-3.0 route plus upstream third-party terms",
+      "disposition": "retain bounded dynamic Qt candidate; release notices/source obligations pending",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/PySide6/translations/qt_sl.qm",
+      "bytes": 228428,
+      "sha256": "c44e0313a9414cc0e490b65b0c036fa11bca959353b228886547bc2c8492034f",
+      "license_classification": "LGPL-3.0 route plus upstream third-party terms",
+      "disposition": "retain bounded dynamic Qt candidate; release notices/source obligations pending",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/PySide6/translations/qt_sv.qm",
+      "bytes": 91,
+      "sha256": "daaae448e0814b469ac3d7a91096fde15491600a6b8bc6c01508425fb5e8b3ec",
+      "license_classification": "LGPL-3.0 route plus upstream third-party terms",
+      "disposition": "retain bounded dynamic Qt candidate; release notices/source obligations pending",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/PySide6/translations/qt_tr.qm",
+      "bytes": 84,
+      "sha256": "59e8a0c411be3b0802a68561b090f182099d6b75c4fe46f398e55f11528e11b9",
+      "license_classification": "LGPL-3.0 route plus upstream third-party terms",
+      "disposition": "retain bounded dynamic Qt candidate; release notices/source obligations pending",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/PySide6/translations/qt_uk.qm",
+      "bytes": 102,
+      "sha256": "053ec1f677c4dba48c6a97eb28f4fc78c1511324d1843d7f4cec2c7c00a66145",
+      "license_classification": "LGPL-3.0 route plus upstream third-party terms",
+      "disposition": "retain bounded dynamic Qt candidate; release notices/source obligations pending",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/PySide6/translations/qt_zh_CN.qm",
+      "bytes": 99,
+      "sha256": "c0e29d32c9540a7e78643b74214e633c56f6ab11f018e516629f2c11b1fb09fc",
+      "license_classification": "LGPL-3.0 route plus upstream third-party terms",
+      "disposition": "retain bounded dynamic Qt candidate; release notices/source obligations pending",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/PySide6/translations/qt_zh_TW.qm",
+      "bytes": 99,
+      "sha256": "24e226954491689549a1a1990db3b8cb78888008d8163b2fd2442b772b6d1b5f",
+      "license_classification": "LGPL-3.0 route plus upstream third-party terms",
+      "disposition": "retain bounded dynamic Qt candidate; release notices/source obligations pending",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/PySide6/translations/qtbase_ar.qm",
+      "bytes": 160017,
+      "sha256": "e03fe68d83201543698fd7fe267dd5dfc5bfd195147e74ff2f19ac3491401263",
+      "license_classification": "LGPL-3.0 route plus upstream third-party terms",
+      "disposition": "retain bounded dynamic Qt candidate; release notices/source obligations pending",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/PySide6/translations/qtbase_bg.qm",
+      "bytes": 165337,
+      "sha256": "e448ac9e3f16c29eb27af3012efe21052daa78fabfb34cd6dff2f69ee3bd3cdb",
+      "license_classification": "LGPL-3.0 route plus upstream third-party terms",
+      "disposition": "retain bounded dynamic Qt candidate; release notices/source obligations pending",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/PySide6/translations/qtbase_ca.qm",
+      "bytes": 269007,
+      "sha256": "5298532fc52ffbc4e2c549f277151a61e741921c834286f7c04d3753677b6b04",
+      "license_classification": "LGPL-3.0 route plus upstream third-party terms",
+      "disposition": "retain bounded dynamic Qt candidate; release notices/source obligations pending",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/PySide6/translations/qtbase_cs.qm",
+      "bytes": 174701,
+      "sha256": "03028b42df5479270371e4c3bdc7df2f56cbbe6dda956a2864ac6f6415861fe8",
+      "license_classification": "LGPL-3.0 route plus upstream third-party terms",
+      "disposition": "retain bounded dynamic Qt candidate; release notices/source obligations pending",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/PySide6/translations/qtbase_da.qm",
+      "bytes": 181387,
+      "sha256": "7d1e5ca3310b54d104c19bf2abd402b38e584e87039a70e153c4a9af74b25c22",
+      "license_classification": "LGPL-3.0 route plus upstream third-party terms",
+      "disposition": "retain bounded dynamic Qt candidate; release notices/source obligations pending",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/PySide6/translations/qtbase_de.qm",
+      "bytes": 223282,
+      "sha256": "ed828a83dfaa51944f166c842155b48ab3bd7cb2c46dcd96269eb5d48af4f63f",
+      "license_classification": "LGPL-3.0 route plus upstream third-party terms",
+      "disposition": "retain bounded dynamic Qt candidate; release notices/source obligations pending",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/PySide6/translations/qtbase_en.qm",
+      "bytes": 33,
+      "sha256": "494ac9a2b2cb2fdeced353f4a9f898ed8dcf616e9bc667438c62681e3f7f79cf",
+      "license_classification": "LGPL-3.0 route plus upstream third-party terms",
+      "disposition": "retain bounded dynamic Qt candidate; release notices/source obligations pending",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/PySide6/translations/qtbase_es.qm",
+      "bytes": 165170,
+      "sha256": "4ffda56ba3bb5414ab0482d1dde64a6f226e3488f6b7f3f11a150e01f53fa4c8",
+      "license_classification": "LGPL-3.0 route plus upstream third-party terms",
+      "disposition": "retain bounded dynamic Qt candidate; release notices/source obligations pending",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/PySide6/translations/qtbase_fa.qm",
+      "bytes": 148156,
+      "sha256": "f78e59b5bdd586181a999034ba418868ed17fe9c05707fb65e523f70e92253d2",
+      "license_classification": "LGPL-3.0 route plus upstream third-party terms",
+      "disposition": "retain bounded dynamic Qt candidate; release notices/source obligations pending",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/PySide6/translations/qtbase_fi.qm",
+      "bytes": 179941,
+      "sha256": "e47fe13713e184d07fa4495dde0c589b0e8f562e91574a3558a9363443a4fa72",
+      "license_classification": "LGPL-3.0 route plus upstream third-party terms",
+      "disposition": "retain bounded dynamic Qt candidate; release notices/source obligations pending",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/PySide6/translations/qtbase_fr.qm",
+      "bytes": 159463,
+      "sha256": "314243a55c32679ad473fdfe48dc7d66e973ad0fc8bf2164480c58dddb50c1a7",
+      "license_classification": "LGPL-3.0 route plus upstream third-party terms",
+      "disposition": "retain bounded dynamic Qt candidate; release notices/source obligations pending",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/PySide6/translations/qtbase_gd.qm",
+      "bytes": 189580,
+      "sha256": "63b439dd44139aa3aed54c2ebe03fa9bc77f22c14ed8fba8eff2608445bb233d",
+      "license_classification": "LGPL-3.0 route plus upstream third-party terms",
+      "disposition": "retain bounded dynamic Qt candidate; release notices/source obligations pending",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/PySide6/translations/qtbase_he.qm",
+      "bytes": 138690,
+      "sha256": "e1ebca16afe8994356f81ca007fbdb9ddf865842010fe908923d873b687cad3f",
+      "license_classification": "LGPL-3.0 route plus upstream third-party terms",
+      "disposition": "retain bounded dynamic Qt candidate; release notices/source obligations pending",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/PySide6/translations/qtbase_hr.qm",
+      "bytes": 149711,
+      "sha256": "bb9eec9a9a652c1340dc75eb2e749be50df00f885b3d6900dfc76799c45b244d",
+      "license_classification": "LGPL-3.0 route plus upstream third-party terms",
+      "disposition": "retain bounded dynamic Qt candidate; release notices/source obligations pending",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/PySide6/translations/qtbase_hu.qm",
+      "bytes": 205885,
+      "sha256": "98463295539d769c8645a0b7fb95ad38454cfd0b14f36af485513f036ddbbbc6",
+      "license_classification": "LGPL-3.0 route plus upstream third-party terms",
+      "disposition": "retain bounded dynamic Qt candidate; release notices/source obligations pending",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/PySide6/translations/qtbase_it.qm",
+      "bytes": 161166,
+      "sha256": "7808ed542a7833c4bd94ec8bdfbbca00bb4f2fe15979b9121ce3249323687300",
+      "license_classification": "LGPL-3.0 route plus upstream third-party terms",
+      "disposition": "retain bounded dynamic Qt candidate; release notices/source obligations pending",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/PySide6/translations/qtbase_ja.qm",
+      "bytes": 129913,
+      "sha256": "2b9581c69b975f59be505b127cd3c19d403ef3d12e0e8386fb97238223e9c1df",
+      "license_classification": "LGPL-3.0 route plus upstream third-party terms",
+      "disposition": "retain bounded dynamic Qt candidate; release notices/source obligations pending",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/PySide6/translations/qtbase_ka.qm",
+      "bytes": 201105,
+      "sha256": "e55e4b72fa620bebee5297ca59dfe2f49894a1e544f2b7485b1cfd8829289d6f",
+      "license_classification": "LGPL-3.0 route plus upstream third-party terms",
+      "disposition": "retain bounded dynamic Qt candidate; release notices/source obligations pending",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/PySide6/translations/qtbase_ko.qm",
+      "bytes": 156799,
+      "sha256": "0179ed1b136e1cb3f583351eaa2c545ba3d83a6ee3f82c32505926a1a5f5f183",
+      "license_classification": "LGPL-3.0 route plus upstream third-party terms",
+      "disposition": "retain bounded dynamic Qt candidate; release notices/source obligations pending",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/PySide6/translations/qtbase_lg.qm",
+      "bytes": 315764,
+      "sha256": "31c0cc4ce13b1d74fe0c19ed0b47638fb31e20c93ee08092533e884007aebfb5",
+      "license_classification": "LGPL-3.0 route plus upstream third-party terms",
+      "disposition": "retain bounded dynamic Qt candidate; release notices/source obligations pending",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/PySide6/translations/qtbase_lv.qm",
+      "bytes": 153608,
+      "sha256": "846e047573ae40c83671c3ba7f73e27efc24b98c82701da0df9973e574178bb2",
+      "license_classification": "LGPL-3.0 route plus upstream third-party terms",
+      "disposition": "retain bounded dynamic Qt candidate; release notices/source obligations pending",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/PySide6/translations/qtbase_nl.qm",
+      "bytes": 202861,
+      "sha256": "f61513bcdbb6ad800585f9437a95d018aab17fa12ee414aa31462ff279d8240e",
+      "license_classification": "LGPL-3.0 route plus upstream third-party terms",
+      "disposition": "retain bounded dynamic Qt candidate; release notices/source obligations pending",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/PySide6/translations/qtbase_nn.qm",
+      "bytes": 196411,
+      "sha256": "f9f2fb7c60e7fcb38bbd3c1314ef122145594265e20b0659ff00004baab13ac7",
+      "license_classification": "LGPL-3.0 route plus upstream third-party terms",
+      "disposition": "retain bounded dynamic Qt candidate; release notices/source obligations pending",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/PySide6/translations/qtbase_pl.qm",
+      "bytes": 162962,
+      "sha256": "3cf6b5c14d5eb0cf81e9af2066e66b3aa579a6b9b3c323ed670761f6254a8c54",
+      "license_classification": "LGPL-3.0 route plus upstream third-party terms",
+      "disposition": "retain bounded dynamic Qt candidate; release notices/source obligations pending",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/PySide6/translations/qtbase_pt_BR.qm",
+      "bytes": 290955,
+      "sha256": "3475d61604b938d459949801a906dbd34a8ca824ade94120015d676e208da859",
+      "license_classification": "LGPL-3.0 route plus upstream third-party terms",
+      "disposition": "retain bounded dynamic Qt candidate; release notices/source obligations pending",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/PySide6/translations/qtbase_ru.qm",
+      "bytes": 203767,
+      "sha256": "3da6605668f9178d11a838c4515478084dcfb4f9cf22f99d7a92b492db9c224b",
+      "license_classification": "LGPL-3.0 route plus upstream third-party terms",
+      "disposition": "retain bounded dynamic Qt candidate; release notices/source obligations pending",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/PySide6/translations/qtbase_sk.qm",
+      "bytes": 125763,
+      "sha256": "d586ae2c314074cf398417fdecb40709d5478dfeb0a67c2fe60d509ee9b59ed7",
+      "license_classification": "LGPL-3.0 route plus upstream third-party terms",
+      "disposition": "retain bounded dynamic Qt candidate; release notices/source obligations pending",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/PySide6/translations/qtbase_sv.qm",
+      "bytes": 249963,
+      "sha256": "5a2178dd2c03cc4516697f1fb0049649c9ed53f5cde6b937786733dae06aeda8",
+      "license_classification": "LGPL-3.0 route plus upstream third-party terms",
+      "disposition": "retain bounded dynamic Qt candidate; release notices/source obligations pending",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/PySide6/translations/qtbase_tr.qm",
+      "bytes": 248720,
+      "sha256": "353fdfd7165659a49212e7a25bf91c0a71588e52c836f7496640f26782414634",
+      "license_classification": "LGPL-3.0 route plus upstream third-party terms",
+      "disposition": "retain bounded dynamic Qt candidate; release notices/source obligations pending",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/PySide6/translations/qtbase_uk.qm",
+      "bytes": 158274,
+      "sha256": "51b8ff55b37dc5907d637a8ddda12fbe816852b0244c74eb4f0fb84867a786e0",
+      "license_classification": "LGPL-3.0 route plus upstream third-party terms",
+      "disposition": "retain bounded dynamic Qt candidate; release notices/source obligations pending",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/PySide6/translations/qtbase_zh_CN.qm",
+      "bytes": 147222,
+      "sha256": "0481a9b92a6f0578400e960a7d5ee70217a6a450eaf7f98b7d32b8dbd0d58616",
+      "license_classification": "LGPL-3.0 route plus upstream third-party terms",
+      "disposition": "retain bounded dynamic Qt candidate; release notices/source obligations pending",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/PySide6/translations/qtbase_zh_TW.qm",
+      "bytes": 126185,
+      "sha256": "21012b2b427f8d09d31ce9cae582ca27955b478ca3dc2ec18a3068d808638c6a",
+      "license_classification": "LGPL-3.0 route plus upstream third-party terms",
+      "disposition": "retain bounded dynamic Qt candidate; release notices/source obligations pending",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/PySide6/VCRUNTIME140.dll",
+      "bytes": 116024,
+      "sha256": "f893ae75a1a24eea174d982f94bc80ce2448201eaa919a73c0653a5657685de4",
+      "license_classification": "LGPL-3.0 route plus upstream third-party terms",
+      "disposition": "retain bounded dynamic Qt candidate; release notices/source obligations pending",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/PySide6/VCRUNTIME140_1.dll",
+      "bytes": 41272,
+      "sha256": "48aa2783793ea18ab3c2c71d420d4fff9814e662a1ff810053c6e5250061a716",
+      "license_classification": "LGPL-3.0 route plus upstream third-party terms",
+      "disposition": "retain bounded dynamic Qt candidate; release notices/source obligations pending",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/pyside6-6.11.2.dist-info/INSTALLER",
+      "bytes": 4,
+      "sha256": "ceebae7b8927a3227e5303cf5e0f1f7b34bb542ad7250ac03fbcde36ec2f1508",
+      "license_classification": "LGPL-3.0 route plus upstream third-party terms",
+      "disposition": "retain bounded dynamic Qt candidate; release notices/source obligations pending",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/pyside6-6.11.2.dist-info/licenses/LicenseRef-Qt-Commercial.txt",
+      "bytes": 470,
+      "sha256": "4f54763ac0fe2abd8f7f8d8fe370a94a08ebf84786aa0b91045bd6628deb08a3",
+      "license_classification": "LGPL-3.0 route plus upstream third-party terms",
+      "disposition": "retain bounded dynamic Qt candidate; release notices/source obligations pending",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/pyside6-6.11.2.dist-info/METADATA",
+      "bytes": 5416,
+      "sha256": "bddd6d1e6f840de4ecf6464c1afe885491c76d1081c72ce30744deaa74949276",
+      "license_classification": "LGPL-3.0 route plus upstream third-party terms",
+      "disposition": "retain bounded dynamic Qt candidate; release notices/source obligations pending",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/pyside6-6.11.2.dist-info/RECORD",
+      "bytes": 5873,
+      "sha256": "af0eba9b8239b4d5b2293d1ae5cb5aaaa1a9f5bfbfec987abbc79c4c7184fad9",
+      "license_classification": "LGPL-3.0 route plus upstream third-party terms",
+      "disposition": "retain bounded dynamic Qt candidate; release notices/source obligations pending",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/pyside6-6.11.2.dist-info/top_level.txt",
+      "bytes": 23,
+      "sha256": "7238bb33d245c78ea5937065a6507f1319a484baa83e11b30ec97ac60d21e89f",
+      "license_classification": "LGPL-3.0 route plus upstream third-party terms",
+      "disposition": "retain bounded dynamic Qt candidate; release notices/source obligations pending",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/pyside6-6.11.2.dist-info/WHEEL",
+      "bytes": 100,
+      "sha256": "9526c8d29c3958609101dfed90e2a08287d73bcaf50fca46fa97b90a310280e4",
+      "license_classification": "LGPL-3.0 route plus upstream third-party terms",
+      "disposition": "retain bounded dynamic Qt candidate; release notices/source obligations pending",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/pyside6_addons-6.11.2.dist-info/INSTALLER",
+      "bytes": 4,
+      "sha256": "ceebae7b8927a3227e5303cf5e0f1f7b34bb542ad7250ac03fbcde36ec2f1508",
+      "license_classification": "LGPL-3.0 route plus upstream third-party terms",
+      "disposition": "retain bounded dynamic Qt candidate; release notices/source obligations pending",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/pyside6_addons-6.11.2.dist-info/licenses/LicenseRef-Qt-Commercial.txt",
+      "bytes": 470,
+      "sha256": "4f54763ac0fe2abd8f7f8d8fe370a94a08ebf84786aa0b91045bd6628deb08a3",
+      "license_classification": "LGPL-3.0 route plus upstream third-party terms",
+      "disposition": "retain bounded dynamic Qt candidate; release notices/source obligations pending",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/pyside6_addons-6.11.2.dist-info/METADATA",
+      "bytes": 4168,
+      "sha256": "6c14f94cb03f754a3d8e9ada4d726dbc08aff04d4f0b4377483f9921aa646952",
+      "license_classification": "LGPL-3.0 route plus upstream third-party terms",
+      "disposition": "retain bounded dynamic Qt candidate; release notices/source obligations pending",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/pyside6_addons-6.11.2.dist-info/RECORD",
+      "bytes": 142330,
+      "sha256": "db0d604db5646463184fb23cdae87f28c5c6bb67a48838476bb9845454ba71c2",
+      "license_classification": "LGPL-3.0 route plus upstream third-party terms",
+      "disposition": "retain bounded dynamic Qt candidate; release notices/source obligations pending",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/pyside6_addons-6.11.2.dist-info/top_level.txt",
+      "bytes": 25,
+      "sha256": "1b74d636657e709b26a9adfa9a1d446fc19316c3c4acf1d685597ff1e1ec4e7b",
+      "license_classification": "LGPL-3.0 route plus upstream third-party terms",
+      "disposition": "retain bounded dynamic Qt candidate; release notices/source obligations pending",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/pyside6_addons-6.11.2.dist-info/WHEEL",
+      "bytes": 100,
+      "sha256": "9526c8d29c3958609101dfed90e2a08287d73bcaf50fca46fa97b90a310280e4",
+      "license_classification": "LGPL-3.0 route plus upstream third-party terms",
+      "disposition": "retain bounded dynamic Qt candidate; release notices/source obligations pending",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/pyside6_essentials-6.11.2.dist-info/entry_points.txt",
+      "bytes": 1296,
+      "sha256": "de8a2b30890aa67ff436780aa3727318720f03fe35c44452dfab7036216b574b",
+      "license_classification": "LGPL-3.0 route plus upstream third-party terms",
+      "disposition": "retain bounded dynamic Qt candidate; release notices/source obligations pending",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/pyside6_essentials-6.11.2.dist-info/INSTALLER",
+      "bytes": 4,
+      "sha256": "ceebae7b8927a3227e5303cf5e0f1f7b34bb542ad7250ac03fbcde36ec2f1508",
+      "license_classification": "LGPL-3.0 route plus upstream third-party terms",
+      "disposition": "retain bounded dynamic Qt candidate; release notices/source obligations pending",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/pyside6_essentials-6.11.2.dist-info/licenses/LicenseRef-Qt-Commercial.txt",
+      "bytes": 470,
+      "sha256": "4f54763ac0fe2abd8f7f8d8fe370a94a08ebf84786aa0b91045bd6628deb08a3",
+      "license_classification": "LGPL-3.0 route plus upstream third-party terms",
+      "disposition": "retain bounded dynamic Qt candidate; release notices/source obligations pending",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/pyside6_essentials-6.11.2.dist-info/METADATA",
+      "bytes": 3802,
+      "sha256": "a9bdd4937ee837eb46e0c38f9c0ab6c59a6f788d711b96b63c726247ca7a2379",
+      "license_classification": "LGPL-3.0 route plus upstream third-party terms",
+      "disposition": "retain bounded dynamic Qt candidate; release notices/source obligations pending",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/pyside6_essentials-6.11.2.dist-info/RECORD",
+      "bytes": 299414,
+      "sha256": "5a6b85b28645e7f41e4cee423a9dcf992f958a7206f557cdae1b7d17c9871543",
+      "license_classification": "LGPL-3.0 route plus upstream third-party terms",
+      "disposition": "retain bounded dynamic Qt candidate; release notices/source obligations pending",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/pyside6_essentials-6.11.2.dist-info/top_level.txt",
+      "bytes": 17,
+      "sha256": "912a30fe58b326e0b31c0fe878ee11e7e587cf2766709fc34bbf01bc87621c3f",
+      "license_classification": "LGPL-3.0 route plus upstream third-party terms",
+      "disposition": "retain bounded dynamic Qt candidate; release notices/source obligations pending",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/pyside6_essentials-6.11.2.dist-info/WHEEL",
+      "bytes": 100,
+      "sha256": "9526c8d29c3958609101dfed90e2a08287d73bcaf50fca46fa97b90a310280e4",
+      "license_classification": "LGPL-3.0 route plus upstream third-party terms",
+      "disposition": "retain bounded dynamic Qt candidate; release notices/source obligations pending",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/python3.dll",
+      "bytes": 73952,
+      "sha256": "6c45910e7c82617ca6360820de861699cc99f9efee434df290aa4c6e38f39886",
+      "license_classification": "PSF-2.0 plus stdlib third-party terms",
+      "disposition": "retain interpreter runtime; exact release notices pending",
+      "collection_origin": {
+        "source_name": "python3.dll",
+        "source_sha256": "6c45910e7c82617ca6360820de861699cc99f9efee434df290aa4c6e38f39886",
+        "origin": "Python/toolchain runtime collection; source file identity retained"
+      }
+    },
+    {
+      "path": "_internal/python314.dll",
+      "bytes": 6785760,
+      "sha256": "0f9857ffdfe010fe6b99328d58c2e3c7472ce75f336bf9c2ad9bd5bca3bce700",
+      "license_classification": "PSF-2.0 plus stdlib third-party terms",
+      "disposition": "retain interpreter runtime; exact release notices pending",
+      "collection_origin": {
+        "source_name": "python314.dll",
+        "source_sha256": "0f9857ffdfe010fe6b99328d58c2e3c7472ce75f336bf9c2ad9bd5bca3bce700",
+        "origin": "Python/toolchain runtime collection; source file identity retained"
+      }
+    },
+    {
+      "path": "_internal/select.pyd",
+      "bytes": 33504,
+      "sha256": "722328e7fad8048057fc966474ba73966d2ceebaa32e7344cce09640ab4dc9bd",
+      "license_classification": "PSF-2.0 plus stdlib third-party terms",
+      "disposition": "retain interpreter runtime; exact release notices pending",
+      "collection_origin": {
+        "source_name": "select.pyd",
+        "source_sha256": "722328e7fad8048057fc966474ba73966d2ceebaa32e7344cce09640ab4dc9bd",
+        "origin": "Python/toolchain runtime collection; source file identity retained"
+      }
+    },
+    {
+      "path": "_internal/shiboken6/MSVCP140.dll",
+      "bytes": 549176,
+      "sha256": "fd4a8c046fa3fea9ca6132f50cf8a56cf1e783b2d3093ba5c85fa063bc6b3845",
+      "license_classification": "LGPL-3.0 route plus upstream third-party terms",
+      "disposition": "retain bounded dynamic Qt candidate; release notices/source obligations pending",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/shiboken6/Shiboken.pyd",
+      "bytes": 33592,
+      "sha256": "2f6f3a694f675b1dafdae26903191613c02866ab48e02591ae34ca1a3b1284f1",
+      "license_classification": "LGPL-3.0 route plus upstream third-party terms",
+      "disposition": "retain bounded dynamic Qt candidate; release notices/source obligations pending",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/shiboken6/shiboken6.abi3.dll",
+      "bytes": 394040,
+      "sha256": "de3c6b2ed5f75c9ac0de4a6844b653b3b9d09263ce68c2b5fc25a96c5c3e8469",
+      "license_classification": "LGPL-3.0 route plus upstream third-party terms",
+      "disposition": "retain bounded dynamic Qt candidate; release notices/source obligations pending",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/shiboken6/VCRUNTIME140.dll",
+      "bytes": 116024,
+      "sha256": "de617641d82eac15595d2e39394163ac33e49bb032cf2c2ea0044ed39d3675e9",
+      "license_classification": "LGPL-3.0 route plus upstream third-party terms",
+      "disposition": "retain bounded dynamic Qt candidate; release notices/source obligations pending",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/shiboken6/VCRUNTIME140_1.dll",
+      "bytes": 41272,
+      "sha256": "fa577d54bd10a91e52472da784a619da6cf241af45f0a0c48b27e91fa0fe6104",
+      "license_classification": "LGPL-3.0 route plus upstream third-party terms",
+      "disposition": "retain bounded dynamic Qt candidate; release notices/source obligations pending",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/shiboken6-6.11.2.dist-info/INSTALLER",
+      "bytes": 4,
+      "sha256": "ceebae7b8927a3227e5303cf5e0f1f7b34bb542ad7250ac03fbcde36ec2f1508",
+      "license_classification": "LGPL-3.0 route plus upstream third-party terms",
+      "disposition": "retain bounded dynamic Qt candidate; release notices/source obligations pending",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/shiboken6-6.11.2.dist-info/licenses/LicenseRef-Qt-Commercial.txt",
+      "bytes": 470,
+      "sha256": "4f54763ac0fe2abd8f7f8d8fe370a94a08ebf84786aa0b91045bd6628deb08a3",
+      "license_classification": "LGPL-3.0 route plus upstream third-party terms",
+      "disposition": "retain bounded dynamic Qt candidate; release notices/source obligations pending",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/shiboken6-6.11.2.dist-info/METADATA",
+      "bytes": 2542,
+      "sha256": "d118511674eb858e7e0666fae0de10ac79ae31800ad1215ad57285953d4ad241",
+      "license_classification": "LGPL-3.0 route plus upstream third-party terms",
+      "disposition": "retain bounded dynamic Qt candidate; release notices/source obligations pending",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/shiboken6-6.11.2.dist-info/RECORD",
+      "bytes": 6541,
+      "sha256": "9e2220194cd3483e9737f6b66477d5190991ab5098525ea941ccd7795055b174",
+      "license_classification": "LGPL-3.0 route plus upstream third-party terms",
+      "disposition": "retain bounded dynamic Qt candidate; release notices/source obligations pending",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/shiboken6-6.11.2.dist-info/top_level.txt",
+      "bytes": 19,
+      "sha256": "fe5f171c4385cce9975111bacc15d22ba2d71bc044cc79fd001052305755d3df",
+      "license_classification": "LGPL-3.0 route plus upstream third-party terms",
+      "disposition": "retain bounded dynamic Qt candidate; release notices/source obligations pending",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/shiboken6-6.11.2.dist-info/WHEEL",
+      "bytes": 100,
+      "sha256": "9526c8d29c3958609101dfed90e2a08287d73bcaf50fca46fa97b90a310280e4",
+      "license_classification": "LGPL-3.0 route plus upstream third-party terms",
+      "disposition": "retain bounded dynamic Qt candidate; release notices/source obligations pending",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/ucrtbase.dll",
+      "bytes": 1361448,
+      "sha256": "2e5fb14b7bf8540278f3614a12f0226e56a7cc9e64b81cbd976c6fcf2f71cbfb",
+      "license_classification": "Microsoft Visual C++/Universal CRT redistributable terms",
+      "disposition": "retain Python/Qt native runtime; release redistributable notices pending",
+      "collection_origin": {
+        "source_name": "ucrtbase.dll",
+        "source_sha256": "2e5fb14b7bf8540278f3614a12f0226e56a7cc9e64b81cbd976c6fcf2f71cbfb",
+        "origin": "Python/toolchain runtime collection; source file identity retained"
+      }
+    },
+    {
+      "path": "_internal/unicodedata.pyd",
+      "bytes": 759008,
+      "sha256": "280b09bd97b598d18c0ed9542dc18ed35fa57a16e84f8e65fd9c6e96516c28d6",
+      "license_classification": "PSF-2.0 plus stdlib third-party terms",
+      "disposition": "retain interpreter runtime; exact release notices pending",
+      "collection_origin": {
+        "source_name": "unicodedata.pyd",
+        "source_sha256": "280b09bd97b598d18c0ed9542dc18ed35fa57a16e84f8e65fd9c6e96516c28d6",
+        "origin": "Python/toolchain runtime collection; source file identity retained"
+      }
+    },
+    {
+      "path": "_internal/VCRUNTIME140.dll",
+      "bytes": 178616,
+      "sha256": "d1f4225df2cd877dbf130d5668a021dce3f94118455ff5ec952061c30afc9ce7",
+      "license_classification": "Microsoft Visual C++/Universal CRT redistributable terms",
+      "disposition": "retain Python/Qt native runtime; release redistributable notices pending",
+      "collection_origin": {
+        "source_name": "VCRUNTIME140.dll",
+        "source_sha256": "d1f4225df2cd877dbf130d5668a021dce3f94118455ff5ec952061c30afc9ce7",
+        "origin": "Python/toolchain runtime collection; source file identity retained"
+      }
+    },
+    {
+      "path": "_internal/VCRUNTIME140_1.dll",
+      "bytes": 50112,
+      "sha256": "a7146c08f89fe5b04541ab507cdb59ff7b44534d4ba3c668a426c6450a03434e",
+      "license_classification": "Microsoft Visual C++/Universal CRT redistributable terms",
+      "disposition": "retain Python/Qt native runtime; release redistributable notices pending",
+      "collection_origin": {
+        "source_name": "VCRUNTIME140_1.dll",
+        "source_sha256": "a7146c08f89fe5b04541ab507cdb59ff7b44534d4ba3c668a426c6450a03434e",
+        "origin": "Python/toolchain runtime collection; source file identity retained"
+      }
+    },
+    {
+      "path": "_internal/woff/assets/ui/branding/README.md",
+      "bytes": 3790,
+      "sha256": "1f31b4223b3c889b76e66d6c2b419dd38f4d34f37fa1bf34eefe6f6fe42650d9",
+      "license_classification": "repository/asset notices",
+      "disposition": "retain notices and fixture-only assets",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/woff/assets/ui/branding/woff_mate_app.ico",
+      "bytes": 6273,
+      "sha256": "e39faee12c89c944aa413a57fc3103a8a666c9ce6f54a0978a59ad9ae7285360",
+      "license_classification": "repository/asset notices",
+      "disposition": "retain notices and fixture-only assets",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/woff/assets/ui/branding/woff_mate_app_icon_master.svg",
+      "bytes": 672,
+      "sha256": "1108a26df7e09905a76f800c7bc746921dde0ec5268c3785733dc07e91993183",
+      "license_classification": "repository/asset notices",
+      "disposition": "retain notices and fixture-only assets",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/woff/assets/ui/branding/woff_mate_app_icon_small.svg",
+      "bytes": 600,
+      "sha256": "7edfcd0771e7eef0a4346b9eebc8684f2d130ff7bb03d7c4603f26ba05ce5f46",
+      "license_classification": "repository/asset notices",
+      "disposition": "retain notices and fixture-only assets",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/woff/assets/ui/branding/woff_mate_symbol_dark.svg",
+      "bytes": 442,
+      "sha256": "d124e196c9b1ed66cbab95970ac3264f29c8123ea1a101f9e56d518000705e1e",
+      "license_classification": "repository/asset notices",
+      "disposition": "retain notices and fixture-only assets",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/woff/assets/ui/branding/woff_mate_symbol_light.svg",
+      "bytes": 442,
+      "sha256": "9fc32d80c8b7025ae4051a7e3abae68da1de1b814d67368cc4a7bab97be9c73f",
+      "license_classification": "repository/asset notices",
+      "disposition": "retain notices and fixture-only assets",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/woff/assets/ui/branding/woff_mate_symbol_v2.svg",
+      "bytes": 511,
+      "sha256": "e9fabb73c02dae3a1638ea9aa39cffe58b379774f991626527a54d1b61e2aa50",
+      "license_classification": "repository/asset notices",
+      "disposition": "retain notices and fixture-only assets",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/woff/assets/ui/branding/woff_mate_wordmark_dark.svg",
+      "bytes": 2616,
+      "sha256": "b0074cbd9e39e4bcc82012f4af598f8fc50f96fdb786891a4414be5a71c0a7ab",
+      "license_classification": "repository/asset notices",
+      "disposition": "retain notices and fixture-only assets",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/woff/assets/ui/branding/woff_mate_wordmark_light.svg",
+      "bytes": 2616,
+      "sha256": "bfe263f03c219066c0942f4e0e065db419c3635d9f4112a95854bf01ccbbda73",
+      "license_classification": "repository/asset notices",
+      "disposition": "retain notices and fixture-only assets",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/woff/assets/ui/branding/woff_mate_wordmark_v2.svg",
+      "bytes": 2616,
+      "sha256": "eaccf2c633d308674ae3e9a98dd57f90952984af119c1f2a0d255938990f0375",
+      "license_classification": "repository/asset notices",
+      "disposition": "retain notices and fixture-only assets",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/woff/assets/ui/icons/LICENSES/FLUENT-SYSTEM-ICONS-LICENSE.txt",
+      "bytes": 1078,
+      "sha256": "69bc45dc42b9acb96a69823adbc6ae538374e3c0bde169b855b32c48eaaef52f",
+      "license_classification": "repository/asset notices",
+      "disposition": "retain notices and fixture-only assets",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/woff/assets/ui/icons/LICENSES/FLUENT-SYSTEM-ICONS-NOTICE.txt",
+      "bytes": 3911,
+      "sha256": "2fb367a84df52c8b6f8401119708014b327f595554d41712d7407151c9ce73ef",
+      "license_classification": "repository/asset notices",
+      "disposition": "retain notices and fixture-only assets",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/woff/assets/ui/icons/README.md",
+      "bytes": 3746,
+      "sha256": "4295c6349eb347118c7e1bda3c3c20cf15ac5a9280700c899a99edd9bdeb865c",
+      "license_classification": "repository/asset notices",
+      "disposition": "retain notices and fixture-only assets",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/woff/assets/ui/icons/ui_action_back_16_regular.svg",
+      "bytes": 551,
+      "sha256": "48a173228771802182c40736c1e06db3257ad7e7cb40fe7663c877e9a2ce10f6",
+      "license_classification": "repository/asset notices",
+      "disposition": "retain notices and fixture-only assets",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/woff/assets/ui/icons/ui_action_back_20_regular.svg",
+      "bytes": 711,
+      "sha256": "c67d1600cf501a294bf70183aecbd1fdd2ba35ea2f11f10de18e8736dd351b00",
+      "license_classification": "repository/asset notices",
+      "disposition": "retain notices and fixture-only assets",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/woff/assets/ui/icons/ui_action_back_24_regular.svg",
+      "bytes": 687,
+      "sha256": "cd61d4ce407657c170e5a27a3630357ab6d326ee84f1349274223b4dd44bdc78",
+      "license_classification": "repository/asset notices",
+      "disposition": "retain notices and fixture-only assets",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/woff/assets/ui/icons/ui_action_back_32_regular.svg",
+      "bytes": 509,
+      "sha256": "e6f384af2228543faa03ee6f7a8001dc1304ac69db8da49b3bca24c9b7278621",
+      "license_classification": "repository/asset notices",
+      "disposition": "retain notices and fixture-only assets",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/woff/assets/ui/icons/ui_action_disclosure_16_regular.svg",
+      "bytes": 451,
+      "sha256": "25a94760a821a4556f7d993150e7ab123e07784f2218ca6a95bec41759128c10",
+      "license_classification": "repository/asset notices",
+      "disposition": "retain notices and fixture-only assets",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/woff/assets/ui/icons/ui_action_disclosure_20_regular.svg",
+      "bytes": 450,
+      "sha256": "6e295cc05079e2e35ed1140cfc734ebd0dd603eb7919f79ac1567787918e4529",
+      "license_classification": "repository/asset notices",
+      "disposition": "retain notices and fixture-only assets",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/woff/assets/ui/icons/ui_action_disclosure_24_regular.svg",
+      "bytes": 452,
+      "sha256": "0e09c14f40ba64c50d50be9f01e6b8bebca5c4ec49976551bc357a96461b6986",
+      "license_classification": "repository/asset notices",
+      "disposition": "retain notices and fixture-only assets",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/woff/assets/ui/icons/ui_action_disclosure_32_regular.svg",
+      "bytes": 452,
+      "sha256": "d7c7966358f54d3edd99346ec169903472c40082c5e9636dac180445d7204874",
+      "license_classification": "repository/asset notices",
+      "disposition": "retain notices and fixture-only assets",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/woff/assets/ui/icons/ui_action_retry_16_regular.svg",
+      "bytes": 688,
+      "sha256": "fa60238dedee0bb892e7d89e1b342329735b84353bbd0518edb7a8c3aed7ca92",
+      "license_classification": "repository/asset notices",
+      "disposition": "retain notices and fixture-only assets",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/woff/assets/ui/icons/ui_action_retry_20_regular.svg",
+      "bytes": 697,
+      "sha256": "363bc0553c749ebcb197d67545646e808d5d8e20edebe4814525e60e5c582402",
+      "license_classification": "repository/asset notices",
+      "disposition": "retain notices and fixture-only assets",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/woff/assets/ui/icons/ui_action_retry_24_regular.svg",
+      "bytes": 736,
+      "sha256": "e35b3c9cec5e8d6d6627487c873ac5932221ff334ff5a4f475e9302123b20270",
+      "license_classification": "repository/asset notices",
+      "disposition": "retain notices and fixture-only assets",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/woff/assets/ui/icons/ui_action_retry_32_regular.svg",
+      "bytes": 680,
+      "sha256": "bb020ac9b4e8bb5fe259c4b0b2b0ba8f03871a71be81af0d8655a2ef8d3f7ca0",
+      "license_classification": "repository/asset notices",
+      "disposition": "retain notices and fixture-only assets",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/woff/assets/ui/icons/ui_nav_missions_16_filled.svg",
+      "bytes": 814,
+      "sha256": "862766391c994d01722adf25816b83c0c084f029f71550d1283c8b1e8ad939a1",
+      "license_classification": "repository/asset notices",
+      "disposition": "retain notices and fixture-only assets",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/woff/assets/ui/icons/ui_nav_missions_16_regular.svg",
+      "bytes": 1463,
+      "sha256": "d718f88bee6aa1ac5118721325d5b518dfa041dfb65d5d744f5729235edad39c",
+      "license_classification": "repository/asset notices",
+      "disposition": "retain notices and fixture-only assets",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/woff/assets/ui/icons/ui_nav_missions_20_filled.svg",
+      "bytes": 852,
+      "sha256": "ad47990214e1681d60e981af631c917b54b10215a707510751b72f49422fa45d",
+      "license_classification": "repository/asset notices",
+      "disposition": "retain notices and fixture-only assets",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/woff/assets/ui/icons/ui_nav_missions_20_regular.svg",
+      "bytes": 1588,
+      "sha256": "8bd9e20e6e69a89d18289895978d8ec32de5be4e0c81e1a177badbca95994067",
+      "license_classification": "repository/asset notices",
+      "disposition": "retain notices and fixture-only assets",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/woff/assets/ui/icons/ui_nav_missions_24_filled.svg",
+      "bytes": 1149,
+      "sha256": "707b28236d05abfdda27729c988723a0239c34db2f0bef3071397d1711c2b2cf",
+      "license_classification": "repository/asset notices",
+      "disposition": "retain notices and fixture-only assets",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/woff/assets/ui/icons/ui_nav_missions_24_regular.svg",
+      "bytes": 1932,
+      "sha256": "b932ebee8e693020f6a0a38d1155e7f581b003b1c2a8388cc888ed51c6e1ce1b",
+      "license_classification": "repository/asset notices",
+      "disposition": "retain notices and fixture-only assets",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/woff/assets/ui/icons/ui_nav_missions_32_filled.svg",
+      "bytes": 819,
+      "sha256": "93a22a91f04176210826fb01abecd18f36d37aa408ceb80f1ef39570c0acf4f3",
+      "license_classification": "repository/asset notices",
+      "disposition": "retain notices and fixture-only assets",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/woff/assets/ui/icons/ui_nav_missions_32_regular.svg",
+      "bytes": 1514,
+      "sha256": "681cc24b5fec19a96094eeeb3356f72436b57a48d06ffc5560dce05faf8ba81f",
+      "license_classification": "repository/asset notices",
+      "disposition": "retain notices and fixture-only assets",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/woff/assets/ui/icons/ui_nav_operations_16_filled.svg",
+      "bytes": 331,
+      "sha256": "27c8b1fe873c22a091e113bdf2ea2f2d5a7f6e1945b8ade0a404a3803aa3aa28",
+      "license_classification": "repository/asset notices",
+      "disposition": "retain notices and fixture-only assets",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/woff/assets/ui/icons/ui_nav_operations_16_regular.svg",
+      "bytes": 468,
+      "sha256": "7da34d6b602cd84d442793af3fbda6365c5efda69f2e8b93dedd4f8edff7351b",
+      "license_classification": "repository/asset notices",
+      "disposition": "retain notices and fixture-only assets",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/woff/assets/ui/icons/ui_nav_operations_20_filled.svg",
+      "bytes": 318,
+      "sha256": "c6efaa9004e9e244624c7fe09a93930d3042e5c7d1f8e5e62ac9281b3f20f4a1",
+      "license_classification": "repository/asset notices",
+      "disposition": "retain notices and fixture-only assets",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/woff/assets/ui/icons/ui_nav_operations_20_regular.svg",
+      "bytes": 463,
+      "sha256": "cce4297735bea0d76fdbc41f7ab7fb765ecc6fb5e36980341d95c678d11062db",
+      "license_classification": "repository/asset notices",
+      "disposition": "retain notices and fixture-only assets",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/woff/assets/ui/icons/ui_nav_operations_24_filled.svg",
+      "bytes": 350,
+      "sha256": "0726c64fde1f8eb9be4826df17cd3317e18051bc60f0d9ff55d5bea5461ee1f9",
+      "license_classification": "repository/asset notices",
+      "disposition": "retain notices and fixture-only assets",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/woff/assets/ui/icons/ui_nav_operations_24_regular.svg",
+      "bytes": 526,
+      "sha256": "d503af1340d9aa16a04b2b81e34aee29f8fe277ec6a7a3cce39a9914591492ca",
+      "license_classification": "repository/asset notices",
+      "disposition": "retain notices and fixture-only assets",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/woff/assets/ui/icons/ui_nav_operations_32_filled.svg",
+      "bytes": 331,
+      "sha256": "8a424a1b10262328575ee37a2641265c3deb0930990a0885b7217222dd157de1",
+      "license_classification": "repository/asset notices",
+      "disposition": "retain notices and fixture-only assets",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/woff/assets/ui/icons/ui_nav_operations_32_regular.svg",
+      "bytes": 467,
+      "sha256": "c158829818f493f406470ba3c0869a987eaee9685004295f0344e98f3e1d18a1",
+      "license_classification": "repository/asset notices",
+      "disposition": "retain notices and fixture-only assets",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/woff/assets/ui/icons/ui_nav_pilot_dossier_16_filled.svg",
+      "bytes": 996,
+      "sha256": "79d3d857e2d7b85a39372bc2ae4b7fae5fd04c66ec499a2f6c3684cd19c9fd90",
+      "license_classification": "repository/asset notices",
+      "disposition": "retain notices and fixture-only assets",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/woff/assets/ui/icons/ui_nav_pilot_dossier_16_regular.svg",
+      "bytes": 1142,
+      "sha256": "e87e6ac4686dee566cc8b026cdc59c06f295f89b7bb7df7533f087dc8a50e66c",
+      "license_classification": "repository/asset notices",
+      "disposition": "retain notices and fixture-only assets",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/woff/assets/ui/icons/ui_nav_pilot_dossier_20_filled.svg",
+      "bytes": 904,
+      "sha256": "82bad8bb29d48383df62e40b618a7bf72fbfdf7fa4c7e0d279e7a6844cf20f71",
+      "license_classification": "repository/asset notices",
+      "disposition": "retain notices and fixture-only assets",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/woff/assets/ui/icons/ui_nav_pilot_dossier_20_regular.svg",
+      "bytes": 1050,
+      "sha256": "10d8c46d0b01f446e92ecfc58f8ce970a342c63f1f6ce7444aa9dbda22bcd26d",
+      "license_classification": "repository/asset notices",
+      "disposition": "retain notices and fixture-only assets",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/woff/assets/ui/icons/ui_nav_pilot_dossier_24_filled.svg",
+      "bytes": 1300,
+      "sha256": "00f6df147e35ebe5c9b447393df9cbb2a2277c782910c56ea11667c760391411",
+      "license_classification": "repository/asset notices",
+      "disposition": "retain notices and fixture-only assets",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/woff/assets/ui/icons/ui_nav_pilot_dossier_24_regular.svg",
+      "bytes": 1393,
+      "sha256": "5c9e49d8000532e62c835a5494ec67767abbd4dc19d7715c3948be6d31b82de4",
+      "license_classification": "repository/asset notices",
+      "disposition": "retain notices and fixture-only assets",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/woff/assets/ui/icons/ui_nav_pilot_dossier_32_filled.svg",
+      "bytes": 808,
+      "sha256": "acfb5ed008dc99f68d24ca9e58b40e987bd9c5104a96d406f654d21c6e7afc1c",
+      "license_classification": "repository/asset notices",
+      "disposition": "retain notices and fixture-only assets",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/woff/assets/ui/icons/ui_nav_pilot_dossier_32_regular.svg",
+      "bytes": 954,
+      "sha256": "574139d14fd44fc3e6810ccaee6b81f8557724ec5db7317c046ea1099f09212e",
+      "license_classification": "repository/asset notices",
+      "disposition": "retain notices and fixture-only assets",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/woff/assets/ui/icons/ui_nav_reports_16_filled.svg",
+      "bytes": 671,
+      "sha256": "6667ebf89dd57ba527e98344f3ed34250e82cba406edd409bdead319b1961b81",
+      "license_classification": "repository/asset notices",
+      "disposition": "retain notices and fixture-only assets",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/woff/assets/ui/icons/ui_nav_reports_16_regular.svg",
+      "bytes": 833,
+      "sha256": "567dd6ef6d015e2ea8b1402c5e581988c5907e67016662802003d1a7d2b9dd1e",
+      "license_classification": "repository/asset notices",
+      "disposition": "retain notices and fixture-only assets",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/woff/assets/ui/icons/ui_nav_reports_20_filled.svg",
+      "bytes": 738,
+      "sha256": "fca340d0766e16fec07b277e56385263559f91bd132cfd00483d5b0ee92064de",
+      "license_classification": "repository/asset notices",
+      "disposition": "retain notices and fixture-only assets",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/woff/assets/ui/icons/ui_nav_reports_20_regular.svg",
+      "bytes": 930,
+      "sha256": "963a5279e91361fe2be54efb80d73c211fa08cfc9d209951bef92ab3843a3f5f",
+      "license_classification": "repository/asset notices",
+      "disposition": "retain notices and fixture-only assets",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/woff/assets/ui/icons/ui_nav_reports_24_filled.svg",
+      "bytes": 769,
+      "sha256": "39523b2d179a4576468df7265afad5aec86cf6a6c37548452cda84ac414868cc",
+      "license_classification": "repository/asset notices",
+      "disposition": "retain notices and fixture-only assets",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/woff/assets/ui/icons/ui_nav_reports_24_regular.svg",
+      "bytes": 1039,
+      "sha256": "e9e4ec8dc650aa288c09e92f361e627ab28394bce740a8de621a0c3c20c2ae93",
+      "license_classification": "repository/asset notices",
+      "disposition": "retain notices and fixture-only assets",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/woff/assets/ui/icons/ui_nav_reports_32_filled.svg",
+      "bytes": 799,
+      "sha256": "a1951f3286a71bdd8db120441e813cafcc837f5fdb29cc2d92a64f8ff4e3f559",
+      "license_classification": "repository/asset notices",
+      "disposition": "retain notices and fixture-only assets",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/woff/assets/ui/icons/ui_nav_reports_32_regular.svg",
+      "bytes": 898,
+      "sha256": "6af217982a55eefb12f26c2c33e80aa9a3984514cd3185caf7b19fab22cdf638",
+      "license_classification": "repository/asset notices",
+      "disposition": "retain notices and fixture-only assets",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/woff/assets/ui/icons/ui_nav_squadron_16_filled.svg",
+      "bytes": 1470,
+      "sha256": "4eb093ac2d26f0b123bd3ca280f5342d3fe9a25bbdd386189cc5f27c67cfa542",
+      "license_classification": "repository/asset notices",
+      "disposition": "retain notices and fixture-only assets",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/woff/assets/ui/icons/ui_nav_squadron_16_regular.svg",
+      "bytes": 2053,
+      "sha256": "62932e1ac414cd131be56083f9025e61dc0be92004884aaf7d16a1811da1ba20",
+      "license_classification": "repository/asset notices",
+      "disposition": "retain notices and fixture-only assets",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/woff/assets/ui/icons/ui_nav_squadron_20_filled.svg",
+      "bytes": 1015,
+      "sha256": "4d0d4eb1e868b814363cec4c56cd509460727fe5c884fdb612d931b8f1c80e8d",
+      "license_classification": "repository/asset notices",
+      "disposition": "retain notices and fixture-only assets",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/woff/assets/ui/icons/ui_nav_squadron_20_regular.svg",
+      "bytes": 1767,
+      "sha256": "462b2b25ecfdb0bc8e5060cbd216d18800bb1aec97823015f56b5ff9c0c376fd",
+      "license_classification": "repository/asset notices",
+      "disposition": "retain notices and fixture-only assets",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/woff/assets/ui/icons/ui_nav_squadron_24_filled.svg",
+      "bytes": 1177,
+      "sha256": "28e68072d11782bd89766812d8b6954b1ff2639450756625ff45d4000c1759ba",
+      "license_classification": "repository/asset notices",
+      "disposition": "retain notices and fixture-only assets",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/woff/assets/ui/icons/ui_nav_squadron_24_regular.svg",
+      "bytes": 1989,
+      "sha256": "e8109a6304a6259c0654024afd89e3bec24c7b85860f14f236b98dfb555a6478",
+      "license_classification": "repository/asset notices",
+      "disposition": "retain notices and fixture-only assets",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/woff/assets/ui/icons/ui_nav_squadron_32_filled.svg",
+      "bytes": 1004,
+      "sha256": "767218456a45df520bda3013925815c5cee6dd45abe35460319983cb662b9d54",
+      "license_classification": "repository/asset notices",
+      "disposition": "retain notices and fixture-only assets",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/woff/assets/ui/icons/ui_nav_squadron_32_regular.svg",
+      "bytes": 1707,
+      "sha256": "748a1987aaffe5981d1bbc32906c9a05fcb3311464447c2ce09c8ced26ed27d7",
+      "license_classification": "repository/asset notices",
+      "disposition": "retain notices and fixture-only assets",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/woff/assets/ui/icons/ui_nav_system_status_16_filled.svg",
+      "bytes": 371,
+      "sha256": "8af219dbf5717843ce6a5f60f1d24893da6a32ec6473699f07d3b34e45949186",
+      "license_classification": "repository/asset notices",
+      "disposition": "retain notices and fixture-only assets",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/woff/assets/ui/icons/ui_nav_system_status_16_regular.svg",
+      "bytes": 483,
+      "sha256": "ad6545ae685230bbe2de1e725c768dbbaeda9ca76caac131748edae35187a85e",
+      "license_classification": "repository/asset notices",
+      "disposition": "retain notices and fixture-only assets",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/woff/assets/ui/icons/ui_nav_system_status_20_filled.svg",
+      "bytes": 486,
+      "sha256": "139c06ed5ade8143a526c3c362fae2cb07a964c978321fd71b5afbc946ca95a6",
+      "license_classification": "repository/asset notices",
+      "disposition": "retain notices and fixture-only assets",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/woff/assets/ui/icons/ui_nav_system_status_20_regular.svg",
+      "bytes": 1064,
+      "sha256": "cf0a8354a61267cf90aa24b29f19b65fa6601e3066506e93f625121e771ee4a9",
+      "license_classification": "repository/asset notices",
+      "disposition": "retain notices and fixture-only assets",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/woff/assets/ui/icons/ui_nav_system_status_24_filled.svg",
+      "bytes": 502,
+      "sha256": "2b8b11bda13b7fe2488692fe32f295b4ff588bfa659f454436d24857eb7fee2f",
+      "license_classification": "repository/asset notices",
+      "disposition": "retain notices and fixture-only assets",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/woff/assets/ui/icons/ui_nav_system_status_24_regular.svg",
+      "bytes": 1588,
+      "sha256": "9d7dc4a6ff85de81db72613ec4f4a1fb2488d8f5b11cd45204cf01a0723e1b70",
+      "license_classification": "repository/asset notices",
+      "disposition": "retain notices and fixture-only assets",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/woff/assets/ui/icons/ui_nav_system_status_32_filled.svg",
+      "bytes": 483,
+      "sha256": "bb0aaa7207b83b7bc6e293e35eb0f6ac2b97dc5fa9253ddb172bdac6cd5cff37",
+      "license_classification": "repository/asset notices",
+      "disposition": "retain notices and fixture-only assets",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/woff/assets/ui/icons/ui_nav_system_status_32_regular.svg",
+      "bytes": 792,
+      "sha256": "40b50f6b22142741a36a13b81f2c6070cdcafab5c9fba3aa76fca0f41b3c229f",
+      "license_classification": "repository/asset notices",
+      "disposition": "retain notices and fixture-only assets",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/woff/assets/ui/icons/ui_nav_war_diary_16_filled.svg",
+      "bytes": 757,
+      "sha256": "5f49d11c9cbdc5a9565280b7dee5f311baa885702707320ba270a9abc2861397",
+      "license_classification": "repository/asset notices",
+      "disposition": "retain notices and fixture-only assets",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/woff/assets/ui/icons/ui_nav_war_diary_16_regular.svg",
+      "bytes": 690,
+      "sha256": "c0c4cf1f96bac8f902dae3518e5e70e56152df4185eaea888e6e3e26508fc9c5",
+      "license_classification": "repository/asset notices",
+      "disposition": "retain notices and fixture-only assets",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/woff/assets/ui/icons/ui_nav_war_diary_20_filled.svg",
+      "bytes": 784,
+      "sha256": "30fdcefb64c2cb9282a0a9031832495a500249e1032a42be3dedfd28dc44eb9f",
+      "license_classification": "repository/asset notices",
+      "disposition": "retain notices and fixture-only assets",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/woff/assets/ui/icons/ui_nav_war_diary_20_regular.svg",
+      "bytes": 715,
+      "sha256": "881f0b6baab6e284205d2a8de0e3e19ebf52f15e7334b5774330809c7b7118e1",
+      "license_classification": "repository/asset notices",
+      "disposition": "retain notices and fixture-only assets",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/woff/assets/ui/icons/ui_nav_war_diary_24_filled.svg",
+      "bytes": 541,
+      "sha256": "b1c714cad78b45fa74f2485cb87a1c0531ede90b54a7220ed5ecad16e052d233",
+      "license_classification": "repository/asset notices",
+      "disposition": "retain notices and fixture-only assets",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/woff/assets/ui/icons/ui_nav_war_diary_24_regular.svg",
+      "bytes": 769,
+      "sha256": "fee4429ce1edca85bda985e27ae3badafebf9daf167c7246941c7db95eb2bd6c",
+      "license_classification": "repository/asset notices",
+      "disposition": "retain notices and fixture-only assets",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/woff/assets/ui/icons/ui_nav_war_diary_32_filled.svg",
+      "bytes": 643,
+      "sha256": "5a6abb697add0921d672b20bbd89b06995a3676749ba9fecd87878ce0474da53",
+      "license_classification": "repository/asset notices",
+      "disposition": "retain notices and fixture-only assets",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/woff/assets/ui/icons/ui_nav_war_diary_32_regular.svg",
+      "bytes": 574,
+      "sha256": "6df66c9033a0e68cc74e04f6cf7b3b0a2edabf60d2d3b7f00444a989fb09fac6",
+      "license_classification": "repository/asset notices",
+      "disposition": "retain notices and fixture-only assets",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/woff/assets/ui/icons/ui_state_complete_16_regular.svg",
+      "bytes": 664,
+      "sha256": "f916e839803620245304cb1412655be623daa5d81e4fb86794e01d909d11abde",
+      "license_classification": "repository/asset notices",
+      "disposition": "retain notices and fixture-only assets",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/woff/assets/ui/icons/ui_state_complete_20_regular.svg",
+      "bytes": 716,
+      "sha256": "76917771d8dec835dca340ba8c8f2d130b24ad8a056bb2508b65d031cf33fe61",
+      "license_classification": "repository/asset notices",
+      "disposition": "retain notices and fixture-only assets",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/woff/assets/ui/icons/ui_state_complete_24_regular.svg",
+      "bytes": 779,
+      "sha256": "405e3a7d2435d734f1fbaa9d918432c30dd497c90941e588521da8d479271212",
+      "license_classification": "repository/asset notices",
+      "disposition": "retain notices and fixture-only assets",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/woff/assets/ui/icons/ui_state_complete_32_regular.svg",
+      "bytes": 674,
+      "sha256": "0983ba021109803fbdc7315029cd108e8940ac53dba65f430e8738a28e596f89",
+      "license_classification": "repository/asset notices",
+      "disposition": "retain notices and fixture-only assets",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/woff/assets/ui/icons/ui_state_error_16_regular.svg",
+      "bytes": 851,
+      "sha256": "c3efa7bdea177d283e1040ed58ddf35142542d2245bc4ff36276e3841cc83493",
+      "license_classification": "repository/asset notices",
+      "disposition": "retain notices and fixture-only assets",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/woff/assets/ui/icons/ui_state_error_20_regular.svg",
+      "bytes": 989,
+      "sha256": "e4f5a701901c2a8944d4da82ff3d47d79acdd2cea1912d2405b681ca9212ef12",
+      "license_classification": "repository/asset notices",
+      "disposition": "retain notices and fixture-only assets",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/woff/assets/ui/icons/ui_state_error_24_regular.svg",
+      "bytes": 1007,
+      "sha256": "409c34f8bc49193d6c7886bda9d2ebab9ece18a59349eaf5711f1afa6882386d",
+      "license_classification": "repository/asset notices",
+      "disposition": "retain notices and fixture-only assets",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/woff/assets/ui/icons/ui_state_error_32_regular.svg",
+      "bytes": 865,
+      "sha256": "d4f906b8d22a832071efa69cbe71cbc2ac860af7ae8f8fa1390e3ccf0945d84a",
+      "license_classification": "repository/asset notices",
+      "disposition": "retain notices and fixture-only assets",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/woff/assets/ui/icons/ui_state_information_16_regular.svg",
+      "bytes": 750,
+      "sha256": "d25861a080e023569fe8e7099e28fbf636edad0995dc44ccfb2354023601da4f",
+      "license_classification": "repository/asset notices",
+      "disposition": "retain notices and fixture-only assets",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/woff/assets/ui/icons/ui_state_information_20_regular.svg",
+      "bytes": 820,
+      "sha256": "56e64dcf46b0eca37b7e4dfdf8636c202e12cc1a825dd3738ece49f05cb1fabb",
+      "license_classification": "repository/asset notices",
+      "disposition": "retain notices and fixture-only assets",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/woff/assets/ui/icons/ui_state_information_24_regular.svg",
+      "bytes": 795,
+      "sha256": "f28c4994d3e409f7092b85b49df1eb4abff813fbdaf13c31a5cefff299c3655f",
+      "license_classification": "repository/asset notices",
+      "disposition": "retain notices and fixture-only assets",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/woff/assets/ui/icons/ui_state_information_32_regular.svg",
+      "bytes": 611,
+      "sha256": "0c09e4b7f4e1914e803f5c408f62c25b52433c6f88de5086991e801fadd029a7",
+      "license_classification": "repository/asset notices",
+      "disposition": "retain notices and fixture-only assets",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/woff/assets/ui/icons/ui_state_partial_16_regular.svg",
+      "bytes": 956,
+      "sha256": "7afd36b2f62f8da63fe0631d457d1248e1ddf832490c1ee11aa2e81f866d61c5",
+      "license_classification": "repository/asset notices",
+      "disposition": "retain notices and fixture-only assets",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/woff/assets/ui/icons/ui_state_partial_20_regular.svg",
+      "bytes": 862,
+      "sha256": "1f2f18e8494242308143c82aeda880e6eef188217a2d920a01654ddd28d30317",
+      "license_classification": "repository/asset notices",
+      "disposition": "retain notices and fixture-only assets",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/woff/assets/ui/icons/ui_state_partial_24_regular.svg",
+      "bytes": 958,
+      "sha256": "223e04a36af074ee191ecb192f4526fe04f95db52e2df90bb8c893f997b87de1",
+      "license_classification": "repository/asset notices",
+      "disposition": "retain notices and fixture-only assets",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/woff/assets/ui/icons/ui_state_partial_32_regular.svg",
+      "bytes": 963,
+      "sha256": "005de32117cbb55242be3ad1e27504c7da242116832de481e0d98ac3e9e3a31a",
+      "license_classification": "repository/asset notices",
+      "disposition": "retain notices and fixture-only assets",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/woff/assets/ui/icons/ui_state_stale_16_regular.svg",
+      "bytes": 502,
+      "sha256": "6d9f24d651d8ebbedb2adf63c91e80a69341721b9513415361bb7c7e8bd4c267",
+      "license_classification": "repository/asset notices",
+      "disposition": "retain notices and fixture-only assets",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/woff/assets/ui/icons/ui_state_stale_20_regular.svg",
+      "bytes": 585,
+      "sha256": "91587daa48edcc4dcc3296188211ecd66569c7c8721c88ad762c1d86d53eeabc",
+      "license_classification": "repository/asset notices",
+      "disposition": "retain notices and fixture-only assets",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/woff/assets/ui/icons/ui_state_stale_24_regular.svg",
+      "bytes": 640,
+      "sha256": "aa6c5fac1386dd94973e5ebd20b5ff9115e30c56424d10f476cc8c28d36f84d4",
+      "license_classification": "repository/asset notices",
+      "disposition": "retain notices and fixture-only assets",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/woff/assets/ui/icons/ui_state_stale_32_regular.svg",
+      "bytes": 511,
+      "sha256": "794de20e9e0aae1437067e6b3ef2c38c2c135050bbb7d00b3512b10eec3c20ab",
+      "license_classification": "repository/asset notices",
+      "disposition": "retain notices and fixture-only assets",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/woff/assets/ui/icons/ui_state_unavailable_16_regular.svg",
+      "bytes": 482,
+      "sha256": "013b8bb8e9e85375de77ce5667a2c1b10dc7e978428e01e9aaab6a67c5ec29b4",
+      "license_classification": "repository/asset notices",
+      "disposition": "retain notices and fixture-only assets",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/woff/assets/ui/icons/ui_state_unavailable_20_regular.svg",
+      "bytes": 553,
+      "sha256": "875a8b53e6d3ad580f82ca76bfd7f1a9b1e024a72ec0ccd9fc73ce2c35b87bf0",
+      "license_classification": "repository/asset notices",
+      "disposition": "retain notices and fixture-only assets",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/woff/assets/ui/icons/ui_state_unavailable_24_regular.svg",
+      "bytes": 608,
+      "sha256": "bddb90a1e7f0dd21e4b4b7bcf7202d6c32eaf96f712803658174eb3f7bab14bb",
+      "license_classification": "repository/asset notices",
+      "disposition": "retain notices and fixture-only assets",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/woff/assets/ui/icons/ui_state_unavailable_32_regular.svg",
+      "bytes": 480,
+      "sha256": "b5632e172aa1457117a0409cde5dbf6e168dee75ead618e10fed62d33616f64f",
+      "license_classification": "repository/asset notices",
+      "disposition": "retain notices and fixture-only assets",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/woff/assets/ui/portraits/GENERATION.md",
+      "bytes": 3917,
+      "sha256": "7ab6e3f0ff888f0acc3f944d22597ae0d49d41d765b71c9bb93d6a137f69931d",
+      "license_classification": "repository/asset notices",
+      "disposition": "retain notices and fixture-only assets",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/woff/assets/ui/portraits/README.md",
+      "bytes": 5782,
+      "sha256": "a9a9f1b7d3baea476b91870da2ffd7e06bbd009be40c0fd2d463ed43a84d4812",
+      "license_classification": "repository/asset notices",
+      "disposition": "retain notices and fixture-only assets",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/woff/assets/ui/portraits/ui_portrait_synthetic_aster_master.png",
+      "bytes": 1994550,
+      "sha256": "f545dd5db17775d14a1e6bb991caf8f064f24a6a93d0627b31a96171dfe1316a",
+      "license_classification": "repository/asset notices",
+      "disposition": "retain notices and fixture-only assets",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/woff/assets/ui/portraits/ui_portrait_unavailable.svg",
+      "bytes": 543,
+      "sha256": "e5bab1e5212d3220833c6aece808145afd5773f3066bedc6fa008c8c2b8e2a9a",
+      "license_classification": "repository/asset notices",
+      "disposition": "retain notices and fixture-only assets",
+      "collection_origin": null
+    },
+    {
+      "path": "_internal/woff/tests/fixtures/ui_states/catalog.json",
+      "bytes": 31248,
+      "sha256": "d54ce04dd6816d1ddc2ea633d74e69131dc85d0525fb63e462799b5cf4d9f837",
+      "license_classification": "metadata/data/archive; component terms apply",
+      "disposition": "engineering inventory; not public release SBOM",
+      "collection_origin": null
+    },
+    {
+      "path": "WoFFMateAdoption.exe",
+      "bytes": 2180146,
+      "sha256": "7027fb184b6e358cf9ee6d314b42a4ffc0924a7683163168673c39932bc6cb8c",
+      "license_classification": "repository license; PyInstaller bootloader exception",
+      "disposition": "private engineering executable; public release not authorized",
+      "collection_origin": null
+    }
+  ]
+}

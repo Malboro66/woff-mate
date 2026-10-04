@@ -1,0 +1,37 @@
+[
+  {
+    "id": 11308565075,
+    "name": "adoption-evidence-ubuntu-latest-py3.11",
+    "digest": "sha256:2a878c5ed7dece0ad107ed13d99312ab135305eac4360716aa8fc1110221bdbc"
+  },
+  {
+    "id": 11308480391,
+    "name": "adoption-evidence-ubuntu-latest-py3.14",
+    "digest": "sha256:68f04c53b5f4a92766372b1c3aa51923fb3aa7a169e086648299c26760315225"
+  },
+  {
+    "id": 11308345894,
+    "name": "adoption-evidence-ubuntu-latest-py3.13",
+    "digest": "sha256:8b6df5ffc69b75574a90ae47f18a980d7e17848b8d17adf234717352481ebee7"
+  },
+  {
+    "id": 11307604930,
+    "name": "adoption-evidence-ubuntu-latest-py3.12",
+    "digest": "sha256:1779814d01cc1eda64b01ff9b015cbfa5fba3fca981e07ba8ad2244342380e80"
+  },
+  {
+    "id": 11307194856,
+    "name": "adoption-evidence-ubuntu-latest-py3.10",
+    "digest": "sha256:a0e0ca312e83bf31e9e55f0f080b3f9d35c8de6e2aab011a84b4704a5e94e122"
+  },
+  {
+    "id": 11308121491,
+    "name": "adoption-evidence-windows-latest-py3.14",
+    "digest": "sha256:be0df6b840f9515d28e1f2b725e9d7fb45cf4e7ffe2fd6a25bda1238ac398c49"
+  },
+  {
+    "id": 11307779189,
+    "name": "adoption-evidence-windows-latest-py3.10",
+    "digest": "sha256:80e75ec1ce48f2fb2141766f8f9701a47389106f17df7d59e5d8dd5940617f70"
+  }
+]
