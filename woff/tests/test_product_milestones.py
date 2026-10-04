@@ -73,7 +73,7 @@ def test_product_path_and_cycle_ownership_are_executable() -> None:
     expected = {
         "issue-82": {"issue-56", "issue-80", "issue-81"},
         "issue-140": {"issue-79", "issue-80", "issue-81", "issue-82", "issue-139"},
-        "review-r2": {"issue-81", "issue-82", "issue-140"},
+        "review-r2": {"issue-81", "issue-82", "issue-140", "issue-177"},
     }
     for item_id, dependencies in expected.items():
         item = items[item_id]
@@ -100,6 +100,7 @@ def test_product_path_and_cycle_ownership_are_executable() -> None:
         {"id": "issue-81", "status": "satisfied"},
         {"id": "issue-82", "status": "satisfied"},
         {"id": "issue-140", "status": "satisfied"},
+        {"id": "issue-177", "status": "satisfied"},
     ]
     members = set(cycles["cycle-3.4.0"]["members"])
     assert {"issue-136", "issue-139", "issue-140", "issue-81", "issue-82"} <= members

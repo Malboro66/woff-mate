@@ -1,5 +1,5 @@
 version: 1
-updated: 2026-10-03
+updated: 2026-10-04
 
 project:
   repository: Malboro66/woff-mate
@@ -139,6 +139,8 @@ modules:
     responsibility: Experimental fixture-only Qt Widgets desktop and demonstration capture.
     paths:
       - p0_launcher.py
+      - ui_adoption_launcher.py
+      - scripts/ui_adoption_*.py
       - scripts/capture_p0.py
       - woff/p0_desktop/**/*.py
     may_depend_on:
@@ -771,6 +773,21 @@ evals:
     status: implemented
     evidence: The integrated product-demonstrability record satisfies only Q4-P0-PROTOTYPE by binding PR 173 and green CI 303 to reproducible source and prototype-bundle launch, committed Linux Qt-offscreen captures with a SHA-256 manifest, and maintainer-observed Windows 10 source/bundle walkthroughs at 100%, 125%, 150% and 200%; it preserves the approved experimental toolkit/version and Proposed ADR status, records limitations and P1 blockers, and does not satisfy full Q4, claim a supported installer, authorize production distribution or accept a production toolkit.
     enforced_by: [tests/test_p0_desktop.py, docs/ui/p0-functional-desktop.md, docs/ui/evidence/issue-140-p0/windows-physical-walkthrough.md, docs/ui/evidence/issue-140-p0/SHA256SUMS]
+  EVAL-UI-ADOPTION-MATRIX-001:
+    work_items: [issue-177]
+    status: implemented
+    evidence: The optional ui extra pins PySide6 6.11.2 without adding Qt to the base install. The candidate validates exactly one binding and executes source keyboard/accessibility smoke on Python 3.10 through 3.14. Revision-bound results and completed physical evidence are recorded in docs/ui/ui-adoption-readiness.md.
+    enforced_by: [tests/test_ui_adoption.py, scripts/ui_adoption_probe.py, .github/workflows/ui-adoption.yml]
+  EVAL-UI-ADOPTION-PACKAGE-001:
+    work_items: [issue-177]
+    status: implemented
+    evidence: Separate fixture-only adoption spec and endpoint packaging/startup probes preserve historical P0 and headless specs. Native UIA collection is window-scoped and revision/hash-bound. Physical Windows 10 Pro build 19045 delta passed at real 100/125/150/200 percent scaling, with unchanged raw physical reports for the run 8 candidate and separate maintainer attestation in docs/ui/evidence/issue-177-physical-windows10/README.md. Bounded evidence is complete on the implementation branch; integration into main, repeated R2 and ADR acceptance remain separate future steps.
+    enforced_by: [ui_adoption.spec, scripts/validate_ui_adoption_windows.ps1, tests/test_ui_adoption.py]
+  EVAL-UI-ADOPTION-LICENSE-001:
+    work_items: [issue-177]
+    status: implemented
+    evidence: Actual bundle inventory records versions, binary/plugin hashes and source identifiers with bounded LGPL engineering disposition. Qt modules/plugins are allowlisted and Virtual Keyboard is prohibited. Public release SBOM, complete distribution obligations and legal certification remain deferred.
+    enforced_by: [scripts/ui_adoption_inventory.py, scripts/ui_adoption_support.py, tests/test_ui_adoption.py, docs/ui/ui-adoption-licensing.md]
   EVAL-R2-REVIEW-001:
     work_items: [review-r2]
     status: planned
@@ -1451,6 +1468,16 @@ work_items:
     evals: [EVAL-R1-REVIEW-001]
     gates: [Q0, Q1, Q5]
     depends_on: []
+  issue-177:
+    title: Complete bounded PySide6 UI Adoption Readiness evidence
+    module: p0_desktop
+    state: done
+    evals: [EVAL-UI-ADOPTION-MATRIX-001, EVAL-UI-ADOPTION-PACKAGE-001, EVAL-UI-ADOPTION-LICENSE-001]
+    gates: [Q0, Q1]
+    depends_on:
+      - {id: issue-81, status: satisfied}
+      - {id: issue-82, status: satisfied}
+      - {id: issue-140, status: satisfied}
   review-r2:
     title: R2 UI Architecture Decision before retained production architecture or P1
     module: governance
@@ -1461,6 +1488,7 @@ work_items:
       - {id: issue-81, status: satisfied}
       - {id: issue-82, status: satisfied}
       - {id: issue-140, status: satisfied}
+      - {id: issue-177, status: satisfied}
 
 cycles:
   cycle-3.2.1:

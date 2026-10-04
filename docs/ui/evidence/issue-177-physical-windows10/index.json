@@ -1,0 +1,96 @@
+{
+  "schema": 1,
+  "issue": 177,
+  "pr": 178,
+  "bounded_adoption_readiness": "complete",
+  "integration_into_main": "pending authorized integration",
+  "tested_head": "f1346f99287df4202ad6495eae17acef520d4c34",
+  "ci_merge_checkout": "c35fe885c7f8ffeabfd3d00c773042f2fa01845b",
+  "workflow_run": 37215636055,
+  "workflow_run_number": 8,
+  "artifacts": {
+    "candidate": {
+      "id": 11308795665,
+      "name": "adoption-private-windows-py3.10",
+      "zip_sha256": "b0e4d669319389b62b6e084c361c2d575f250ae3342dee7c45516df6f296d730"
+    },
+    "evidence": {
+      "id": 11308645875,
+      "name": "adoption-evidence-windows-latest-py3.10",
+      "zip_sha256": "7ca87e1c4e4672b6661b622f3e85fbcdc587ecf2c302314c249bc93d935f369d"
+    }
+  },
+  "executable_sha256": "5a471827ba26431fa77544ca1e9ebaabb55a69cea5c1118d02cbe577040a94fb",
+  "inventory_sha256": "c143453e97615a32897e9b7d0ba6ffa323b133096a532f7bda7433cbcb4ca4d7",
+  "physical_environment": {
+    "caption": "Microsoft Windows 10 Pro",
+    "version": "10.0.19045",
+    "build": "19045",
+    "physical_hardware_source": "maintainer attestation"
+  },
+  "real_windows_display_scales_percent": [
+    100,
+    125,
+    150,
+    200
+  ],
+  "scale_source": "maintainer attestation and filenames; validator does not encode active display scale",
+  "raw_reports_byte_identical": true,
+  "manual_attestation": "README.md",
+  "attestation_recorded_date": "2026-10-04",
+  "manual_checks_by_scale": {
+    "100": {
+      "startup": "passed",
+      "compact_brand_layout": "passed",
+      "visible_focus": "passed",
+      "tab_shift_tab": "passed",
+      "navigation": "passed",
+      "career_selector_keyboard": "passed",
+      "fixture_state_selector_keyboard": "passed",
+      "no_regression_observed": "passed"
+    },
+    "125": {
+      "startup": "passed",
+      "compact_brand_layout": "passed",
+      "visible_focus": "passed",
+      "tab_shift_tab": "passed",
+      "navigation": "passed",
+      "career_selector_keyboard": "passed",
+      "fixture_state_selector_keyboard": "passed",
+      "no_regression_observed": "passed"
+    },
+    "150": {
+      "startup": "passed",
+      "compact_brand_layout": "passed",
+      "visible_focus": "passed",
+      "tab_shift_tab": "passed",
+      "navigation": "passed",
+      "career_selector_keyboard": "passed",
+      "fixture_state_selector_keyboard": "passed",
+      "no_regression_observed": "passed"
+    },
+    "200": {
+      "startup": "passed",
+      "compact_brand_layout": "passed",
+      "visible_focus": "passed",
+      "tab_shift_tab": "passed",
+      "navigation": "passed",
+      "career_selector_keyboard": "passed",
+      "fixture_state_selector_keyboard": "passed",
+      "no_regression_observed": "passed"
+    }
+  },
+  "raw_pending_placeholders": "Preserved as generated; manual visible focus and layout are resolved by separate maintainer attestation, not by editing raw JSON",
+  "remaining_limitation": "Native Qt 6.11.2 QComboBox UIA SetFocus action ignored; keyboard focus and value interaction passed. Retain for future R2; no new application defect.",
+  "adr_status": "Proposed",
+  "p1_authorized": false,
+  "product_gates_approved": [],
+  "repeated_r2_performed": false,
+  "sha256": {
+    "physical-windows10-100.json": "56441592b93c933fed2edc6cc3ae33859322db272a0d70cc083f4d6aa4d5f6f1",
+    "physical-windows10-125.json": "56441592b93c933fed2edc6cc3ae33859322db272a0d70cc083f4d6aa4d5f6f1",
+    "physical-windows10-150.json": "56441592b93c933fed2edc6cc3ae33859322db272a0d70cc083f4d6aa4d5f6f1",
+    "physical-windows10-200.json": "56441592b93c933fed2edc6cc3ae33859322db272a0d70cc083f4d6aa4d5f6f1",
+    "run-8-inventory.json": "c143453e97615a32897e9b7d0ba6ffa323b133096a532f7bda7433cbcb4ca4d7"
+  }
+}

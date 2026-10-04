@@ -1,0 +1,86 @@
+name: UI Adoption Readiness
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  candidate:
+    name: Adoption (${{ matrix.os }}, Python ${{ matrix.python }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest]
+        python: ['3.10', '3.11', '3.12', '3.13', '3.14']
+        include:
+          - {os: windows-latest, python: '3.10'}
+          - {os: windows-latest, python: '3.14'}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+          cache: pip
+      - if: runner.os == 'Linux'
+        run: sudo apt-get update -qq && sudo apt-get install -y libegl1
+      - name: Base installation has no Qt binding
+        shell: bash
+        run: |
+          python -m pip install .
+          python -c "from scripts.ui_adoption_support import check_bindings; check_bindings(base=True)"
+      - name: Install optional candidate and fixed packaging tools
+        shell: bash
+        run: python -m pip install '.[ui]' pytest pyinstaller==6.22.3 pyinstaller-hooks-contrib==2026.8
+      - name: Validate source candidate and focused boundaries
+        shell: bash
+        env:
+          QT_QPA_PLATFORM: offscreen
+        run: |
+          python -m pytest tests/test_ui_adoption.py -q
+          python ui_adoption_launcher.py --smoke --evidence build/adoption/source.json
+          for scale in 1.25 1.5 2; do
+            QT_SCALE_FACTOR=$scale python ui_adoption_launcher.py --smoke --evidence build/adoption/source-scale-$scale.json
+          done
+      - name: Build representative endpoint candidate
+        if: matrix.python == '3.10' || matrix.python == '3.14'
+        run: python -m PyInstaller --clean --noconfirm ui_adoption.spec
+      - name: Inventory actual candidate
+        if: matrix.python == '3.10' || matrix.python == '3.14'
+        run: python -m scripts.ui_adoption_inventory dist/WoFFMateAdoption build/adoption/inventory.json
+      - name: Packaged startup and key/accessibility smoke
+        if: matrix.python == '3.10' || matrix.python == '3.14'
+        shell: bash
+        env:
+          QT_QPA_PLATFORM: offscreen
+        run: dist/WoFFMateAdoption/WoFFMateAdoption${{ runner.os == 'Windows' && '.exe' || '' }} --smoke --evidence build/adoption/bundled.json
+      - name: Hosted Windows UIA (not physical Windows 10)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: ./scripts/validate_ui_adoption_windows.ps1 -Bundle dist/WoFFMateAdoption -Inventory build/adoption/inventory.json -Output build/adoption/hosted-uia.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: adoption-evidence-${{ matrix.os }}-py${{ matrix.python }}
+          path: build/adoption/*.json
+          if-no-files-found: error
+          retention-days: 30
+      - uses: actions/upload-artifact@v4
+        if: success() && runner.os == 'Windows'
+        with:
+          name: adoption-private-windows-py${{ matrix.python }}
+          path: dist/WoFFMateAdoption/
+          if-no-files-found: error
+          retention-days: 7
+      # Keep the inherited layout regression as a failing gate, but do not lose
+      # independent candidate packaging/UIA evidence when it detects a defect.
+      - name: Historical P0 regressions (includes compact 200% layout)
+        shell: bash
+        env:
+          QT_QPA_PLATFORM: offscreen
+        run: python -m pytest tests/test_p0_desktop.py -q

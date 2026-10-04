@@ -1,0 +1,2 @@
+# Preserve raw report/inventory bytes, including BOM and CRLF.
+*.json -text
