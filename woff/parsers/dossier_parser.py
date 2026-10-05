@@ -128,6 +128,7 @@ class WoFFDossierParser:
         for raw_line in raw_lines:
             line = raw_line.decode("cp1252", errors="replace").strip()
             if not line:
+                current_key = current_key[::-1]
                 continue
 
             decoded_line = ""
