@@ -125,7 +125,7 @@ def test_same_name_partial_agreement_with_disagreement_is_conflicting() -> None:
     assert result.reason == "contradictory-stable-evidence"
 
 
-def test_different_name_with_identical_personal_evidence_is_conflicting() -> None:
+def test_different_name_with_identical_personal_evidence_is_new() -> None:
     stored = _wingman(
         "persistent-a",
         first_name="Louis",
@@ -134,7 +134,7 @@ def test_different_name_with_identical_personal_evidence_is_conflicting() -> Non
 
     result = resolve_wingman_identity(_wingman("incoming"), [stored])
 
-    assert result.kind is WingmanIdentityResolutionKind.CONFLICTING
+    assert result.kind is WingmanIdentityResolutionKind.NEW
     assert result.wingman_id is None
 
 
