@@ -1,8 +1,8 @@
-from ..models import WoFFWingman
-from ..wingman_identity import (
+from ..identity import (
     WingmanIdentityResolutionKind,
     resolve_wingman_identity,
 )
+from ..models import WoFFWingman
 
 
 def _wingman(
