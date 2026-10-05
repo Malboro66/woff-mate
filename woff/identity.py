@@ -155,6 +155,19 @@ class WingmanIdentityResolution:
             raise ValueError("only matched resolution may expose a persistent wingman ID")
 
 
+class WingmanIdentityResolutionError(RuntimeError):
+    """Fail-closed persistence error containing only sanitized diagnostics."""
+
+    def __init__(
+        self,
+        kind: WingmanIdentityResolutionKind,
+        reason: str,
+    ) -> None:
+        self.kind = kind
+        self.reason = reason
+        super().__init__(f"wingman identity {kind.value}: {reason}")
+
+
 @dataclass(frozen=True)
 class _WingmanEvidence:
     first_name: str
@@ -175,6 +188,16 @@ class _WingmanEvidence:
     def is_complete(self) -> bool:
         return all((*self.display_name, *self.personal))
 
+    @property
+    def key(self) -> tuple[str, str, str, str, str]:
+        return (
+            self.first_name,
+            self.last_name,
+            self.birth_date,
+            self.evidence_date,
+            self.evidence_location,
+        )
+
 
 def _wingman_token(value: str) -> str:
     """Canonicalize evidence text without inventing source semantics."""
@@ -191,6 +214,15 @@ def _wingman_evidence(wingman: WoFFWingman) -> _WingmanEvidence:
         evidence_date=_wingman_token(wingman.evidenceDate),
         evidence_location=_wingman_token(wingman.evidenceLocation),
     )
+
+
+def wingman_identity_key(
+    wingman: WoFFWingman,
+) -> Optional[tuple[str, str, str, str, str]]:
+    """Return complete normalized evidence for duplicate/ambiguity checks."""
+
+    evidence = _wingman_evidence(wingman)
+    return evidence.key if evidence.is_complete else None
 
 
 def resolve_wingman_identity(

@@ -402,13 +402,16 @@ class WoFFDossierParser:
                                     raise InvalidIntegerError("missing integer value")
                                 wingman_numeric[numeric_field] = parsed_value
 
-                            numeric_field = "flminutes"
-                            parsed_flight_minutes = parse_integer(
-                                parts[12] if len(parts) > 12 else None,
-                                policy=_DOSSIER_UNSIGNED_INTEGER,
-                            )
-                            if parsed_flight_minutes is not None:
-                                wingman_numeric[numeric_field] = parsed_flight_minutes
+                            for index, numeric_field in (
+                                (11, "missions"),
+                                (12, "flminutes"),
+                            ):
+                                parsed_value = parse_integer(
+                                    parts[index] if len(parts) > index else None,
+                                    policy=_DOSSIER_UNSIGNED_INTEGER,
+                                )
+                                if parsed_value is not None:
+                                    wingman_numeric[numeric_field] = parsed_value
                         except InvalidIntegerError as exc:
                             log.warning(
                                 "[BIN] Numeric field rejected: source=%s "
@@ -420,12 +423,15 @@ class WoFFDossierParser:
                             continue
 
                         w = WoFFWingman()
+                        present_fields = {"rank", "skill", "morale"}
                         w.rank = parts[0]
                         w.fName = parts[1]
                         w.sName = parts[2]
                         w.skill = wingman_numeric["skill"]
                         w.morale = wingman_numeric["morale"]
-                        w.status = parts[5] if len(parts) > 5 else "Active"
+                        if parts[5].casefold() not in _DOSSIER_MISSING_TOKENS:
+                            w.status = parts[5]
+                            present_fields.add("status")
 
                         # Q2: preserve stronger personal/biographical source
                         # evidence without promoting it to a native source ID.
@@ -455,10 +461,16 @@ class WoFFDossierParser:
                         for part in parts:
                             if "pilot" in part.lower() or "observer" in part.lower() or "outlook" in part.lower():
                                 w.bio = part
+                                present_fields.add("bio")
                                 break
                         
+                        if "missions" in wingman_numeric:
+                            w.missions = wingman_numeric["missions"]
+                            present_fields.add("missions")
                         if "flminutes" in wingman_numeric:
                             w.flminutes = wingman_numeric["flminutes"]
+                            present_fields.add("flminutes")
+                        w.present_fields = frozenset(present_fields)
                             
                         self.wingmen.append(w)
 
