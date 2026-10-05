@@ -236,8 +236,8 @@ def resolve_wingman_identity(
     incoming object's generated ``id`` are never identity evidence.
 
     Complete stable evidence is intentionally required before either matching
-    or creating identity. Sparse or contradictory evidence fails closed rather
-    than falling back to display name or row order.
+    or creating identity. Sparse or contradictory same-name evidence fails
+    closed rather than falling back to display name or row order.
     """
 
     source = _wingman_evidence(incoming)
@@ -263,14 +263,18 @@ def resolve_wingman_identity(
             exact.append(candidate)
             continue
 
+        if stored.display_name != source.display_name:
+            # Different display names are never merged. Coincident personal
+            # evidence is insufficient to prove they are the same person.
+            continue
+
         personal_agreements = sum(
             left == right for left, right in zip(source.personal, stored.personal)
         )
-
-        if stored.display_name == source.display_name:
-            if 0 < personal_agreements < len(source.personal):
-                conflict = True
-        elif personal_agreements == len(source.personal):
+        # Same-name candidates with partial stable-evidence agreement are
+        # contradictory and must fail closed. Fully distinct personal evidence
+        # remains the supported homonym case.
+        if 0 < personal_agreements < len(source.personal):
             conflict = True
 
     if conflict:
