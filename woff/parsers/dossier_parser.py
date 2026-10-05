@@ -372,8 +372,10 @@ class WoFFDossierParser:
                 "Lieutenant", "2nd Lieutenant", "Captain", "Major", "Colonel", 
                 "Flight Lieutenant", "Flight Sergeant", "Sergeant", "Corporal", 
                 "Private", "Air Mechanic",
-                # French
-                "Capitaine", "Sous-Lieutenant", "Adjudant", "Sergent", "Caporal", 
+                # French. Q2 evidence also confirms source spelling variants
+                # without punctuation and with the historical "Adjutant" form.
+                "Capitaine", "Sous-Lieutenant", "Sous Lieutenant",
+                "Adjudant", "Adjutant", "Sergent", "Caporal", 
                 "Maréchal-des-logis", "Brigadier",
                 # German
                 "Hauptmann", "Oberleutnant", "Leutnant", "Rittmeister", 
@@ -424,6 +426,31 @@ class WoFFDossierParser:
                         w.skill = wingman_numeric["skill"]
                         w.morale = wingman_numeric["morale"]
                         w.status = parts[5] if len(parts) > 5 else "Active"
+
+                        # Q2: preserve stronger personal/biographical source
+                        # evidence without promoting it to a native source ID.
+                        if len(parts) > 18:
+                            birth_parts = parts[16:19]
+                            if all(
+                                value
+                                and value.casefold() not in _DOSSIER_MISSING_TOKENS
+                                for value in birth_parts
+                            ):
+                                w.birthDate = normalize_date(
+                                    f"{birth_parts[0]}/{birth_parts[1]}/{birth_parts[2]}"
+                                )
+                        if (
+                            len(parts) > 24
+                            and parts[24]
+                            and parts[24].casefold() not in _DOSSIER_MISSING_TOKENS
+                        ):
+                            w.evidenceDate = normalize_date(parts[24])
+                        if (
+                            len(parts) > 25
+                            and parts[25]
+                            and parts[25].casefold() not in _DOSSIER_MISSING_TOKENS
+                        ):
+                            w.evidenceLocation = parts[25]
                         
                         for part in parts:
                             if "pilot" in part.lower() or "observer" in part.lower() or "outlook" in part.lower():
