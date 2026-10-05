@@ -17,6 +17,51 @@ Schema versions use `MAJOR.MINOR`:
 
 The application persists the new schema version in the same transaction as the schema and data changes. A database declaring a future schema is rejected before application DDL, a migration backup, or any downgrade. During the read-only compatibility probe, SQLite may open or create WAL coordination sidecars such as `-shm`; this is SQLite coordination rather than application DDL or migration. Use a compatible newer version instead.
 
+## Issue #96 wingman identity and roster state
+
+The wingman layout migration removes `UNIQUE(pilotId, fName, sName)`, adds
+nullable `birthDate`, `evidenceDate`, and `evidenceLocation` reconciliation
+evidence, and creates the non-unique `idx_squad_members_pilot` index. Layout
+certification detects this change even for a database already marked schema
+3.4. It preserves every existing `squad_members.id`, column value, compatible
+index/trigger, and personality/memory foreign key. Legacy evidence remains
+NULL; migration never invents identities or deduplicates historical rows.
+Backup, transactional rollback, integrity/FK certification, and reopen remain
+mandatory. Use the retained backup for recovery; do not downgrade by rebuilding
+name uniqueness over the migrated data.
+
+Dossier roster metadata now uses payload version 2. Each trusted or candidate
+member is `[wingman_id, first_name, last_name, status]`, sorted by persistent ID
+for serialization. IDs must be nonempty, unique within each roster, and owned
+by the same pilot. Names are presentation only. The importer loads the previous
+snapshot, merges/reconciles the incoming members, then reads this generation's
+resolved IDs and effective stored statuses before deriving events. All these
+operations, the binding digest, roster state, and diary writes share one
+transaction. A missing source status therefore cannot erase a trusted status
+or cause a duplicate transition when that status reappears.
+
+Comparison, candidate confirmation, and wounded/KIA/missing/new derivation use
+persistent IDs. Disappearances still require a matching roster in a different
+Dossier generation. Replaying the same digest cannot confirm a candidate or
+repeat diary events. Transfers establish a fresh baseline (or a pending one
+when the roster is absent), retaining historical member rows and relationships.
+
+Legacy list and version-1 payloads remain readable with unknown member IDs.
+No name-based upgrade is attempted, even when a name currently looks unique:
+a historical occurrence cannot be proven from that name. A trusted legacy
+baseline without IDs rejects same-squadron comparison and rolls back the
+incoming generation, preserving its previous snapshot and diary. An explicit
+squadron transfer may establish a fresh resolved baseline without comparing
+legacy members. An old untrusted list, or an empty pending baseline, can also
+establish a new baseline without attributing historical events by name. Invalid
+version-2 IDs (including duplicates or another pilot's IDs) reject the import.
+Resolving a blocked trusted legacy baseline requires independent identity
+evidence; automatic historical repair is outside this slice.
+
+The compatibility `process_wingmen_changes` entry point accepts programmatic
+persistent IDs only. Parsed Dossier members must use the atomic Dossier importer
+so generation-local IDs cannot become comparison keys before reconciliation.
+
 ## Schema 3.4 victory occurrence migration
 
 Issue #136 retains this schema unchanged. `pilots.nation` is the recoverable

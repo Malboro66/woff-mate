@@ -218,3 +218,47 @@ def test_wingman_identity_migration_failure_restores_original_database(
 
     backups = list((tmp_path / ".woff-migration-backups").glob("*.backup.sqlite"))
     assert backups
+
+
+def test_wingman_migration_preserves_extensions_and_verified_backup(
+    tmp_path: Path,
+) -> None:
+    path = tmp_path / "wingman-extensions.sqlite"
+    _legacy_database(path)
+    with sqlite3.connect(path) as conn:
+        conn.execute("ALTER TABLE squad_members ADD COLUMN custom_note TEXT")
+        conn.execute("UPDATE squad_members SET custom_note = 'Retain this value'")
+        conn.execute("CREATE INDEX custom_wingman_rank ON squad_members(rank)")
+        conn.execute("CREATE TABLE custom_wingman_audit (member_id TEXT)")
+        conn.execute("""
+            CREATE TRIGGER custom_wingman_update AFTER UPDATE OF rank ON squad_members
+            BEGIN INSERT INTO custom_wingman_audit VALUES (NEW.id); END
+        """)
+        original_rows = conn.execute("SELECT * FROM squad_members").fetchall()
+    migrated = DatabaseManager(str(path))
+    conn = migrated._get_conn()
+    assert conn.execute("SELECT id, custom_note FROM squad_members").fetchall() == [
+        ("wingman-a", "Retain this value")
+    ]
+    assert conn.execute(
+        "SELECT name FROM sqlite_master WHERE name = 'custom_wingman_rank'"
+    ).fetchone()
+    with migrated.transaction():
+        conn.execute("UPDATE squad_members SET rank = 'Captain' WHERE id = 'wingman-a'")
+    assert conn.execute("SELECT member_id FROM custom_wingman_audit").fetchall() == [
+        ("wingman-a",)
+    ]
+    assert conn.execute("PRAGMA foreign_key_check").fetchall() == []
+    assert conn.execute("PRAGMA integrity_check").fetchone() == ("ok",)
+    migrated.close()
+    backup = next((tmp_path / ".woff-migration-backups").glob("*.backup.sqlite"))
+    with sqlite3.connect(backup) as conn:
+        assert conn.execute("SELECT * FROM squad_members").fetchall() == original_rows
+        assert conn.execute("PRAGMA foreign_key_check").fetchall() == []
+        assert conn.execute("PRAGMA integrity_check").fetchone() == ("ok",)
+        assert ("pilotId", "fName", "sName") in _unique_columns(conn, "squad_members")
+    reopened = DatabaseManager(str(path))
+    assert reopened._get_conn().execute(
+        "SELECT custom_note FROM squad_members"
+    ).fetchone() == ("Retain this value",)
+    reopened.close()

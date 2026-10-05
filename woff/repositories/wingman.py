@@ -221,7 +221,7 @@ class WingmanRepository(BaseRepository):
             conn.row_factory = sqlite3.Row
             try:
                 rows = conn.execute(
-                    "SELECT fName, sName, status FROM squad_members WHERE pilotId = ?",
+                    "SELECT id, fName, sName, status FROM squad_members WHERE pilotId = ?",
                     (pilot_id,),
                 ).fetchall()
                 return [dict(r) for r in rows]

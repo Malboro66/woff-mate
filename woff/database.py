@@ -42,11 +42,8 @@ from .campaign_namespace import (
     is_campaign_namespace,
 )
 from .identity import (
-    PilotIdentityError,
-    PilotIdentityEvidence,
-    PilotSlotBinding,
-    WingmanIdentityResolutionError,
-    pilot_slot,
+    PilotIdentityError, PilotIdentityEvidence, PilotSlotBinding,
+    WingmanIdentityResolutionError, pilot_slot,
 )
 from .models import WoFFPilot, WoFFMission, WoFFVictory, WoFFDecoration, WoFFWingman
 from .repositories import PilotRepository, MissionRepository, RpgRepository, WingmanRepository
@@ -81,6 +78,7 @@ class DossierWingmanState:
     first_name: str
     last_name: str
     status: str
+    wingman_id: Optional[str] = None
 
 
 @dataclass(frozen=True)
@@ -136,8 +134,8 @@ ALLOWED_MIGRATIONS: Dict[str, Dict[str, str]] = {
     },
     "squad_members": {
         "skill": "INTEGER", "morale": "INTEGER", "missions": "INTEGER",
-        "flminutes": "INTEGER", "birthDate": "TEXT", "evidenceDate": "TEXT",
-        "evidenceLocation": "TEXT"
+        "flminutes": "INTEGER", "birthDate": "TEXT",
+        "evidenceDate": "TEXT", "evidenceLocation": "TEXT"
     },
     "victories": {
         "sector": "TEXT", "aircraft": "TEXT"
@@ -274,11 +272,16 @@ class DatabaseManager:
                 ).fetchone()
                 return str(row[0]) if row is not None else None
             except sqlite3.OperationalError:
+                # A stale/crashed journal may require recovery, which a read-only
+                # probe cannot perform. The transactional validation below remains
+                # authoritative and will run before any application DDL.
                 return None
         finally:
             conn.close()
 
+    # ── Thread-Local Connection Pooling ──
     def _open_conn(self) -> sqlite3.Connection:
+        """Cria uma conexão SQLite com todas as opções exigidas pelo gestor."""
         conn = sqlite3.connect(
             self.db_path,
             timeout=SQLITE_BUSY_TIMEOUT_SECONDS,
@@ -289,6 +292,7 @@ class DatabaseManager:
         return conn
 
     def _get_conn(self) -> sqlite3.Connection:
+        """Devolve a conexão da thread atual, recriando-a se tiver sido fechada."""
         if not hasattr(self._local, 'conn') or self._local.conn is None:
             self._local.conn = self._open_conn()
             return self._local.conn
@@ -353,6 +357,7 @@ class DatabaseManager:
                         self._local.transaction_rollback_only = False
 
     def _discard_failed_connection(self, conn: sqlite3.Connection) -> None:
+        """Discard a connection whose transactional state is uncertain."""
         if getattr(self._local, "conn", None) is conn:
             self._local.conn = None
         try:
@@ -361,6 +366,7 @@ class DatabaseManager:
             log.exception("Failed to close connection after rollback failure")
 
     def close(self) -> None:
+        """Fecha a conexão da thread atual. Chamar no shutdown."""
         if hasattr(self._local, 'conn') and self._local.conn:
             try:
                 self._local.conn.close()
@@ -502,6 +508,7 @@ class DatabaseManager:
                     FOREIGN KEY(pilotId) REFERENCES pilots(id)
                 )
             """)
+
             cursor.execute("""
                 CREATE INDEX IF NOT EXISTS idx_squad_members_pilot
                 ON squad_members(pilotId)
@@ -529,6 +536,8 @@ class DatabaseManager:
                 )
             """)
 
+            # FIX: UNIQUE parcial para permitir múltiplos eventos de vida (missionId=NULL)
+            # mas bloquear missões duplicadas no diário.
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS diary_entries (
                     id TEXT PRIMARY KEY,
@@ -570,6 +579,7 @@ class DatabaseManager:
         except Exception:
             log.exception("Erro ao inicializar base de dados")
             raise
+        # Nota: não fechamos conn aqui — thread-local permanece aberta
 
     def _existing_database_has_pending_migration(self) -> bool:
         if not self.db_path.exists():
@@ -596,6 +606,7 @@ class DatabaseManager:
             conn.close()
 
     def _backup_existing_database(self) -> Path:
+        """Cria backup SQLite consistente via Connection.backup sem sobrescrever."""
         backup_dir = self.db_path.parent / ".woff-migration-backups"
         backup_dir.mkdir(exist_ok=True)
         stem = self.db_path.name
@@ -640,6 +651,12 @@ class DatabaseManager:
         source.backup(dest)
 
     def create_export_backup(self) -> Path:
+        """Atomically replace the optional pre-processing export snapshot.
+
+        The new sidecar is published only after SQLite certifies it.  A failed
+        attempt therefore leaves any previously verified snapshot untouched.
+        """
+
         backup_path = self.db_path.with_name(f"{self.db_path.name}.backup.sqlite")
         backup_dir = backup_path.parent
         with self._lock:
@@ -754,6 +771,8 @@ class DatabaseManager:
         return backup_path
 
     def _copy_export_backup_for_rollback(self, backup_path: Path) -> Path:
+        """Create and sync a rollback copy without removing the canonical file."""
+
         while True:
             rollback_path = self._unique_sidecar_path(
                 backup_path, "previous-export-backup"
@@ -776,6 +795,7 @@ class DatabaseManager:
             return rollback_path
 
     def _restore_migration_backup(self) -> None:
+        """Restaura backup via API SQLite sem mover arquivos de conexões abertas."""
         backup_path = getattr(self, "_migration_backup_path", None)
         if backup_path is None:
             return
@@ -841,6 +861,22 @@ class DatabaseManager:
             os.close(fd)
 
     def _migrate_schema(self):
+        """
+        Aplica migrações à Base de Dados se ela for de uma versão antiga.
+
+        Riscos mitigados: o fluxo antigo desativava foreign_keys, reconstruía tabelas
+        com ``CAST`` silencioso (``'abc'`` virava ``0``), descartava índices externos
+        à definição da tabela e gravava ``schema_version`` no mesmo bloco que podia
+        deixar uma reconstrução parcialmente aplicada. Agora a reconstrução ocorre
+        dentro de transação explícita, com backup prévio, validação de inteiros,
+        recriação de índices definidos pelo utilizador e verificação final por
+        ``foreign_key_check`` e ``integrity_check``.
+
+        Política para valores numéricos inválidos: NULL e string vazia são
+        preservados como NULL; inteiros válidos, incluindo negativos e espaços
+        em volta, são convertidos; qualquer outro valor aborta a migração com
+        ValueError para não converter nem descartar dados silenciosamente.
+        """
         with self._lock:
             conn = sqlite3.connect(self.db_path, check_same_thread=False)
             try:
@@ -857,6 +893,9 @@ class DatabaseManager:
                 def table_columns(table: str) -> set[str]:
                     cursor.execute(f"PRAGMA table_info({table})")
                     return {row[1] for row in cursor.fetchall()}
+
+                def column_exists(table: str, col: str) -> bool:
+                    return col in table_columns(table)
 
                 has_meta = cursor.execute(
                     "SELECT 1 FROM sqlite_master WHERE type='table' AND name='meta'"
@@ -895,10 +934,23 @@ class DatabaseManager:
                         for col in cols:
                             pending_migration = pending_migration or col not in existing_columns
                 pending_migration = pending_migration or self._has_numeric_column_type_migration(cursor)
-                pending_migration = pending_migration or self._has_pilot_identity_schema_migration(cursor)
-                pending_migration = pending_migration or self._has_campaign_namespace_schema_migration(cursor) or self._has_legacy_namespace_reconciliation(cursor)
-                pending_migration = pending_migration or self._has_victory_identity_schema_migration(cursor)
-                pending_migration = pending_migration or self._has_wingman_identity_schema_migration(cursor)
+                pending_migration = (
+                    pending_migration
+                    or self._has_pilot_identity_schema_migration(cursor)
+                )
+                pending_migration = (
+                    pending_migration
+                    or self._has_campaign_namespace_schema_migration(cursor)
+                    or self._has_legacy_namespace_reconciliation(cursor)
+                )
+                pending_migration = (
+                    pending_migration
+                    or self._has_victory_identity_schema_migration(cursor)
+                )
+                pending_migration = (
+                    pending_migration
+                    or self._has_wingman_identity_schema_migration(cursor)
+                )
                 if pending_migration and self._migration_backup_path is None:
                     self._migration_backup_path = self._backup_existing_database()
 
@@ -920,6 +972,8 @@ class DatabaseManager:
                 self._migrate_victory_identity_schema(cursor)
                 self._migrate_wingman_identity_schema(cursor)
 
+                # Initialization is part of this same transaction: a failure in
+                # any CREATE rolls back migrations and leaves old metadata intact.
                 self._local.conn = conn
                 self._init_db()
                 if not binding_existed_before:
@@ -959,6 +1013,7 @@ class DatabaseManager:
                 conn.close()
 
     def _validate_schema_contract(self, cursor: sqlite3.Cursor) -> None:
+        """Certify the complete application schema, not only SQLite integrity."""
         errors: List[str] = []
         for table, required_columns in SCHEMA_TABLES.items():
             info = cursor.execute(
@@ -1007,6 +1062,9 @@ class DatabaseManager:
                     ).fetchall()
                 )
                 for index in indexes
+                # A table UNIQUE constraint is represented by a non-partial
+                # index whose origin is ``u``. A user-created (origin ``c``)
+                # partial index is not an equivalent schema constraint.
                 if index[2] and index[3] == "u" and not index[4]
             }
             for unique in SCHEMA_UNIQUES.get(table, []):
@@ -1014,13 +1072,21 @@ class DatabaseManager:
                     errors.append(f"missing UNIQUE {table}{unique}")
             if table == "pilots" and ("name",) in all_unique_columns:
                 errors.append("forbidden UNIQUE pilots('name',)")
-            if table == "pilot_slot_bindings" and ("slot",) in all_unique_columns:
+            if (
+                table == "pilot_slot_bindings"
+                and ("slot",) in all_unique_columns
+            ):
                 errors.append("forbidden global UNIQUE pilot_slot_bindings('slot',)")
-            if table == "victories" and ("pilotId", "date", "time", "enemyType") in all_unique_columns:
+            if (
+                table == "victories"
+                and ("pilotId", "date", "time", "enemyType")
+                in all_unique_columns
+            ):
                 errors.append(
                     "forbidden occurrence-collapsing UNIQUE victories"
                     "('pilotId', 'date', 'time', 'enemyType')"
                 )
+
             if table == "squad_members" and ("pilotId", "fName", "sName") in all_unique_columns:
                 errors.append(
                     "forbidden occurrence-collapsing UNIQUE squad_members"
@@ -1053,13 +1119,21 @@ class DatabaseManager:
             if name_index_columns != ("name",):
                 errors.append("wrong key semantics for index idx_pilots_name")
 
-        victory_indexes = cursor.execute("PRAGMA index_list(victories)").fetchall()
+        victory_indexes = cursor.execute(
+            "PRAGMA index_list(victories)"
+        ).fetchall()
         victory_pilot_index = next(
             (row for row in victory_indexes if row[1] == "idx_victories_pilot"),
             None,
         )
-        if victory_pilot_index is None or victory_pilot_index[2] or victory_pilot_index[4]:
-            errors.append("missing canonical non-unique index idx_victories_pilot")
+        if (
+            victory_pilot_index is None
+            or victory_pilot_index[2]
+            or victory_pilot_index[4]
+        ):
+            errors.append(
+                "missing canonical non-unique index idx_victories_pilot"
+            )
         else:
             victory_pilot_columns = tuple(
                 str(row[2])
@@ -1068,7 +1142,9 @@ class DatabaseManager:
                 ).fetchall()
             )
             if victory_pilot_columns != ("pilotId",):
-                errors.append("wrong key semantics for index idx_victories_pilot")
+                errors.append(
+                    "wrong key semantics for index idx_victories_pilot"
+                )
 
         squad_indexes = cursor.execute("PRAGMA index_list(squad_members)").fetchall()
         squad_pilot_index = next(
@@ -1089,74 +1165,139 @@ class DatabaseManager:
 
         binding_info = {
             str(row[1]): row
-            for row in cursor.execute("PRAGMA table_info(pilot_slot_bindings)").fetchall()
+            for row in cursor.execute(
+                "PRAGMA table_info(pilot_slot_bindings)"
+            ).fetchall()
         }
-        for required_not_null in ("campaign_namespace", "slot", "pilotId", "last_updated"):
+        for required_not_null in (
+            "campaign_namespace",
+            "slot",
+            "pilotId",
+            "last_updated",
+        ):
             if required_not_null in binding_info and not binding_info[required_not_null][3]:
-                errors.append(f"missing NOT NULL pilot_slot_bindings.{required_not_null}")
+                errors.append(
+                    f"missing NOT NULL pilot_slot_bindings.{required_not_null}"
+                )
         victory_source_info = {
             str(row[1]): row
-            for row in cursor.execute("PRAGMA table_info(victory_source_records)").fetchall()
+            for row in cursor.execute(
+                "PRAGMA table_info(victory_source_records)"
+            ).fetchall()
         }
-        for required_not_null in ("pilotId", "source_record_key", "victoryId"):
-            if required_not_null in victory_source_info and not victory_source_info[required_not_null][3]:
-                errors.append("missing NOT NULL victory_source_records." f"{required_not_null}")
+        for required_not_null in (
+            "pilotId",
+            "source_record_key",
+            "victoryId",
+        ):
+            if (
+                required_not_null in victory_source_info
+                and not victory_source_info[required_not_null][3]
+            ):
+                errors.append(
+                    "missing NOT NULL victory_source_records."
+                    f"{required_not_null}"
+                )
         binding_sql_row = cursor.execute(
-            "SELECT sql FROM sqlite_master WHERE type='table' AND name='pilot_slot_bindings'"
+            "SELECT sql FROM sqlite_master WHERE type='table' "
+            "AND name='pilot_slot_bindings'"
         ).fetchone()
-        binding_sql = str(binding_sql_row[0]) if binding_sql_row is not None and binding_sql_row[0] else ""
-        if re.search(r"CHECK\s*\(\s*[\"`\[]?slot[\"`\]]?\s*>\s*0\s*\)", binding_sql, flags=re.IGNORECASE) is None:
-            errors.append("missing positive slot check pilot_slot_bindings.slot")
+        binding_sql = (
+            str(binding_sql_row[0])
+            if binding_sql_row is not None and binding_sql_row[0]
+            else ""
+        )
         if re.search(
-            r"CHECK\s*\(\s*length\s*\(\s*[\"`\[]?campaign_namespace[\"`\]]?\s*\)\s*>\s*0\s*\)",
+            r"CHECK\s*\(\s*[\"`\[]?slot[\"`\]]?\s*>\s*0\s*\)",
             binding_sql,
             flags=re.IGNORECASE,
         ) is None:
-            errors.append("missing nonblank namespace check pilot_slot_bindings.campaign_namespace")
+            errors.append("missing positive slot check pilot_slot_bindings.slot")
+        if re.search(
+            r"CHECK\s*\(\s*length\s*\(\s*[\"`\[]?campaign_namespace"
+            r"[\"`\]]?\s*\)\s*>\s*0\s*\)",
+            binding_sql,
+            flags=re.IGNORECASE,
+        ) is None:
+            errors.append(
+                "missing nonblank namespace check "
+                "pilot_slot_bindings.campaign_namespace"
+            )
         invalid_namespaces = [
             str(row[0])
-            for row in cursor.execute("SELECT DISTINCT campaign_namespace FROM pilot_slot_bindings").fetchall()
+            for row in cursor.execute(
+                "SELECT DISTINCT campaign_namespace "
+                "FROM pilot_slot_bindings"
+            ).fetchall()
             if not is_campaign_namespace(row[0], allow_legacy=True)
         ]
         if invalid_namespaces:
             errors.append("unsupported pilot-slot campaign namespace value")
 
         diary_indexes = cursor.execute("PRAGMA index_list(diary_entries)").fetchall()
-        diary_index = next((row for row in diary_indexes if row[1] == "idx_diary_unique_mission"), None)
+        diary_index = next(
+            (row for row in diary_indexes if row[1] == "idx_diary_unique_mission"),
+            None,
+        )
         if diary_index is None or not diary_index[2] or not diary_index[4]:
             errors.append("missing required partial unique index idx_diary_unique_mission")
         elif tuple(
             (str(row[2]), int(row[3]), str(row[4]).upper())
-            for row in cursor.execute("PRAGMA index_xinfo(idx_diary_unique_mission)").fetchall()
+            for row in cursor.execute(
+                "PRAGMA index_xinfo(idx_diary_unique_mission)"
+            ).fetchall()
             if row[5] == 1
-        ) != (("pilotId", 0, "BINARY"), ("missionId", 0, "BINARY")):
+        ) != (
+            ("pilotId", 0, "BINARY"),
+            ("missionId", 0, "BINARY"),
+        ):
             errors.append("wrong key semantics for index idx_diary_unique_mission")
         else:
             index_sql_row = cursor.execute(
-                "SELECT sql FROM sqlite_master WHERE type='index' AND name='idx_diary_unique_mission'"
+                "SELECT sql FROM sqlite_master WHERE type='index' "
+                "AND name='idx_diary_unique_mission'"
             ).fetchone()
             index_sql = str(index_sql_row[0]) if index_sql_row and index_sql_row[0] else ""
             if not self._has_canonical_diary_index_predicate(index_sql):
                 errors.append("wrong predicate for index idx_diary_unique_mission")
 
-        alias_indexes = cursor.execute("PRAGMA index_list(victory_source_records)").fetchall()
-        alias_index = next((row for row in alias_indexes if row[1] == "idx_victory_source_records_victory"), None)
+        alias_indexes = cursor.execute(
+            "PRAGMA index_list(victory_source_records)"
+        ).fetchall()
+        alias_index = next(
+            (
+                row
+                for row in alias_indexes
+                if row[1] == "idx_victory_source_records_victory"
+            ),
+            None,
+        )
         if alias_index is None or alias_index[2] or alias_index[4]:
-            errors.append("missing canonical non-unique index idx_victory_source_records_victory")
+            errors.append(
+                "missing canonical non-unique index "
+                "idx_victory_source_records_victory"
+            )
         else:
             alias_index_columns = tuple(
                 str(row[2])
-                for row in cursor.execute("PRAGMA index_info(idx_victory_source_records_victory)").fetchall()
+                for row in cursor.execute(
+                    "PRAGMA index_info(idx_victory_source_records_victory)"
+                ).fetchall()
             )
             if alias_index_columns != ("victoryId",):
-                errors.append("wrong key semantics for index idx_victory_source_records_victory")
+                errors.append(
+                    "wrong key semantics for index "
+                    "idx_victory_source_records_victory"
+                )
 
         if errors:
             raise SchemaCompatibilityError(
-                f"Database layout is incompatible with schema {SCHEMA_VERSION}: " + "; ".join(errors)
+                f"Database layout is incompatible with schema {SCHEMA_VERSION}: "
+                + "; ".join(errors)
             )
 
     def _has_canonical_diary_index_predicate(self, sql: str) -> bool:
+        """Match the complete canonical WHERE expression with quoted identifiers."""
         where_match = re.search(r"\bWHERE\b", sql, flags=re.IGNORECASE)
         if where_match is None:
             return False
@@ -1186,6 +1327,7 @@ class DatabaseManager:
         return False
 
     def _migrate_numeric_column_types(self, cursor: sqlite3.Cursor) -> None:
+        """Reconstrói tabelas antigas com colunas numéricas TEXT de forma segura."""
         for table, columns in self._numeric_columns().items():
             cursor.execute(f"PRAGMA table_info({table})")
             info = cursor.fetchall()
@@ -1216,7 +1358,8 @@ class DatabaseManager:
             )
             cursor.execute(f"DROP TABLE {self._quote_identifier(table)}")
             cursor.execute(
-                f"ALTER TABLE {self._quote_identifier(new_table)} RENAME TO {self._quote_identifier(table)}"
+                f"ALTER TABLE {self._quote_identifier(new_table)} "
+                f"RENAME TO {self._quote_identifier(table)}"
             )
             for sql in dependent_sql:
                 cursor.execute(sql)
@@ -1225,15 +1368,23 @@ class DatabaseManager:
                 f"{', '.join(text_numeric)}."
             )
 
-    def _pilot_name_unique_indexes(self, cursor: sqlite3.Cursor, table: str = "pilots") -> List[Tuple[str, Optional[str]]]:
+    def _pilot_name_unique_indexes(
+        self, cursor: sqlite3.Cursor, table: str = "pilots"
+    ) -> List[Tuple[str, Optional[str]]]:
+        """Return every unique index whose only key is the display name."""
+
         indexes: List[Tuple[str, Optional[str]]] = []
-        for row in cursor.execute(f"PRAGMA index_list({self._quote_identifier(table)})").fetchall():
+        for row in cursor.execute(
+            f"PRAGMA index_list({self._quote_identifier(table)})"
+        ).fetchall():
             if not row[2]:
                 continue
             index_name = str(row[1])
             columns = tuple(
                 str(item[2])
-                for item in cursor.execute(f"PRAGMA index_info({self._quote_identifier(index_name)})").fetchall()
+                for item in cursor.execute(
+                    f"PRAGMA index_info({self._quote_identifier(index_name)})"
+                ).fetchall()
             )
             if columns != ("name",):
                 continue
@@ -1241,61 +1392,119 @@ class DatabaseManager:
                 "SELECT sql FROM sqlite_master WHERE type='index' AND name=?",
                 (index_name,),
             ).fetchone()
-            indexes.append((index_name, str(sql_row[0]) if sql_row and sql_row[0] else None))
+            indexes.append(
+                (index_name, str(sql_row[0]) if sql_row and sql_row[0] else None)
+            )
         return indexes
 
-    def _has_pilot_identity_schema_migration(self, cursor: sqlite3.Cursor) -> bool:
-        pilots = cursor.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='pilots'").fetchone()
+    def _has_pilot_identity_schema_migration(
+        self, cursor: sqlite3.Cursor
+    ) -> bool:
+        pilots = cursor.execute(
+            "SELECT 1 FROM sqlite_master WHERE type='table' AND name='pilots'"
+        ).fetchone()
         if pilots is None:
             return False
         if self._pilot_name_unique_indexes(cursor):
             return True
-        binding = cursor.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='pilot_slot_bindings'").fetchone()
+        binding = cursor.execute(
+            "SELECT 1 FROM sqlite_master "
+            "WHERE type='table' AND name='pilot_slot_bindings'"
+        ).fetchone()
         if binding is None:
             return True
-        index = cursor.execute("SELECT 1 FROM sqlite_master WHERE type='index' AND name='idx_pilots_name'").fetchone()
+        index = cursor.execute(
+            "SELECT 1 FROM sqlite_master "
+            "WHERE type='index' AND name='idx_pilots_name'"
+        ).fetchone()
         return index is None
 
-    def _has_campaign_namespace_schema_migration(self, cursor: sqlite3.Cursor) -> bool:
-        binding = cursor.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='pilot_slot_bindings'").fetchone()
+    def _has_campaign_namespace_schema_migration(
+        self, cursor: sqlite3.Cursor
+    ) -> bool:
+        binding = cursor.execute(
+            "SELECT 1 FROM sqlite_master "
+            "WHERE type='table' AND name='pilot_slot_bindings'"
+        ).fetchone()
         if binding is None:
             return False
-        info = cursor.execute("PRAGMA table_info(pilot_slot_bindings)").fetchall()
+        info = cursor.execute(
+            "PRAGMA table_info(pilot_slot_bindings)"
+        ).fetchall()
         columns = {str(row[1]) for row in info}
-        primary_key = tuple(str(row[1]) for row in sorted(info, key=lambda item: item[5]) if row[5])
-        return "campaign_namespace" not in columns or primary_key != ("campaign_namespace", "slot")
+        primary_key = tuple(
+            str(row[1]) for row in sorted(info, key=lambda item: item[5]) if row[5]
+        )
+        return (
+            "campaign_namespace" not in columns
+            or primary_key != ("campaign_namespace", "slot")
+        )
 
-    def _victory_occurrence_unique_indexes(self, cursor: sqlite3.Cursor, table: str = "victories") -> List[Tuple[str, Optional[str]]]:
+    def _victory_occurrence_unique_indexes(
+        self, cursor: sqlite3.Cursor, table: str = "victories"
+    ) -> List[Tuple[str, Optional[str]]]:
+        """Return indexes that collapse distinct same-minute victories."""
+
         indexes: List[Tuple[str, Optional[str]]] = []
-        for row in cursor.execute(f"PRAGMA index_list({self._quote_identifier(table)})").fetchall():
+        for row in cursor.execute(
+            f"PRAGMA index_list({self._quote_identifier(table)})"
+        ).fetchall():
             if not row[2]:
                 continue
             index_name = str(row[1])
-            columns = tuple(str(item[2]) for item in cursor.execute(f"PRAGMA index_info({self._quote_identifier(index_name)})").fetchall())
+            columns = tuple(
+                str(item[2])
+                for item in cursor.execute(
+                    f"PRAGMA index_info({self._quote_identifier(index_name)})"
+                ).fetchall()
+            )
             if columns != ("pilotId", "date", "time", "enemyType"):
                 continue
-            sql_row = cursor.execute("SELECT sql FROM sqlite_master WHERE type='index' AND name=?", (index_name,)).fetchone()
-            indexes.append((index_name, str(sql_row[0]) if sql_row and sql_row[0] else None))
+            sql_row = cursor.execute(
+                "SELECT sql FROM sqlite_master WHERE type='index' AND name=?",
+                (index_name,),
+            ).fetchone()
+            indexes.append(
+                (index_name, str(sql_row[0]) if sql_row and sql_row[0] else None)
+            )
         return indexes
 
-    def _has_victory_identity_schema_migration(self, cursor: sqlite3.Cursor) -> bool:
-        victories = cursor.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='victories'").fetchone()
+    def _has_victory_identity_schema_migration(
+        self, cursor: sqlite3.Cursor
+    ) -> bool:
+        victories = cursor.execute(
+            "SELECT 1 FROM sqlite_master "
+            "WHERE type='table' AND name='victories'"
+        ).fetchone()
         if victories is None:
             return False
         if self._victory_occurrence_unique_indexes(cursor):
             return True
-        aliases = cursor.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='victory_source_records'").fetchone()
+        aliases = cursor.execute(
+            "SELECT 1 FROM sqlite_master "
+            "WHERE type='table' AND name='victory_source_records'"
+        ).fetchone()
         if aliases is None:
             return True
-        alias_index = cursor.execute("SELECT 1 FROM sqlite_master WHERE type='index' AND name='idx_victory_source_records_victory'").fetchone()
+        alias_index = cursor.execute(
+            "SELECT 1 FROM sqlite_master "
+            "WHERE type='index' "
+            "AND name='idx_victory_source_records_victory'"
+        ).fetchone()
         if alias_index is None:
             return True
-        pilot_index = cursor.execute("SELECT 1 FROM sqlite_master WHERE type='index' AND name='idx_victories_pilot'").fetchone()
+        pilot_index = cursor.execute(
+            "SELECT 1 FROM sqlite_master "
+            "WHERE type='index' AND name='idx_victories_pilot'"
+        ).fetchone()
         return pilot_index is None
 
     @staticmethod
-    def _create_victory_source_records_table(cursor: sqlite3.Cursor) -> None:
-        cursor.execute("""
+    def _create_victory_source_records_table(
+        cursor: sqlite3.Cursor,
+    ) -> None:
+        cursor.execute(
+            """
             CREATE TABLE victory_source_records (
                 pilotId TEXT NOT NULL,
                 source_record_key TEXT NOT NULL,
@@ -1304,66 +1513,136 @@ class DatabaseManager:
                 FOREIGN KEY(pilotId) REFERENCES pilots(id),
                 FOREIGN KEY(victoryId) REFERENCES victories(id)
             )
-        """)
+            """
+        )
 
-    def _migrate_victory_identity_schema(self, cursor: sqlite3.Cursor) -> None:
-        victories = cursor.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='victories'").fetchone()
+    def _migrate_victory_identity_schema(
+        self, cursor: sqlite3.Cursor
+    ) -> None:
+        """Replace the lossy victory key with source-record aliases."""
+
+        victories = cursor.execute(
+            "SELECT 1 FROM sqlite_master "
+            "WHERE type='table' AND name='victories'"
+        ).fetchone()
         if victories is None:
             return
 
         forbidden_indexes = self._victory_occurrence_unique_indexes(cursor)
-        aliases_exist = cursor.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='victory_source_records'").fetchone() is not None
+        aliases_exist = cursor.execute(
+            "SELECT 1 FROM sqlite_master "
+            "WHERE type='table' AND name='victory_source_records'"
+        ).fetchone() is not None
         if forbidden_indexes:
             if aliases_exist:
-                alias_count = int(cursor.execute("SELECT COUNT(*) FROM victory_source_records").fetchone()[0])
+                alias_count = int(
+                    cursor.execute(
+                        "SELECT COUNT(*) FROM victory_source_records"
+                    ).fetchone()[0]
+                )
                 if alias_count:
-                    raise SchemaCompatibilityError("Cannot replace the legacy victory key after source aliases have been populated")
+                    raise SchemaCompatibilityError(
+                        "Cannot replace the legacy victory key after source "
+                        "aliases have been populated"
+                    )
                 cursor.execute("DROP TABLE victory_source_records")
                 aliases_exist = False
 
-            original_row = cursor.execute("SELECT sql FROM sqlite_master WHERE type='table' AND name='victories' AND sql IS NOT NULL").fetchone()
+            original_row = cursor.execute(
+                "SELECT sql FROM sqlite_master "
+                "WHERE type='table' AND name='victories' AND sql IS NOT NULL"
+            ).fetchone()
             if original_row is None:
-                raise SchemaCompatibilityError("Cannot migrate victory identity without victories DDL")
+                raise SchemaCompatibilityError(
+                    "Cannot migrate victory identity without victories DDL"
+                )
             dependent_sql = self._dependent_sql_for_table(cursor, "victories")
-            forbidden_sql = {sql for _name, sql in forbidden_indexes if sql is not None}
-            compatible_sql = [sql for sql in dependent_sql if sql not in forbidden_sql]
+            forbidden_sql = {
+                sql for _name, sql in forbidden_indexes if sql is not None
+            }
+            compatible_sql = [
+                sql for sql in dependent_sql if sql not in forbidden_sql
+            ]
             new_table = self._unique_temp_table_name(cursor, "victories")
-            rewritten = self._rewrite_victory_identity_table_sql(str(original_row[0]), new_table)
+            rewritten = self._rewrite_victory_identity_table_sql(
+                str(original_row[0]), new_table
+            )
             cursor.execute(rewritten)
             if self._victory_occurrence_unique_indexes(cursor, new_table):
-                raise SchemaCompatibilityError("Victory identity migration retained the lossy UNIQUE key")
+                raise SchemaCompatibilityError(
+                    "Victory identity migration retained the lossy UNIQUE key"
+                )
 
-            old_columns = [str(row[1]) for row in cursor.execute("PRAGMA table_info(victories)").fetchall()]
-            new_columns = [str(row[1]) for row in cursor.execute(f"PRAGMA table_info({self._quote_identifier(new_table)})").fetchall()]
+            old_columns = [
+                str(row[1])
+                for row in cursor.execute(
+                    "PRAGMA table_info(victories)"
+                ).fetchall()
+            ]
+            new_columns = [
+                str(row[1])
+                for row in cursor.execute(
+                    f"PRAGMA table_info({self._quote_identifier(new_table)})"
+                ).fetchall()
+            ]
             if new_columns != old_columns:
-                raise SchemaCompatibilityError("Victory identity migration changed the victories column contract")
-            columns = ", ".join(self._quote_identifier(column) for column in old_columns)
-            cursor.execute(f"INSERT INTO {self._quote_identifier(new_table)} ({columns}) SELECT {columns} FROM victories")
+                raise SchemaCompatibilityError(
+                    "Victory identity migration changed the victories column contract"
+                )
+            columns = ", ".join(
+                self._quote_identifier(column) for column in old_columns
+            )
+            cursor.execute(
+                f"INSERT INTO {self._quote_identifier(new_table)} ({columns}) "
+                f"SELECT {columns} FROM victories"
+            )
             cursor.execute("DROP TABLE victories")
-            cursor.execute(f"ALTER TABLE {self._quote_identifier(new_table)} RENAME TO victories")
+            cursor.execute(
+                f"ALTER TABLE {self._quote_identifier(new_table)} "
+                "RENAME TO victories"
+            )
             for sql in compatible_sql:
                 cursor.execute(sql)
-            log.info("  [Migração] Chave de vitórias por minuto removida; IDs preservados.")
+            log.info(
+                "  [Migração] Chave de vitórias por minuto removida; IDs preservados."
+            )
 
         if not aliases_exist:
             self._create_victory_source_records_table(cursor)
-            log.info("  [Migração] Identidades de origem para vitórias habilitadas.")
-        cursor.execute("CREATE INDEX IF NOT EXISTS idx_victories_pilot ON victories(pilotId)")
+            log.info(
+                "  [Migração] Identidades de origem para vitórias habilitadas."
+            )
+        cursor.execute(
+            "CREATE INDEX IF NOT EXISTS idx_victories_pilot "
+            "ON victories(pilotId)"
+        )
 
-    def _rewrite_victory_identity_table_sql(self, sql: str, new_table: str) -> str:
+    def _rewrite_victory_identity_table_sql(
+        self, sql: str, new_table: str
+    ) -> str:
+        """Remove only the legacy composite victory UNIQUE constraint."""
+
         self._reject_unsupported_sql_comments(sql)
         prefix_end = self._create_table_name_end(sql)
         open_paren = sql.find("(", prefix_end)
         if open_paren == -1:
-            raise ValueError("Unsupported CREATE TABLE format for victories: missing column list")
+            raise ValueError(
+                "Unsupported CREATE TABLE format for victories: missing column list"
+            )
         close_paren = self._matching_paren(sql, open_paren)
-        definitions = self._split_top_level_csv(sql[open_paren + 1 : close_paren])
+        definitions = self._split_top_level_csv(
+            sql[open_paren + 1 : close_paren]
+        )
         rewritten: List[str] = []
         removed = False
         for definition in definitions:
-            normalized = re.sub(r'[\s"`\[\]]+', "", definition).upper()
+            normalized = re.sub(
+                r'[\s"`\[\]]+', "", definition
+            ).upper()
             if re.fullmatch(
-                r"(?:CONSTRAINT[A-Z_][A-Z0-9_]*)?UNIQUE\(PILOTID,DATE,TIME,ENEMYTYPE\)(?:ONCONFLICT(?:ROLLBACK|ABORT|FAIL|IGNORE|REPLACE))?",
+                r"(?:CONSTRAINT[A-Z_][A-Z0-9_]*)?"
+                r"UNIQUE\(PILOTID,DATE,TIME,ENEMYTYPE\)"
+                r"(?:ONCONFLICT(?:ROLLBACK|ABORT|FAIL|IGNORE|REPLACE))?",
                 normalized,
             ):
                 removed = True
@@ -1372,38 +1651,69 @@ class DatabaseManager:
         if not removed:
             rewritten = definitions
         suffix = sql[close_paren + 1 :]
-        return f"CREATE TABLE {self._quote_identifier(new_table)} (" + ",".join(rewritten) + ")" + suffix
+        return (
+            f"CREATE TABLE {self._quote_identifier(new_table)} ("
+            + ",".join(rewritten)
+            + ")"
+            + suffix
+        )
 
-    def _wingman_name_unique_indexes(self, cursor: sqlite3.Cursor, table: str = "squad_members") -> List[Tuple[str, Optional[str]]]:
+    def _wingman_name_unique_indexes(
+        self, cursor: sqlite3.Cursor, table: str = "squad_members"
+    ) -> List[Tuple[str, Optional[str]]]:
         indexes: List[Tuple[str, Optional[str]]] = []
-        for row in cursor.execute(f"PRAGMA index_list({self._quote_identifier(table)})").fetchall():
+        for row in cursor.execute(
+            f"PRAGMA index_list({self._quote_identifier(table)})"
+        ).fetchall():
             if not row[2]:
                 continue
             index_name = str(row[1])
-            columns = tuple(str(item[2]) for item in cursor.execute(f"PRAGMA index_info({self._quote_identifier(index_name)})").fetchall())
+            columns = tuple(
+                str(item[2])
+                for item in cursor.execute(
+                    f"PRAGMA index_info({self._quote_identifier(index_name)})"
+                ).fetchall()
+            )
             if columns != ("pilotId", "fName", "sName"):
                 continue
-            sql_row = cursor.execute("SELECT sql FROM sqlite_master WHERE type='index' AND name=?", (index_name,)).fetchone()
-            indexes.append((index_name, str(sql_row[0]) if sql_row and sql_row[0] else None))
+            sql_row = cursor.execute(
+                "SELECT sql FROM sqlite_master WHERE type='index' AND name=?",
+                (index_name,),
+            ).fetchone()
+            indexes.append(
+                (index_name, str(sql_row[0]) if sql_row and sql_row[0] else None)
+            )
         return indexes
 
     def _has_wingman_identity_schema_migration(self, cursor: sqlite3.Cursor) -> bool:
-        exists = cursor.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='squad_members'").fetchone()
+        exists = cursor.execute(
+            "SELECT 1 FROM sqlite_master WHERE type='table' AND name='squad_members'"
+        ).fetchone()
         if exists is None:
             return False
-        columns = {str(row[1]) for row in cursor.execute("PRAGMA table_info(squad_members)").fetchall()}
+        columns = {
+            str(row[1])
+            for row in cursor.execute("PRAGMA table_info(squad_members)").fetchall()
+        }
         if not {"birthDate", "evidenceDate", "evidenceLocation"}.issubset(columns):
             return True
         if self._wingman_name_unique_indexes(cursor):
             return True
-        index = cursor.execute("SELECT 1 FROM sqlite_master WHERE type='index' AND name='idx_squad_members_pilot'").fetchone()
+        index = cursor.execute(
+            "SELECT 1 FROM sqlite_master WHERE type='index' AND name='idx_squad_members_pilot'"
+        ).fetchone()
         return index is None
 
     def _migrate_wingman_identity_schema(self, cursor: sqlite3.Cursor) -> None:
-        exists = cursor.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='squad_members'").fetchone()
+        exists = cursor.execute(
+            "SELECT 1 FROM sqlite_master WHERE type='table' AND name='squad_members'"
+        ).fetchone()
         if exists is None:
             return
-        columns = {str(row[1]) for row in cursor.execute("PRAGMA table_info(squad_members)").fetchall()}
+        columns = {
+            str(row[1])
+            for row in cursor.execute("PRAGMA table_info(squad_members)").fetchall()
+        }
         for column in ("birthDate", "evidenceDate", "evidenceLocation"):
             if column not in columns:
                 cursor.execute(f"ALTER TABLE squad_members ADD COLUMN {column} TEXT")
@@ -1411,38 +1721,68 @@ class DatabaseManager:
 
         forbidden_indexes = self._wingman_name_unique_indexes(cursor)
         if forbidden_indexes:
-            original_row = cursor.execute("SELECT sql FROM sqlite_master WHERE type='table' AND name='squad_members' AND sql IS NOT NULL").fetchone()
+            original_row = cursor.execute(
+                "SELECT sql FROM sqlite_master WHERE type='table' AND name='squad_members' AND sql IS NOT NULL"
+            ).fetchone()
             if original_row is None:
-                raise SchemaCompatibilityError("Cannot migrate wingman identity without squad_members DDL")
+                raise SchemaCompatibilityError(
+                    "Cannot migrate wingman identity without squad_members DDL"
+                )
             dependent_sql = self._dependent_sql_for_table(cursor, "squad_members")
             forbidden_sql = {sql for _name, sql in forbidden_indexes if sql is not None}
             compatible_sql = [sql for sql in dependent_sql if sql not in forbidden_sql]
             new_table = self._unique_temp_table_name(cursor, "squad_members")
-            rewritten = self._rewrite_wingman_identity_table_sql(str(original_row[0]), new_table)
+            rewritten = self._rewrite_wingman_identity_table_sql(
+                str(original_row[0]), new_table
+            )
             cursor.execute(rewritten)
             if self._wingman_name_unique_indexes(cursor, new_table):
-                raise SchemaCompatibilityError("Wingman identity migration retained the lossy name UNIQUE key")
+                raise SchemaCompatibilityError(
+                    "Wingman identity migration retained the lossy name UNIQUE key"
+                )
 
-            old_columns = [str(row[1]) for row in cursor.execute("PRAGMA table_info(squad_members)").fetchall()]
-            new_columns = [str(row[1]) for row in cursor.execute(f"PRAGMA table_info({self._quote_identifier(new_table)})").fetchall()]
+            old_columns = [
+                str(row[1])
+                for row in cursor.execute("PRAGMA table_info(squad_members)").fetchall()
+            ]
+            new_columns = [
+                str(row[1])
+                for row in cursor.execute(
+                    f"PRAGMA table_info({self._quote_identifier(new_table)})"
+                ).fetchall()
+            ]
             if new_columns != old_columns:
-                raise SchemaCompatibilityError("Wingman identity migration changed the squad_members column contract")
-            column_list = ", ".join(self._quote_identifier(column) for column in old_columns)
-            cursor.execute(f"INSERT INTO {self._quote_identifier(new_table)} ({column_list}) SELECT {column_list} FROM squad_members")
+                raise SchemaCompatibilityError(
+                    "Wingman identity migration changed the squad_members column contract"
+                )
+            column_list = ", ".join(
+                self._quote_identifier(column) for column in old_columns
+            )
+            cursor.execute(
+                f"INSERT INTO {self._quote_identifier(new_table)} ({column_list}) SELECT {column_list} FROM squad_members"
+            )
             cursor.execute("DROP TABLE squad_members")
-            cursor.execute(f"ALTER TABLE {self._quote_identifier(new_table)} RENAME TO squad_members")
+            cursor.execute(
+                f"ALTER TABLE {self._quote_identifier(new_table)} RENAME TO squad_members"
+            )
             for sql in compatible_sql:
                 cursor.execute(sql)
-            log.info("  [Migração] Unicidade por nome de wingman removida; IDs preservados.")
+            log.info(
+                "  [Migração] Unicidade por nome de wingman removida; IDs preservados."
+            )
 
-        cursor.execute("CREATE INDEX IF NOT EXISTS idx_squad_members_pilot ON squad_members(pilotId)")
+        cursor.execute(
+            "CREATE INDEX IF NOT EXISTS idx_squad_members_pilot ON squad_members(pilotId)"
+        )
 
     def _rewrite_wingman_identity_table_sql(self, sql: str, new_table: str) -> str:
         self._reject_unsupported_sql_comments(sql)
         prefix_end = self._create_table_name_end(sql)
         open_paren = sql.find("(", prefix_end)
         if open_paren == -1:
-            raise ValueError("Unsupported CREATE TABLE format for squad_members: missing column list")
+            raise ValueError(
+                "Unsupported CREATE TABLE format for squad_members: missing column list"
+            )
         close_paren = self._matching_paren(sql, open_paren)
         definitions = self._split_top_level_csv(sql[open_paren + 1 : close_paren])
         rewritten: List[str] = []
@@ -1459,22 +1799,42 @@ class DatabaseManager:
         if not removed:
             rewritten = definitions
         suffix = sql[close_paren + 1 :]
-        return f"CREATE TABLE {self._quote_identifier(new_table)} (" + ",".join(rewritten) + ")" + suffix
+        return (
+            f"CREATE TABLE {self._quote_identifier(new_table)} ("
+            + ",".join(rewritten)
+            + ")"
+            + suffix
+        )
 
-    def _has_legacy_namespace_reconciliation(self, cursor: sqlite3.Cursor) -> bool:
+    def _has_legacy_namespace_reconciliation(
+        self, cursor: sqlite3.Cursor
+    ) -> bool:
         if not self._configured_campaign_namespaces:
             return False
-        columns = {str(row[1]) for row in cursor.execute("PRAGMA table_info(pilot_slot_bindings)").fetchall()}
+        columns = {
+            str(row[1])
+            for row in cursor.execute(
+                "PRAGMA table_info(pilot_slot_bindings)"
+            ).fetchall()
+        }
         if "campaign_namespace" not in columns:
             return False
-        return cursor.execute("SELECT 1 FROM pilot_slot_bindings WHERE campaign_namespace=? LIMIT 1", (LEGACY_CAMPAIGN_NAMESPACE,)).fetchone() is not None
+        return cursor.execute(
+            "SELECT 1 FROM pilot_slot_bindings "
+            "WHERE campaign_namespace=? LIMIT 1",
+            (LEGACY_CAMPAIGN_NAMESPACE,),
+        ).fetchone() is not None
 
     @staticmethod
-    def _create_namespaced_binding_table(cursor: sqlite3.Cursor, table_name: str) -> None:
+    def _create_namespaced_binding_table(
+        cursor: sqlite3.Cursor, table_name: str
+    ) -> None:
         quoted = DatabaseManager._quote_identifier(table_name)
-        cursor.execute(f"""
+        cursor.execute(
+            f"""
             CREATE TABLE {quoted} (
-                campaign_namespace TEXT NOT NULL CHECK(length(campaign_namespace) > 0),
+                campaign_namespace TEXT NOT NULL
+                    CHECK(length(campaign_namespace) > 0),
                 slot INTEGER NOT NULL CHECK(slot > 0),
                 pilotId TEXT NOT NULL,
                 dossier_digest TEXT,
@@ -1482,62 +1842,115 @@ class DatabaseManager:
                 PRIMARY KEY(campaign_namespace, slot),
                 FOREIGN KEY(pilotId) REFERENCES pilots(id)
             )
-        """)
+            """
+        )
 
     def _legacy_campaign_namespace(self, *, has_bindings: bool) -> str:
         if has_bindings and len(self._configured_campaign_namespaces) > 1:
-            raise SchemaCompatibilityError("Legacy pilot-slot bindings cannot be assigned across multiple campaign namespaces")
+            raise SchemaCompatibilityError(
+                "Legacy pilot-slot bindings cannot be assigned across multiple "
+                "campaign namespaces"
+            )
         if len(self._configured_campaign_namespaces) == 1:
             return self._configured_campaign_namespaces[0]
         return LEGACY_CAMPAIGN_NAMESPACE
 
-    def _migrate_campaign_namespace_schema(self, cursor: sqlite3.Cursor) -> None:
+    def _migrate_campaign_namespace_schema(
+        self, cursor: sqlite3.Cursor
+    ) -> None:
+        """Replace the global slot key with ``(campaign_namespace, slot)``."""
+
         if not self._has_campaign_namespace_schema_migration(cursor):
             return
-        info = cursor.execute("PRAGMA table_info(pilot_slot_bindings)").fetchall()
+        info = cursor.execute(
+            "PRAGMA table_info(pilot_slot_bindings)"
+        ).fetchall()
         columns = {str(row[1]) for row in info}
         required = {"slot", "pilotId", "dossier_digest", "last_updated"}
         if not required.issubset(columns):
-            raise SchemaCompatibilityError("Cannot migrate an incomplete pilot-slot binding table")
-        count = int(cursor.execute("SELECT COUNT(*) FROM pilot_slot_bindings").fetchone()[0])
+            raise SchemaCompatibilityError(
+                "Cannot migrate an incomplete pilot-slot binding table"
+            )
+        count = int(
+            cursor.execute(
+                "SELECT COUNT(*) FROM pilot_slot_bindings"
+            ).fetchone()[0]
+        )
         has_namespace = "campaign_namespace" in columns
         if has_namespace:
-            namespaces = {str(row[0]) for row in cursor.execute("SELECT DISTINCT campaign_namespace FROM pilot_slot_bindings").fetchall()}
-            if any(not is_campaign_namespace(namespace, allow_legacy=True) for namespace in namespaces):
-                raise SchemaCompatibilityError("Pilot-slot bindings contain an unsupported campaign namespace")
-        target_namespace = self._legacy_campaign_namespace(has_bindings=bool(count) and not has_namespace)
-        dependent_sql = self._dependent_sql_for_table(cursor, "pilot_slot_bindings")
-        new_table = self._unique_temp_table_name(cursor, "pilot_slot_bindings")
+            namespaces = {
+                str(row[0])
+                for row in cursor.execute(
+                    "SELECT DISTINCT campaign_namespace "
+                    "FROM pilot_slot_bindings"
+                ).fetchall()
+            }
+            if any(
+                not is_campaign_namespace(namespace, allow_legacy=True)
+                for namespace in namespaces
+            ):
+                raise SchemaCompatibilityError(
+                    "Pilot-slot bindings contain an unsupported campaign namespace"
+                )
+        target_namespace = self._legacy_campaign_namespace(
+            has_bindings=bool(count) and not has_namespace
+        )
+        dependent_sql = self._dependent_sql_for_table(
+            cursor, "pilot_slot_bindings"
+        )
+        new_table = self._unique_temp_table_name(
+            cursor, "pilot_slot_bindings"
+        )
         self._create_namespaced_binding_table(cursor, new_table)
         if has_namespace:
-            cursor.execute(f"""
+            cursor.execute(
+                f"""
                 INSERT INTO {self._quote_identifier(new_table)} (
-                    campaign_namespace, slot, pilotId, dossier_digest, last_updated
+                    campaign_namespace, slot, pilotId,
+                    dossier_digest, last_updated
                 )
-                SELECT campaign_namespace, slot, pilotId, dossier_digest, last_updated
+                SELECT campaign_namespace, slot, pilotId,
+                       dossier_digest, last_updated
                 FROM pilot_slot_bindings
-            """)
+                """
+            )
         else:
-            cursor.execute(f"""
+            cursor.execute(
+                f"""
                 INSERT INTO {self._quote_identifier(new_table)} (
-                    campaign_namespace, slot, pilotId, dossier_digest, last_updated
+                    campaign_namespace, slot, pilotId,
+                    dossier_digest, last_updated
                 )
                 SELECT ?, slot, pilotId, dossier_digest, last_updated
                 FROM pilot_slot_bindings
-            """, (target_namespace,))
+                """,
+                (target_namespace,),
+            )
         cursor.execute("DROP TABLE pilot_slot_bindings")
-        cursor.execute(f"ALTER TABLE {self._quote_identifier(new_table)} RENAME TO pilot_slot_bindings")
+        cursor.execute(
+            f"ALTER TABLE {self._quote_identifier(new_table)} "
+            "RENAME TO pilot_slot_bindings"
+        )
         for sql in dependent_sql:
             cursor.execute(sql)
-        log.info("  [Migração] Bindings de slot separados por namespace de campanha.")
+        log.info(
+            "  [Migração] Bindings de slot separados por namespace de campanha."
+        )
 
-    def _reconcile_legacy_campaign_namespace(self, cursor: sqlite3.Cursor) -> None:
+    def _reconcile_legacy_campaign_namespace(
+        self, cursor: sqlite3.Cursor
+    ) -> None:
+        """Assign a reserved legacy binding only when one root is configured."""
+
         if not self._has_legacy_namespace_reconciliation(cursor):
             return
         if len(self._configured_campaign_namespaces) != 1:
-            raise SchemaCompatibilityError("Legacy pilot-slot bindings are ambiguous across configured roots")
+            raise SchemaCompatibilityError(
+                "Legacy pilot-slot bindings are ambiguous across configured roots"
+            )
         target = self._configured_campaign_namespaces[0]
-        conflict = cursor.execute("""
+        conflict = cursor.execute(
+            """
             SELECT 1
             FROM pilot_slot_bindings AS legacy
             JOIN pilot_slot_bindings AS current
@@ -1545,48 +1958,94 @@ class DatabaseManager:
              AND current.campaign_namespace = ?
             WHERE legacy.campaign_namespace = ?
             LIMIT 1
-        """, (target, LEGACY_CAMPAIGN_NAMESPACE)).fetchone()
+            """,
+            (target, LEGACY_CAMPAIGN_NAMESPACE),
+        ).fetchone()
         if conflict is not None:
-            raise SchemaCompatibilityError("Legacy pilot-slot bindings conflict with the configured namespace")
-        cursor.execute("UPDATE pilot_slot_bindings SET campaign_namespace=? WHERE campaign_namespace=?", (target, LEGACY_CAMPAIGN_NAMESPACE))
-        log.info("  [Migração] Namespace legado associado à única raiz configurada.")
+            raise SchemaCompatibilityError(
+                "Legacy pilot-slot bindings conflict with the configured namespace"
+            )
+        cursor.execute(
+            "UPDATE pilot_slot_bindings SET campaign_namespace=? "
+            "WHERE campaign_namespace=?",
+            (target, LEGACY_CAMPAIGN_NAMESPACE),
+        )
+        log.info(
+            "  [Migração] Namespace legado associado à única raiz configurada."
+        )
 
     def _migrate_pilot_identity_schema(self, cursor: sqlite3.Cursor) -> None:
+        """Remove display-name uniqueness without changing IDs or relationships."""
+
         forbidden_indexes = self._pilot_name_unique_indexes(cursor)
         if not forbidden_indexes:
             return
 
-        original_row = cursor.execute("SELECT sql FROM sqlite_master WHERE type='table' AND name='pilots' AND sql IS NOT NULL").fetchone()
+        original_row = cursor.execute(
+            "SELECT sql FROM sqlite_master "
+            "WHERE type='table' AND name='pilots' AND sql IS NOT NULL"
+        ).fetchone()
         if original_row is None:
-            raise SchemaCompatibilityError("Cannot migrate pilot identity without canonical pilots DDL")
+            raise SchemaCompatibilityError(
+                "Cannot migrate pilot identity without canonical pilots DDL"
+            )
 
         dependent_sql = self._dependent_sql_for_table(cursor, "pilots")
-        forbidden_sql = {sql for _name, sql in forbidden_indexes if sql is not None}
+        forbidden_sql = {
+            sql for _name, sql in forbidden_indexes if sql is not None
+        }
         compatible_sql = [sql for sql in dependent_sql if sql not in forbidden_sql]
         new_table = self._unique_temp_table_name(cursor, "pilots")
-        rewritten = self._rewrite_pilot_identity_table_sql(str(original_row[0]), "pilots", new_table)
+        rewritten = self._rewrite_pilot_identity_table_sql(
+            str(original_row[0]), "pilots", new_table
+        )
         cursor.execute(rewritten)
         if self._pilot_name_unique_indexes(cursor, new_table):
-            raise SchemaCompatibilityError("Pilot identity migration retained a forbidden UNIQUE(name)")
+            raise SchemaCompatibilityError(
+                "Pilot identity migration retained a forbidden UNIQUE(name)"
+            )
 
-        old_columns = [str(row[1]) for row in cursor.execute("PRAGMA table_info(pilots)").fetchall()]
-        new_columns = [str(row[1]) for row in cursor.execute(f"PRAGMA table_info({self._quote_identifier(new_table)})").fetchall()]
+        old_columns = [
+            str(row[1])
+            for row in cursor.execute("PRAGMA table_info(pilots)").fetchall()
+        ]
+        new_columns = [
+            str(row[1])
+            for row in cursor.execute(
+                f"PRAGMA table_info({self._quote_identifier(new_table)})"
+            ).fetchall()
+        ]
         if new_columns != old_columns:
-            raise SchemaCompatibilityError("Pilot identity migration changed the pilots column contract")
+            raise SchemaCompatibilityError(
+                "Pilot identity migration changed the pilots column contract"
+            )
         columns = ", ".join(self._quote_identifier(column) for column in old_columns)
-        cursor.execute(f"INSERT INTO {self._quote_identifier(new_table)} ({columns}) SELECT {columns} FROM pilots")
+        cursor.execute(
+            f"INSERT INTO {self._quote_identifier(new_table)} ({columns}) "
+            f"SELECT {columns} FROM pilots"
+        )
         cursor.execute("DROP TABLE pilots")
-        cursor.execute(f"ALTER TABLE {self._quote_identifier(new_table)} RENAME TO pilots")
+        cursor.execute(
+            f"ALTER TABLE {self._quote_identifier(new_table)} RENAME TO pilots"
+        )
         for sql in compatible_sql:
             cursor.execute(sql)
-        log.info("  [Migração] Unicidade de nome removida; IDs de carreira preservados.")
+        log.info(
+            "  [Migração] Unicidade de nome removida; IDs de carreira preservados."
+        )
 
-    def _rewrite_pilot_identity_table_sql(self, sql: str, table: str, new_table: str) -> str:
+    def _rewrite_pilot_identity_table_sql(
+        self, sql: str, table: str, new_table: str
+    ) -> str:
+        """Rewrite only the pilots display-name UNIQUE constraint."""
+
         self._reject_unsupported_sql_comments(sql)
         prefix_end = self._create_table_name_end(sql)
         open_paren = sql.find("(", prefix_end)
         if open_paren == -1:
-            raise ValueError(f"Unsupported CREATE TABLE format for {table}: missing column list")
+            raise ValueError(
+                f"Unsupported CREATE TABLE format for {table}: missing column list"
+            )
         close_paren = self._matching_paren(sql, open_paren)
         definitions = self._split_top_level_csv(sql[open_paren + 1 : close_paren])
         rewritten: List[str] = []
@@ -1595,7 +2054,8 @@ class DatabaseManager:
             column_name = self._definition_column_name(definition)
             if column_name == "name":
                 value, count = re.subn(
-                    r"\s+UNIQUE(?:\s+ON\s+CONFLICT\s+(?:ROLLBACK|ABORT|FAIL|IGNORE|REPLACE))?",
+                    r"\s+UNIQUE(?:\s+ON\s+CONFLICT\s+"
+                    r"(?:ROLLBACK|ABORT|FAIL|IGNORE|REPLACE))?",
                     "",
                     definition,
                     count=1,
@@ -1606,51 +2066,84 @@ class DatabaseManager:
                 continue
             normalized = re.sub(r'[\s"`\[\]]+', "", definition).upper()
             if re.fullmatch(
-                r"(?:CONSTRAINT[A-Z_][A-Z0-9_]*)?UNIQUE\(NAME\)(?:ONCONFLICT(?:ROLLBACK|ABORT|FAIL|IGNORE|REPLACE))?",
+                r"(?:CONSTRAINT[A-Z_][A-Z0-9_]*)?UNIQUE\(NAME\)"
+                r"(?:ONCONFLICT(?:ROLLBACK|ABORT|FAIL|IGNORE|REPLACE))?",
                 normalized,
             ):
                 removed = True
                 continue
             rewritten.append(definition)
         if not removed:
+            # A unique index created outside the table still requires a rebuild
+            # so dependent objects are recreated without that incompatible index.
             rewritten = definitions
         suffix = sql[close_paren + 1 :]
-        return f"CREATE TABLE {self._quote_identifier(new_table)} (" + ",".join(rewritten) + ")" + suffix
+        return (
+            f"CREATE TABLE {self._quote_identifier(new_table)} ("
+            + ",".join(rewritten)
+            + ")"
+            + suffix
+        )
 
     def _seed_unambiguous_slot_bindings(self, cursor: sqlite3.Cursor) -> None:
+        """Seed pre-binding databases only when one namespace is knowable."""
+
         groups: Dict[int, set[str]] = {}
-        pilot_columns = {str(row[1]) for row in cursor.execute("PRAGMA table_info(pilots)").fetchall()}
+        pilot_columns = {
+            str(row[1])
+            for row in cursor.execute("PRAGMA table_info(pilots)").fetchall()
+        }
         if not {"id", "source_file"}.issubset(pilot_columns):
             return
-        rows = cursor.execute("SELECT id, source_file FROM pilots WHERE source_file IS NOT NULL AND TRIM(source_file) != ''").fetchall()
+        rows = cursor.execute(
+            "SELECT id, source_file FROM pilots "
+            "WHERE source_file IS NOT NULL AND TRIM(source_file) != ''"
+        ).fetchall()
         for pilot_id, source_file in rows:
             slot = pilot_slot(str(source_file))
             if slot is not None:
                 groups.setdefault(slot, set()).add(str(pilot_id))
-        unambiguous = {slot: next(iter(pilot_ids)) for slot, pilot_ids in groups.items() if len(pilot_ids) == 1}
-        campaign_namespace = self._legacy_campaign_namespace(has_bindings=bool(groups))
+        unambiguous = {
+            slot: next(iter(pilot_ids))
+            for slot, pilot_ids in groups.items()
+            if len(pilot_ids) == 1
+        }
+        campaign_namespace = self._legacy_campaign_namespace(
+            has_bindings=bool(groups)
+        )
         last_updated = datetime.now().isoformat()
         for slot, pilot_id in unambiguous.items():
-            cursor.execute("""
+            cursor.execute(
+                """
                 INSERT OR IGNORE INTO pilot_slot_bindings (
-                    campaign_namespace, slot, pilotId, dossier_digest, last_updated
+                    campaign_namespace, slot, pilotId,
+                    dossier_digest, last_updated
                 ) VALUES (?, ?, ?, NULL, ?)
-            """, (campaign_namespace, slot, pilot_id, last_updated))
+                """,
+                (campaign_namespace, slot, pilot_id, last_updated),
+            )
+
 
     def _unique_temp_table_name(self, cursor: sqlite3.Cursor, table: str) -> str:
         counter = 0
         while True:
             name = f"__woff_migration_{table}_{os.getpid()}_{time.time_ns()}_{counter}"
             cursor.execute(
-                "SELECT 1 FROM sqlite_master WHERE name = ? UNION ALL SELECT 1 FROM sqlite_temp_master WHERE name = ?",
+                "SELECT 1 FROM sqlite_master WHERE name = ? UNION ALL "
+                "SELECT 1 FROM sqlite_temp_master WHERE name = ?",
                 (name, name),
             )
             if cursor.fetchone() is None:
                 return name
             counter += 1
 
-    def _create_rebuild_table_from_schema(self, cursor: sqlite3.Cursor, table: str, new_table: str, numeric_columns: List[str]) -> None:
-        cursor.execute("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = ? AND sql IS NOT NULL", (table,))
+    def _create_rebuild_table_from_schema(
+        self, cursor: sqlite3.Cursor, table: str, new_table: str, numeric_columns: List[str]
+    ) -> None:
+        cursor.execute(
+            "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = ? AND sql IS NOT NULL",
+            (table,),
+        )
         row = cursor.fetchone()
         if row is None:
             self._create_table(cursor, table, new_table)
@@ -1658,7 +2151,9 @@ class DatabaseManager:
         sql = self._rewrite_create_table_sql(row[0], table, new_table, numeric_columns)
         cursor.execute(sql)
 
-    def _rewrite_create_table_sql(self, sql: str, table: str, new_table: str, numeric_columns: List[str]) -> str:
+    def _rewrite_create_table_sql(
+        self, sql: str, table: str, new_table: str, numeric_columns: List[str]
+    ) -> str:
         self._reject_unsupported_sql_comments(sql)
         prefix_end = self._create_table_name_end(sql)
         open_paren = sql.find("(", prefix_end)
@@ -1688,7 +2183,11 @@ class DatabaseManager:
             raise ValueError("Unsupported CREATE TABLE format: SQL comments are not supported")
 
     def _create_table_name_end(self, sql: str) -> int:
-        match = re.match(r"\s*CREATE\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?", sql, flags=re.IGNORECASE)
+        match = re.match(
+            r"\s*CREATE\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?",
+            sql,
+            flags=re.IGNORECASE,
+        )
         if match is None:
             raise ValueError("Unsupported CREATE TABLE format")
         index = match.end()
@@ -1769,7 +2268,9 @@ class DatabaseManager:
         type_end = self._read_type_end(definition, type_start)
         column_type = definition[type_start:type_end]
         if not self._is_supported_text_type(column_type):
-            raise ValueError(f"Unsupported numeric column type for {column_name}: {column_type!r}")
+            raise ValueError(
+                f"Unsupported numeric column type for {column_name}: {column_type!r}"
+            )
         return definition[:type_start] + "INTEGER" + definition[type_end:]
 
     def _read_identifier(self, text: str, index: int) -> Tuple[str, int]:
@@ -1822,18 +2323,30 @@ class DatabaseManager:
     @staticmethod
     def _is_supported_text_type(column_type: str) -> bool:
         normalized = re.sub(r"\s+", "", column_type.upper())
-        return normalized in {"TEXT", "CLOB"} or bool(re.fullmatch(r"(?:VAR)?CHAR\(\d+\)", normalized))
+        return normalized in {"TEXT", "CLOB"} or bool(
+            re.fullmatch(r"(?:VAR)?CHAR\(\d+\)", normalized)
+        )
 
-    def _validate_rebuild_schema(self, cursor: sqlite3.Cursor, table: str, new_table: str, numeric_columns: List[str]) -> None:
+    def _validate_rebuild_schema(
+        self, cursor: sqlite3.Cursor, table: str, new_table: str, numeric_columns: List[str]
+    ) -> None:
         cursor.execute(f"PRAGMA table_info({new_table})")
         new_info = {row[1]: row for row in cursor.fetchall()}
         for column in numeric_columns:
             if new_info.get(column, (None, None, ""))[2].upper() != "INTEGER":
-                raise sqlite3.DatabaseError(f"Rebuilt table {table}.{column} does not have INTEGER type")
+                raise sqlite3.DatabaseError(
+                    f"Rebuilt table {table}.{column} does not have INTEGER type"
+                )
 
-        cursor.execute("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = ?", (table,))
+        cursor.execute(
+            "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = ?",
+            (table,),
+        )
         original_sql = cursor.fetchone()[0]
-        cursor.execute("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = ?", (new_table,))
+        cursor.execute(
+            "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = ?",
+            (new_table,),
+        )
         rebuilt_sql = cursor.fetchone()[0]
         expected_sql = self._rewrite_create_table_sql(original_sql, table, new_table, numeric_columns)
         if self._normalize_sql(expected_sql) != self._normalize_sql(rebuilt_sql):
@@ -1842,7 +2355,9 @@ class DatabaseManager:
             original_tail = self._column_definition_tail(original_sql, column)
             rebuilt_tail = self._column_definition_tail(rebuilt_sql, column)
             if self._normalize_sql(original_tail) != self._normalize_sql(rebuilt_tail):
-                raise sqlite3.DatabaseError(f"Rebuilt table {table}.{column} did not preserve column constraints")
+                raise sqlite3.DatabaseError(
+                    f"Rebuilt table {table}.{column} did not preserve column constraints"
+                )
 
     def _column_definition_tail(self, sql: str, column: str) -> str:
         prefix_end = self._create_table_name_end(sql)
@@ -1869,7 +2384,10 @@ class DatabaseManager:
     @classmethod
     def _integer_select_expression(cls, column: str) -> str:
         quoted = cls._quote_identifier(column)
-        return f"CASE WHEN {quoted} IS NULL OR TRIM({quoted}) = '' THEN NULL ELSE woff_safe_int({quoted}) END AS {quoted}"
+        return (
+            f"CASE WHEN {quoted} IS NULL OR TRIM({quoted}) = '' THEN NULL "
+            f"ELSE woff_safe_int({quoted}) END AS {quoted}"
+        )
 
     @staticmethod
     def _parse_sqlite_integer(value: object) -> Optional[int]:
@@ -1885,11 +2403,16 @@ class DatabaseManager:
             raise OverflowError(f"integer literal outside signed 64-bit range: {value!r}")
         return integer
 
-    def _validate_integer_values(self, cursor: sqlite3.Cursor, table: str, columns: List[str]) -> None:
+    def _validate_integer_values(
+        self, cursor: sqlite3.Cursor, table: str, columns: List[str]
+    ) -> None:
         invalid: List[str] = []
         for column in columns:
             quoted = self._quote_identifier(column)
-            cursor.execute(f"SELECT id, {quoted} FROM {self._quote_identifier(table)} WHERE {quoted} IS NOT NULL AND TRIM({quoted}) != ''")
+            cursor.execute(
+                f"SELECT id, {quoted} FROM {self._quote_identifier(table)} "
+                f"WHERE {quoted} IS NOT NULL AND TRIM({quoted}) != ''"
+            )
             for row_id, value in cursor.fetchall():
                 try:
                     self._parse_sqlite_integer(value)
@@ -1899,11 +2422,19 @@ class DatabaseManager:
             raise ValueError("Invalid integer values found during migration: " + "; ".join(invalid))
 
     def _dependent_sql_for_table(self, cursor: sqlite3.Cursor, table: str) -> List[str]:
-        cursor.execute("SELECT name, sql FROM sqlite_master WHERE sql IS NOT NULL AND type = 'view' ORDER BY name")
+        cursor.execute(
+            "SELECT name, sql FROM sqlite_master "
+            "WHERE sql IS NOT NULL AND type = 'view' "
+            "ORDER BY name"
+        )
         view_rows = cursor.fetchall()
         view_names = [row[0] for row in view_rows]
 
-        cursor.execute("SELECT type, name, tbl_name, sql FROM sqlite_master WHERE sql IS NOT NULL AND type IN ('index', 'trigger') ORDER BY CASE type WHEN 'index' THEN 0 ELSE 1 END, name")
+        cursor.execute(
+            "SELECT type, name, tbl_name, sql FROM sqlite_master "
+            "WHERE sql IS NOT NULL AND type IN ('index', 'trigger') "
+            "ORDER BY CASE type WHEN 'index' THEN 0 ELSE 1 END, name"
+        )
         object_rows = cursor.fetchall()
         table_objects = [row for row in object_rows if row[2] == table]
         view_triggers = [row for row in object_rows if row[2] in view_names]
@@ -1911,7 +2442,12 @@ class DatabaseManager:
         for name in view_names:
             cursor.execute(f"DROP VIEW IF EXISTS {self._quote_identifier(name)}")
 
-        return [row[1] for row in view_rows] + [row[3] for row in table_objects if row[0] == "index"] + [row[3] for row in table_objects if row[0] == "trigger"] + [row[3] for row in view_triggers]
+        return (
+            [row[1] for row in view_rows]
+            + [row[3] for row in table_objects if row[0] == "index"]
+            + [row[3] for row in table_objects if row[0] == "trigger"]
+            + [row[3] for row in view_triggers]
+        )
 
     def _create_table(self, cursor: sqlite3.Cursor, table: str, table_name: Optional[str] = None) -> None:
         statements = {
@@ -1941,8 +2477,8 @@ class DatabaseManager:
                 CREATE TABLE squad_members (
                     id TEXT PRIMARY KEY, pilotId TEXT, rank TEXT, fName TEXT,
                     sName TEXT, skill INTEGER, morale INTEGER, status TEXT,
-                    missions INTEGER, flminutes INTEGER, bio TEXT,
-                    birthDate TEXT, evidenceDate TEXT, evidenceLocation TEXT,
+                    missions INTEGER, flminutes INTEGER, bio TEXT, birthDate TEXT, evidenceDate TEXT,
+                    evidenceLocation TEXT,
                     FOREIGN KEY(pilotId) REFERENCES pilots(id)
                 )
             """,
@@ -1963,132 +2499,269 @@ class DatabaseManager:
     def list_slot_bindings(self, campaign_namespace: str) -> List[PilotSlotBinding]:
         return self._pilots.list_slot_bindings(campaign_namespace)
 
-    def get_slot_binding(self, campaign_namespace: str, slot: int) -> Optional[PilotSlotBinding]:
+    def get_slot_binding(
+        self, campaign_namespace: str, slot: int
+    ) -> Optional[PilotSlotBinding]:
         return self._pilots.get_slot_binding(campaign_namespace, slot)
 
     def release_slot_binding(self, expected: PilotSlotBinding) -> bool:
         return self._pilots.release_slot_binding(expected)
 
-    def get_pilot_state_by_id(self, pilot_id: str) -> Tuple[Optional[str], Optional[str]]:
+    def get_pilot_state_by_id(
+        self, pilot_id: str
+    ) -> Tuple[Optional[str], Optional[str]]:
         return self._pilots.get_pilot_state_by_id(pilot_id)
 
-    def resolve_bound_dossier_id(self, name: str, campaign_namespace: str, slot: int) -> Optional[str]:
-        return self._pilots.resolve_bound_dossier_id(name, campaign_namespace, slot)
+    def resolve_bound_dossier_id(
+        self, name: str, campaign_namespace: str, slot: int
+    ) -> Optional[str]:
+        return self._pilots.resolve_bound_dossier_id(
+            name, campaign_namespace, slot
+        )
 
-    def load_dossier_state(self, name: str, campaign_namespace: str, slot: int) -> Optional[DossierState]:
+    def _decode_dossier_roster_members(
+        self, pilot_id: str, payload: object, version: int
+    ) -> Tuple[DossierWingmanState, ...]:
+        if not isinstance(payload, list):
+            raise ValueError("invalid roster members")
+        members = []
+        seen: set[str] = set()
+        owned = {row["id"] for row in self.get_wingmen_by_pilot(pilot_id)}
+        for item in payload:
+            if not (
+                isinstance(item, list)
+                and len(item) == (4 if version == 2 else 3)
+                and all(isinstance(value, str) for value in item)
+            ):
+                raise ValueError("invalid roster member")
+            member_id = item[0] if version == 2 else None
+            if version == 2:
+                if not member_id or member_id in seen or member_id not in owned:
+                    raise ValueError("invalid roster member identity")
+                seen.add(member_id)
+            # Legacy names remain readable, but never acquire an ID by name.
+            members.append(DossierWingmanState(*item[-3:], wingman_id=member_id))
+        return tuple(members)
+
+    def load_dossier_state(
+        self, name: str, campaign_namespace: str, slot: int
+    ) -> Optional[DossierState]:
+        """Load pilot, binding, and roster state inside a caller-owned transaction."""
         with self._lock:
             connection = self._get_conn()
             if not connection.in_transaction:
                 raise RuntimeError("Dossier state requires a caller-owned transaction")
-            pilot = connection.execute("""
+            pilot = connection.execute(
+                """
                 SELECT p.id, p.status, p.rank, p.squadron, binding.dossier_digest
                 FROM pilot_slot_bindings AS binding
                 JOIN pilots AS p ON p.id = binding.pilotId
                 WHERE binding.campaign_namespace = ? AND binding.slot = ? AND p.name = ?
-            """, (campaign_namespace, slot, name)).fetchone()
+                """,
+                (campaign_namespace, slot, name),
+            ).fetchone()
             if pilot is None:
                 return None
-
-            roster = connection.execute("SELECT value FROM meta WHERE key = ?", (f"{_DOSSIER_ROSTER_META_PREFIX}{pilot[0]}",)).fetchone()
+            pilot_id = str(pilot[0])
+            roster = connection.execute(
+                "SELECT value FROM meta WHERE key = ?",
+                (f"{_DOSSIER_ROSTER_META_PREFIX}{pilot_id}",),
+            ).fetchone()
+            candidate = None
             if roster is None:
                 roster_squadron = ""
-                roster_baseline_pending = True
-                candidate_squadron: Optional[str] = None
-                candidate_wingmen: List[Tuple[str, str, str]] = []
-                wingmen = [
-                    tuple(str(value or "") for value in row)
-                    for row in connection.execute("""
-                        SELECT fName, sName, status
-                        FROM squad_members
-                        WHERE pilotId = ?
-                        ORDER BY fName COLLATE NOCASE, sName COLLATE NOCASE, id
-                    """, (pilot[0],)).fetchall()
-                ]
+                pending = True
+                wingmen = tuple(
+                    DossierWingmanState(
+                        str(row["fName"] or ""),
+                        str(row["sName"] or ""),
+                        str(row["status"] or ""),
+                        wingman_id=str(row["id"]),
+                    )
+                    for row in self.get_wingmen_by_pilot(pilot_id)
+                )
             else:
                 try:
                     decoded = json.loads(str(roster[0]))
                     if isinstance(decoded, list):
+                        version = 1
                         roster_squadron = ""
-                        roster_baseline_pending = True
+                        pending = True
                         decoded_wingmen = decoded
                         decoded_candidate = None
-                    elif isinstance(decoded, dict) and decoded.get("version") == 1 and isinstance(decoded.get("squadron"), str) and isinstance(decoded.get("baseline_pending"), bool) and isinstance(decoded.get("wingmen"), list):
+                    elif (
+                        isinstance(decoded, dict)
+                        and type(decoded.get("version")) is int
+                        and decoded["version"] in {1, 2}
+                        and isinstance(decoded.get("squadron"), str)
+                        and isinstance(decoded.get("baseline_pending"), bool)
+                    ):
+                        version = decoded["version"]
                         roster_squadron = decoded["squadron"]
-                        roster_baseline_pending = decoded["baseline_pending"]
-                        decoded_wingmen = decoded["wingmen"]
+                        pending = decoded["baseline_pending"]
+                        decoded_wingmen = decoded.get("wingmen")
                         decoded_candidate = decoded.get("candidate")
                     else:
                         raise ValueError("invalid roster payload")
-                    valid = all(isinstance(item, list) and len(item) == 3 and all(isinstance(value, str) for value in item) for item in decoded_wingmen)
-                    if not valid:
-                        raise ValueError("invalid roster payload")
-                    wingmen = [tuple(item) for item in decoded_wingmen]
-                    candidate_squadron = None
-                    candidate_wingmen = []
+                    wingmen = self._decode_dossier_roster_members(
+                        pilot_id, decoded_wingmen, version
+                    )
                     if decoded_candidate is not None:
-                        if not (isinstance(decoded_candidate, dict) and isinstance(decoded_candidate.get("squadron"), str) and isinstance(decoded_candidate.get("wingmen"), list)):
+                        if not (
+                            isinstance(decoded_candidate, dict)
+                            and isinstance(decoded_candidate.get("squadron"), str)
+                        ):
                             raise ValueError("invalid roster candidate")
-                        decoded_candidate_wingmen = decoded_candidate["wingmen"]
-                        valid_candidate = all(isinstance(item, list) and len(item) == 3 and all(isinstance(value, str) for value in item) for item in decoded_candidate_wingmen)
-                        if not valid_candidate:
-                            raise ValueError("invalid roster candidate")
-                        candidate_squadron = decoded_candidate["squadron"]
-                        candidate_wingmen = [tuple(item) for item in decoded_candidate_wingmen]
-                except (TypeError, ValueError, json.JSONDecodeError) as error:
-                    raise sqlite3.DatabaseError("Invalid persisted Dossier roster state") from error
+                        candidate = DossierRosterCandidate(
+                            decoded_candidate["squadron"],
+                            self._decode_dossier_roster_members(
+                                pilot_id, decoded_candidate.get("wingmen"), version
+                            ),
+                        )
+                except (TypeError, ValueError) as error:
+                    raise sqlite3.DatabaseError(
+                        "Invalid persisted Dossier roster state"
+                    ) from error
             return DossierState(
-                pilot_id=str(pilot[0]),
+                pilot_id=pilot_id,
                 status=str(pilot[1]) if pilot[1] is not None else None,
                 rank=str(pilot[2]) if pilot[2] is not None else None,
                 squadron=str(pilot[3] or ""),
                 dossier_digest=str(pilot[4]) if pilot[4] is not None else None,
                 roster_squadron=roster_squadron,
-                roster_baseline_pending=roster_baseline_pending,
-                wingmen=tuple(DossierWingmanState(first_name=str(row[0] or ""), last_name=str(row[1] or ""), status=str(row[2] or "")) for row in wingmen),
-                roster_candidate=(
-                    DossierRosterCandidate(
-                        squadron=candidate_squadron,
-                        wingmen=tuple(DossierWingmanState(first_name=str(row[0] or ""), last_name=str(row[1] or ""), status=str(row[2] or "")) for row in candidate_wingmen),
-                    )
-                    if candidate_squadron is not None else None
-                ),
+                roster_baseline_pending=pending,
+                wingmen=wingmen,
+                roster_candidate=candidate,
             )
 
-    def save_dossier_roster_state(self, pilot_id: str, squadron: str, wingmen: List[WoFFWingman], *, baseline_pending: bool = False) -> None:
+    def load_resolved_dossier_roster(
+        self, pilot_id: str, wingmen: Sequence[WoFFWingman]
+    ) -> Tuple[DossierWingmanState, ...]:
+        """Read only this generation's resolved IDs and effective merged fields."""
+        with self._lock:
+            if not self._get_conn().in_transaction:
+                raise RuntimeError(
+                    "Resolved roster requires a caller-owned transaction"
+                )
+            stored = {row["id"]: row for row in self.get_wingmen_by_pilot(pilot_id)}
+            members = []
+            seen: set[str] = set()
+            for wingman in wingmen:
+                if (
+                    not wingman.id
+                    or wingman.id in seen
+                    or wingman.id not in stored
+                    or wingman.pilotId != pilot_id
+                ):
+                    raise sqlite3.DatabaseError(
+                        "Invalid resolved Dossier roster identity"
+                    )
+                seen.add(wingman.id)
+                row = stored[wingman.id]
+                members.append(
+                    DossierWingmanState(
+                        str(row["fName"] or ""),
+                        str(row["sName"] or ""),
+                        str(row["status"] or ""),
+                        wingman_id=wingman.id,
+                    )
+                )
+            return tuple(members)
+
+    def _encode_dossier_roster_members(
+        self, pilot_id: str, wingmen: Sequence[DossierWingmanState]
+    ) -> List[List[str]]:
+        payload = [
+            [w.wingman_id or "", w.first_name, w.last_name, w.status] for w in wingmen
+        ]
+        self._decode_dossier_roster_members(pilot_id, payload, 2)
+        return sorted(payload, key=lambda item: item[0])
+
+    def save_dossier_roster_state(
+        self,
+        pilot_id: str,
+        squadron: str,
+        wingmen: Sequence[DossierWingmanState],
+        *,
+        baseline_pending: bool = False,
+    ) -> None:
+        """Record a trusted roster or pending transfer baseline without deletion."""
         if not wingmen and not baseline_pending:
             return
         with self._lock:
             connection = self._get_conn()
             if not connection.in_transaction:
-                raise RuntimeError("Dossier roster state requires a caller-owned transaction")
-            roster = sorted([[wingman.fName, wingman.sName, wingman.status] for wingman in wingmen], key=lambda item: (item[0].casefold(), item[1].casefold()))
+                raise RuntimeError(
+                    "Dossier roster state requires a caller-owned transaction"
+                )
+            roster = self._encode_dossier_roster_members(pilot_id, wingmen)
             connection.execute(
                 "INSERT OR REPLACE INTO meta (key, value) VALUES (?, ?)",
                 (
                     f"{_DOSSIER_ROSTER_META_PREFIX}{pilot_id}",
-                    json.dumps({"version": 1, "squadron": squadron, "baseline_pending": baseline_pending, "wingmen": roster, "candidate": None}, ensure_ascii=True, separators=(",", ":")),
+                    json.dumps(
+                        {
+                            "version": 2,
+                            "squadron": squadron,
+                            "baseline_pending": baseline_pending,
+                            "wingmen": roster,
+                            "candidate": None,
+                        },
+                        ensure_ascii=True,
+                        separators=(",", ":"),
+                    ),
                 ),
             )
 
-    def save_dossier_roster_candidate(self, pilot_id: str, trusted_squadron: str, trusted_wingmen: Sequence[DossierWingmanState], candidate_squadron: str, candidate_wingmen: Sequence[WoFFWingman]) -> None:
+    def save_dossier_roster_candidate(
+        self,
+        pilot_id: str,
+        trusted_squadron: str,
+        trusted_wingmen: Sequence[DossierWingmanState],
+        candidate_squadron: str,
+        candidate_wingmen: Sequence[DossierWingmanState],
+    ) -> None:
+        """Keep the trusted roster while recording possible absences."""
         if not trusted_squadron or not candidate_squadron or not candidate_wingmen:
             raise ValueError("Dossier roster candidate requires complete context")
         with self._lock:
             connection = self._get_conn()
             if not connection.in_transaction:
-                raise RuntimeError("Dossier roster candidate requires a caller-owned transaction")
-            trusted = sorted([[wingman.first_name, wingman.last_name, wingman.status] for wingman in trusted_wingmen], key=lambda item: (item[0].casefold(), item[1].casefold()))
-            candidate = sorted([[wingman.fName, wingman.sName, wingman.status] for wingman in candidate_wingmen], key=lambda item: (item[0].casefold(), item[1].casefold()))
+                raise RuntimeError(
+                    "Dossier roster candidate requires a caller-owned transaction"
+                )
+            trusted = self._encode_dossier_roster_members(pilot_id, trusted_wingmen)
+            candidate = self._encode_dossier_roster_members(pilot_id, candidate_wingmen)
             connection.execute(
                 "INSERT OR REPLACE INTO meta (key, value) VALUES (?, ?)",
                 (
                     f"{_DOSSIER_ROSTER_META_PREFIX}{pilot_id}",
-                    json.dumps({"version": 1, "squadron": trusted_squadron, "baseline_pending": False, "wingmen": trusted, "candidate": {"squadron": candidate_squadron, "wingmen": candidate}}, ensure_ascii=True, separators=(",", ":")),
+                    json.dumps(
+                        {
+                            "version": 2,
+                            "squadron": trusted_squadron,
+                            "baseline_pending": False,
+                            "wingmen": trusted,
+                            "candidate": {
+                                "squadron": candidate_squadron,
+                                "wingmen": candidate,
+                            },
+                        },
+                        ensure_ascii=True,
+                        separators=(",", ":"),
+                    ),
                 ),
             )
 
-    def resolve_pilot_id(self, name: str, source_file: Optional[str] = None, campaign_namespace: Optional[str] = None) -> Optional[str]:
-        return self._pilots.resolve_pilot_id(name, source_file, campaign_namespace)
+    def resolve_pilot_id(
+        self,
+        name: str,
+        source_file: Optional[str] = None,
+        campaign_namespace: Optional[str] = None,
+    ) -> Optional[str]:
+        return self._pilots.resolve_pilot_id(
+            name, source_file, campaign_namespace
+        )
 
     @overload
     def merge_and_write(
@@ -2127,33 +2800,80 @@ class DatabaseManager:
         identity: Optional[PilotIdentityEvidence] = None,
         return_outcome: bool = False,
     ) -> Optional[str | MergeWriteOutcome]:
+        """Merge source records and optionally expose changed mission IDs."""
         try:
             with self.transaction():
                 related = [*missions, *victories, *decorations, *(wingmen or [])]
                 related_pilot_ids = [item.pilotId for item in related]
-                pilot_id = self._pilots.upsert_pilot(pilot, missions, victories, identity, related_pilot_ids)
+                pilot_id = self._pilots.upsert_pilot(
+                    pilot,
+                    missions,
+                    victories,
+                    identity,
+                    related_pilot_ids,
+                )
                 if not pilot_id:
                     return None
-                mission_counts, victory_counts, decoration_counts = self._missions.upsert_mission(pilot_id, missions, victories, decorations)
+                mission_counts, victory_counts, decoration_counts = (
+                    self._missions.upsert_mission(
+                        pilot_id, missions, victories, decorations
+                    )
+                )
                 added_w = self._wingmen.upsert_wingmen_batch(pilot_id, wingmen)
                 if missions:
-                    log.info("Mission merge outcomes: inserted=%d updated=%d unchanged=%d", mission_counts.inserted, mission_counts.updated, mission_counts.unchanged)
+                    log.info(
+                        "Mission merge outcomes: inserted=%d updated=%d unchanged=%d",
+                        mission_counts.inserted,
+                        mission_counts.updated,
+                        mission_counts.unchanged,
+                    )
                 if victories:
-                    log.info("Victory merge outcomes: inserted=%d updated=%d unchanged=%d unresolved=%d", victory_counts.inserted, victory_counts.updated, victory_counts.unchanged, victory_counts.unresolved)
+                    log.info(
+                        "Victory merge outcomes: inserted=%d updated=%d "
+                        "unchanged=%d unresolved=%d",
+                        victory_counts.inserted,
+                        victory_counts.updated,
+                        victory_counts.unchanged,
+                        victory_counts.unresolved,
+                    )
                 if decorations:
-                    log.info("Decoration merge outcomes: inserted=%d updated=%d unchanged=%d unresolved=%d", decoration_counts.inserted, decoration_counts.updated, decoration_counts.unchanged, decoration_counts.unresolved)
-                if victory_counts.inserted or decoration_counts.inserted or added_w:
-                    log.info(f"  + {victory_counts.inserted} vitórias, {decoration_counts.inserted} condecorações, {added_w} wingmen inseridos.")
-                self._get_conn().execute("INSERT OR REPLACE INTO meta (key, value) VALUES ('last_updated', ?)", (datetime.now().isoformat(),))
+                    log.info(
+                        "Decoration merge outcomes: inserted=%d updated=%d "
+                        "unchanged=%d unresolved=%d",
+                        decoration_counts.inserted,
+                        decoration_counts.updated,
+                        decoration_counts.unchanged,
+                        decoration_counts.unresolved,
+                    )
+                if (
+                    victory_counts.inserted
+                    or decoration_counts.inserted
+                    or added_w
+                ):
+                    log.info(
+                        f"  + {victory_counts.inserted} vitórias, "
+                        f"{decoration_counts.inserted} condecorações, "
+                        f"{added_w} wingmen inseridos."
+                    )
+                self._get_conn().execute(
+                    "INSERT OR REPLACE INTO meta (key, value) VALUES ('last_updated', ?)",
+                    (datetime.now().isoformat(),)
+                )
                 if return_outcome:
-                    return MergeWriteOutcome(pilot_id, mission_counts.updated_mission_ids)
+                    return MergeWriteOutcome(
+                        pilot_id,
+                        mission_counts.updated_mission_ids,
+                    )
                 return pilot_id
         except sqlite3.IntegrityError as e:
             log.error(f"Erro de integridade na base de dados: {e}")
             return None
         except (PilotIdentityError, WingmanIdentityResolutionError):
+            # The application boundary emits one sanitized identity diagnostic.
+            # Do not duplicate it here with a traceback.
             raise
         except sqlite3.Error:
+            # The application boundary classifies and reports SQLite failures.
             raise
         except Exception:
             log.exception("Erro ao escrever na base de dados")
@@ -2165,26 +2885,54 @@ class DatabaseManager:
     def get_wingmen_by_pilot(self, pilot_id: str) -> List[dict]:
         return self._wingmen.get_wingmen_by_pilot(pilot_id)
 
-    def get_mission_and_history(self, pilot_identifier: str, mission_id: str) -> Tuple[Optional[dict], Optional[dict], List[dict]]:
+    def get_mission_and_history(
+        self, pilot_identifier: str, mission_id: str
+    ) -> Tuple[Optional[dict], Optional[dict], List[dict]]:
         return self._pilots.get_mission_and_history(pilot_identifier, mission_id)
 
-    def get_mission_id_by_natural_key(self, pilot_id: str, mission: WoFFMission) -> Optional[str]:
+    def get_mission_id_by_natural_key(
+        self, pilot_id: str, mission: WoFFMission
+    ) -> Optional[str]:
+        """Return the persisted ID selected by the mission natural key."""
         return self._missions.get_id_by_natural_key(pilot_id, mission)
 
     def get_pilot_game_date(self, pilot_id: str) -> Optional[str]:
         return self._pilots.get_pilot_game_date(pilot_id)
 
-    def update_pilot_rpg_stats(self, pilot_id: str, fatigue: int, morale: int, stress: int) -> None:
+    def update_pilot_rpg_stats(
+        self, pilot_id: str, fatigue: int, morale: int, stress: int
+    ) -> None:
         return self._rpg.update_pilot_rpg_stats(pilot_id, fatigue, morale, stress)
 
-    def save_diary_entry(self, pilot_id: str, mission_id: Optional[str], entry_date: str, narrative: str, *, replace_existing: bool = False) -> bool:
-        return self._rpg.save_diary_entry(pilot_id, mission_id, entry_date, narrative, replace_existing=replace_existing)
+    def save_diary_entry(
+        self,
+        pilot_id: str,
+        mission_id: Optional[str],
+        entry_date: str,
+        narrative: str,
+        *,
+        replace_existing: bool = False,
+    ) -> bool:
+        return self._rpg.save_diary_entry(
+            pilot_id,
+            mission_id,
+            entry_date,
+            narrative,
+            replace_existing=replace_existing,
+        )
 
     def get_wingman_personality(self, wingman_id: str) -> Optional[dict]:
         return self._wingmen.get_wingman_personality(wingman_id)
 
-    def save_wingman_personality(self, wingman_id: str, pilot_id: str, personality: dict) -> bool:
+    def save_wingman_personality(
+        self, wingman_id: str, pilot_id: str, personality: dict
+    ) -> bool:
         return self._wingmen.save_wingman_personality(wingman_id, pilot_id, personality)
 
-    def save_wingman_memory(self, wingman_id: str, event_type: str, event_date: str, description: str, impact_morale: int = 0, impact_stress: int = 0) -> bool:
-        return self._wingmen.save_wingman_memory(wingman_id, event_type, event_date, description, impact_morale, impact_stress)
+    def save_wingman_memory(
+        self, wingman_id: str, event_type: str, event_date: str,
+        description: str, impact_morale: int = 0, impact_stress: int = 0
+    ) -> bool:
+        return self._wingmen.save_wingman_memory(
+            wingman_id, event_type, event_date, description, impact_morale, impact_stress
+        )
