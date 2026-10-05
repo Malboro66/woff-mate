@@ -781,7 +781,7 @@ evals:
   EVAL-UI-ADOPTION-PACKAGE-001:
     work_items: [issue-177]
     status: implemented
-    evidence: Separate fixture-only adoption spec and endpoint packaging/startup probes preserve historical P0 and headless specs. Native UIA collection is window-scoped and revision/hash-bound. Physical Windows 10 Pro build 19045 delta passed at real 100/125/150/200 percent scaling, with unchanged raw physical reports for the run 8 candidate and separate maintainer attestation in docs/ui/evidence/issue-177-physical-windows10/README.md. Bounded evidence is complete on the implementation branch; integration into main, repeated R2 and ADR acceptance remain separate future steps.
+    evidence: Separate fixture-only adoption spec and endpoint packaging/startup probes preserve historical P0 and headless specs. Native UIA collection is window-scoped and revision/hash-bound. Physical Windows 10 Pro build 19045 delta passed at real 100/125/150/200 percent scaling, with unchanged raw physical reports for the run 8 candidate and separate maintainer attestation in docs/ui/evidence/issue-177-physical-windows10/README.md. Bounded evidence is complete and integrated through PR 178 at main f394ece9d139b9af1a0ae14faea5d7982816a33a; the repeated R2 recommends retention, while explicit maintainer ADR acceptance remains pending.
     enforced_by: [ui_adoption.spec, scripts/validate_ui_adoption_windows.ps1, tests/test_ui_adoption.py]
   EVAL-UI-ADOPTION-LICENSE-001:
     work_items: [issue-177]
@@ -790,8 +790,9 @@ evals:
     enforced_by: [scripts/ui_adoption_inventory.py, scripts/ui_adoption_support.py, tests/test_ui_adoption.py, docs/ui/ui-adoption-licensing.md]
   EVAL-R2-REVIEW-001:
     work_items: [review-r2]
-    status: planned
-    evidence: The first Full Application Review is pinned to main bfa7647ac94cafba658a077e52a55a3c2240a4dd in docs/engineering/r2-ui-architecture-review.md and records HOLD / Conditional No-Go for production retention. The eval remains planned because, after relevant bounded UI adoption-readiness changes are integrated, a new revision-bound R2 Full Application Review MUST be performed against the then-current integrated main before residual-risk dispositions and an explicit maintainer ADR decision. A scope-impact determination may cover only unrelated, non-material intervening changes between that repeated R2 revision and the final decision revision; it cannot replace the repeat review. Toolkit retention follows the bounded UI adoption contract; Product Gate A/B remain separate prerequisites for P1/live integration and are not toolkit-suitability evidence.
+    status: implemented
+    evidence: Repeated R2 Full Application Review at integrated main f394ece9d139b9af1a0ae14faea5d7982816a33a records GO / Recommend Retain — PySide6 + Qt Widgets 6.11.2 in docs/engineering/r2-ui-architecture-review-repeat.md. Integrated tree 30ff40214a23d46776c5b74b29e3b2227f2065ef equals final evidence head e70c040b82496f1108d34a914885f9e5fb04799c tree. The first review at bfa7647ac94cafba658a077e52a55a3c2240a4dd remains immutable HOLD / Conditional No-Go for production retention. Implemented means the technical review is recorded, not formal ADR acceptance. ADR remains Proposed pending a separate explicit maintainer decision after this governance record is reviewed and integrated. Native QComboBox programmatic UIA SetFocus limitation remains disclosed; keyboard focus and both selectors passed independently. Issues 96 and 142 remain Gate A/P1 blockers, not toolkit-retention blockers. P1 is not authorized and Product Gates A-D remain unapproved.
+    enforced_by: [docs/engineering/r2-ui-architecture-review-repeat.md, woff/tests/test_ui_adoption_governance.py, woff/tests/test_product_milestones.py]
   EVAL-STARTUP-RECURSIVE-001:
     work_items: [issue-142]
     status: planned
@@ -1479,9 +1480,9 @@ work_items:
       - {id: issue-82, status: satisfied}
       - {id: issue-140, status: satisfied}
   review-r2:
-    title: R2 UI Architecture Decision before retained production architecture or P1
+    title: R2 UI Architecture technical review before separate maintainer ADR decision
     module: governance
-    state: backlog
+    state: done
     evals: [EVAL-R2-REVIEW-001]
     gates: [Q0, Q1, Q5-UI-ARCHITECTURE]
     depends_on:

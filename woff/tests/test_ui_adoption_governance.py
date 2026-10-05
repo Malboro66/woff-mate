@@ -10,6 +10,10 @@ from scripts.validate_project_graph import load_graph
 ROOT = Path(__file__).resolve().parents[2]
 R2_RECORD = Path("docs/engineering/r2-ui-architecture-review.md")
 R2_RECORD_BLOB = "a0ed5a8c06e6a38945bda9fddda5b7fe6b431485"
+R2_REPEAT = "docs/engineering/r2-ui-architecture-review-repeat.md"
+R2_AUDITED_SHA = "f394ece9d139b9af1a0ae14faea5d7982816a33a"
+R2_AUDITED_TREE = "30ff40214a23d46776c5b74b29e3b2227f2065ef"
+R2_EVIDENCE_HEAD = "e70c040b82496f1108d34a914885f9e5fb04799c"
 
 
 def _text(path: str | Path) -> str:
@@ -45,8 +49,8 @@ def test_ui_toolkit_retention_is_separate_from_p1_live_gates() -> None:
     assert "Product Gates A/B remain separate prerequisites for P1/live integration" in gate
     assert "does not approve those gates or authorize live data" in gate
 
-    assert graph["work_items"]["review-r2"]["state"] == "backlog"
-    assert graph["evals"]["EVAL-R2-REVIEW-001"]["status"] == "planned"
+    assert graph["work_items"]["review-r2"]["state"] == "done"
+    assert graph["evals"]["EVAL-R2-REVIEW-001"]["status"] == "implemented"
     assert graph["work_items"]["issue-96"]["state"] == "backlog"
     assert graph["work_items"]["issue-142"]["state"] == "backlog"
     assert graph["evals"]["EVAL-WINGMAN-IDENTITY-001"]["status"] == "planned"
@@ -136,3 +140,80 @@ def test_first_r2_record_is_byte_for_byte_pinned_after_rescope() -> None:
     assert "does not rewrite the historical R2 HOLD" in policy
     assert "new revision-bound R2 Full Application Review **MUST** be performed" in quality
     assert "new revision-bound R2 Full Application Review **MUST** be performed" in policy
+
+
+def test_repeated_r2_is_bound_to_integrated_main_without_deleted_branch_dependency() -> None:
+    graph = _graph()
+    record = _normalized_text(R2_REPEAT)
+    evaluation = graph["evals"]["EVAL-R2-REVIEW-001"]
+    for identity in (R2_AUDITED_SHA, R2_AUDITED_TREE, R2_EVIDENCE_HEAD):
+        assert identity in record
+        assert identity in evaluation["evidence"]
+    # The integrated main commit is durable history. Never require the old PR
+    # commit to remain fetchable after squash or reconstruct an artificial ref.
+    actual_tree = subprocess.run(
+        ["git", "rev-parse", f"{R2_AUDITED_SHA}^{{tree}}"],
+        cwd=ROOT, check=True, capture_output=True, text=True,
+    ).stdout.strip()
+    assert actual_tree == R2_AUDITED_TREE
+    assert R2_REPEAT in evaluation["enforced_by"]
+    assert "GO / Recommend Retain — PySide6 + Qt Widgets 6.11.2" in record
+    assert "not formal ADR acceptance" in record
+    assert "P1: **not authorized**" in record
+    assert "Product Gates A, B, C and D: **not approved**" in record
+    assert "Status: Proposed" in _text("docs/architecture/adr-ui-toolkit.md")
+    assert all(
+        dependency["status"] == "satisfied"
+        for dependency in graph["work_items"]["review-r2"]["depends_on"]
+    )
+
+
+def test_repeated_r2_retains_all_review_categories_and_residual_dispositions() -> None:
+    historical = _text(R2_RECORD).split("| Policy category |", 1)[1].split("\n## ", 1)[0]
+    repeated = _text(R2_REPEAT).split("| Policy category |", 1)[1].split("\n### ", 1)[0]
+    historical_categories = {
+        line.split("|")[1].strip()
+        for line in historical.splitlines()
+        if line.startswith("| ")
+    }
+    repeated_categories = {
+        line.split("|")[1].strip()
+        for line in repeated.splitlines()
+        if line.startswith("| ")
+    }
+    assert len(historical_categories) == 14
+    assert repeated_categories == historical_categories
+    record = _normalized_text(R2_REPEAT)
+    for boundary in (
+        "100%, 125%, 150%, 200%",
+        "Windows 10 Pro, version 10.0.19045, build 19045",
+        "Qt Virtual Keyboard excluded",
+        "not relabeled successful",
+        "Real keyboard focus and selector operation passed **independently**",
+        "#96 and #142",
+        "not toolkit-retention blockers",
+        "separate explicit maintainer decision",
+        "reviewed and integrated",
+    ):
+        assert boundary in record
+
+
+def test_live_r2_status_documents_link_the_repeat_without_pending_integration_claims() -> None:
+    for path in (
+        "docs/architecture/adr-ui-toolkit.md",
+        "docs/engineering/evals.md",
+        "docs/engineering/product-milestones.md",
+        "docs/engineering/quality-gates.md",
+        "docs/ui/p0-functional-desktop.md",
+        "docs/ui/ui-adoption-readiness.md",
+    ):
+        current = _normalized_text(path)
+        assert "r2-ui-architecture-review-repeat.md" in current
+        assert R2_AUDITED_SHA in current
+        for stale in (
+            "integration remains pending",
+            "Integration, repeated R2 and the explicit ADR decision remain future steps",
+            "`review-r2` and `EVAL-R2-REVIEW-001` remain pending",
+            "`review-r2` remains backlog",
+        ):
+            assert stale not in current

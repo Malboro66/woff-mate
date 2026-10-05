@@ -82,12 +82,12 @@ def test_product_path_and_cycle_ownership_are_executable() -> None:
         for eval_id in item["evals"]:
             assert item_id in evals[eval_id]["work_items"]
             expected_status = (
-                "implemented" if item_id in {"issue-82", "issue-140"} else "planned"
+                "implemented" if item_id in {"issue-82", "issue-140", "review-r2"} else "planned"
             )
             assert evals[eval_id]["status"] == expected_status
     assert items["issue-82"]["state"] == "done"
     assert items["issue-140"]["state"] == "done"
-    assert items["review-r2"]["state"] == "backlog"
+    assert items["review-r2"]["state"] == "done"
     assert {"Q4-P0-PROTOTYPE", "Q6-CYCLE-3.4.0"} <= set(items["issue-140"]["gates"])
     assert "Q4" not in items["issue-140"]["gates"]
     assert "Q5-UI-ARCHITECTURE" in items["review-r2"]["gates"]
@@ -714,8 +714,8 @@ def test_post_p0_r2_hold_is_revision_bound_without_authorizing_adoption() -> Non
     assert {"id": "issue-140", "status": "satisfied"} in (
         items["review-r2"]["depends_on"]
     )
-    assert items["review-r2"]["state"] == "backlog"
-    assert evals["EVAL-R2-REVIEW-001"]["status"] == "planned"
+    assert items["review-r2"]["state"] == "done"
+    assert evals["EVAL-R2-REVIEW-001"]["status"] == "implemented"
     assert cycles["cycle-3.4.0"]["state"] == "active"
     assert evals["EVAL-CYCLE-340-001"]["status"] == "planned"
 

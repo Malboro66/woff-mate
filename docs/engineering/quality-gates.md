@@ -219,10 +219,11 @@ unapproved.
 ### Q5-UI-ARCHITECTURE: R2 toolkit-retention decision
 
 The graph tracks `review-r2` after #81, #82 and P0/#140. The first R2 review
-returned HOLD and remains historical evidence. A future retained-toolkit decision
-requires the bounded UI adoption-readiness evidence defined in the toolkit ADR,
-a new revision-bound R2 Full Application Review after relevant evidence changes
-are integrated, and an explicit maintainer ADR decision.
+returned HOLD and remains historical evidence. Bounded adoption-readiness evidence
+is now integrated through PR #178, and the [repeated R2](r2-ui-architecture-review-repeat.md)
+records GO / Recommend Retain at `f394ece9d139b9af1a0ae14faea5d7982816a33a`.
+The explicit maintainer ADR decision remains separate and pending until this
+review record is reviewed and integrated; the ADR remains Proposed.
 
 For this narrower architecture decision, physical Windows 10 is the
 maintainer-validated reference platform. Windows 11 remains target/upstream
@@ -251,14 +252,15 @@ returned **HOLD / Conditional No-Go for production retention**. It confirmed
 the fixture-only boundary and found no new priority:P0 or priority:P1 UI defect.
 That historical record truthfully lists Windows 11 and clean-machine evidence as
 gaps under the governance in force at the time; this later re-scope does not
-rewrite the audit. `review-r2` and `EVAL-R2-REVIEW-001` remain pending. After the
-bounded adoption-readiness changes are integrated, a new revision-bound R2 Full
-Application Review **MUST** be performed against the then-current integrated
-`main` before any production-retention ADR decision. A scope-impact
-determination may cover only unrelated, non-material changes between that
-repeated R2 revision and the final decision revision; it cannot replace the
-mandatory repeat review. No Product Gate is approved by the HOLD record or by
-this re-scope.
+rewrite the audit. The requirement that a new revision-bound R2 Full Application
+Review **MUST** be performed after bounded adoption-readiness integration is now
+satisfied by the repeated review of integrated `f394ece9`.
+`review-r2` is done and `EVAL-R2-REVIEW-001` is Implemented for that technical review,
+not for formal ADR acceptance. A scope-impact determination may cover only
+unrelated, non-material changes between that repeated R2 revision and the final
+decision revision; it cannot replace the mandatory repeat review or review of
+material subsequent changes. No Product Gate is approved by either R2 result or
+this reconciliation. The maintainer's separate ADR decision remains pending.
 
 ### Privacy and security release evidence
 
@@ -354,11 +356,11 @@ CI success alone does not approve cycle 3.4.0.
 
 #82 belongs to 3.4.0 on the P0 path. #139 completed the policy through PR #141,
 and #81, #82 and #140/P0 are integrated and complete. The first R2 review of
-that integrated state returned HOLD; this reconciliation records the completed
-P0 prerequisites while leaving production adoption-readiness, a revision-valid
-repeat R2, the explicit ADR decision and every Product Gate pending. `review-r2`
-is a product-review checkpoint, not another release-cycle issue, and remains
-pending under those semantics. Issues #44, #43, #76 and #96 remain incomplete,
+that integrated state returned HOLD and remains unchanged. Bounded readiness is
+now integrated through PR #178; the repeated R2 at `f394ece9` recommends retention.
+`review-r2` is done and its eval Implemented as a technical review, while the
+explicit ADR decision and every Product Gate remain pending. The review is a
+product-review checkpoint, not another release-cycle issue. Issues #44, #43, #76 and #96 remain incomplete,
 and #101 remains blocked by #96, so cycle 3.4.0 and `EVAL-CYCLE-340-001` remain
 active/planned. The historical
 [#136 closure discrepancy](evals.md#136-closure-discrepancy) is resolved by the
