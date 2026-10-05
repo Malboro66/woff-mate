@@ -184,8 +184,11 @@ def test_wingman_identity_migration_failure_restores_original_database(
     path = tmp_path / "wingman-rollback.sqlite"
     _legacy_database(path)
 
-    before = sqlite3.connect(path).iterdump()
-    before_dump = "\n".join(before)
+    before_conn = sqlite3.connect(path)
+    try:
+        before_dump = "\n".join(before_conn.iterdump())
+    finally:
+        before_conn.close()
 
     original = DatabaseManager._migrate_wingman_identity_schema
 
