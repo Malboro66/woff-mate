@@ -375,7 +375,7 @@ class WoFFDossierParser:
                 # French. Q2 evidence also confirms source spelling variants
                 # without punctuation and with the historical "Adjutant" form.
                 "Capitaine", "Sous-Lieutenant", "Sous Lieutenant",
-                "Adjudant", "Adjutant", "Sergent", "Caporal", 
+                "Adjudant", "Adjutant", "Sergent", "Caporal",
                 "Maréchal-des-logis", "Brigadier",
                 # German
                 "Hauptmann", "Oberleutnant", "Leutnant", "Rittmeister", 
