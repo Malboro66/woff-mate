@@ -163,3 +163,9 @@ class WoFFWingman:
     missions:    int = 0
     flminutes:   int = 0
     bio:         str = ""
+    # Transient Dossier reconciliation evidence for #96. These values are not
+    # a native WoFF identity and are intentionally not persisted by the current
+    # schema. They may only participate in conservative, unambiguous matching.
+    birthDate:   str = ""
+    evidenceDate: str = ""
+    evidenceLocation: str = ""
