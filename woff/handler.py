@@ -55,6 +55,7 @@ from .identity import (
     PilotIdentityRejected,
     PilotIdentityUnavailable,
     PilotSlotBinding,
+    WingmanIdentityResolutionError,
     dossier_source_name,
     is_dossier_source,
     pilot_slot,
@@ -477,6 +478,13 @@ class FileProcessor:
             return self._dependency_pending(retry_input)
         except PilotIdentityError as error:
             return self._identity_rejection(path, error)
+        except WingmanIdentityResolutionError as error:
+            log.warning(
+                "Wingman identity rejected: category=%s reason=%s",
+                error.kind.value,
+                error.reason,
+            )
+            return ProcessingOutcome.permanent(ProcessingReason.IDENTITY_REJECTED)
         except sqlite3.Error as error:
             reason = classify_transient_sqlite_error(error)
             if reason is not None:

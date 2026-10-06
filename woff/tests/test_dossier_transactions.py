@@ -23,10 +23,13 @@ def _wingman(
     status: str = "In Service",
     rank: str = "Lieutenant",
 ) -> str:
+    # Synthetic people need independent personal evidence. Identical evidence
+    # with different names is an intentional conflict under the Q2 contract.
+    town = f"Synthetic home of {first_name} {last_name}"
     return (
         f"{rank};{first_name};{last_name};3;5;{status};0;0;0;0;0;6;"
         "1550;1500;9;2;8;8;1896;Reliable pilot.;75;21;651;1;"
-        "19/7/1913;Arras;2;0;Null;Null;Null;Null;Null;Null;Null"
+        f"19/7/1913;{town};2;0;Null;Null;Null;Null;Null;Null;Null"
     )
 
 

@@ -73,6 +73,14 @@ class WingmanRepository(BaseRepository):
         ).fetchall()
         return [self._row_to_wingman(row) for row in rows]
 
+    def identityless_wingman_ids(self, pilot_id: str) -> frozenset[str]:
+        """Historical rows with no supported personal evidence at all."""
+        return frozenset(
+            member.id
+            for member in self._stored_wingmen(pilot_id)
+            if not any((member.birthDate, member.evidenceDate, member.evidenceLocation))
+        )
+
     @staticmethod
     def _authoritative_fields(wingman: WoFFWingman) -> tuple[str, ...]:
         if wingman.present_fields is None:
@@ -173,7 +181,11 @@ class WingmanRepository(BaseRepository):
             seen.add(key)
 
     def upsert_wingmen_batch(
-        self, pilot_id: str, wingmen: Optional[List[WoFFWingman]]
+        self,
+        pilot_id: str,
+        wingmen: Optional[List[WoFFWingman]],
+        *,
+        retired_wingman_ids: frozenset[str] = frozenset(),
     ) -> int:
         """Persist wingmen without using display name or row order as identity."""
         if not wingmen:
@@ -181,7 +193,12 @@ class WingmanRepository(BaseRepository):
 
         self._validate_incoming_dossier_batch(wingmen)
         cursor = self._conn.cursor()
-        stored = self._stored_wingmen(pilot_id)
+        if retired_wingman_ids and not retired_wingman_ids <= self.identityless_wingman_ids(pilot_id):
+            raise sqlite3.IntegrityError("Invalid retired wingman identity")
+        stored = [
+            member for member in self._stored_wingmen(pilot_id)
+            if member.id not in retired_wingman_ids
+        ]
         changed = 0
 
         for wingman in wingmen:

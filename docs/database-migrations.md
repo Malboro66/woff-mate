@@ -4,7 +4,7 @@ This guide describes the existing migration safeguards and an offline manual rec
 
 ## Schema compatibility
 
-Current schema: `3.4`, sourced from `woff.version.SCHEMA_VERSION`.
+Current schema: `3.5`, sourced from `woff.version.SCHEMA_VERSION`.
 
 Schema versions use `MAJOR.MINOR`:
 
@@ -12,22 +12,29 @@ Schema versions use `MAJOR.MINOR`:
 - future schema versions are rejected;
 - an automatic migration is supported only when the installed application has a compatible migration path and the resulting schema passes certification;
 - `2.2` to `3.2` and `3.1` to `3.2` remain tested historical migration paths;
-- `2.2`, `3.1`, `3.2`, and `3.3` to `3.4` are tested current migration paths; and
+- `2.2`, `3.1`, `3.2`, `3.3`, and `3.4` to `3.5` are tested current migration paths; and
 - the **MAJOR** component alone does not determine whether migration is automatic.
 
 The application persists the new schema version in the same transaction as the schema and data changes. A database declaring a future schema is rejected before application DDL, a migration backup, or any downgrade. During the read-only compatibility probe, SQLite may open or create WAL coordination sidecars such as `-shm`; this is SQLite coordination rather than application DDL or migration. Use a compatible newer version instead.
 
 ## Issue #96 wingman identity and roster state
 
-The wingman layout migration removes `UNIQUE(pilotId, fName, sName)`, adds
+Schema **3.5** advances the previous **3.4** contract for the incompatible
+wingman layout. A binary supporting only 3.4 rejects a 3.5 database through the
+future-schema guard, before DDL or writes; the application release version is
+unchanged. The migration removes `UNIQUE(pilotId, fName, sName)` in any column
+order (including equivalent non-partial unique indexes), adds
 nullable `birthDate`, `evidenceDate`, and `evidenceLocation` reconciliation
-evidence, and creates the non-unique `idx_squad_members_pilot` index. Layout
-certification detects this change even for a database already marked schema
-3.4. It preserves every existing `squad_members.id`, column value, compatible
+evidence, and creates the non-unique, non-partial `idx_squad_members_pilot`
+index keyed exactly on `pilotId`. A malformed reserved index schedules a
+backed-up transactional repair even when the database already declares 3.5.
+Layout certification checks both index semantics and removal of name uniqueness.
+It preserves every existing `squad_members.id`, column value, compatible
 index/trigger, and personality/memory foreign key. Legacy evidence remains
 NULL; migration never invents identities or deduplicates historical rows.
-Backup, transactional rollback, integrity/FK certification, and reopen remain
-mandatory. Use the retained backup for recovery; do not downgrade by rebuilding
+The 3.4-to-3.5 change creates a consistent SQLite backup before modification;
+transactional rollback, integrity/FK certification, and reopen remain mandatory.
+Use the retained backup for recovery; do not downgrade by rebuilding
 name uniqueness over the migrated data.
 
 Dossier roster metadata now uses payload version 2. Each trusted or candidate
@@ -52,7 +59,15 @@ a historical occurrence cannot be proven from that name. A trusted legacy
 baseline without IDs rejects same-squadron comparison and rolls back the
 incoming generation, preserving its previous snapshot and diary. An explicit
 squadron transfer may establish a fresh resolved baseline without comparing
-legacy members. An old untrusted list, or an empty pending baseline, can also
+legacy members. Before reconciliation, that explicit boundary records the
+persistent IDs of historical rows with wholly absent personal evidence in the
+version-2 payload's optional `retired_wingman_ids` list. These rows are excluded
+from subsequent candidate searches, including across a pending baseline,
+candidate confirmation, and reopen. No row or relationship is removed, no name
+is used to infer continuity, and partially populated evidence is not bypassed.
+Absent retirement metadata defaults to an empty set; IDs must remain unique,
+owned by the career, evidence-less, and outside the active/candidate roster.
+An old untrusted list, or an empty pending baseline, can also
 establish a new baseline without attributing historical events by name. Invalid
 version-2 IDs (including duplicates or another pilot's IDs) reject the import.
 Resolving a blocked trusted legacy baseline requires independent identity

@@ -385,7 +385,8 @@ class WoFFDossierParser:
             for s in player_data:
                 s_clean = s.strip()
                 if ";" in s_clean and len(s_clean) > 20 and any(s_clean.startswith(rank) for rank in wingmen_ranks):
-                    parts = [p.strip() for p in s_clean.split(";")]
+                    source_parts = s_clean.split(";")
+                    parts = [p.strip() for p in source_parts]
                     if len(parts) >= 6:
                         wingman_numeric: dict[str, int] = {}
                         numeric_field = "unknown"
@@ -458,11 +459,14 @@ class WoFFDossierParser:
                         ):
                             w.evidenceLocation = parts[25]
                         
-                        for part in parts:
-                            if "pilot" in part.lower() or "observer" in part.lower() or "outlook" in part.lower():
-                                w.bio = part
-                                present_fields.add("bio")
-                                break
+                        # Biography is field 19 in the supported roster layout.
+                        # Empty is authoritative; Null/absent is unavailable.
+                        if (
+                            len(parts) > 19
+                            and parts[19].casefold() not in _DOSSIER_MISSING_TOKENS
+                        ):
+                            w.bio = source_parts[19]
+                            present_fields.add("bio")
                         
                         if "missions" in wingman_numeric:
                             w.missions = wingman_numeric["missions"]

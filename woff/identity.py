@@ -264,8 +264,10 @@ def resolve_wingman_identity(
             continue
 
         if stored.display_name != source.display_name:
-            # Different display names are never merged. Coincident personal
-            # evidence is insufficient to prove they are the same person.
+            # Identical personal evidence with contradictory names cannot
+            # prove either continuity or a distinct person. Never mint an ID.
+            if stored.personal == source.personal:
+                conflict = True
             continue
 
         personal_agreements = sum(

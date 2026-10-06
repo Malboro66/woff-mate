@@ -137,7 +137,7 @@ def test_schema_34_migrates_victory_identity_without_row_or_relationship_loss(
 
     database = DatabaseManager(str(path))
     backup = database._migration_backup_path
-    assert SCHEMA_VERSION == "3.4"
+    assert SCHEMA_VERSION == "3.5"
     assert backup is not None and backup.exists()
     assert _stored_rows(path) == before
     connection = database._get_conn()
@@ -210,7 +210,7 @@ def test_schema_34_migrates_victory_identity_without_row_or_relationship_loss(
     reopened = DatabaseManager(str(path))
     assert reopened._get_conn().execute(
         "SELECT value FROM meta WHERE key='schema_version'"
-    ).fetchone() == ("3.4",)
+    ).fetchone() == (SCHEMA_VERSION,)
     assert reopened._get_conn().execute(
         "PRAGMA foreign_key_check"
     ).fetchall() == []

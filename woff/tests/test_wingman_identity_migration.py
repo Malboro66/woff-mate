@@ -28,7 +28,7 @@ CREATE TABLE squad_members (
 """
 
 
-def _legacy_database(path: Path) -> None:
+def _legacy_database(path: Path, unique_key: str = "pilotId, fName, sName") -> None:
     db = DatabaseManager(str(path))
     with db.transaction() as conn:
         conn.execute(
@@ -42,7 +42,9 @@ def _legacy_database(path: Path) -> None:
         conn.execute("PRAGMA foreign_keys=OFF")
         conn.execute("DROP INDEX IF EXISTS idx_squad_members_pilot")
         conn.execute("DROP TABLE squad_members")
-        conn.execute(_LEGACY_SQUAD_MEMBERS_DDL)
+        conn.execute(
+            _LEGACY_SQUAD_MEMBERS_DDL.replace("pilotId, fName, sName", unique_key)
+        )
         conn.execute(
             """
             INSERT INTO squad_members (
@@ -92,7 +94,7 @@ def _legacy_database(path: Path) -> None:
         )
         conn.execute(
             "INSERT OR REPLACE INTO meta (key, value) VALUES ('schema_version', ?)",
-            (SCHEMA_VERSION,),
+            ("3.4",),
         )
         conn.commit()
     finally:
@@ -115,11 +117,21 @@ def _unique_columns(conn: sqlite3.Connection, table: str) -> set[tuple[str, ...]
     return result
 
 
+@pytest.mark.parametrize(
+    "unique_key",
+    [
+        "pilotId, fName, sName",
+        "fName, sName, pilotId",
+        "sName, pilotId, fName",
+        '"sName" DESC, [pilotId] ASC, `fName`',
+    ],
+)
 def test_wingman_identity_migration_preserves_ids_relationships_and_reopens(
     tmp_path: Path,
+    unique_key: str,
 ) -> None:
     path = tmp_path / "wingman-identity.sqlite"
-    _legacy_database(path)
+    _legacy_database(path, unique_key)
 
     migrated = DatabaseManager(str(path))
     migrated.close()
@@ -129,6 +141,10 @@ def test_wingman_identity_migration_preserves_ids_relationships_and_reopens(
         columns = {
             str(row[1]) for row in conn.execute("PRAGMA table_info(squad_members)")
         }
+        assert SCHEMA_VERSION == "3.5"
+        assert conn.execute(
+            "SELECT value FROM meta WHERE key='schema_version'"
+        ).fetchone() == (SCHEMA_VERSION,)
         assert {"birthDate", "evidenceDate", "evidenceLocation"}.issubset(columns)
         assert ("pilotId", "fName", "sName") not in _unique_columns(
             conn, "squad_members"
@@ -220,12 +236,15 @@ def test_wingman_identity_migration_failure_restores_original_database(
     assert backups
 
 
+@pytest.mark.parametrize("malformed_index", [False, True])
 def test_wingman_migration_preserves_extensions_and_verified_backup(
-    tmp_path: Path,
+    tmp_path: Path, malformed_index: bool,
 ) -> None:
     path = tmp_path / "wingman-extensions.sqlite"
     _legacy_database(path)
     with sqlite3.connect(path) as conn:
+        if malformed_index:
+            conn.execute("CREATE UNIQUE INDEX idx_squad_members_pilot ON squad_members(rank)")
         conn.execute("ALTER TABLE squad_members ADD COLUMN custom_note TEXT")
         conn.execute("UPDATE squad_members SET custom_note = 'Retain this value'")
         conn.execute("CREATE INDEX custom_wingman_rank ON squad_members(rank)")
@@ -262,3 +281,158 @@ def test_wingman_migration_preserves_extensions_and_verified_backup(
         "SELECT custom_note FROM squad_members"
     ).fetchone() == ("Retain this value",)
     reopened.close()
+
+
+@pytest.mark.parametrize(
+    "definition",
+    [
+        "ON squad_members(pilotId)",
+        "ON squad_members(rank)",
+        "ON squad_members(sName, pilotId)",
+        "ON squad_members(pilotId, sName)",
+        "UNIQUE ON squad_members(pilotId)",
+        "ON squad_members(pilotId) WHERE status = 'In Service'",
+    ],
+)
+def test_reserved_squad_index_is_certified_and_repaired(tmp_path, definition):
+    path = tmp_path / "index.sqlite"
+    db = DatabaseManager(str(path))
+    db.close()
+    unique = definition.startswith("UNIQUE ")
+    tail = definition.removeprefix("UNIQUE ")
+    with sqlite3.connect(path) as conn:
+        conn.execute("DROP INDEX idx_squad_members_pilot")
+        conn.execute(
+            f"CREATE {'UNIQUE ' if unique else ''}INDEX idx_squad_members_pilot {tail}"
+        )
+    repaired = DatabaseManager(str(path))
+    conn = repaired._get_conn()
+    index = next(
+        row
+        for row in conn.execute("PRAGMA index_list(squad_members)")
+        if row[1] == "idx_squad_members_pilot"
+    )
+    assert not index[2] and not index[4]
+    assert [
+        row[2] for row in conn.execute("PRAGMA index_info(idx_squad_members_pilot)")
+    ] == ["pilotId"]
+    assert conn.execute("PRAGMA integrity_check").fetchone() == ("ok",)
+    assert conn.execute("PRAGMA foreign_key_check").fetchall() == []
+    repaired.close()
+    backups = list((tmp_path / ".woff-migration-backups").glob("*.backup.sqlite"))
+    assert bool(backups) == (definition != "ON squad_members(pilotId)")
+    reopened = DatabaseManager(str(path))
+    reopened.close()
+    assert (
+        list((tmp_path / ".woff-migration-backups").glob("*.backup.sqlite")) == backups
+    )
+
+
+def test_previous_binary_rejects_wingman_schema_without_modification(
+    tmp_path, monkeypatch
+):
+    from .. import database
+
+    path = tmp_path / "future.sqlite"
+    db = DatabaseManager(str(path))
+    db.close()
+    with sqlite3.connect(path) as conn:
+        before = list(conn.iterdump())
+    monkeypatch.setattr(database, "SCHEMA_VERSION", "3.4")
+    with pytest.raises(database.UnsupportedSchemaVersion, match="schema futuro 3.5"):
+
+        DatabaseManager(str(path))
+    with sqlite3.connect(path) as conn:
+        assert list(conn.iterdump()) == before
+    assert not list((tmp_path / ".woff-migration-backups").glob("*.backup.sqlite"))
+
+
+@pytest.mark.parametrize(
+    "unique_key", ["fName, sName, pilotId", "sName, pilotId, fName"]
+)
+def test_reordered_standalone_name_unique_is_removed(tmp_path, unique_key):
+    path = tmp_path / "standalone.sqlite"
+    db = DatabaseManager(str(path))
+    db.close()
+    with sqlite3.connect(path) as conn:
+        conn.execute(
+            f"CREATE UNIQUE INDEX legacy_name_key ON squad_members({unique_key})"
+        )
+    migrated = DatabaseManager(str(path))
+    conn = migrated._get_conn()
+    assert (
+        conn.execute(
+            "SELECT 1 FROM sqlite_master WHERE name='legacy_name_key'"
+        ).fetchone()
+        is None
+    )
+    with migrated.transaction():
+        conn.execute("INSERT INTO pilots(id, name) VALUES ('pilot', 'Synthetic')")
+        conn.executemany(
+            "INSERT INTO squad_members(id, pilotId, fName, sName) VALUES (?, 'pilot', 'John', 'Smith')",
+            [("a",), ("b",)],
+        )
+    assert conn.execute("PRAGMA integrity_check").fetchone() == ("ok",)
+    assert conn.execute("PRAGMA foreign_key_check").fetchall() == []
+    migrated.close()
+    reopened = DatabaseManager(str(path))
+    assert len(reopened.get_wingmen_by_pilot("pilot")) == 2
+    reopened.close()
+    assert list((tmp_path / ".woff-migration-backups").glob("*.backup.sqlite"))
+
+
+def test_unrelated_unique_superset_and_partial_indexes_are_preserved(tmp_path):
+    path = tmp_path / "custom.sqlite"
+    _legacy_database(path, "sName, pilotId, fName")
+    with sqlite3.connect(path) as conn:
+        conn.execute(
+            "CREATE UNIQUE INDEX custom_superset ON squad_members(pilotId, fName, sName, rank)"
+        )
+        conn.execute(
+            "CREATE UNIQUE INDEX custom_partial ON squad_members(pilotId, fName, sName) WHERE rank='Custom'"
+        )
+        indexes = conn.execute(
+            "SELECT name, sql FROM sqlite_master WHERE name IN ('custom_superset', 'custom_partial') ORDER BY name"
+        ).fetchall()
+    db = DatabaseManager(str(path))
+    assert (
+        db._get_conn()
+        .execute(
+            "SELECT name, sql FROM sqlite_master WHERE name IN ('custom_superset', 'custom_partial') ORDER BY name"
+        )
+        .fetchall()
+        == indexes
+    )
+    db.close()
+    reopened = DatabaseManager(str(path))
+    reopened.close()
+
+
+def test_index_repair_failure_restores_backup_transactionally(tmp_path, monkeypatch):
+    path = tmp_path / "index-rollback.sqlite"
+    db = DatabaseManager(str(path))
+    db.close()
+    with sqlite3.connect(path) as conn:
+        conn.execute("DROP INDEX idx_squad_members_pilot")
+        conn.execute(
+            "CREATE UNIQUE INDEX idx_squad_members_pilot ON squad_members(rank)"
+        )
+        before = list(conn.iterdump())
+    original = DatabaseManager._migrate_wingman_identity_schema
+
+    def fail_after_repair(self, cursor):
+        original(self, cursor)
+        raise RuntimeError("synthetic index repair failure")
+
+    monkeypatch.setattr(
+        DatabaseManager, "_migrate_wingman_identity_schema", fail_after_repair
+    )
+    with pytest.raises(RuntimeError, match="synthetic index repair failure"):
+        DatabaseManager(str(path))
+    with sqlite3.connect(path) as conn:
+        assert list(conn.iterdump()) == before
+        assert conn.execute("PRAGMA integrity_check").fetchone() == ("ok",)
+        assert conn.execute("PRAGMA foreign_key_check").fetchall() == []
+    backup = next((tmp_path / ".woff-migration-backups").glob("*.backup.sqlite"))
+    with sqlite3.connect(backup) as conn:
+        assert list(conn.iterdump()) == before

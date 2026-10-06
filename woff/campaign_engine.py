@@ -140,6 +140,14 @@ class CampaignEngine:
             events.append(("new", new_map[member_id]))
         return events
 
+    @staticmethod
+    def _is_roster_transfer(stored: DossierState, pilot: WoFFPilot) -> bool:
+        return bool(
+            stored.roster_squadron
+            and pilot.squadron
+            and stored.roster_squadron != pilot.squadron
+        )
+
     def _plan_dossier_diary_effects(
         self,
         stored: DossierState,
@@ -148,11 +156,7 @@ class CampaignEngine:
     ) -> Tuple[List[Tuple[str, str]], bool, _RosterAction]:
         """Derive effects from resolved IDs before committing the Dossier transaction."""
         effects: List[Tuple[str, str]] = []
-        transfer = bool(
-            stored.roster_squadron
-            and pilot.squadron
-            and stored.roster_squadron != pilot.squadron
-        )
+        transfer = self._is_roster_transfer(stored, pilot)
         roster_action: _RosterAction = "keep"
         roster_events: List[Tuple[str, DossierWingmanState]] = []
 
@@ -267,6 +271,14 @@ class CampaignEngine:
                             stored.pilot_id
                         ) or normalize_date(pilot.startDate)
 
+                    retired_ids = stored.retired_wingman_ids if stored else frozenset()
+                    if stored is not None and self._is_roster_transfer(stored, pilot):
+                        # An explicit boundary retires only evidence-less historical
+                        # candidates, never their rows or personality/memory links.
+                        # Persist the scope even when the new baseline is pending.
+                        retired_ids |= self.db_manager.identityless_wingman_ids(
+                            stored.pilot_id
+                        )
                     real_pilot_id = self.db_manager.merge_and_write(
                         pilot=pilot,
                         missions=[],
@@ -274,6 +286,7 @@ class CampaignEngine:
                         decorations=decorations,
                         wingmen=wingmen,
                         identity=identity,
+                        retired_wingman_ids=retired_ids,
                     )
                     if not real_pilot_id:
                         raise _DossierWriteRejected("core-write")
@@ -303,6 +316,7 @@ class CampaignEngine:
                             stored.wingmen,
                             pilot.squadron,
                             resolved_roster,
+                            retired_wingman_ids=retired_ids,
                         )
                     elif roster_action in {"baseline", "pending-baseline"}:
                         self.db_manager.save_dossier_roster_state(
@@ -310,6 +324,7 @@ class CampaignEngine:
                             pilot.squadron,
                             resolved_roster,
                             baseline_pending=(roster_action == "pending-baseline"),
+                            retired_wingman_ids=retired_ids,
                         )
 
                     for _category, narrative in effects:

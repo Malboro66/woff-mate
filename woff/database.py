@@ -102,6 +102,7 @@ class DossierState:
     roster_baseline_pending: bool
     wingmen: Tuple[DossierWingmanState, ...]
     roster_candidate: Optional[DossierRosterCandidate]
+    retired_wingman_ids: frozenset[str] = frozenset()
 
 
 @dataclass(frozen=True)
@@ -1087,7 +1088,7 @@ class DatabaseManager:
                     "('pilotId', 'date', 'time', 'enemyType')"
                 )
 
-            if table == "squad_members" and ("pilotId", "fName", "sName") in all_unique_columns:
+            if table == "squad_members" and self._wingman_name_unique_indexes(cursor):
                 errors.append(
                     "forbidden occurrence-collapsing UNIQUE squad_members"
                     "('pilotId', 'fName', 'sName')"
@@ -1146,22 +1147,8 @@ class DatabaseManager:
                     "wrong key semantics for index idx_victories_pilot"
                 )
 
-        squad_indexes = cursor.execute("PRAGMA index_list(squad_members)").fetchall()
-        squad_pilot_index = next(
-            (row for row in squad_indexes if row[1] == "idx_squad_members_pilot"),
-            None,
-        )
-        if squad_pilot_index is None or squad_pilot_index[2] or squad_pilot_index[4]:
+        if not self._has_canonical_squad_index(cursor):
             errors.append("missing canonical non-unique index idx_squad_members_pilot")
-        else:
-            squad_pilot_columns = tuple(
-                str(row[2])
-                for row in cursor.execute(
-                    "PRAGMA index_info(idx_squad_members_pilot)"
-                ).fetchall()
-            )
-            if squad_pilot_columns != ("pilotId",):
-                errors.append("wrong key semantics for index idx_squad_members_pilot")
 
         binding_info = {
             str(row[1]): row
@@ -1665,7 +1652,7 @@ class DatabaseManager:
         for row in cursor.execute(
             f"PRAGMA index_list({self._quote_identifier(table)})"
         ).fetchall():
-            if not row[2]:
+            if not row[2] or row[4]:
                 continue
             index_name = str(row[1])
             columns = tuple(
@@ -1674,7 +1661,7 @@ class DatabaseManager:
                     f"PRAGMA index_info({self._quote_identifier(index_name)})"
                 ).fetchall()
             )
-            if columns != ("pilotId", "fName", "sName"):
+            if len(columns) != 3 or set(columns) != {"pilotId", "fName", "sName"}:
                 continue
             sql_row = cursor.execute(
                 "SELECT sql FROM sqlite_master WHERE type='index' AND name=?",
@@ -1684,6 +1671,26 @@ class DatabaseManager:
                 (index_name, str(sql_row[0]) if sql_row and sql_row[0] else None)
             )
         return indexes
+
+    @staticmethod
+    def _has_canonical_squad_index(cursor: sqlite3.Cursor) -> bool:
+        index = next(
+            (
+                row for row in cursor.execute("PRAGMA index_list(squad_members)")
+                if row[1] == "idx_squad_members_pilot"
+            ),
+            None,
+        )
+        return bool(
+            index is not None
+            and not index[2]
+            and not index[4]
+            and tuple(
+                row[2] for row in cursor.execute(
+                    "PRAGMA index_info(idx_squad_members_pilot)"
+                )
+            ) == ("pilotId",)
+        )
 
     def _has_wingman_identity_schema_migration(self, cursor: sqlite3.Cursor) -> bool:
         exists = cursor.execute(
@@ -1699,10 +1706,7 @@ class DatabaseManager:
             return True
         if self._wingman_name_unique_indexes(cursor):
             return True
-        index = cursor.execute(
-            "SELECT 1 FROM sqlite_master WHERE type='index' AND name='idx_squad_members_pilot'"
-        ).fetchone()
-        return index is None
+        return not self._has_canonical_squad_index(cursor)
 
     def _migrate_wingman_identity_schema(self, cursor: sqlite3.Cursor) -> None:
         exists = cursor.execute(
@@ -1771,9 +1775,11 @@ class DatabaseManager:
                 "  [Migração] Unicidade por nome de wingman removida; IDs preservados."
             )
 
-        cursor.execute(
-            "CREATE INDEX IF NOT EXISTS idx_squad_members_pilot ON squad_members(pilotId)"
-        )
+        if not self._has_canonical_squad_index(cursor):
+            cursor.execute("DROP INDEX IF EXISTS idx_squad_members_pilot")
+            cursor.execute(
+                "CREATE INDEX idx_squad_members_pilot ON squad_members(pilotId)"
+            )
 
     def _rewrite_wingman_identity_table_sql(self, sql: str, new_table: str) -> str:
         self._reject_unsupported_sql_comments(sql)
@@ -1789,9 +1795,25 @@ class DatabaseManager:
         removed = False
         for definition in definitions:
             normalized = re.sub(r'[\s"`\[\]]+', "", definition).upper()
-            if re.fullmatch(
-                r"(?:CONSTRAINT[A-Z_][A-Z0-9_]*)?UNIQUE\(PILOTID,FNAME,SNAME\)(?:ONCONFLICT(?:ROLLBACK|ABORT|FAIL|IGNORE|REPLACE))?",
+            unique = re.fullmatch(
+                r"(?:CONSTRAINT[A-Z_][A-Z0-9_]*)?UNIQUE\(([^()]+)\)"
+                r"(?:ONCONFLICT(?:ROLLBACK|ABORT|FAIL|IGNORE|REPLACE))?",
                 normalized,
+            )
+            columns = []
+            terms: List[str] = []
+            if unique is not None:
+                terms = self._split_top_level_csv(
+                    definition[definition.index("(") + 1 : definition.rindex(")")]
+                )
+                for term in terms:
+                    column, end = self._read_identifier(term, 0)
+                    if not re.fullmatch(r"(?:ASC|DESC)?", term[end:].strip(), re.I):
+                        break  # Unsupported terms must retain the constraint.
+                    columns.append(column.upper())
+            if (
+                len(columns) == len(terms) == 3
+                and set(columns) == {"PILOTID", "FNAME", "SNAME"}
             ):
                 removed = True
                 continue
@@ -2550,13 +2572,17 @@ class DatabaseManager:
         with self._lock:
             connection = self._get_conn()
             if not connection.in_transaction:
-                raise RuntimeError("Dossier state requires a caller-owned transaction")
+                raise RuntimeError(
+                    "Dossier state requires a caller-owned transaction"
+                )
             pilot = connection.execute(
                 """
-                SELECT p.id, p.status, p.rank, p.squadron, binding.dossier_digest
+                SELECT p.id, p.status, p.rank, p.squadron,
+                       binding.dossier_digest
                 FROM pilot_slot_bindings AS binding
                 JOIN pilots AS p ON p.id = binding.pilotId
-                WHERE binding.campaign_namespace = ? AND binding.slot = ? AND p.name = ?
+                WHERE binding.campaign_namespace = ?
+                  AND binding.slot = ? AND p.name = ?
                 """,
                 (campaign_namespace, slot, name),
             ).fetchone()
@@ -2568,6 +2594,7 @@ class DatabaseManager:
                 (f"{_DOSSIER_ROSTER_META_PREFIX}{pilot_id}",),
             ).fetchone()
             candidate = None
+            retired_wingman_ids: frozenset[str] = frozenset()
             if roster is None:
                 roster_squadron = ""
                 pending = True
@@ -2601,6 +2628,9 @@ class DatabaseManager:
                         pending = decoded["baseline_pending"]
                         decoded_wingmen = decoded.get("wingmen")
                         decoded_candidate = decoded.get("candidate")
+                        retired_wingman_ids = self._decode_retired_wingman_ids(
+                            pilot_id, decoded.get("retired_wingman_ids", [])
+                        )
                     else:
                         raise ValueError("invalid roster payload")
                     wingmen = self._decode_dossier_roster_members(
@@ -2618,6 +2648,13 @@ class DatabaseManager:
                                 pilot_id, decoded_candidate.get("wingmen"), version
                             ),
                         )
+                    active_ids = {member.wingman_id for member in wingmen}
+                    if candidate is not None:
+                        active_ids.update(
+                            member.wingman_id for member in candidate.wingmen
+                        )
+                    if active_ids & retired_wingman_ids:
+                        raise ValueError("retired identity in active roster")
                 except (TypeError, ValueError) as error:
                     raise sqlite3.DatabaseError(
                         "Invalid persisted Dossier roster state"
@@ -2627,12 +2664,36 @@ class DatabaseManager:
                 status=str(pilot[1]) if pilot[1] is not None else None,
                 rank=str(pilot[2]) if pilot[2] is not None else None,
                 squadron=str(pilot[3] or ""),
-                dossier_digest=str(pilot[4]) if pilot[4] is not None else None,
+                dossier_digest=(
+                    str(pilot[4]) if pilot[4] is not None else None
+                ),
                 roster_squadron=roster_squadron,
                 roster_baseline_pending=pending,
                 wingmen=wingmen,
                 roster_candidate=candidate,
+                retired_wingman_ids=retired_wingman_ids,
             )
+
+    def identityless_wingman_ids(self, pilot_id: str) -> frozenset[str]:
+        """Capture historical IDs before an explicit squadron transfer."""
+        with self._lock:
+            if not self._get_conn().in_transaction:
+                raise RuntimeError("Transfer identity scope requires a transaction")
+            return self._wingmen.identityless_wingman_ids(pilot_id)
+
+    def _decode_retired_wingman_ids(
+        self, pilot_id: str, payload: object
+    ) -> frozenset[str]:
+        if not isinstance(payload, list) or not all(
+            isinstance(member_id, str) and member_id for member_id in payload
+        ):
+            raise ValueError("invalid retired wingman identities")
+        ids = frozenset(payload)
+        if len(ids) != len(payload) or (
+            ids and not ids <= self.identityless_wingman_ids(pilot_id)
+        ):
+            raise ValueError("invalid retired wingman identity scope")
+        return ids
 
     def load_resolved_dossier_roster(
         self, pilot_id: str, wingmen: Sequence[WoFFWingman]
@@ -2684,6 +2745,7 @@ class DatabaseManager:
         wingmen: Sequence[DossierWingmanState],
         *,
         baseline_pending: bool = False,
+        retired_wingman_ids: frozenset[str] = frozenset(),
     ) -> None:
         """Record a trusted roster or pending transfer baseline without deletion."""
         if not wingmen and not baseline_pending:
@@ -2702,6 +2764,11 @@ class DatabaseManager:
                     json.dumps(
                         {
                             "version": 2,
+                            "retired_wingman_ids": sorted(
+                                self._decode_retired_wingman_ids(
+                                    pilot_id, list(retired_wingman_ids)
+                                )
+                            ),
                             "squadron": squadron,
                             "baseline_pending": baseline_pending,
                             "wingmen": roster,
@@ -2720,6 +2787,8 @@ class DatabaseManager:
         trusted_wingmen: Sequence[DossierWingmanState],
         candidate_squadron: str,
         candidate_wingmen: Sequence[DossierWingmanState],
+        *,
+        retired_wingman_ids: frozenset[str] = frozenset(),
     ) -> None:
         """Keep the trusted roster while recording possible absences."""
         if not trusted_squadron or not candidate_squadron or not candidate_wingmen:
@@ -2739,6 +2808,11 @@ class DatabaseManager:
                     json.dumps(
                         {
                             "version": 2,
+                            "retired_wingman_ids": sorted(
+                                self._decode_retired_wingman_ids(
+                                    pilot_id, list(retired_wingman_ids)
+                                )
+                            ),
                             "squadron": trusted_squadron,
                             "baseline_pending": False,
                             "wingmen": trusted,
@@ -2773,6 +2847,7 @@ class DatabaseManager:
         wingmen: Optional[List[WoFFWingman]] = None,
         *,
         identity: Optional[PilotIdentityEvidence] = None,
+        retired_wingman_ids: frozenset[str] = frozenset(),
         return_outcome: Literal[False] = False,
     ) -> Optional[str]: ...
 
@@ -2786,6 +2861,7 @@ class DatabaseManager:
         wingmen: Optional[List[WoFFWingman]] = None,
         *,
         identity: Optional[PilotIdentityEvidence] = None,
+        retired_wingman_ids: frozenset[str] = frozenset(),
         return_outcome: Literal[True],
     ) -> Optional[MergeWriteOutcome]: ...
 
@@ -2798,6 +2874,7 @@ class DatabaseManager:
         wingmen: Optional[List[WoFFWingman]] = None,
         *,
         identity: Optional[PilotIdentityEvidence] = None,
+        retired_wingman_ids: frozenset[str] = frozenset(),
         return_outcome: bool = False,
     ) -> Optional[str | MergeWriteOutcome]:
         """Merge source records and optionally expose changed mission IDs."""
@@ -2819,7 +2896,9 @@ class DatabaseManager:
                         pilot_id, missions, victories, decorations
                     )
                 )
-                added_w = self._wingmen.upsert_wingmen_batch(pilot_id, wingmen)
+                added_w = self._wingmen.upsert_wingmen_batch(
+                    pilot_id, wingmen, retired_wingman_ids=retired_wingman_ids
+                )
                 if missions:
                     log.info(
                         "Mission merge outcomes: inserted=%d updated=%d unchanged=%d",
