@@ -28,7 +28,12 @@ CREATE TABLE squad_members (
 """
 
 
-def _legacy_database(path: Path, unique_key: str = "pilotId, fName, sName") -> None:
+def _legacy_database(
+    path: Path,
+    unique_key: str = "pilotId, fName, sName",
+    *,
+    constraint_name: str = "",
+) -> None:
     db = DatabaseManager(str(path))
     with db.transaction() as conn:
         conn.execute(
@@ -43,7 +48,16 @@ def _legacy_database(path: Path, unique_key: str = "pilotId, fName, sName") -> N
         conn.execute("DROP INDEX IF EXISTS idx_squad_members_pilot")
         conn.execute("DROP TABLE squad_members")
         conn.execute(
-            _LEGACY_SQUAD_MEMBERS_DDL.replace("pilotId, fName, sName", unique_key)
+            _LEGACY_SQUAD_MEMBERS_DDL.replace(
+                "pilotId, fName, sName", unique_key
+            ).replace(
+                "    UNIQUE(",
+                (
+                    f"    CONSTRAINT {constraint_name} UNIQUE("
+                    if constraint_name
+                    else "    UNIQUE("
+                ),
+            )
         )
         conn.execute(
             """
@@ -118,6 +132,17 @@ def _unique_columns(conn: sqlite3.Connection, table: str) -> set[tuple[str, ...]
 
 
 @pytest.mark.parametrize(
+    "constraint_name",
+    [
+        "",
+        "legacy_key",
+        '"legacy-key"',
+        "`legacy-key`",
+        "[legacy-key]",
+        '"legacy,key (96): evidence"',
+    ],
+)
+@pytest.mark.parametrize(
     "unique_key",
     [
         "pilotId, fName, sName",
@@ -129,9 +154,10 @@ def _unique_columns(conn: sqlite3.Connection, table: str) -> set[tuple[str, ...]
 def test_wingman_identity_migration_preserves_ids_relationships_and_reopens(
     tmp_path: Path,
     unique_key: str,
+    constraint_name: str,
 ) -> None:
     path = tmp_path / "wingman-identity.sqlite"
-    _legacy_database(path, unique_key)
+    _legacy_database(path, unique_key, constraint_name=constraint_name)
 
     migrated = DatabaseManager(str(path))
     migrated.close()
@@ -187,18 +213,31 @@ def test_wingman_identity_migration_preserves_ids_relationships_and_reopens(
     finally:
         conn.close()
 
-    reopened = DatabaseManager(str(path))
-    reopened.close()
     backups = list((tmp_path / ".woff-migration-backups").glob("*.backup.sqlite"))
-    assert backups
+    assert len(backups) == 1
+    with sqlite3.connect(backups[0]) as backup:
+        assert backup.execute("SELECT id FROM squad_members").fetchall() == [
+            ("wingman-a",)
+        ]
+        assert backup.execute("PRAGMA integrity_check").fetchone() == ("ok",)
+        assert backup.execute("PRAGMA foreign_key_check").fetchall() == []
+    for _ in range(2):
+        reopened = DatabaseManager(str(path))
+        assert len(reopened.get_wingmen_by_pilot("pilot-96")) == 2
+        reopened.close()
+    assert (
+        list((tmp_path / ".woff-migration-backups").glob("*.backup.sqlite")) == backups
+    )
 
 
+@pytest.mark.parametrize("constraint_name", ["", '"legacy-key"'])
 def test_wingman_identity_migration_failure_restores_original_database(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
+    constraint_name: str,
 ) -> None:
     path = tmp_path / "wingman-rollback.sqlite"
-    _legacy_database(path)
+    _legacy_database(path, constraint_name=constraint_name)
 
     before_conn = sqlite3.connect(path)
     try:
@@ -229,6 +268,7 @@ def test_wingman_identity_migration_failure_restores_original_database(
             after_conn, "squad_members"
         )
         assert after_conn.execute("PRAGMA integrity_check").fetchone() == ("ok",)
+        assert after_conn.execute("PRAGMA foreign_key_check").fetchall() == []
     finally:
         after_conn.close()
 
@@ -287,6 +327,10 @@ def test_wingman_migration_preserves_extensions_and_verified_backup(
     "definition",
     [
         "ON squad_members(pilotId)",
+        "ON squad_members(pilotId COLLATE NOCASE)",
+        "ON squad_members(pilotId DESC)",
+        "ON squad_members(pilotId COLLATE NOCASE DESC)",
+        "ON squad_members(lower(pilotId))",
         "ON squad_members(rank)",
         "ON squad_members(sName, pilotId)",
         "ON squad_members(pilotId, sName)",
@@ -316,6 +360,11 @@ def test_reserved_squad_index_is_certified_and_repaired(tmp_path, definition):
     assert [
         row[2] for row in conn.execute("PRAGMA index_info(idx_squad_members_pilot)")
     ] == ["pilotId"]
+    assert [
+        (row[2], row[3], row[4].upper())
+        for row in conn.execute("PRAGMA index_xinfo(idx_squad_members_pilot)")
+        if row[5]
+    ] == [("pilotId", 0, "BINARY")]
     assert conn.execute("PRAGMA integrity_check").fetchone() == ("ok",)
     assert conn.execute("PRAGMA foreign_key_check").fetchall() == []
     repaired.close()
@@ -408,15 +457,22 @@ def test_unrelated_unique_superset_and_partial_indexes_are_preserved(tmp_path):
     reopened.close()
 
 
-def test_index_repair_failure_restores_backup_transactionally(tmp_path, monkeypatch):
+@pytest.mark.parametrize(
+    "index_definition",
+    [
+        "CREATE UNIQUE INDEX idx_squad_members_pilot ON squad_members(rank)",
+        "CREATE INDEX idx_squad_members_pilot ON squad_members(pilotId COLLATE NOCASE DESC)",
+    ],
+)
+def test_index_repair_failure_restores_backup_transactionally(
+    tmp_path, monkeypatch, index_definition
+):
     path = tmp_path / "index-rollback.sqlite"
     db = DatabaseManager(str(path))
     db.close()
     with sqlite3.connect(path) as conn:
         conn.execute("DROP INDEX idx_squad_members_pilot")
-        conn.execute(
-            "CREATE UNIQUE INDEX idx_squad_members_pilot ON squad_members(rank)"
-        )
+        conn.execute(index_definition)
         before = list(conn.iterdump())
     original = DatabaseManager._migrate_wingman_identity_schema
 
@@ -436,3 +492,41 @@ def test_index_repair_failure_restores_backup_transactionally(tmp_path, monkeypa
     backup = next((tmp_path / ".woff-migration-backups").glob("*.backup.sqlite"))
     with sqlite3.connect(backup) as conn:
         assert list(conn.iterdump()) == before
+
+
+def test_quoted_legacy_key_removal_preserves_unrelated_constraints(
+    tmp_path, monkeypatch
+):
+    from . import test_wingman_identity_migration as fixtures
+
+    monkeypatch.setattr(
+        fixtures,
+        "_LEGACY_SQUAD_MEMBERS_DDL",
+        _LEGACY_SQUAD_MEMBERS_DDL.replace(
+            "    FOREIGN KEY(pilotId)",
+            '    CONSTRAINT "keep-key (96)" UNIQUE(pilotId, rank),\n'
+            "    CHECK(skill >= 0),\n    FOREIGN KEY(pilotId)",
+        ),
+    )
+    path = tmp_path / "constraints.sqlite"
+    _legacy_database(path, "fName, sName, pilotId", constraint_name='"legacy-key"')
+    db = DatabaseManager(str(path))
+    conn = db._get_conn()
+    assert ("pilotId", "rank") in _unique_columns(conn, "squad_members")
+    with pytest.raises(sqlite3.IntegrityError):
+        with db.transaction():
+            conn.execute(
+                "INSERT INTO squad_members(id, pilotId, rank) VALUES ('duplicate-rank', 'pilot-96', 'Lieutenant')"
+            )
+    with pytest.raises(sqlite3.IntegrityError):
+        with db.transaction():
+            conn.execute("UPDATE squad_members SET skill=-1")
+    assert conn.execute("SELECT id, skill FROM squad_members").fetchall() == [
+        ("wingman-a", 4)
+    ]
+    assert conn.execute("PRAGMA integrity_check").fetchone() == ("ok",)
+    assert conn.execute("PRAGMA foreign_key_check").fetchall() == []
+    db.close()
+    reopened = DatabaseManager(str(path))
+    assert ("pilotId", "rank") in _unique_columns(reopened._get_conn(), "squad_members")
+    reopened.close()

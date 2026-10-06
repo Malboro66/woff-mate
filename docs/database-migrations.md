@@ -23,11 +23,16 @@ Schema **3.5** advances the previous **3.4** contract for the incompatible
 wingman layout. A binary supporting only 3.4 rejects a 3.5 database through the
 future-schema guard, before DDL or writes; the application release version is
 unchanged. The migration removes `UNIQUE(pilotId, fName, sName)` in any column
-order (including equivalent non-partial unique indexes), adds
-nullable `birthDate`, `evidenceDate`, and `evidenceLocation` reconciliation
+order (including equivalent non-partial unique indexes). Table-level constraint
+names and key terms use the existing SQL identifier parser, including supported
+quoted/punctuated names and ASC/DESC terms; unrelated constraints remain intact.
+The migration adds nullable `birthDate`, `evidenceDate`, and `evidenceLocation` reconciliation
 evidence, and creates the non-unique, non-partial `idx_squad_members_pilot`
-index keyed exactly on `pilotId`. A malformed reserved index schedules a
-backed-up transactional repair even when the database already declares 3.5.
+index keyed exactly on ascending `pilotId` with `BINARY` collation. Shared
+`index_xinfo` key semantics exclude auxiliary rows and reject expressions,
+extra keys, noncanonical collation or descending direction. A malformed reserved
+index schedules a backed-up transactional repair even when the database already
+declares 3.5.
 Layout certification checks both index semantics and removal of name uniqueness.
 It preserves every existing `squad_members.id`, column value, compatible
 index/trigger, and personality/memory foreign key. Legacy evidence remains
@@ -59,7 +64,12 @@ a historical occurrence cannot be proven from that name. A trusted legacy
 baseline without IDs rejects same-squadron comparison and rolls back the
 incoming generation, preserving its previous snapshot and diary. An explicit
 squadron transfer may establish a fresh resolved baseline without comparing
-legacy members. Before reconciliation, that explicit boundary records the
+legacy members. Previous-squadron precedence is the roster metadata squadron,
+then the persisted pilot squadron **only when no `dossier_roster:*` metadata
+exists**, then unknown. Present v1/v2 metadata (including an empty squadron or
+pending baseline) is never overridden by the pilot row; unknown or unchanged
+previous squadron cannot authorize retirement of identity-less candidates.
+Before reconciliation, an explicit transfer boundary records the
 persistent IDs of historical rows with wholly absent personal evidence in the
 version-2 payload's optional `retired_wingman_ids` list. These rows are excluded
 from subsequent candidate searches, including across a pending baseline,

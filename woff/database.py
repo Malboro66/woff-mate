@@ -103,6 +103,7 @@ class DossierState:
     wingmen: Tuple[DossierWingmanState, ...]
     roster_candidate: Optional[DossierRosterCandidate]
     retired_wingman_ids: frozenset[str] = frozenset()
+    roster_metadata_present: bool = True
 
 
 @dataclass(frozen=True)
@@ -1228,13 +1229,7 @@ class DatabaseManager:
         )
         if diary_index is None or not diary_index[2] or not diary_index[4]:
             errors.append("missing required partial unique index idx_diary_unique_mission")
-        elif tuple(
-            (str(row[2]), int(row[3]), str(row[4]).upper())
-            for row in cursor.execute(
-                "PRAGMA index_xinfo(idx_diary_unique_mission)"
-            ).fetchall()
-            if row[5] == 1
-        ) != (
+        elif self._index_key_semantics(cursor, "idx_diary_unique_mission") != (
             ("pilotId", 0, "BINARY"),
             ("missionId", 0, "BINARY"),
         ):
@@ -1282,6 +1277,18 @@ class DatabaseManager:
                 f"Database layout is incompatible with schema {SCHEMA_VERSION}: "
                 + "; ".join(errors)
             )
+
+    def _index_key_semantics(
+        self, cursor: sqlite3.Cursor, index_name: str
+    ) -> Tuple[Tuple[str, int, str], ...]:
+        """Column, descending flag and collation, excluding auxiliary rows."""
+        return tuple(
+            (str(row[2]), int(row[3]), str(row[4]).upper())
+            for row in cursor.execute(
+                f"PRAGMA index_xinfo({self._quote_identifier(index_name)})"
+            ).fetchall()
+            if row[5] == 1
+        )
 
     def _has_canonical_diary_index_predicate(self, sql: str) -> bool:
         """Match the complete canonical WHERE expression with quoted identifiers."""
@@ -1672,8 +1679,7 @@ class DatabaseManager:
             )
         return indexes
 
-    @staticmethod
-    def _has_canonical_squad_index(cursor: sqlite3.Cursor) -> bool:
+    def _has_canonical_squad_index(self, cursor: sqlite3.Cursor) -> bool:
         index = next(
             (
                 row for row in cursor.execute("PRAGMA index_list(squad_members)")
@@ -1685,11 +1691,8 @@ class DatabaseManager:
             index is not None
             and not index[2]
             and not index[4]
-            and tuple(
-                row[2] for row in cursor.execute(
-                    "PRAGMA index_info(idx_squad_members_pilot)"
-                )
-            ) == ("pilotId",)
+            and self._index_key_semantics(cursor, "idx_squad_members_pilot")
+            == (("pilotId", 0, "BINARY"),)
         )
 
     def _has_wingman_identity_schema_migration(self, cursor: sqlite3.Cursor) -> bool:
@@ -1781,6 +1784,35 @@ class DatabaseManager:
                 "CREATE INDEX idx_squad_members_pilot ON squad_members(pilotId)"
             )
 
+    def _is_wingman_name_unique_definition(self, definition: str) -> bool:
+        index = self._skip_space(definition, 0)
+        constraint = re.match(r"CONSTRAINT\b", definition[index:], re.I)
+        if constraint is not None:
+            _, index = self._read_identifier(definition, index + constraint.end())
+            index = self._skip_space(definition, index)
+        unique = re.match(r"UNIQUE\s*\(", definition[index:], re.I)
+        if unique is None:
+            return False
+        open_paren = index + unique.end() - 1
+        close_paren = self._matching_paren(definition, open_paren)
+        if not re.fullmatch(
+            r"\s*(?:ON\s+CONFLICT\s+(?:ROLLBACK|ABORT|FAIL|IGNORE|REPLACE))?\s*",
+            definition[close_paren + 1 :],
+            re.I,
+        ):
+            return False
+        terms = self._split_top_level_csv(definition[open_paren + 1 : close_paren])
+        if len(terms) != 3:
+            return False
+        columns = []
+        for term in terms:
+            column, end = self._read_identifier(term, 0)
+            if not re.fullmatch(r"(?:ASC|DESC)?", term[end:].strip(), re.I):
+                # Preserve unsupported terms for fail-closed certification.
+                return False
+            columns.append(column.upper())
+        return set(columns) == {"PILOTID", "FNAME", "SNAME"}
+
     def _rewrite_wingman_identity_table_sql(self, sql: str, new_table: str) -> str:
         self._reject_unsupported_sql_comments(sql)
         prefix_end = self._create_table_name_end(sql)
@@ -1791,35 +1823,11 @@ class DatabaseManager:
             )
         close_paren = self._matching_paren(sql, open_paren)
         definitions = self._split_top_level_csv(sql[open_paren + 1 : close_paren])
-        rewritten: List[str] = []
-        removed = False
-        for definition in definitions:
-            normalized = re.sub(r'[\s"`\[\]]+', "", definition).upper()
-            unique = re.fullmatch(
-                r"(?:CONSTRAINT[A-Z_][A-Z0-9_]*)?UNIQUE\(([^()]+)\)"
-                r"(?:ONCONFLICT(?:ROLLBACK|ABORT|FAIL|IGNORE|REPLACE))?",
-                normalized,
-            )
-            columns = []
-            terms: List[str] = []
-            if unique is not None:
-                terms = self._split_top_level_csv(
-                    definition[definition.index("(") + 1 : definition.rindex(")")]
-                )
-                for term in terms:
-                    column, end = self._read_identifier(term, 0)
-                    if not re.fullmatch(r"(?:ASC|DESC)?", term[end:].strip(), re.I):
-                        break  # Unsupported terms must retain the constraint.
-                    columns.append(column.upper())
-            if (
-                len(columns) == len(terms) == 3
-                and set(columns) == {"PILOTID", "FNAME", "SNAME"}
-            ):
-                removed = True
-                continue
-            rewritten.append(definition)
-        if not removed:
-            rewritten = definitions
+        rewritten = [
+            definition
+            for definition in definitions
+            if not self._is_wingman_name_unique_definition(definition)
+        ]
         suffix = sql[close_paren + 1 :]
         return (
             f"CREATE TABLE {self._quote_identifier(new_table)} ("
@@ -2672,6 +2680,7 @@ class DatabaseManager:
                 wingmen=wingmen,
                 roster_candidate=candidate,
                 retired_wingman_ids=retired_wingman_ids,
+                roster_metadata_present=(roster is not None),
             )
 
     def identityless_wingman_ids(self, pilot_id: str) -> frozenset[str]:

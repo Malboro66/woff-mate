@@ -1,4 +1,4 @@
-"""Production-path regressions for the seven Issue #96 review findings."""
+"""Production-path regressions for Issue #96 review findings and legacy compatibility."""
 
 from __future__ import annotations
 
@@ -99,7 +99,7 @@ def test_expected_identity_rejection_is_atomic_and_sanitized(
 
 
 @pytest.fixture
-def migrated_runtime(tmp_path):
+def migrated_runtime(tmp_path, request):
     path = tmp_path / "Pilot1Dossier.txt"
     database_path = tmp_path / "legacy.sqlite"
     _legacy_database(database_path)
@@ -111,21 +111,31 @@ def migrated_runtime(tmp_path):
             "INSERT INTO pilot_slot_bindings VALUES (?, 1, 'pilot-96', 'old-generation', '1917-04-06')",
             (campaign_namespace_for_root(str(tmp_path)),),
         )
-        conn.execute(
-            "INSERT INTO meta VALUES ('dossier_roster:pilot-96', ?)",
-            (
-                json.dumps(
-                    {
-                        "version": 1,
-                        "squadron": "Old Squadron",
-                        "baseline_pending": False,
-                        "wingmen": [["John", "Smith", "In Service"]],
-                        "candidate": None,
-                    }
+        metadata_version = getattr(request, "param", 1)
+        if metadata_version is not None:
+            conn.execute(
+                "INSERT INTO meta VALUES ('dossier_roster:pilot-96', ?)",
+                (
+                    json.dumps(
+                        {
+                            "version": metadata_version,
+                            "squadron": "Old Squadron",
+                            "baseline_pending": False,
+                            "wingmen": [
+                                (["wingman-a"] if metadata_version == 2 else [])
+                                + ["John", "Smith", "In Service"]
+                            ],
+                            "candidate": None,
+                        }
+                    ),
                 ),
-            ),
-        )
+            )
     db = DatabaseManager(str(database_path))
+    assert bool(
+        db._get_conn()
+        .execute("SELECT 1 FROM meta WHERE key LIKE 'dossier_roster:%'")
+        .fetchone()
+    ) == (metadata_version is not None)
     processor = FileProcessor(
         db, CampaignEngine(db), stability_timeout=0.1, stability_interval=0.001
     )
@@ -133,6 +143,7 @@ def migrated_runtime(tmp_path):
     db.close()
 
 
+@pytest.mark.parametrize("migrated_runtime", [None, 1, 2], indirect=True)
 @pytest.mark.parametrize("empty_transfer", [False, True])
 def test_transfer_bypasses_legacy_candidates_and_retains_history(
     migrated_runtime, empty_transfer
@@ -205,8 +216,10 @@ def test_transfer_bypasses_legacy_candidates_and_retains_history(
         for table in ("wingmen_personalities", "wingmen_memory")
     ] == relationships
     assert db._get_conn().execute("PRAGMA foreign_key_check").fetchall() == []
+    assert db._get_conn().execute("PRAGMA integrity_check").fetchone() == ("ok",)
 
 
+@pytest.mark.parametrize("migrated_runtime", [None, 1, 2], indirect=True)
 def test_same_squad_legacy_candidate_remains_ambiguous(migrated_runtime, caplog):
     db, _, _ = migrated_runtime
     before = list(db._get_conn().iterdump())
@@ -279,6 +292,7 @@ def test_name_collision_inside_first_batch_cannot_create_identities(
     assert list(db._get_conn().iterdump()) == before
 
 
+@pytest.mark.parametrize("migrated_runtime", [None, 1, 2], indirect=True)
 def test_transfer_does_not_bypass_partially_supported_evidence(migrated_runtime):
     db, _, _ = migrated_runtime
     with db.transaction() as conn:
@@ -289,6 +303,7 @@ def test_transfer_does_not_bypass_partially_supported_evidence(migrated_runtime)
     assert list(db._get_conn().iterdump()) == before
 
 
+@pytest.mark.parametrize("migrated_runtime", [None, 1, 2], indirect=True)
 def test_transfer_retirement_rolls_back_with_diary_failure(
     migrated_runtime, monkeypatch
 ):
@@ -344,12 +359,69 @@ def test_invalid_retirement_metadata_fails_closed(migrated_runtime, retired):
     assert list(db._get_conn().iterdump()) == before
 
 
-def test_transfer_cannot_bypass_complete_name_evidence_conflict(dossier_runtime):
+@pytest.mark.parametrize("metadata_present", [False, True])
+def test_transfer_cannot_bypass_complete_name_evidence_conflict(
+    dossier_runtime, metadata_present
+):
     db, _, _ = dossier_runtime
     assert _import(dossier_runtime, [_member("a")])
+    if not metadata_present:
+        with db.transaction() as conn:
+            conn.execute("DELETE FROM meta WHERE key LIKE 'dossier_roster:%'")
     before = list(db._get_conn().iterdump())
     outcome = _submit(
         dossier_runtime, [_field(_member("a"), 1, "Jonathan")], squadron="New Squadron"
     )
+    assert outcome.reason is ProcessingReason.IDENTITY_REJECTED
+    assert list(db._get_conn().iterdump()) == before
+
+
+@pytest.mark.parametrize("migrated_runtime", [None], indirect=True)
+def test_unknown_legacy_squadron_does_not_invent_transfer(migrated_runtime):
+    db, _, _ = migrated_runtime
+    with db.transaction() as conn:
+        conn.execute("UPDATE pilots SET squadron='' WHERE id='pilot-96'")
+    before = list(db._get_conn().iterdump())
+    outcome = _submit(migrated_runtime, [_member("a")], squadron="New Squadron")
+    assert outcome.reason is ProcessingReason.IDENTITY_REJECTED
+    assert list(db._get_conn().iterdump()) == before
+
+
+@pytest.mark.parametrize("migrated_runtime", [1, 2], indirect=True)
+@pytest.mark.parametrize(
+    "incoming_squadron,accepted", [("Old Squadron", False), ("New Squadron", True)]
+)
+def test_roster_squadron_takes_precedence_over_pilot_squadron(
+    migrated_runtime,
+    incoming_squadron,
+    accepted,
+):
+    db, _, _ = migrated_runtime
+    with db.transaction() as conn:
+        conn.execute("UPDATE pilots SET squadron='New Squadron' WHERE id='pilot-96'")
+    before = list(db._get_conn().iterdump())
+    outcome = _submit(migrated_runtime, [_member("a")], squadron=incoming_squadron)
+    if accepted:
+        assert outcome.acknowledged_generation
+        assert _roster(migrated_runtime).roster_squadron == "New Squadron"
+        assert _stored_state(db)["diary"] == []
+        assert _roster(migrated_runtime).retired_wingman_ids == frozenset({"wingman-a"})
+    else:
+        assert outcome.reason is ProcessingReason.IDENTITY_REJECTED
+        assert list(db._get_conn().iterdump()) == before
+
+
+@pytest.mark.parametrize("migrated_runtime", [1, 2], indirect=True)
+def test_present_unknown_roster_squadron_does_not_use_legacy_fallback(migrated_runtime):
+    db, _, _ = migrated_runtime
+    with db.transaction() as conn:
+        key, value = conn.execute(
+            "SELECT key, value FROM meta WHERE key LIKE 'dossier_roster:%'"
+        ).fetchone()
+        payload = json.loads(value)
+        payload.update(squadron="", baseline_pending=True)
+        conn.execute("UPDATE meta SET value=? WHERE key=?", (json.dumps(payload), key))
+    before = list(db._get_conn().iterdump())
+    outcome = _submit(migrated_runtime, [_member("a")], squadron="New Squadron")
     assert outcome.reason is ProcessingReason.IDENTITY_REJECTED
     assert list(db._get_conn().iterdump()) == before

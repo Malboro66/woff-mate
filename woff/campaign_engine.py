@@ -142,10 +142,15 @@ class CampaignEngine:
 
     @staticmethod
     def _is_roster_transfer(stored: DossierState, pilot: WoFFPilot) -> bool:
+        # Roster metadata wins, including an explicitly unknown squadron.
+        # Only databases without any roster metadata use the legacy pilot row.
+        previous_squadron = stored.roster_squadron
+        if not previous_squadron and not stored.roster_metadata_present:
+            previous_squadron = stored.squadron
         return bool(
-            stored.roster_squadron
+            previous_squadron
             and pilot.squadron
-            and stored.roster_squadron != pilot.squadron
+            and previous_squadron != pilot.squadron
         )
 
     def _plan_dossier_diary_effects(
