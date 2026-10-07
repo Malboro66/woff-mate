@@ -53,6 +53,11 @@ from .version import SCHEMA_VERSION, __version__
 log = logging.getLogger("WoFFWatch")
 _DOSSIER_ROSTER_META_PREFIX = "dossier_roster:"
 SQLITE_BUSY_TIMEOUT_SECONDS = 5.0
+_SQUAD_INDEX_SQL = (
+    "CREATE INDEX IF NOT EXISTS idx_squad_members_pilot "
+    "ON squad_members(pilotId COLLATE BINARY ASC)"
+)
+_WINGMAN_NAME_KEY_COLLATIONS = frozenset({"BINARY", "NOCASE", "RTRIM"})
 
 
 class UnsupportedSchemaVersion(RuntimeError):
@@ -511,10 +516,7 @@ class DatabaseManager:
                 )
             """)
 
-            cursor.execute("""
-                CREATE INDEX IF NOT EXISTS idx_squad_members_pilot
-                ON squad_members(pilotId)
-            """)
+            cursor.execute(_SQUAD_INDEX_SQL)
 
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS medals_catalog (
@@ -1670,6 +1672,15 @@ class DatabaseManager:
             )
             if len(columns) != 3 or set(columns) != {"pilotId", "fName", "sName"}:
                 continue
+            # Built-in collations all prohibit identical name tuples, even
+            # when they additionally equate case or trailing-space variants.
+            if any(
+                collation not in _WINGMAN_NAME_KEY_COLLATIONS
+                for _, _, collation in self._index_key_semantics(cursor, index_name)
+            ):
+                raise SchemaCompatibilityError(
+                    "Unsupported collation on wingman name UNIQUE key"
+                )
             sql_row = cursor.execute(
                 "SELECT sql FROM sqlite_master WHERE type='index' AND name=?",
                 (index_name,),
@@ -1780,9 +1791,7 @@ class DatabaseManager:
 
         if not self._has_canonical_squad_index(cursor):
             cursor.execute("DROP INDEX IF EXISTS idx_squad_members_pilot")
-            cursor.execute(
-                "CREATE INDEX idx_squad_members_pilot ON squad_members(pilotId)"
-            )
+            cursor.execute(_SQUAD_INDEX_SQL)
 
     def _is_wingman_name_unique_definition(self, definition: str) -> bool:
         index = self._skip_space(definition, 0)
@@ -1807,6 +1816,12 @@ class DatabaseManager:
         columns = []
         for term in terms:
             column, end = self._read_identifier(term, 0)
+            end = self._skip_space(term, end)
+            collate = re.match(r"COLLATE\b", term[end:], re.I)
+            if collate is not None:
+                collation, end = self._read_identifier(term, end + collate.end())
+                if collation.upper() not in _WINGMAN_NAME_KEY_COLLATIONS:
+                    return False
             if not re.fullmatch(r"(?:ASC|DESC)?", term[end:].strip(), re.I):
                 # Preserve unsupported terms for fail-closed certification.
                 return False

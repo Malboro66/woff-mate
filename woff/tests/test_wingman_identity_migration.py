@@ -149,6 +149,12 @@ def _unique_columns(conn: sqlite3.Connection, table: str) -> set[tuple[str, ...]
         "fName, sName, pilotId",
         "sName, pilotId, fName",
         '"sName" DESC, [pilotId] ASC, `fName`',
+        "pilotId COLLATE BINARY, fName, sName",
+        "fName, sName, pilotId COLLATE BINARY",
+        "pilotId COLLATE BINARY ASC, fName, sName",
+        '"fName", [sName], `pilotId` COLLATE "BINARY" DESC',
+        "pilotId COLLATE NOCASE, fName, sName",
+        "pilotId, fName COLLATE RTRIM DESC, sName",
     ],
 )
 def test_wingman_identity_migration_preserves_ids_relationships_and_reopens(
@@ -230,14 +236,22 @@ def test_wingman_identity_migration_preserves_ids_relationships_and_reopens(
     )
 
 
+@pytest.mark.parametrize(
+    "unique_key",
+    [
+        "pilotId, fName, sName",
+        "pilotId COLLATE BINARY DESC, fName, sName",
+    ],
+)
 @pytest.mark.parametrize("constraint_name", ["", '"legacy-key"'])
 def test_wingman_identity_migration_failure_restores_original_database(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
     constraint_name: str,
+    unique_key: str,
 ) -> None:
     path = tmp_path / "wingman-rollback.sqlite"
-    _legacy_database(path, constraint_name=constraint_name)
+    _legacy_database(path, unique_key, constraint_name=constraint_name)
 
     before_conn = sqlite3.connect(path)
     try:
@@ -276,12 +290,21 @@ def test_wingman_identity_migration_failure_restores_original_database(
     assert backups
 
 
+@pytest.mark.parametrize(
+    "unique_key",
+    [
+        "pilotId, fName, sName",
+        "pilotId COLLATE BINARY, fName, sName",
+    ],
+)
 @pytest.mark.parametrize("malformed_index", [False, True])
 def test_wingman_migration_preserves_extensions_and_verified_backup(
-    tmp_path: Path, malformed_index: bool,
+    tmp_path: Path,
+    malformed_index: bool,
+    unique_key: str,
 ) -> None:
     path = tmp_path / "wingman-extensions.sqlite"
-    _legacy_database(path)
+    _legacy_database(path, unique_key)
     with sqlite3.connect(path) as conn:
         if malformed_index:
             conn.execute("CREATE UNIQUE INDEX idx_squad_members_pilot ON squad_members(rank)")
@@ -509,7 +532,11 @@ def test_quoted_legacy_key_removal_preserves_unrelated_constraints(
         ),
     )
     path = tmp_path / "constraints.sqlite"
-    _legacy_database(path, "fName, sName, pilotId", constraint_name='"legacy-key"')
+    _legacy_database(
+        path,
+        "fName, sName, pilotId COLLATE BINARY DESC",
+        constraint_name='"legacy-key"',
+    )
     db = DatabaseManager(str(path))
     conn = db._get_conn()
     assert ("pilotId", "rank") in _unique_columns(conn, "squad_members")
@@ -530,3 +557,114 @@ def test_quoted_legacy_key_removal_preserves_unrelated_constraints(
     reopened = DatabaseManager(str(path))
     assert ("pilotId", "rank") in _unique_columns(reopened._get_conn(), "squad_members")
     reopened.close()
+
+
+@pytest.mark.parametrize("index_present", [False, True])
+@pytest.mark.parametrize("fail_after_repair", [False, True])
+def test_canonical_index_over_historical_nocase_column(
+    tmp_path, monkeypatch, index_present, fail_after_repair
+):
+    from . import test_wingman_identity_migration as fixtures
+
+    monkeypatch.setattr(
+        fixtures,
+        "_LEGACY_SQUAD_MEMBERS_DDL",
+        _LEGACY_SQUAD_MEMBERS_DDL.replace(
+            "pilotId TEXT,", "pilotId TEXT COLLATE NOCASE,"
+        ),
+    )
+    path = tmp_path / "column-collation.sqlite"
+    _legacy_database(path)
+    with sqlite3.connect(path) as conn:
+        if index_present:
+            conn.execute(
+                "CREATE INDEX idx_squad_members_pilot ON squad_members(pilotId)"
+            )
+        before = list(conn.iterdump())
+        relationships = [
+            conn.execute(f"SELECT * FROM {table}").fetchall()
+            for table in ("wingmen_personalities", "wingmen_memory")
+        ]
+    conn.close()
+    original = DatabaseManager._migrate_wingman_identity_schema
+
+    def fail(self, cursor):
+        original(self, cursor)
+        assert self._has_canonical_squad_index(cursor)
+        raise RuntimeError("synthetic post-index failure")
+
+    if fail_after_repair:
+        monkeypatch.setattr(DatabaseManager, "_migrate_wingman_identity_schema", fail)
+        with pytest.raises(RuntimeError, match="synthetic post-index failure"):
+            DatabaseManager(str(path))
+        with sqlite3.connect(path) as conn:
+            assert list(conn.iterdump()) == before
+            assert conn.execute("PRAGMA integrity_check").fetchone() == ("ok",)
+            assert conn.execute("PRAGMA foreign_key_check").fetchall() == []
+    else:
+        db = DatabaseManager(str(path))
+        conn = db._get_conn()
+        assert (
+            "pilotId TEXT COLLATE NOCASE"
+            in conn.execute(
+                "SELECT sql FROM sqlite_master WHERE name='squad_members'"
+            ).fetchone()[0]
+        )
+        assert [
+            (row[2], row[3], row[4].upper())
+            for row in conn.execute("PRAGMA index_xinfo(idx_squad_members_pilot)")
+            if row[5]
+        ] == [("pilotId", 0, "BINARY")]
+        assert len(db.get_wingmen_by_pilot("pilot-96")) == 1
+        assert conn.execute(
+            "SELECT id FROM squad_members WHERE pilotId='PILOT-96'"
+        ).fetchall() == [("wingman-a",)]
+        assert [
+            conn.execute(f"SELECT * FROM {table}").fetchall()
+            for table in ("wingmen_personalities", "wingmen_memory")
+        ] == relationships
+        assert conn.execute("PRAGMA integrity_check").fetchone() == ("ok",)
+        assert conn.execute("PRAGMA foreign_key_check").fetchall() == []
+        db.close()
+    backups = list((tmp_path / ".woff-migration-backups").glob("*.backup.sqlite"))
+    assert len(backups) == 1
+    with sqlite3.connect(backups[0]) as conn:
+        assert list(conn.iterdump()) == before
+    if not fail_after_repair:
+        for _ in range(2):
+            db = DatabaseManager(str(path))
+            assert db._has_canonical_squad_index(db._get_conn().cursor())
+            db.close()
+        assert (
+            list((tmp_path / ".woff-migration-backups").glob("*.backup.sqlite"))
+            == backups
+        )
+
+
+def test_unknown_name_key_collation_fails_closed_without_mutation(tmp_path):
+    from ..database import SchemaCompatibilityError
+
+    path = tmp_path / "unknown-collation.sqlite"
+    db = DatabaseManager(str(path))
+    db.close()
+    with sqlite3.connect(path) as conn:
+        conn.create_collation(
+            "CUSTOM", lambda left, right: (left > right) - (left < right)
+        )
+        conn.execute(
+            "CREATE UNIQUE INDEX custom_name_key ON squad_members(pilotId COLLATE CUSTOM, fName, sName)"
+        )
+        before = list(conn.iterdump())
+    for _ in range(2):
+        with pytest.raises(
+            SchemaCompatibilityError,
+            match="Unsupported collation on wingman name UNIQUE key",
+        ):
+            DatabaseManager(str(path))
+    with sqlite3.connect(path) as conn:
+        conn.create_collation(
+            "CUSTOM", lambda left, right: (left > right) - (left < right)
+        )
+        assert list(conn.iterdump()) == before
+        assert conn.execute("PRAGMA integrity_check").fetchone() == ("ok",)
+        assert conn.execute("PRAGMA foreign_key_check").fetchall() == []

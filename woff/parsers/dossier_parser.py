@@ -56,6 +56,7 @@ class DossierValidationStatus(str, Enum):
     SUPPORTED_FULL = "supported-full"
     SUPPORTED_PARTIAL = "supported-partial"
     TRUNCATED = "truncated"
+    INVALID_ROSTER = "invalid-roster"
     UNSUPPORTED_LAYOUT = "unsupported-layout"
     DECRYPTION_FAILED = "decryption-failed"
 
@@ -81,6 +82,7 @@ class WoFFDossierParser:
         source_name: str,
         record_count: int,
     ) -> bool:
+        self._reset_parse_state()
         self.validation_status = status
         log.warning(
             "[BIN] Dossier rejected: source=%s category=%s "
@@ -384,7 +386,7 @@ class WoFFDossierParser:
             
             for s in player_data:
                 s_clean = s.strip()
-                if ";" in s_clean and len(s_clean) > 20 and any(s_clean.startswith(rank) for rank in wingmen_ranks):
+                if ";" in s_clean and any(s_clean.startswith(rank) for rank in wingmen_ranks):
                     source_parts = s_clean.split(";")
                     parts = [p.strip() for p in source_parts]
                     if len(parts) >= 6:
@@ -421,7 +423,11 @@ class WoFFDossierParser:
                                 numeric_field,
                                 exc,
                             )
-                            continue
+                            return self._reject(
+                                DossierValidationStatus.INVALID_ROSTER,
+                                fname,
+                                len(player_data),
+                            )
 
                         w = WoFFWingman()
                         present_fields = {"rank", "skill", "morale"}
@@ -477,6 +483,13 @@ class WoFFDossierParser:
                         w.present_fields = frozenset(present_fields)
                             
                         self.wingmen.append(w)
+                    else:
+                        # A recognized occurrence cannot become absence evidence.
+                        return self._reject(
+                            DossierValidationStatus.INVALID_ROSTER,
+                            fname,
+                            len(player_data),
+                        )
 
             # 4. Extrair Medalhas Recebidas (Índices 19 a 26)
             self.decorations = []

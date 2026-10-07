@@ -425,3 +425,126 @@ def test_present_unknown_roster_squadron_does_not_use_legacy_fallback(migrated_r
     outcome = _submit(migrated_runtime, [_member("a")], squadron="New Squadron")
     assert outcome.reason is ProcessingReason.IDENTITY_REJECTED
     assert list(db._get_conn().iterdump()) == before
+
+
+@pytest.mark.parametrize("invalid_index", [3, 4, 11, 12])
+@pytest.mark.parametrize("candidate_pending", [False, True])
+def test_malformed_roster_generation_cannot_confirm_disappearance(
+    dossier_runtime, caplog, invalid_index, candidate_pending
+):
+    db, _, _ = dossier_runtime
+    assert _import(dossier_runtime, [_member("a"), _member("b")])
+    original_ids = _ids(db)
+    assert len(original_ids) == 2
+    member_id = original_ids["Synthetic town a"]
+    assert db.save_wingman_personality(
+        member_id, _roster(dossier_runtime).pilot_id, {"personality_trait": "Steady"}
+    )
+    assert db.save_wingman_memory(
+        member_id, "mission", "1917-04-01", "Synthetic memory"
+    )
+    if candidate_pending:
+        assert _import(dossier_runtime, [_member("b")], generation=1)
+    before = list(db._get_conn().iterdump())
+    state = _roster(dossier_runtime)
+    malformed = _field(_member("a"), invalid_index, "bad")
+    for generation in (2, 3):
+        caplog.clear()
+        outcome = _submit(
+            dossier_runtime, [_member("b", "Wounded"), malformed], generation=generation
+        )
+        assert outcome.status is ProcessingStatus.PERMANENT_REJECTION
+        assert outcome.reason is ProcessingReason.PARSER_REJECTED
+        assert outcome.retry_input is None and outcome.acknowledged_generation is None
+        assert not any(record.exc_info for record in caplog.records)
+        assert list(db._get_conn().iterdump()) == before
+        assert _roster(dossier_runtime) == state
+        assert _ids(db) == original_ids
+        assert _stored_state(db)["diary"] == []
+    corrected = [_member("b"), _member("a")]
+    assert _submit(dossier_runtime, corrected, generation=4).acknowledged_generation
+    assert _ids(db) == original_ids
+    assert _stored_state(db)["diary"] == []
+    committed = list(db._get_conn().iterdump())
+    assert _submit(dossier_runtime, corrected, generation=4).acknowledged_generation
+    assert list(db._get_conn().iterdump()) == committed
+
+
+@pytest.mark.parametrize("row", ["Lieutenant;John;Smith", "Major;J;S"])
+def test_recognized_truncated_roster_row_rejects_generation(dossier_runtime, row):
+    db, _, _ = dossier_runtime
+    assert _import(dossier_runtime, [_member("a"), _member("b")])
+    before = list(db._get_conn().iterdump())
+    outcome = _submit(dossier_runtime, [_member("b", "Wounded"), row])
+    assert outcome.reason is ProcessingReason.PARSER_REJECTED
+    assert outcome.status is ProcessingStatus.PERMANENT_REJECTION
+    assert list(db._get_conn().iterdump()) == before
+
+
+@pytest.mark.parametrize("pending", [False, True])
+def test_malformed_transfer_roster_preserves_baseline_state(dossier_runtime, pending):
+    db, _, _ = dossier_runtime
+    assert _import(dossier_runtime, [_member("a"), _member("b")])
+    if pending:
+        assert _submit(
+            dossier_runtime, [], squadron="New Squadron"
+        ).acknowledged_generation
+        assert _roster(dossier_runtime).roster_baseline_pending
+    before = list(db._get_conn().iterdump())
+    outcome = _submit(
+        dossier_runtime,
+        [_member("b", "Wounded"), _field(_member("a"), 11, "bad")],
+        generation=2,
+        squadron="New Squadron",
+    )
+    assert outcome.reason is ProcessingReason.PARSER_REJECTED
+    assert list(db._get_conn().iterdump()) == before
+    assert _submit(
+        dossier_runtime,
+        [_member("a"), _member("b")],
+        generation=3,
+        squadron="New Squadron",
+    ).acknowledged_generation
+    assert not _roster(dossier_runtime).roster_baseline_pending
+    assert _stored_state(db)["diary"] == []
+
+
+@pytest.mark.parametrize("index", [3, 4])
+@pytest.mark.parametrize("missing", ["", "Null"])
+def test_missing_required_roster_number_rejects_generation(
+    dossier_runtime, index, missing
+):
+    db, _, _ = dossier_runtime
+    assert _import(dossier_runtime, [_member("a"), _member("b")])
+    before = list(db._get_conn().iterdump())
+    outcome = _submit(
+        dossier_runtime, [_member("b"), _field(_member("a"), index, missing)]
+    )
+    assert outcome.reason is ProcessingReason.PARSER_REJECTED
+    assert list(db._get_conn().iterdump()) == before
+
+
+@pytest.mark.parametrize("index,column", [(11, "missions"), (12, "flminutes")])
+@pytest.mark.parametrize("missing", ["", "Null"])
+def test_missing_optional_roster_number_preserves_stored_value(
+    dossier_runtime, index, column, missing
+):
+    db, _, _ = dossier_runtime
+    rich = _field(_member("a"), index, "42")
+    assert _import(dossier_runtime, [rich, _member("b")])
+    original_ids = _ids(db)
+    outcome = _submit(dossier_runtime, [_field(rich, index, missing), _member("b")])
+    assert outcome.acknowledged_generation
+    assert _ids(db) == original_ids
+    assert db._get_conn().execute(
+        f"SELECT {column} FROM squad_members WHERE id=?",
+        (original_ids["Synthetic town a"],),
+    ).fetchone() == (42,)
+    assert _stored_state(db)["diary"] == []
+    assert _submit(
+        dossier_runtime, [_field(rich, index, "0"), _member("b")], generation=2
+    ).acknowledged_generation
+    assert db._get_conn().execute(
+        f"SELECT {column} FROM squad_members WHERE id=?",
+        (original_ids["Synthetic town a"],),
+    ).fetchone() == (0,)

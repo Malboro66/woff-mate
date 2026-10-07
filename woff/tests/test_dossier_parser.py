@@ -680,10 +680,11 @@ class TestWoFFDossierParser(unittest.TestCase):
         self.assertEqual(w.status, "In Service")
         self.assertIn("Reliable pilot", w.bio)
 
-    def test_wingman_invalid_numeric_fields_reject_the_record_without_zero(self):
+    def test_wingman_invalid_numeric_fields_reject_the_generation_without_zero(self):
         fields = (
             (3, "wingman.skill"),
             (4, "wingman.morale"),
+            (11, "wingman.missions"),
             (12, "wingman.flminutes"),
         )
 
@@ -697,13 +698,16 @@ class TestWoFFDossierParser(unittest.TestCase):
                     parser = WoFFDossierParser()
 
                     with self.assertLogs("WoFFWatch", level="WARNING") as captured:
-                        self.assertTrue(
+                        self.assertFalse(
                             parser.parse_bytes(
                                 _encode_dossier(lines, self.filename),
                                 self.filename,
                             )
                         )
 
+                    self.assertIsNone(parser.pilot)
+                    self.assertEqual(parser.validation_status.value, "invalid-roster")
+                    self.assertEqual(parser.decorations, [])
                     self.assertEqual(parser.wingmen, [])
                     logged = " ".join(captured.output)
                     self.assertIn(f"field={field}", logged)

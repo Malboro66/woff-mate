@@ -25,14 +25,21 @@ future-schema guard, before DDL or writes; the application release version is
 unchanged. The migration removes `UNIQUE(pilotId, fName, sName)` in any column
 order (including equivalent non-partial unique indexes). Table-level constraint
 names and key terms use the existing SQL identifier parser, including supported
-quoted/punctuated names and ASC/DESC terms; unrelated constraints remain intact.
+quoted/punctuated names, optional `COLLATE` identifiers and ASC/DESC terms;
+unrelated constraints remain intact. `BINARY`, `NOCASE` and `RTRIM` name keys
+are removed: each built-in collation still forbids two identical name tuples,
+even if it also equates case or trailing-space variants. Other collations on
+this exact key fail closed as unsupported without committing schema changes;
+they are neither silently retained nor interpreted as identity evidence.
 The migration adds nullable `birthDate`, `evidenceDate`, and `evidenceLocation` reconciliation
 evidence, and creates the non-unique, non-partial `idx_squad_members_pilot`
 index keyed exactly on ascending `pilotId` with `BINARY` collation. Shared
 `index_xinfo` key semantics exclude auxiliary rows and reject expressions,
 extra keys, noncanonical collation or descending direction. A malformed reserved
 index schedules a backed-up transactional repair even when the database already
-declares 3.5.
+declares 3.5. Initial creation and repair share explicit
+`ON squad_members(pilotId COLLATE BINARY ASC)` SQL; the historical column's own
+collation (including `TEXT COLLATE NOCASE`) is preserved.
 Layout certification checks both index semantics and removal of name uniqueness.
 It preserves every existing `squad_members.id`, column value, compatible
 index/trigger, and personality/memory foreign key. Legacy evidence remains
@@ -86,6 +93,16 @@ evidence; automatic historical repair is outside this slice.
 The compatibility `process_wingmen_changes` entry point accepts programmatic
 persistent IDs only. Parsed Dossier members must use the atomic Dossier importer
 so generation-local IDs cannot become comparison keys before reconciliation.
+
+### Invalid Dossier roster generations
+
+A recognized roster occurrence with malformed supported numeric fields or too
+few required fields rejects the entire Dossier as `invalid-roster`. FileProcessor
+returns permanent `PARSER_REJECTED` before the Dossier transaction, without a
+successful digest, core updates, diary effects or trusted/candidate roster changes.
+Repeated malformed generations cannot confirm disappearance. Optional missing
+numeric fields remain unavailable; malformed values are never fabricated as zero.
+A corrected generation resumes the normal identity-aware baseline/candidate flow.
 
 ## Schema 3.4 victory occurrence migration
 
