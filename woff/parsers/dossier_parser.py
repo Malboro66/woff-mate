@@ -192,12 +192,13 @@ class WoFFDossierParser:
         """Recognize supported positional records independently of rank validity.
 
         The caller scopes this to the variable region after the fixed pilot
-        fields. A complete layout through evidence location is recognizable
-        regardless of its values. Shorter records use the name and numeric
-        positions to distinguish them from decoration/prose records.
+        fields. The six-field base form and a complete layout through evidence
+        location are recognizable regardless of their values. Other partial
+        extended forms retain positional recognition. This is not a blanket
+        rule for arbitrary records with six or more semicolon-separated fields.
         Recognition is deliberately weaker than required-field validation.
         """
-        if len(parts) >= 26:
+        if len(parts) == 6 or len(parts) >= 26:
             return True
         if len(parts) < 6:
             return False

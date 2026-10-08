@@ -2389,11 +2389,20 @@ class DatabaseManager:
         if index >= len(text):
             raise ValueError("missing column type")
         depth = 0
+        has_parameters = False
         for kind, start, end in self._sql_tokens(text, index):
             token = text[start:end]
-            if depth == 0 and (kind in {"space", "comment"} or token in {",", ")"}):
+            if depth == 0 and kind in {"space", "comment"}:
+                # Trivia may separate CHAR/VARCHAR from (n). After the complete
+                # type it belongs to the constraint tail, which must stay intact.
+                following = self._skip_space(text, start)
+                if not has_parameters and text[following:following + 1] == "(":
+                    continue
+                return start
+            if depth == 0 and token in {",", ")"}:
                 return start
             if kind == "symbol":
+                has_parameters = has_parameters or token == "("
                 depth += (token == "(") - (token == ")")
         return len(text)
 

@@ -41,6 +41,12 @@ share these quote/comment rules across wingman, pilot, victory and numeric rebui
 text inside identifiers or values stays unchanged. Unremoved definitions and table
 prefix/suffix comments are preserved. Comments belonging to a removed UNIQUE may
 be removed with it; comments inside a replaced numeric type move before INTEGER.
+For the already-supported CHAR(n)/VARCHAR(n) types, whitespace and comments
+between the type name and `(n)` belong to the type, including line comments.
+Trivia after the complete type stays with the column-constraint tail. Thus
+`VARCHAR /* note */ (12) NOT NULL` becomes `/* note */` followed by
+`INTEGER NOT NULL`, while `TEXT /* note */ NOT NULL` keeps its trailing comment
+in place. This does not add new accepted type families or absorb constraints.
 
 Reserved squad-index ownership is checked under the migration lock before backup
 or DDL and again by certification. An existing same-name object on another table,
@@ -120,9 +126,14 @@ so generation-local IDs cannot become comparison keys before reconciliation.
 
 Roster recognition is separate from rank validation. In the variable region
 after the fixed pilot fields, a complete layout through evidence location identifies
-a roster occurrence independently of field validity. Shorter records use the
-name/skill/morale positions or auxiliary numeric field pattern. Neither path
-depends on the rank allowlist.
+a roster occurrence independently of field validity. The supported short base
+form has exactly six semicolon-separated positional fields in this same region:
+rank, first name, surname, skill, morale, status. Its arity recognizes it before
+any value is validated, even when all six fields are malformed or empty. Fixed
+decoration slots are outside this region; unrelated variable prose records do
+not acquire roster semantics merely by containing semicolons. This is not a
+generic `len(parts) >= 6` rule. Other partial extended forms retain their existing
+positional recognition; this correction adds no new Dossier format inference.
 Unrelated semicolon records (such as decorations) are not roster members.
 Unknown/empty ranks, invalid required names, malformed supported numeric fields
 or a recognized truncated record reject the entire Dossier as `invalid-roster`. FileProcessor
