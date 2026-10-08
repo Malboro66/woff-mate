@@ -29,6 +29,7 @@ from typing import (
     Any,
     Dict,
     List,
+    Iterator,
     Literal,
     NoReturn,
     Optional,
@@ -894,6 +895,8 @@ class DatabaseManager:
                         "Cannot run schema migration because another process is writing to the database"
                     ) from exc
 
+                self._assert_squad_index_ownership(cursor)
+
                 def table_columns(table: str) -> set[str]:
                     cursor.execute(f"PRAGMA table_info({table})")
                     return {row[1] for row in cursor.fetchall()}
@@ -1618,10 +1621,9 @@ class DatabaseManager:
     ) -> str:
         """Remove only the legacy composite victory UNIQUE constraint."""
 
-        self._reject_unsupported_sql_comments(sql)
         prefix_end = self._create_table_name_end(sql)
-        open_paren = sql.find("(", prefix_end)
-        if open_paren == -1:
+        open_paren = self._skip_space(sql, prefix_end)
+        if open_paren >= len(sql) or sql[open_paren] != "(":
             raise ValueError(
                 "Unsupported CREATE TABLE format for victories: missing column list"
             )
@@ -1632,15 +1634,7 @@ class DatabaseManager:
         rewritten: List[str] = []
         removed = False
         for definition in definitions:
-            normalized = re.sub(
-                r'[\s"`\[\]]+', "", definition
-            ).upper()
-            if re.fullmatch(
-                r"(?:CONSTRAINT[A-Z_][A-Z0-9_]*)?"
-                r"UNIQUE\(PILOTID,DATE,TIME,ENEMYTYPE\)"
-                r"(?:ONCONFLICT(?:ROLLBACK|ABORT|FAIL|IGNORE|REPLACE))?",
-                normalized,
-            ):
+            if self._unique_definition_columns(definition) == ("PILOTID", "DATE", "TIME", "ENEMYTYPE"):
                 removed = True
                 continue
             rewritten.append(definition)
@@ -1648,7 +1642,7 @@ class DatabaseManager:
             rewritten = definitions
         suffix = sql[close_paren + 1 :]
         return (
-            f"CREATE TABLE {self._quote_identifier(new_table)} ("
+            self._renamed_table_prefix(sql, new_table, open_paren)
             + ",".join(rewritten)
             + ")"
             + suffix
@@ -1690,7 +1684,17 @@ class DatabaseManager:
             )
         return indexes
 
+    @staticmethod
+    def _assert_squad_index_ownership(cursor: sqlite3.Cursor) -> None:
+        objects = cursor.execute(
+            "SELECT type, tbl_name FROM sqlite_master "
+            "WHERE name = 'idx_squad_members_pilot' COLLATE NOCASE"
+        ).fetchall()
+        if any(kind != "index" or table.casefold() != "squad_members" for kind, table in objects):
+            raise SchemaCompatibilityError("Reserved squad index name collision")
+
     def _has_canonical_squad_index(self, cursor: sqlite3.Cursor) -> bool:
+        self._assert_squad_index_ownership(cursor)
         index = next(
             (
                 row for row in cursor.execute("PRAGMA index_list(squad_members)")
@@ -1794,6 +1798,11 @@ class DatabaseManager:
             cursor.execute(_SQUAD_INDEX_SQL)
 
     def _is_wingman_name_unique_definition(self, definition: str) -> bool:
+        columns = self._unique_definition_columns(definition)
+        return columns is not None and len(columns) == 3 and set(columns) == {"PILOTID", "FNAME", "SNAME"}
+
+    def _unique_definition_columns(self, definition: str) -> Optional[Tuple[str, ...]]:
+        definition = self._mask_sql_comments(definition)
         index = self._skip_space(definition, 0)
         constraint = re.match(r"CONSTRAINT\b", definition[index:], re.I)
         if constraint is not None:
@@ -1801,7 +1810,7 @@ class DatabaseManager:
             index = self._skip_space(definition, index)
         unique = re.match(r"UNIQUE\s*\(", definition[index:], re.I)
         if unique is None:
-            return False
+            return None
         open_paren = index + unique.end() - 1
         close_paren = self._matching_paren(definition, open_paren)
         if not re.fullmatch(
@@ -1809,10 +1818,8 @@ class DatabaseManager:
             definition[close_paren + 1 :],
             re.I,
         ):
-            return False
+            return None
         terms = self._split_top_level_csv(definition[open_paren + 1 : close_paren])
-        if len(terms) != 3:
-            return False
         columns = []
         for term in terms:
             column, end = self._read_identifier(term, 0)
@@ -1821,18 +1828,17 @@ class DatabaseManager:
             if collate is not None:
                 collation, end = self._read_identifier(term, end + collate.end())
                 if collation.upper() not in _WINGMAN_NAME_KEY_COLLATIONS:
-                    return False
+                    return None
             if not re.fullmatch(r"(?:ASC|DESC)?", term[end:].strip(), re.I):
                 # Preserve unsupported terms for fail-closed certification.
-                return False
+                return None
             columns.append(column.upper())
-        return set(columns) == {"PILOTID", "FNAME", "SNAME"}
+        return tuple(columns)
 
     def _rewrite_wingman_identity_table_sql(self, sql: str, new_table: str) -> str:
-        self._reject_unsupported_sql_comments(sql)
         prefix_end = self._create_table_name_end(sql)
-        open_paren = sql.find("(", prefix_end)
-        if open_paren == -1:
+        open_paren = self._skip_space(sql, prefix_end)
+        if open_paren >= len(sql) or sql[open_paren] != "(":
             raise ValueError(
                 "Unsupported CREATE TABLE format for squad_members: missing column list"
             )
@@ -1845,7 +1851,7 @@ class DatabaseManager:
         ]
         suffix = sql[close_paren + 1 :]
         return (
-            f"CREATE TABLE {self._quote_identifier(new_table)} ("
+            self._renamed_table_prefix(sql, new_table, open_paren)
             + ",".join(rewritten)
             + ")"
             + suffix
@@ -2079,15 +2085,39 @@ class DatabaseManager:
             "  [Migração] Unicidade de nome removida; IDs de carreira preservados."
         )
 
+    def _remove_inline_unique(self, definition: str) -> str:
+        code = self._mask_sql_comments(definition)
+        depth = 0
+        previous: List[Tuple[str, int, int]] = []
+        for kind, start, end in self._sql_tokens(definition):
+            if kind in {"space", "comment"}:
+                continue
+            token = definition[start:end]
+            if kind == "symbol":
+                depth += (token == "(") - (token == ")")
+            if depth == 0 and kind == "word" and token.upper() == "UNIQUE":
+                begin = start
+                if len(previous) >= 2 and previous[-2][0].upper() == "CONSTRAINT":
+                    begin = previous[-2][1]
+                conflict = re.match(
+                    r"\s+ON\s+CONFLICT\s+(?:ROLLBACK|ABORT|FAIL|IGNORE|REPLACE)\b",
+                    code[end:], re.I,
+                )
+                if conflict is not None:
+                    end += conflict.end()
+                return definition[:begin] + definition[end:]
+            if depth == 0:
+                previous.append((token, start, end))
+        return definition
+
     def _rewrite_pilot_identity_table_sql(
         self, sql: str, table: str, new_table: str
     ) -> str:
         """Rewrite only the pilots display-name UNIQUE constraint."""
 
-        self._reject_unsupported_sql_comments(sql)
         prefix_end = self._create_table_name_end(sql)
-        open_paren = sql.find("(", prefix_end)
-        if open_paren == -1:
+        open_paren = self._skip_space(sql, prefix_end)
+        if open_paren >= len(sql) or sql[open_paren] != "(":
             raise ValueError(
                 f"Unsupported CREATE TABLE format for {table}: missing column list"
             )
@@ -2098,23 +2128,11 @@ class DatabaseManager:
         for definition in definitions:
             column_name = self._definition_column_name(definition)
             if column_name == "name":
-                value, count = re.subn(
-                    r"\s+UNIQUE(?:\s+ON\s+CONFLICT\s+"
-                    r"(?:ROLLBACK|ABORT|FAIL|IGNORE|REPLACE))?",
-                    "",
-                    definition,
-                    count=1,
-                    flags=re.IGNORECASE,
-                )
+                value = self._remove_inline_unique(definition)
                 rewritten.append(value)
-                removed = removed or count == 1
+                removed = removed or value != definition
                 continue
-            normalized = re.sub(r'[\s"`\[\]]+', "", definition).upper()
-            if re.fullmatch(
-                r"(?:CONSTRAINT[A-Z_][A-Z0-9_]*)?UNIQUE\(NAME\)"
-                r"(?:ONCONFLICT(?:ROLLBACK|ABORT|FAIL|IGNORE|REPLACE))?",
-                normalized,
-            ):
+            if self._unique_definition_columns(definition) == ("NAME",):
                 removed = True
                 continue
             rewritten.append(definition)
@@ -2124,7 +2142,7 @@ class DatabaseManager:
             rewritten = definitions
         suffix = sql[close_paren + 1 :]
         return (
-            f"CREATE TABLE {self._quote_identifier(new_table)} ("
+            self._renamed_table_prefix(sql, new_table, open_paren)
             + ",".join(rewritten)
             + ")"
             + suffix
@@ -2199,10 +2217,9 @@ class DatabaseManager:
     def _rewrite_create_table_sql(
         self, sql: str, table: str, new_table: str, numeric_columns: List[str]
     ) -> str:
-        self._reject_unsupported_sql_comments(sql)
         prefix_end = self._create_table_name_end(sql)
-        open_paren = sql.find("(", prefix_end)
-        if open_paren == -1:
+        open_paren = self._skip_space(sql, prefix_end)
+        if open_paren >= len(sql) or sql[open_paren] != "(":
             raise ValueError(f"Unsupported CREATE TABLE format for {table}: missing column list")
         close_paren = self._matching_paren(sql, open_paren)
         definitions = self._split_top_level_csv(sql[open_paren + 1:close_paren])
@@ -2220,89 +2237,113 @@ class DatabaseManager:
         if missing:
             raise ValueError(f"Unsupported CREATE TABLE format for {table}: missing columns {sorted(missing)}")
         suffix = sql[close_paren + 1:]
-        return f"CREATE TABLE {self._quote_identifier(new_table)} (" + ",".join(rewritten_defs) + ")" + suffix
+        return self._renamed_table_prefix(sql, new_table, open_paren) + ",".join(rewritten_defs) + ")" + suffix
 
     @staticmethod
-    def _reject_unsupported_sql_comments(sql: str) -> None:
-        if "--" in sql or "/*" in sql or "*/" in sql:
-            raise ValueError("Unsupported CREATE TABLE format: SQL comments are not supported")
+    def _sql_tokens(text: str, start: int = 0) -> Iterator[Tuple[str, int, int]]:
+        """Yield lossless SQLite token spans; brackets do not escape closing ]."""
+        index = start
+        while index < len(text):
+            begin = index
+            char = text[index]
+            if char.isspace():
+                while index < len(text) and text[index].isspace():
+                    index += 1
+                kind = "space"
+            elif text.startswith("--", index):
+                end = text.find("\n", index + 2)
+                index = len(text) if end == -1 else end
+                kind = "comment"
+            elif text.startswith("/*", index):
+                end = text.find("*/", index + 2)
+                if end == -1:
+                    raise ValueError("unterminated SQL comment")
+                index = end + 2
+                kind = "comment"
+            elif char in {"'", '"', "`", "["}:
+                closing = "]" if char == "[" else char
+                index += 1
+                while index < len(text):
+                    if text[index] == closing:
+                        index += 1
+                        if char != "[" and index < len(text) and text[index] == closing:
+                            index += 1
+                            continue
+                        break
+                    index += 1
+                else:
+                    raise ValueError("unterminated quoted SQL token")
+                kind = "quoted"
+            else:
+                word = re.match(r"[A-Za-z_][A-Za-z0-9_]*", text[index:])
+                index += len(word.group(0)) if word else 1
+                kind = "word" if word else "symbol"
+            yield kind, begin, index
 
-    def _create_table_name_end(self, sql: str) -> int:
+    @classmethod
+    def _mask_sql_comments(cls, text: str) -> str:
+        # Same offsets as the original, so edits preserve unrelated comments.
+        return "".join(
+            "".join("\n" if char == "\n" else " " for char in text[start:end])
+            if kind == "comment" else text[start:end]
+            for kind, start, end in cls._sql_tokens(text)
+        )
+
+    def _create_table_name_span(self, sql: str) -> Tuple[int, int]:
         match = re.match(
             r"\s*CREATE\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?",
-            sql,
-            flags=re.IGNORECASE,
+            self._mask_sql_comments(sql), flags=re.IGNORECASE,
         )
         if match is None:
             raise ValueError("Unsupported CREATE TABLE format")
-        index = match.end()
-        _, index = self._read_identifier(sql, index)
-        return index
+        start = self._skip_space(sql, match.end())
+        _, end = self._read_identifier(sql, start)
+        return start, end
+
+    def _create_table_name_end(self, sql: str) -> int:
+        return self._create_table_name_span(sql)[1]
+
+    def _renamed_table_prefix(self, sql: str, new_table: str, open_paren: int) -> str:
+        start, end = self._create_table_name_span(sql)
+        return sql[:start] + self._quote_identifier(new_table) + sql[end:open_paren + 1]
 
     def _matching_paren(self, sql: str, open_paren: int) -> int:
         depth = 0
-        quote: Optional[str] = None
-        index = open_paren
-        while index < len(sql):
-            char = sql[index]
-            if quote:
-                if char == quote:
-                    if index + 1 < len(sql) and sql[index + 1] == quote and quote in {"'", '"'}:
-                        index += 2
-                        continue
-                    quote = None
-            elif char in {"'", '"', '`'}:
-                quote = char
-            elif char == "[":
-                quote = "]"
-            elif char == "(":
+        for kind, start, end in self._sql_tokens(sql, open_paren):
+            if kind != "symbol":
+                continue
+            if sql[start:end] == "(":
                 depth += 1
-            elif char == ")":
+            elif sql[start:end] == ")":
                 depth -= 1
                 if depth == 0:
-                    return index
-            index += 1
+                    return start
         raise ValueError("Unsupported CREATE TABLE format: unbalanced parentheses")
 
     def _split_top_level_csv(self, text: str) -> List[str]:
         parts: List[str] = []
-        start = 0
-        depth = 0
-        quote: Optional[str] = None
-        index = 0
-        while index < len(text):
-            char = text[index]
-            if quote:
-                if char == quote:
-                    if index + 1 < len(text) and text[index + 1] == quote and quote in {"'", '"'}:
-                        index += 2
-                        continue
-                    quote = None
-            elif char in {"'", '"', '`'}:
-                quote = char
-            elif char == "[":
-                quote = "]"
-            elif char == "(":
+        start = depth = 0
+        for kind, begin, end in self._sql_tokens(text):
+            if kind != "symbol":
+                continue
+            char = text[begin:end]
+            if char == "(":
                 depth += 1
             elif char == ")":
                 depth -= 1
             elif char == "," and depth == 0:
-                parts.append(text[start:index])
-                start = index + 1
-            index += 1
+                parts.append(text[start:begin])
+                start = end
         parts.append(text[start:])
         return parts
 
     def _definition_column_name(self, definition: str) -> Optional[str]:
-        stripped = definition.lstrip()
-        keyword = stripped.split(None, 1)[0].upper() if stripped.split(None, 1) else ""
-        if keyword in {"CONSTRAINT", "PRIMARY", "FOREIGN", "UNIQUE", "CHECK", "EXCLUDE"}:
+        start = self._skip_space(definition, 0)
+        if re.match(r"(?:CONSTRAINT|PRIMARY|FOREIGN|UNIQUE|CHECK|EXCLUDE)\b", definition[start:], re.I):
             return None
         try:
-            name, _ = self._read_identifier(stripped, 0)
-        except ValueError as exc:
-            if "escaped delimiters" in str(exc):
-                raise
+            name, _ = self._read_identifier(definition, start)
+        except ValueError:
             return None
         return name
 
@@ -2312,58 +2353,49 @@ class DatabaseManager:
         type_start = self._skip_space(definition, after_name)
         type_end = self._read_type_end(definition, type_start)
         column_type = definition[type_start:type_end]
-        if not self._is_supported_text_type(column_type):
+        if not self._is_supported_text_type(self._mask_sql_comments(column_type)):
             raise ValueError(
                 f"Unsupported numeric column type for {column_name}: {column_type!r}"
             )
-        return definition[:type_start] + "INTEGER" + definition[type_end:]
+        comments = "".join(
+            column_type[start:end] + "\n"
+            for kind, start, end in self._sql_tokens(column_type) if kind == "comment"
+        )
+        return definition[:type_start] + comments + "INTEGER" + definition[type_end:]
 
     def _read_identifier(self, text: str, index: int) -> Tuple[str, int]:
         index = self._skip_space(text, index)
-        if index >= len(text):
+        token = next(self._sql_tokens(text, index), None)
+        if token is None:
             raise ValueError("missing identifier")
-        quote = text[index]
-        closing = {"\"": "\"", "'": "'", "`": "`", "[": "]"}.get(quote)
-        if closing:
-            current = index + 1
-            chars: List[str] = []
-            while current < len(text):
-                if text[current] == closing:
-                    if current + 1 < len(text) and text[current + 1] == closing:
-                        raise ValueError("Unsupported identifier: escaped delimiters are not supported")
-                    return "".join(chars), current + 1
-                chars.append(text[current])
-                current += 1
-            raise ValueError("unterminated quoted identifier")
-        match = re.match(r"[A-Za-z_][A-Za-z0-9_]*", text[index:])
-        if match is None:
-            raise ValueError("unsupported identifier")
-        return match.group(0), index + len(match.group(0))
+        kind, start, end = token
+        if kind == "quoted":
+            quote = text[start]
+            value = text[start + 1:end - 1]
+            return (value if quote == "[" else value.replace(quote * 2, quote)), end
+        if kind == "word":
+            return text[start:end], end
+        raise ValueError("unsupported identifier")
 
-    @staticmethod
-    def _skip_space(text: str, index: int) -> int:
-        while index < len(text) and text[index].isspace():
-            index += 1
-        return index
+    @classmethod
+    def _skip_space(cls, text: str, index: int) -> int:
+        for kind, start, _ in cls._sql_tokens(text, index):
+            if kind not in {"space", "comment"}:
+                return start
+        return len(text)
 
     def _read_type_end(self, text: str, index: int) -> int:
         index = self._skip_space(text, index)
         if index >= len(text):
             raise ValueError("missing column type")
         depth = 0
-        end = index
-        while end < len(text):
-            char = text[end]
-            if char == "(":
-                depth += 1
-            elif char == ")":
-                if depth == 0:
-                    break
-                depth -= 1
-            elif depth == 0 and (char.isspace() or char == ","):
-                break
-            end += 1
-        return end
+        for kind, start, end in self._sql_tokens(text, index):
+            token = text[start:end]
+            if depth == 0 and (kind in {"space", "comment"} or token in {",", ")"}):
+                return start
+            if kind == "symbol":
+                depth += (token == "(") - (token == ")")
+        return len(text)
 
     @staticmethod
     def _is_supported_text_type(column_type: str) -> bool:
@@ -2406,7 +2438,7 @@ class DatabaseManager:
 
     def _column_definition_tail(self, sql: str, column: str) -> str:
         prefix_end = self._create_table_name_end(sql)
-        open_paren = sql.find("(", prefix_end)
+        open_paren = self._skip_space(sql, prefix_end)
         close_paren = self._matching_paren(sql, open_paren)
         definitions = self._split_top_level_csv(sql[open_paren + 1:close_paren])
         for definition in definitions:
@@ -2571,7 +2603,7 @@ class DatabaseManager:
             raise ValueError("invalid roster members")
         members = []
         seen: set[str] = set()
-        owned = {row["id"] for row in self.get_wingmen_by_pilot(pilot_id)}
+        owned = {row["id"] for row in self.get_wingmen_with_identity_by_pilot(pilot_id)}
         for item in payload:
             if not (
                 isinstance(item, list)
@@ -2628,7 +2660,7 @@ class DatabaseManager:
                         str(row["status"] or ""),
                         wingman_id=str(row["id"]),
                     )
-                    for row in self.get_wingmen_by_pilot(pilot_id)
+                    for row in self.get_wingmen_with_identity_by_pilot(pilot_id)
                 )
             else:
                 try:
@@ -2728,7 +2760,7 @@ class DatabaseManager:
                 raise RuntimeError(
                     "Resolved roster requires a caller-owned transaction"
                 )
-            stored = {row["id"]: row for row in self.get_wingmen_by_pilot(pilot_id)}
+            stored = {row["id"]: row for row in self.get_wingmen_with_identity_by_pilot(pilot_id)}
             members = []
             seen: set[str] = set()
             for wingman in wingmen:
@@ -2987,6 +3019,9 @@ class DatabaseManager:
 
     def get_wingmen_by_pilot(self, pilot_id: str) -> List[dict]:
         return self._wingmen.get_wingmen_by_pilot(pilot_id)
+
+    def get_wingmen_with_identity_by_pilot(self, pilot_id: str) -> List[dict]:
+        return self._wingmen.get_wingmen_with_identity_by_pilot(pilot_id)
 
     def get_mission_and_history(
         self, pilot_identifier: str, mission_id: str

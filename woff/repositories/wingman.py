@@ -232,7 +232,14 @@ class WingmanRepository(BaseRepository):
         return changed
 
     def get_wingmen_by_pilot(self, pilot_id: str) -> List[Dict[str, Any]]:
-        """Busca os wingmen atuais de um piloto."""
+        """Legacy public projection: names and status, without identity keys."""
+        return [
+            {key: row[key] for key in ("fName", "sName", "status")}
+            for row in self.get_wingmen_with_identity_by_pilot(pilot_id)
+        ]
+
+    def get_wingmen_with_identity_by_pilot(self, pilot_id: str) -> List[Dict[str, Any]]:
+        """Minimal rich projection for persistent roster/event identity."""
         with self._lock:
             conn = self._conn
             conn.row_factory = sqlite3.Row

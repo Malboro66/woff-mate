@@ -31,6 +31,23 @@ are removed: each built-in collation still forbids two identical name tuples,
 even if it also equates case or trailing-space variants. Other collations on
 this exact key fail closed as unsupported without committing schema changes;
 they are neither silently retained nor interpreted as identity evidence.
+The shared SQL lexer handles double-quoted/backtick/single-quoted delimiters
+escaped by doubling them. Square brackets close at the first `]`, matching
+SQLite (no doubled-bracket escape). Single-quoted identifiers remain supported
+in identifier positions for compatibility with SQLite's historical syntax.
+Parenthesis matching, CSV splitting, identifier reading and UNIQUE classification
+share these quote/comment rules across wingman, pilot, victory and numeric rebuilds.
+`/* ... */` and `-- ...` comments are trivia outside quotes; literal/comment-looking
+text inside identifiers or values stays unchanged. Unremoved definitions and table
+prefix/suffix comments are preserved. Comments belonging to a removed UNIQUE may
+be removed with it; comments inside a replaced numeric type move before INTEGER.
+
+Reserved squad-index ownership is checked under the migration lock before backup
+or DDL and again by certification. An existing same-name object on another table,
+or a non-index object, raises `SchemaCompatibilityError` without mutation or a
+new backup. Repeated opening preserves the original object and schema version.
+Only a malformed index owned by `squad_members` can be replaced transactionally.
+
 The migration adds nullable `birthDate`, `evidenceDate`, and `evidenceLocation` reconciliation
 evidence, and creates the non-unique, non-partial `idx_squad_members_pilot`
 index keyed exactly on ascending `pilotId` with `BINARY` collation. Shared
@@ -90,14 +107,25 @@ version-2 IDs (including duplicates or another pilot's IDs) reject the import.
 Resolving a blocked trusted legacy baseline requires independent identity
 evidence; automatic historical repair is outside this slice.
 
+The public `get_wingmen_by_pilot()` contract stays exactly `{fName, sName, status}`.
+The separate `get_wingmen_with_identity_by_pilot()` projection adds only `id` and
+serves roster ownership checks, legacy state loading, resolved-roster loading and
+the identity-aware event compatibility entry point. Both use one repository query.
+
 The compatibility `process_wingmen_changes` entry point accepts programmatic
 persistent IDs only. Parsed Dossier members must use the atomic Dossier importer
 so generation-local IDs cannot become comparison keys before reconciliation.
 
 ### Invalid Dossier roster generations
 
-A recognized roster occurrence with malformed supported numeric fields or too
-few required fields rejects the entire Dossier as `invalid-roster`. FileProcessor
+Roster recognition is separate from rank validation. In the variable region
+after the fixed pilot fields, a complete layout through evidence location identifies
+a roster occurrence independently of field validity. Shorter records use the
+name/skill/morale positions or auxiliary numeric field pattern. Neither path
+depends on the rank allowlist.
+Unrelated semicolon records (such as decorations) are not roster members.
+Unknown/empty ranks, invalid required names, malformed supported numeric fields
+or a recognized truncated record reject the entire Dossier as `invalid-roster`. FileProcessor
 returns permanent `PARSER_REJECTED` before the Dossier transaction, without a
 successful digest, core updates, diary effects or trusted/candidate roster changes.
 Repeated malformed generations cannot confirm disappearance. Optional missing

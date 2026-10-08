@@ -187,6 +187,36 @@ class WoFFDossierParser:
             for value in (player_data[4], player_data[5])
         )
 
+    @staticmethod
+    def _has_roster_shape(parts: List[str]) -> bool:
+        """Recognize supported positional records independently of rank validity.
+
+        The caller scopes this to the variable region after the fixed pilot
+        fields. A complete layout through evidence location is recognizable
+        regardless of its values. Shorter records use the name and numeric
+        positions to distinguish them from decoration/prose records.
+        Recognition is deliberately weaker than required-field validation.
+        """
+        if len(parts) >= 26:
+            return True
+        if len(parts) < 6:
+            return False
+
+        def numeric_slot(value: str) -> bool:
+            return (
+                not value
+                or value.casefold() in _DOSSIER_MISSING_TOKENS
+                or (value.isascii() and value.lstrip("+-").isdigit())
+            )
+
+        named_record = all(any(c.isalpha() for c in part) for part in parts[1:3])
+        return (
+            named_record and all(numeric_slot(part) for part in parts[3:5])
+        ) or (
+            len(parts) >= 13
+            and sum(numeric_slot(part) for part in parts[6:11]) >= 3
+        )
+
     def _partial_key_is_ambiguous(
         self,
         raw_lines: List[bytes],
@@ -384,11 +414,27 @@ class WoFFDossierParser:
                 "Vizefeldwebel", "Feldwebel", "Unteroffizier", "Gefreiter"
             ]
             
-            for s in player_data:
-                s_clean = s.strip()
-                if ";" in s_clean and any(s_clean.startswith(rank) for rank in wingmen_ranks):
-                    source_parts = s_clean.split(";")
-                    parts = [p.strip() for p in source_parts]
+            for record_index, s in enumerate(player_data):
+                if record_index <= _DOSSIER_CURRENT_FIXED_LAST_INDEX or ";" not in s:
+                    continue
+                source_parts = s.strip().split(";")
+                parts = [p.strip() for p in source_parts]
+                known_rank = parts[0] in wingmen_ranks
+                # Keep rejecting recognized truncated records as well.
+                if self._has_roster_shape(parts) or (known_rank and len(parts) >= 3):
+                    if not known_rank or any(
+                        not name
+                        or name.casefold() in _DOSSIER_MISSING_TOKENS
+                        or not any(char.isalpha() for char in name)
+                        or any(
+                            not char.isalpha() and char not in _DOSSIER_NAME_SEPARATORS
+                            for char in name
+                        )
+                        for name in parts[1:3]
+                    ):
+                        return self._reject(
+                            DossierValidationStatus.INVALID_ROSTER, fname, len(player_data)
+                        )
                     if len(parts) >= 6:
                         wingman_numeric: dict[str, int] = {}
                         numeric_field = "unknown"

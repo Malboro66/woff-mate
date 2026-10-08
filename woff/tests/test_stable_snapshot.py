@@ -760,7 +760,7 @@ def test_dossier_rejection_rolls_back_derived_effects_and_retry_commits_once(
         )
         assert database.get_pilot_state(pilot_name) == ("Active", "Lieutenant")
         assert database.get_wingmen_by_pilot(pilot_id) == [
-            {"id": "wingman-1", "fName": "William", "sName": "Test", "status": "Active"}
+            {"fName": "William", "sName": "Test", "status": "Active"}
         ]
         assert diary_rows() == [("existing diary entry",)]
 
@@ -769,7 +769,7 @@ def test_dossier_rejection_rolls_back_derived_effects_and_retry_commits_once(
         assert acknowledged.generation == generation
         assert database.get_pilot_state(pilot_name) == ("Wounded", "Captain")
         assert database.get_wingmen_by_pilot(pilot_id) == [
-            {"id": "wingman-1", "fName": "William", "sName": "Test", "status": "KIA"}
+            {"fName": "William", "sName": "Test", "status": "KIA"}
         ]
         assert diary_rows() == [
             ("deterministic life event",),
@@ -786,7 +786,7 @@ def test_dossier_rejection_rolls_back_derived_effects_and_retry_commits_once(
         assert len(parser_calls) == 2
         assert database.get_pilot_state(pilot_name) == ("Wounded", "Captain")
         assert database.get_wingmen_by_pilot(pilot_id) == [
-            {"id": "wingman-1", "fName": "William", "sName": "Test", "status": "KIA"}
+            {"fName": "William", "sName": "Test", "status": "KIA"}
         ]
         assert diary_rows() == [
             ("deterministic life event",),
@@ -865,7 +865,7 @@ def test_incoming_dossier_date_preserves_pre_merge_wingman_event(
         assert outcome.status is ProcessingStatus.SUCCESS
         assert outcome.generation == generation
         assert database.get_wingmen_by_pilot(pilot_id) == [
-            {"id": "wingman-first-date", "fName": "William", "sName": "First Date", "status": "KIA"}
+            {"fName": "William", "sName": "First Date", "status": "KIA"}
         ]
         assert database._get_conn().execute(
             """

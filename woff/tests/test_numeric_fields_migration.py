@@ -942,53 +942,32 @@ def test_restore_holds_exclusive_lock_between_rollback_and_backup(tmp_path, monk
     assert _dump(db_path) == before
 
 
-def test_sql_comments_in_create_table_are_rejected_before_rebuild(tmp_path):
-    db_path = tmp_path / "comments.sqlite"
+@pytest.mark.parametrize("extension", [
+    "-- numeric field from old schema\n",
+    '"weird""col" TEXT DEFAULT \'retained\',',
+])
+def test_valid_comments_and_escaped_identifiers_survive_numeric_rebuild(tmp_path, extension):
+    db_path = tmp_path / "lexical-numeric.sqlite"
     conn = _connect(db_path)
-    conn.executescript(
-        """
-        CREATE TABLE meta (key TEXT PRIMARY KEY, value TEXT);
-        INSERT INTO meta (key, value) VALUES ('schema_version', '2.0');
-        CREATE TABLE pilots (
-            id TEXT PRIMARY KEY,
-            name TEXT UNIQUE,
-            -- numeric field from old schema
-            missions TEXT
-        );
-        CREATE TABLE missions(id TEXT PRIMARY KEY, pilotId TEXT, enemyContacts TEXT, claimsCount TEXT,
-            FOREIGN KEY(pilotId) REFERENCES pilots(id));
-        CREATE TABLE squad_members(id TEXT PRIMARY KEY, pilotId TEXT, skill TEXT, morale TEXT, missions TEXT,
-            flminutes TEXT, FOREIGN KEY(pilotId) REFERENCES pilots(id));
-        INSERT INTO pilots (id, name, missions) VALUES ('p1', 'Pilot', '5');
-        """
-    )
-    conn.commit(); conn.close()
+    _old_schema(conn)
+    ddl = conn.execute("SELECT sql FROM sqlite_master WHERE name='pilots'").fetchone()[0]
+    conn.execute("DROP TABLE pilots")
+    conn.execute(ddl.replace("missions TEXT", extension + " missions TEXT"))
+    _seed_valid_rows(conn)
+    conn.commit()
+    conn.close()
     before = _dump(db_path)
-
-    with pytest.raises(ValueError, match="SQL comments are not supported"):
-        DatabaseManager(str(db_path))
-
-    assert _dump(db_path) == before
-
-
-def test_escaped_identifier_delimiters_are_rejected_clearly(tmp_path):
-    db_path = tmp_path / "escaped_identifier.sqlite"
-    conn = _connect(db_path)
-    conn.executescript(
-        """
-        CREATE TABLE meta (key TEXT PRIMARY KEY, value TEXT);
-        INSERT INTO meta (key, value) VALUES ('schema_version', '2.0');
-        CREATE TABLE pilots (id TEXT PRIMARY KEY, name TEXT UNIQUE, "weird""col" TEXT, missions TEXT);
-        CREATE TABLE missions(id TEXT PRIMARY KEY, pilotId TEXT, enemyContacts TEXT, claimsCount TEXT,
-            FOREIGN KEY(pilotId) REFERENCES pilots(id));
-        CREATE TABLE squad_members(id TEXT PRIMARY KEY, pilotId TEXT, skill TEXT, morale TEXT, missions TEXT,
-            flminutes TEXT, FOREIGN KEY(pilotId) REFERENCES pilots(id));
-        """
-    )
-    conn.commit(); conn.close()
-
-    with pytest.raises(ValueError, match="escaped delimiters"):
-        DatabaseManager(str(db_path))
+    db = DatabaseManager(str(db_path))
+    conn = db._get_conn()
+    assert conn.execute("SELECT id, missions FROM pilots").fetchall() == [("p1", 7)]
+    sql = conn.execute("SELECT sql FROM sqlite_master WHERE name='pilots'").fetchone()[0]
+    assert extension in sql
+    assert conn.execute("PRAGMA integrity_check").fetchone() == ("ok",)
+    assert conn.execute("PRAGMA foreign_key_check").fetchall() == []
+    db.close()
+    backup = next((tmp_path / ".woff-migration-backups").glob("*.backup.sqlite"))
+    assert _dump(backup) == before
+    DatabaseManager(str(db_path)).close()
 
 
 def test_backup_dest_connect_failure_removes_reserved_backup_file(tmp_path, monkeypatch):

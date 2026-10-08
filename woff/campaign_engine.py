@@ -421,7 +421,7 @@ class CampaignEngine:
         ):
             log.warning("Wingman events rejected: category=unresolved-roster-identity")
             return False
-        old_wingmen = self.db_manager.get_wingmen_by_pilot(pilot_id)
+        old_wingmen = self.db_manager.get_wingmen_with_identity_by_pilot(pilot_id)
         try:
             old_map = self._roster_map(
                 tuple(
