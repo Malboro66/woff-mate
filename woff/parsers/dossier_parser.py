@@ -437,6 +437,14 @@ class WoFFDossierParser:
                             DossierValidationStatus.INVALID_ROSTER, fname, len(player_data)
                         )
                     if len(parts) >= 6:
+                        # An explicit missing token may preserve stored status,
+                        # but an empty required slot is malformed source input.
+                        if not parts[5]:
+                            return self._reject(
+                                DossierValidationStatus.INVALID_ROSTER,
+                                fname,
+                                len(player_data),
+                            )
                         wingman_numeric: dict[str, int] = {}
                         numeric_field = "unknown"
                         try:
