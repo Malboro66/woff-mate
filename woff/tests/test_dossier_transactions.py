@@ -14,6 +14,7 @@ from ..identity import PilotIdentityEvidence, PilotIdentityKind
 from ..ingestion.outcome import ProcessingReason, ProcessingStatus
 from ..parsers.dossier_parser import WoFFDossierParser
 from .test_dossier_parser import _dossier_fixture, _encode_dossier
+from .dossier_support import complete_roster_domain, CompleteRosterDomainHarness
 
 
 def _wingman(
@@ -23,10 +24,13 @@ def _wingman(
     status: str = "In Service",
     rank: str = "Lieutenant",
 ) -> str:
+    # Synthetic people need independent personal evidence. Identical evidence
+    # with different names is an intentional conflict under the Q2 contract.
+    town = f"Synthetic home of {first_name} {last_name}"
     return (
         f"{rank};{first_name};{last_name};3;5;{status};0;0;0;0;0;6;"
         "1550;1500;9;2;8;8;1896;Reliable pilot.;75;21;651;1;"
-        "19/7/1913;Arras;2;0;Null;Null;Null;Null;Null;Null;Null"
+        f"19/7/1913;{town};2;0;Null;Null;Null;Null;Null;Null;Null"
     )
 
 
@@ -169,8 +173,8 @@ def _changed_dossier() -> bytes:
     )
 
 
-def test_identityless_dossier_never_reaches_merge_and_write(dossier_runtime):
-    database, processor, dossier_path = dossier_runtime
+def test_identityless_dossier_never_reaches_merge_and_write(complete_roster_domain):
+    database, processor, dossier_path = complete_roster_domain
     dossier_path.write_bytes(
         _encode_dossier(
             _dossier_fixture("long_corrupt_sanitized.txt"),
@@ -193,9 +197,9 @@ def test_identityless_dossier_never_reaches_merge_and_write(dossier_runtime):
 
 
 def test_ambiguous_partial_dossier_never_reaches_merge_and_write(
-    dossier_runtime,
+    complete_roster_domain,
 ):
-    database, processor, dossier_path = dossier_runtime
+    database, processor, dossier_path = complete_roster_domain
     wrong_slot_path = dossier_path.with_name("Pilot49Dossier.txt")
     wrong_slot_path.write_bytes(
         _encode_dossier(
@@ -218,8 +222,8 @@ def test_ambiguous_partial_dossier_never_reaches_merge_and_write(
     assert all(not rows for rows in state.values())
 
 
-def test_partial_null_rank_preserves_stored_rank_and_diary(dossier_runtime):
-    database, processor, dossier_path = dossier_runtime
+def test_partial_null_rank_preserves_stored_rank_and_diary(complete_roster_domain):
+    database, processor, dossier_path = complete_roster_domain
     assert _process(
         processor,
         dossier_path,
@@ -253,9 +257,9 @@ def test_partial_null_rank_preserves_stored_rank_and_diary(dossier_runtime):
 
 @pytest.mark.parametrize("event_type", ["initial", "modified"])
 def test_diary_rejection_rolls_back_pilot_decorations_and_roster(
-    dossier_runtime, monkeypatch, event_type
+    complete_roster_domain, monkeypatch, event_type
 ):
-    database, processor, dossier_path = dossier_runtime
+    database, processor, dossier_path = complete_roster_domain
     assert _process(
         processor, dossier_path, _dossier_bytes(), "initial"
     ) is not None
@@ -282,9 +286,9 @@ def test_diary_rejection_rolls_back_pilot_decorations_and_roster(
     "boundary", ["pilot", "decorations", "roster", "roster-state"]
 )
 def test_core_write_failure_leaves_no_dossier_diary_entry(
-    dossier_runtime, monkeypatch, boundary
+    complete_roster_domain, monkeypatch, boundary
 ):
-    database, processor, dossier_path = dossier_runtime
+    database, processor, dossier_path = complete_roster_domain
     assert _process(
         processor, dossier_path, _dossier_bytes(), "initial"
     ) is not None
@@ -321,9 +325,9 @@ def test_core_write_failure_leaves_no_dossier_diary_entry(
 
 
 def test_retry_commits_once_and_same_digest_replay_performs_no_write(
-    dossier_runtime, monkeypatch
+    complete_roster_domain, monkeypatch
 ):
-    database, processor, dossier_path = dossier_runtime
+    database, processor, dossier_path = complete_roster_domain
     assert _process(
         processor, dossier_path, _dossier_bytes(), "initial"
     ) is not None
@@ -346,7 +350,7 @@ def test_retry_commits_once_and_same_digest_replay_performs_no_write(
     control_directory = database.db_path.parent / "first-attempt"
     control_directory.mkdir()
     control_database = DatabaseManager(str(control_directory / "control.sqlite"))
-    control_processor = FileProcessor(
+    control_processor = CompleteRosterDomainHarness(
         control_database,
         CampaignEngine(control_database),
         stability_timeout=0.1,
@@ -374,9 +378,9 @@ def test_retry_commits_once_and_same_digest_replay_performs_no_write(
 
 
 def test_diary_exception_propagates_without_leaving_partial_state(
-    dossier_runtime, monkeypatch
+    complete_roster_domain, monkeypatch
 ):
-    database, processor, dossier_path = dossier_runtime
+    database, processor, dossier_path = complete_roster_domain
     initial = _dossier_bytes()
     changed = _changed_dossier()
     assert _process(processor, dossier_path, initial, "initial") is not None
@@ -418,9 +422,9 @@ def test_diary_exception_propagates_without_leaving_partial_state(
 
 
 def test_dossier_reads_and_writes_use_one_caller_owned_transaction(
-    dossier_runtime, monkeypatch
+    complete_roster_domain, monkeypatch
 ):
-    database, processor, dossier_path = dossier_runtime
+    database, processor, dossier_path = complete_roster_domain
     assert _process(
         processor, dossier_path, _dossier_bytes(), "initial"
     ) is not None
@@ -468,9 +472,9 @@ def test_dossier_reads_and_writes_use_one_caller_owned_transaction(
 
 
 def test_squadron_transfer_emits_no_false_roster_events_and_replay_is_idempotent(
-    dossier_runtime
+    complete_roster_domain
 ):
-    database, processor, dossier_path = dossier_runtime
+    database, processor, dossier_path = complete_roster_domain
     old_dossier = _dossier_bytes(
         squadron="No. 56 Squadron",
         wingmen=(
@@ -523,9 +527,9 @@ def test_squadron_transfer_emits_no_false_roster_events_and_replay_is_idempotent
 
 
 def test_transfer_without_roster_uses_next_roster_as_silent_baseline(
-    dossier_runtime,
+    complete_roster_domain,
 ):
-    database, processor, dossier_path = dossier_runtime
+    database, processor, dossier_path = complete_roster_domain
     old_dossier = _dossier_bytes(
         squadron="No. 56 Squadron",
         wingmen=(
@@ -585,9 +589,9 @@ def test_transfer_without_roster_uses_next_roster_as_silent_baseline(
 
 
 def test_transfer_uses_roster_snapshot_when_squads_source_updates_pilot_first(
-    dossier_runtime,
+    complete_roster_domain,
 ):
-    database, processor, dossier_path = dossier_runtime
+    database, processor, dossier_path = complete_roster_domain
     old_dossier = _dossier_bytes(
         squadron="No. 56 Squadron",
         wingmen=(
@@ -633,9 +637,9 @@ def test_transfer_uses_roster_snapshot_when_squads_source_updates_pilot_first(
 
 
 def test_nonempty_shrunk_roster_requires_confirmation_before_missing(
-    dossier_runtime,
+    complete_roster_domain,
 ):
-    database, processor, dossier_path = dossier_runtime
+    database, processor, dossier_path = complete_roster_domain
     initial = _dossier_bytes(
         wingmen=(
             _wingman("Arthur", "Able"),
@@ -722,9 +726,9 @@ def test_nonempty_shrunk_roster_requires_confirmation_before_missing(
 
 
 def test_equal_size_replacement_requires_confirmation_before_roster_events(
-    dossier_runtime,
+    complete_roster_domain,
 ):
-    database, processor, dossier_path = dossier_runtime
+    database, processor, dossier_path = complete_roster_domain
     initial = _dossier_bytes(
         wingmen=(
             _wingman("Arthur", "Able"),
@@ -782,10 +786,10 @@ def test_equal_size_replacement_requires_confirmation_before_roster_events(
 
 
 def test_roster_candidate_failure_rolls_back_the_dossier_generation(
-    dossier_runtime,
+    complete_roster_domain,
     monkeypatch,
 ):
-    database, processor, dossier_path = dossier_runtime
+    database, processor, dossier_path = complete_roster_domain
     initial = _dossier_bytes(
         wingmen=(
             _wingman("Arthur", "Able"),
@@ -821,9 +825,9 @@ def test_roster_candidate_failure_rolls_back_the_dossier_generation(
 
 
 def test_same_squadron_empty_roster_keeps_last_trusted_comparison_state(
-    dossier_runtime,
+    complete_roster_domain,
 ):
-    database, processor, dossier_path = dossier_runtime
+    database, processor, dossier_path = complete_roster_domain
     initial = _dossier_bytes(
         wingmen=(
             _wingman("Arthur", "Able"),
@@ -870,9 +874,9 @@ def test_same_squadron_empty_roster_keeps_last_trusted_comparison_state(
 
 
 def test_transfer_preserves_historical_wingman_personality_and_memory(
-    dossier_runtime,
+    complete_roster_domain,
 ):
-    database, processor, dossier_path = dossier_runtime
+    database, processor, dossier_path = complete_roster_domain
     initial = _dossier_bytes(
         squadron="No. 56 Squadron",
         wingmen=(_wingman("Arthur", "Able"),),
@@ -922,9 +926,9 @@ def test_transfer_preserves_historical_wingman_personality_and_memory(
 
 
 def test_legacy_roster_snapshot_is_readable_and_rebaselined_safely(
-    dossier_runtime,
+    complete_roster_domain,
 ):
-    database, processor, dossier_path = dossier_runtime
+    database, processor, dossier_path = complete_roster_domain
     assert _process(
         processor,
         dossier_path,
@@ -991,9 +995,9 @@ def test_legacy_roster_snapshot_is_readable_and_rebaselined_safely(
 
 
 def test_confirmed_same_squadron_roster_diff_commits_each_event_once(
-    dossier_runtime
+    complete_roster_domain
 ):
-    database, processor, dossier_path = dossier_runtime
+    database, processor, dossier_path = complete_roster_domain
     initial = _dossier_bytes(
         wingmen=(
             _wingman("Arthur", "Able"),

@@ -7,9 +7,9 @@ o NarrativeGenerator, e guarda os resultados.
 ══════════════════════════════════════════════════════════════════
 """
 import logging
-from typing import Dict, List, Literal, Optional, Tuple
+from typing import Dict, List, Literal, Optional, Sequence, Tuple
 
-from .database import DatabaseManager, DossierState
+from .database import DatabaseManager, DossierState, DossierWingmanState
 from .identity import PilotIdentityEvidence, PilotIdentityKind
 from .rpg_system import rpg_system
 from .narrative_generator import narrative_generator
@@ -107,87 +107,112 @@ class CampaignEngine:
         return True
 
     @staticmethod
-    def _wingman_events(
-        old_map: Dict[str, str], new_map: Dict[str, str]
-    ) -> List[Tuple[str, str]]:
-        events: List[Tuple[str, str]] = []
-        for name in sorted(old_map):
-            old_status = old_map[name]
-            if name in new_map:
-                new_status = new_map[name]
-                if old_status != new_status:
-                    normalized = new_status.lower()
-                    if "wound" in normalized or "hospital" in normalized:
-                        events.append(("wounded", name))
-                    elif "kia" in normalized or "dead" in normalized:
-                        events.append(("kia", name))
-            else:
-                events.append(("missing", name))
+    def _roster_map(
+        wingmen: Sequence[DossierWingmanState],
+    ) -> Dict[str, DossierWingmanState]:
+        members: Dict[str, DossierWingmanState] = {}
+        for wingman in wingmen:
+            if not wingman.wingman_id or wingman.wingman_id in members:
+                raise _DossierWriteRejected("unresolved-roster-identity")
+            members[wingman.wingman_id] = wingman
+        return members
 
-        for name in sorted(new_map):
-            if name not in old_map:
-                events.append(("new", name))
+    @staticmethod
+    def _wingman_events(
+        old_map: Dict[str, DossierWingmanState],
+        new_map: Dict[str, DossierWingmanState],
+    ) -> List[Tuple[str, DossierWingmanState]]:
+        events: List[Tuple[str, DossierWingmanState]] = []
+        for member_id in sorted(old_map):
+            previous = old_map[member_id]
+            current = new_map.get(member_id)
+            if current is not None:
+                if previous.status != current.status:
+                    normalized = current.status.lower()
+                    if "wound" in normalized or "hospital" in normalized:
+                        events.append(("wounded", current))
+                    elif "kia" in normalized or "dead" in normalized:
+                        events.append(("kia", current))
+            else:
+                events.append(("missing", previous))
+
+        for member_id in sorted(new_map.keys() - old_map.keys()):
+            events.append(("new", new_map[member_id]))
         return events
+
+    @staticmethod
+    def _is_roster_transfer(stored: DossierState, pilot: WoFFPilot) -> bool:
+        # Roster metadata wins, including an explicitly unknown squadron.
+        # Only databases without any roster metadata use the legacy pilot row.
+        previous_squadron = stored.roster_squadron
+        if not previous_squadron and not stored.roster_metadata_present:
+            previous_squadron = stored.squadron
+        return bool(
+            previous_squadron
+            and pilot.squadron
+            and previous_squadron != pilot.squadron
+        )
 
     def _plan_dossier_diary_effects(
         self,
         stored: DossierState,
         pilot: WoFFPilot,
-        wingmen: List[WoFFWingman],
+        wingmen: Sequence[DossierWingmanState],
+        *,
+        roster_complete: bool = True,
+        legacy_partial_upgrade: bool = False,
     ) -> Tuple[List[Tuple[str, str]], bool, _RosterAction]:
-        """Compute deterministic narratives before any Dossier write occurs."""
+        """Derive effects from resolved IDs before committing the Dossier transaction."""
         effects: List[Tuple[str, str]] = []
-        transfer = bool(
-            stored.roster_squadron
-            and pilot.squadron
-            and stored.roster_squadron != pilot.squadron
-        )
+        # Partial detailed rows cannot establish an authoritative transfer.
+        transfer = roster_complete and self._is_roster_transfer(stored, pilot)
         roster_action: _RosterAction = "keep"
-        roster_events: List[Tuple[str, str]] = []
+        roster_events: List[Tuple[str, DossierWingmanState]] = []
 
-        if transfer:
+        if not roster_complete:
+            # Preserve trusted complete history and any existing candidate.
+            # Only a first/legacy untrusted import establishes a pending
+            # baseline. Neither path derives events from partial rows.
+            roster_action = (
+                "pending-baseline"
+                if legacy_partial_upgrade or not stored.roster_metadata_present
+                else "keep"
+            )
+        elif transfer:
             roster_action = "baseline" if wingmen else "pending-baseline"
         elif wingmen:
-            old_map = {
-                f"{wingman.first_name} {wingman.last_name}".strip(): wingman.status
-                for wingman in stored.wingmen
-            }
-            new_map = {
-                f"{wingman.fName} {wingman.sName}".strip(): wingman.status
-                for wingman in wingmen
-            }
+            # An untrusted legacy list has no comparison identity. Establish a
+            # fresh baseline without attributing historical events to its names.
+            # A trusted legacy baseline/candidate must instead fail closed.
+            untrusted_legacy = (
+                stored.roster_baseline_pending
+                and not stored.roster_squadron
+                and any(w.wingman_id is None for w in stored.wingmen)
+            )
+            old_map = self._roster_map(() if untrusted_legacy else stored.wingmen)
+            new_map = self._roster_map(wingmen)
             all_events = self._wingman_events(old_map, new_map)
 
             if not pilot.squadron:
                 roster_action = "pending-baseline"
                 roster_events = [
-                    event
-                    for event in all_events
-                    if event[0] in {"wounded", "kia"}
+                    event for event in all_events if event[0] in {"wounded", "kia"}
                 ]
             elif stored.roster_baseline_pending or not stored.roster_squadron:
                 roster_action = "baseline"
                 roster_events = [
-                    event
-                    for event in all_events
-                    if event[0] in {"wounded", "kia"}
+                    event for event in all_events if event[0] in {"wounded", "kia"}
                 ]
             else:
                 candidate = stored.roster_candidate
                 candidate_map = (
-                    {
-                        f"{wingman.first_name} {wingman.last_name}".strip(): (
-                            wingman.status
-                        )
-                        for wingman in candidate.wingmen
-                    }
-                    if candidate is not None
-                    else {}
+                    self._roster_map(candidate.wingmen) if candidate is not None else {}
                 )
                 candidate_matches = bool(
                     candidate is not None
                     and candidate.squadron == pilot.squadron
-                    and candidate_map == new_map
+                    and {key: value.status for key, value in candidate_map.items()}
+                    == {key: value.status for key, value in new_map.items()}
                 )
                 has_unconfirmed_absence = bool(old_map.keys() - new_map.keys())
                 if has_unconfirmed_absence and not candidate_matches:
@@ -196,7 +221,8 @@ class CampaignEngine:
                     roster_action = "baseline"
                     roster_events = all_events
 
-        for event_type, name in roster_events:
+        for event_type, member in roster_events:
+            name = f"{member.first_name} {member.last_name}".strip()
             narrative = narrative_generator.generate_wingman_event(name, event_type)
             if narrative:
                 effects.append((f"wingman:{event_type}", narrative))
@@ -225,6 +251,8 @@ class CampaignEngine:
         decorations: List[WoFFDecoration],
         wingmen: List[WoFFWingman],
         identity: PilotIdentityEvidence,
+        *,
+        roster_complete: bool = True,
     ) -> Optional[str]:
         """Persist one Dossier generation and all derived diary effects atomically."""
         if (
@@ -239,10 +267,8 @@ class CampaignEngine:
         replayed = False
         roster_action: _RosterAction = (
             "baseline"
-            if pilot.squadron and wingmen
-            else "pending-baseline"
-            if pilot.squadron or wingmen
-            else "keep"
+            if roster_complete and pilot.squadron and wingmen
+            else "pending-baseline" if pilot.squadron or wingmen else "keep"
         )
         real_pilot_id: Optional[str] = None
         try:
@@ -252,26 +278,56 @@ class CampaignEngine:
                     identity.campaign_namespace,
                     identity.slot,
                 )
-                if (
+                same_digest = bool(
                     stored is not None
                     and stored.dossier_digest == identity.dossier_digest
-                ):
-                    real_pilot_id = stored.pilot_id
+                )
+                partial_marker_present = bool(
+                    not roster_complete
+                    and stored is not None
+                    and self.db_manager.partial_dossier_digest_recorded(
+                        stored.pilot_id, identity.dossier_digest or ""
+                    )
+                )
+                legacy_partial_upgrade = bool(
+                    not roster_complete
+                    and stored is not None
+                    # Only the exact observed digest proves that the legacy
+                    # generation was partial. v1 alone says nothing about its
+                    # coverage and cannot retire a trusted complete baseline.
+                    and same_digest
+                    and not partial_marker_present
+                )
+                if same_digest and (roster_complete or partial_marker_present):
+                    real_pilot_id = stored.pilot_id if stored is not None else None
                     replayed = True
                 else:
                     event_date: Optional[str] = None
                     if stored is not None:
-                        (
-                            effects,
-                            transferred,
-                            roster_action,
-                        ) = self._plan_dossier_diary_effects(stored, pilot, wingmen)
                         event_date = self.db_manager.get_pilot_game_date(
                             stored.pilot_id
                         ) or normalize_date(pilot.startDate)
-                        if effects and not event_date:
-                            raise _DossierWriteRejected("missing-game-date")
 
+                    retired_ids = stored.retired_wingman_ids if stored else frozenset()
+                    if legacy_partial_upgrade and stored is not None:
+                        # Legacy detailed-only rosters were once marked as
+                        # complete. An identity-less historical row cannot be
+                        # joined by name without risking personality/memory.
+                        # Retain it intact, but retire it from new ID matching.
+                        retired_ids |= self.db_manager.identityless_wingman_ids(
+                            stored.pilot_id
+                        )
+                    if (
+                        roster_complete
+                        and stored is not None
+                        and self._is_roster_transfer(stored, pilot)
+                    ):
+                        # An explicit boundary retires only evidence-less historical
+                        # candidates, never their rows or personality/memory links.
+                        # Persist the scope even when the new baseline is pending.
+                        retired_ids |= self.db_manager.identityless_wingman_ids(
+                            stored.pilot_id
+                        )
                     real_pilot_id = self.db_manager.merge_and_write(
                         pilot=pilot,
                         missions=[],
@@ -279,6 +335,7 @@ class CampaignEngine:
                         decorations=decorations,
                         wingmen=wingmen,
                         identity=identity,
+                        retired_wingman_ids=retired_ids,
                     )
                     if not real_pilot_id:
                         raise _DossierWriteRejected("core-write")
@@ -286,6 +343,19 @@ class CampaignEngine:
                         raise RuntimeError(
                             "Dossier identity changed inside one transaction"
                         )
+                    resolved_roster = self.db_manager.load_resolved_dossier_roster(
+                        real_pilot_id, wingmen
+                    )
+                    if stored is not None:
+                        effects, transferred, roster_action = (
+                            self._plan_dossier_diary_effects(
+                                stored, pilot, resolved_roster,
+                                roster_complete=roster_complete,
+                                legacy_partial_upgrade=legacy_partial_upgrade,
+                            )
+                        )
+                        if effects and not event_date:
+                            raise _DossierWriteRejected("missing-game-date")
                     if roster_action == "candidate":
                         if stored is None:
                             raise RuntimeError(
@@ -296,16 +366,22 @@ class CampaignEngine:
                             stored.roster_squadron,
                             stored.wingmen,
                             pilot.squadron,
-                            wingmen,
+                            resolved_roster,
+                            retired_wingman_ids=retired_ids,
                         )
                     elif roster_action in {"baseline", "pending-baseline"}:
                         self.db_manager.save_dossier_roster_state(
                             real_pilot_id,
                             pilot.squadron,
-                            wingmen,
-                            baseline_pending=(
-                                roster_action == "pending-baseline"
-                            ),
+                            resolved_roster,
+                            baseline_pending=(roster_action == "pending-baseline"),
+                            retired_wingman_ids=retired_ids,
+                        )
+                    if not roster_complete:
+                        # Provenance is written only after successful merge and
+                        # roster-state reconciliation in the same transaction.
+                        self.db_manager.record_partial_dossier_digest(
+                            real_pilot_id, identity.dossier_digest or ""
                         )
 
                     for _category, narrative in effects:
@@ -372,8 +448,10 @@ class CampaignEngine:
         return True
 
     def process_wingmen_changes(
-        self, pilot_id: str, new_wingmen: List[WoFFWingman],
-        event_date: Optional[str] = None
+        self,
+        pilot_id: str,
+        new_wingmen: List[WoFFWingman],
+        event_date: Optional[str] = None,
     ):
         """
         Compara os wingmen recém-extraídos com os guardados na DB.
@@ -388,11 +466,39 @@ class CampaignEngine:
             )
             return
 
-        old_wingmen = self.db_manager.get_wingmen_by_pilot(pilot_id)
-
-        old_map = {f"{w['fName']} {w['sName']}": w['status'] for w in old_wingmen}
-        new_map = {f"{w.fName} {w.sName}": w.status for w in new_wingmen}
-
+        # Parsed Dossier IDs are generation-local until the atomic import
+        # resolves them. This compatibility entry point accepts explicit IDs only.
+        if any(
+            w.present_fields is not None or w.pilotId != pilot_id for w in new_wingmen
+        ):
+            log.warning("Wingman events rejected: category=unresolved-roster-identity")
+            return False
+        with self.db_manager.transaction():
+            retired = self.db_manager._load_retired_wingman_ids(pilot_id)
+            if any(member.id in retired for member in new_wingmen):
+                log.warning("Wingman events rejected: category=retired-roster-identity")
+                return False
+            old_wingmen = self.db_manager.get_wingmen_with_identity_by_pilot(pilot_id)
+        try:
+            old_map = self._roster_map(
+                tuple(
+                    DossierWingmanState(
+                        str(w["fName"] or ""),
+                        str(w["sName"] or ""),
+                        str(w["status"] or ""),
+                        wingman_id=str(w["id"]),
+                    )
+                    for w in old_wingmen
+                )
+            )
+            new_map = self._roster_map(
+                tuple(
+                    DossierWingmanState(w.fName, w.sName, w.status, wingman_id=w.id)
+                    for w in new_wingmen
+                )
+            )
+        except _DossierWriteRejected:
+            return False
         events = self._wingman_events(old_map, new_map)
 
         if not events:
@@ -407,13 +513,10 @@ class CampaignEngine:
             log.warning("Wingman events rejected: category=missing-game-date")
             return False
 
-        for event_type, name in events:
+        for event_type, member in events:
+            name = f"{member.first_name} {member.last_name}".strip()
             narrative = narrative_generator.generate_wingman_event(name, event_type)
             if narrative:
-                self.db_manager.save_diary_entry(
-                    pilot_id, None, today, narrative
-                )
-                log.info(
-                    f"  📝 Evento de Wingman registado: {name} ({event_type})"
-                )
+                self.db_manager.save_diary_entry(pilot_id, None, today, narrative)
+                log.info(f"  📝 Evento de Wingman registado: {name} ({event_type})")
         return True

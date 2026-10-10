@@ -1,3 +1,4 @@
+# Legacy synthetic decoding here is nonauthoritative; runtime admission is tested separately.
 import gc
 import os
 import sqlite3

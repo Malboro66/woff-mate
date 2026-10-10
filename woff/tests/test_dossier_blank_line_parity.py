@@ -1,3 +1,4 @@
+# Legacy synthetic decoding here is nonauthoritative; runtime admission is tested separately.
 from pathlib import Path
 
 from ..parsers.dossier_parser import WoFFDossierParser
@@ -69,11 +70,11 @@ def test_decode_advances_xor_parity_across_blank_physical_line() -> None:
         _create_test_key(_FILENAME),
     )
 
-    assert decoded == [line for line in physical_lines if line]
+    assert decoded == physical_lines
     assert decoded[-1] == _WINGMAN_RECORD
 
 
-def test_blank_physical_line_does_not_create_record_or_corrupt_later_roster() -> None:
+def test_blank_physical_line_preserves_position_and_later_roster() -> None:
     semantic_lines = ["Null"] * 105
     semantic_lines[1] = "France"
     semantic_lines[3] = "Capitaine"
@@ -86,8 +87,9 @@ def test_blank_physical_line_does_not_create_record_or_corrupt_later_roster() ->
 
     parser = WoFFDossierParser()
     assert parser.parse_bytes(encoded, _FILENAME)
-    assert len(parser.raw_strings) == len(semantic_lines)
-    assert parser.raw_strings[104] == _WINGMAN_RECORD
+    assert len(parser.raw_strings) == len(physical_lines)
+    assert parser.raw_strings[100] == ""
+    assert parser.raw_strings[105] == _WINGMAN_RECORD
     assert len(parser.wingmen) == 1
     assert parser.wingmen[0].fName == "Alex"
     assert parser.wingmen[0].sName == "Doe"

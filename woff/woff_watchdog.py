@@ -347,6 +347,10 @@ def run_parse_file(file_path: str) -> int:
         if not parser.parse(file_path):
             log.error("Parser não encontrou dados válidos.")
             return int(ExitCode.RUNTIME_ERROR)
+        log.info(
+            "Dossier diagnostic only: structure=%s; detailed members are not a complete roster.",
+            "verified" if parser.has_verified_structure else "unverified legacy",
+        )
         if parser.pilot:
             affiliation = parser.pilot.affiliation.presentation()
             log.info("\n--- 🧑‍✈️ DADOS DO PILOTO ---")

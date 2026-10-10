@@ -14,6 +14,7 @@ from ..handler import FileProcessor
 from ..ingestion.outcome import ProcessingOutcome, ProcessingReason, ProcessingStatus
 from ..parsers.pilot_data_parser import WoFFPilotDataParser
 from .test_dossier_parser import _encode_dossier
+from .dossier_support import verified_fixture
 
 
 def _dossier() -> bytes:
@@ -34,7 +35,7 @@ def _dossier() -> bytes:
         89: "Arras",
     }.items():
         lines[index] = value
-    return _encode_dossier(lines, "Pilot1Dossier.txt")
+    return _encode_dossier(verified_fixture(lines), "Pilot1Dossier.txt")
 
 
 def _log_record(day: int, note: str = "Synthetic mission.") -> str:

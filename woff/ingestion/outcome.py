@@ -27,6 +27,7 @@ class ProcessingStatus(str, Enum):
 class ProcessingReason(str, Enum):
     """Sanitized reasons that never carry paths, SQL, or campaign content."""
 
+    UNSUPPORTED_LAYOUT = "unsupported-layout"
     SUCCESS = "success"
     UNCHANGED = "unchanged"
     UNSUPPORTED_SOURCE = "unsupported-source"

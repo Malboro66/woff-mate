@@ -37,6 +37,14 @@ _DOSSIER_MISSING_TOKENS = frozenset({"null"})
 _DOSSIER_LAYOUT = "fixed-index-v1"
 _DOSSIER_REQUIRED_LAST_INDEX = 5
 _DOSSIER_CURRENT_FIXED_LAST_INDEX = 100
+# Six validated generations share these physical slots. This is not a
+# universal contract for all WOFF careers or versions.
+_OBSERVED_ROSTER_POSITIONS = frozenset((*range(63, 79), *range(113, 129)))
+_OBSERVED_PILOT_RANKS = frozenset({
+    "Squadron Commander", "Flight Commander", "Flight Lieutenant",
+    "Flight Sub-Lieutenant",
+})
+_OBSERVED_OBSERVER_RANKS = frozenset({"2nd Lieutenant", "Captain", "Lieutenant"})
 _DOSSIER_NAME_SEPARATORS = frozenset({" ", "-", "'", "’", "."})
 # Sanitized evidence confirms only reputation as signed-capable. Counts,
 # flight minutes, skill, and morale remain nonnegative until new samples prove
@@ -56,6 +64,7 @@ class DossierValidationStatus(str, Enum):
     SUPPORTED_FULL = "supported-full"
     SUPPORTED_PARTIAL = "supported-partial"
     TRUNCATED = "truncated"
+    INVALID_ROSTER = "invalid-roster"
     UNSUPPORTED_LAYOUT = "unsupported-layout"
     DECRYPTION_FAILED = "decryption-failed"
 
@@ -67,6 +76,8 @@ class WoFFDossierParser:
         self.wingmen: List[WoFFWingman] = []
         self.decorations: List[WoFFDecoration] = []
         self.validation_status = DossierValidationStatus.UNPARSED
+        self.roster_complete = False
+        self.has_verified_structure = False
 
     def _reset_parse_state(self) -> None:
         self.pilot = None
@@ -74,6 +85,8 @@ class WoFFDossierParser:
         self.wingmen = []
         self.decorations = []
         self.validation_status = DossierValidationStatus.UNPARSED
+        self.roster_complete = False
+        self.has_verified_structure = False
 
     def _reject(
         self,
@@ -81,6 +94,7 @@ class WoFFDossierParser:
         source_name: str,
         record_count: int,
     ) -> bool:
+        self._reset_parse_state()
         self.validation_status = status
         log.warning(
             "[BIN] Dossier rejected: source=%s category=%s "
@@ -128,6 +142,9 @@ class WoFFDossierParser:
         for raw_line in raw_lines:
             line = raw_line.decode("cp1252", errors="replace").strip()
             if not line:
+                # Empty physical lines still occupy a positional field and
+                # reverse the XOR key. Dropping them shifts all later indices.
+                player_data.append("")
                 current_key = current_key[::-1]
                 continue
 
@@ -185,6 +202,37 @@ class WoFFDossierParser:
             for value in (player_data[4], player_data[5])
         )
 
+    @staticmethod
+    def _has_roster_shape(parts: List[str]) -> bool:
+        """Recognize supported positional records independently of rank validity.
+
+        The caller scopes this to the variable region after the fixed pilot
+        fields. The six-field base form and a complete layout through evidence
+        location are recognizable regardless of their values. Other partial
+        extended forms retain positional recognition. This is not a blanket
+        rule for arbitrary records with six or more semicolon-separated fields.
+        Recognition is deliberately weaker than required-field validation.
+        """
+        if len(parts) == 6 or len(parts) >= 26:
+            return True
+        if len(parts) < 6:
+            return False
+
+        def numeric_slot(value: str) -> bool:
+            return (
+                not value
+                or value.casefold() in _DOSSIER_MISSING_TOKENS
+                or (value.isascii() and value.lstrip("+-").isdigit())
+            )
+
+        named_record = all(any(c.isalpha() for c in part) for part in parts[1:3])
+        return (
+            named_record and all(numeric_slot(part) for part in parts[3:5])
+        ) or (
+            len(parts) >= 13
+            and sum(numeric_slot(part) for part in parts[6:11]) >= 3
+        )
+
     def _partial_key_is_ambiguous(
         self,
         raw_lines: List[bytes],
@@ -216,8 +264,15 @@ class WoFFDossierParser:
             return False
         return self.parse_bytes(data, source_name)
 
-    def parse_bytes(self, data: bytes, source_name: str) -> bool:
-        """Decode verified bytes, retaining the filename-derived cipher key."""
+    def parse_bytes(
+        self, data: bytes, source_name: str, *, require_verified_layout: bool = False,
+    ) -> bool:
+        """Decode a diagnostic input, or enforce the runtime structural contract.
+
+        Legacy fixed-index decoding remains diagnostic compatibility only. Its
+        variable tail has no proven census authority. Runtime callers require
+        the observed, maintainer-attested BH&H II base v1.38 family.
+        """
         self._reset_parse_state()
         raw_lines = data.splitlines(keepends=True)
         fname = ntpath.basename(source_name)
@@ -233,6 +288,27 @@ class WoFFDossierParser:
             )
 
         player_data = [value.strip() for value in player_data]
+        # A 161-position payload has a verified marker and partial roster.
+        # A different marker is unsupported, never a complete-roster fallback.
+        if len(player_data) == 161 and player_data[0] != "160":
+            return self._reject(
+                DossierValidationStatus.UNSUPPORTED_LAYOUT, fname, len(player_data)
+            )
+        observed_layout = len(player_data) == 161
+        if require_verified_layout and not observed_layout:
+            return self._reject(
+                DossierValidationStatus.UNSUPPORTED_LAYOUT, fname, len(player_data)
+            )
+        if observed_layout:
+            # This is a count of detailed pilot records, not all active airmen.
+            present_pilots = sum(
+                bool(record and record.casefold() != "n/a")
+                for record in player_data[63:79]
+            )
+            if player_data[81] != str(present_pilots):
+                return self._reject(
+                    DossierValidationStatus.INVALID_ROSTER, fname, len(player_data)
+                )
         if len(player_data) > _DOSSIER_REQUIRED_LAST_INDEX:
             first_name = player_data[4].strip()
             last_name = player_data[5].strip()
@@ -365,6 +441,9 @@ class WoFFDossierParser:
             
             # 3. Extrair Membros do Esquadrão (AI Wingmen)
             self.wingmen = []
+            # Verified detailed-member slots are NOT a complete active roster.
+            # Neither legacy diagnostics nor observed detail slots prove a census.
+            self.roster_complete = False
             
             # FIX: Lista de patentes expandida para cobrir Britânicos, Franceses e Alemães
             wingmen_ranks = [
@@ -372,19 +451,63 @@ class WoFFDossierParser:
                 "Lieutenant", "2nd Lieutenant", "Captain", "Major", "Colonel", 
                 "Flight Lieutenant", "Flight Sergeant", "Sergeant", "Corporal", 
                 "Private", "Air Mechanic",
-                # French
-                "Capitaine", "Sous-Lieutenant", "Adjudant", "Sergent", "Caporal", 
+                # French. Q2 evidence also confirms source spelling variants
+                # without punctuation and with the historical "Adjutant" form.
+                "Capitaine", "Sous-Lieutenant", "Sous Lieutenant",
+                "Adjudant", "Adjutant", "Sergent", "Caporal",
                 "Maréchal-des-logis", "Brigadier",
                 # German
                 "Hauptmann", "Oberleutnant", "Leutnant", "Rittmeister", 
                 "Vizefeldwebel", "Feldwebel", "Unteroffizier", "Gefreiter"
             ]
             
-            for s in player_data:
-                s_clean = s.strip()
-                if ";" in s_clean and len(s_clean) > 20 and any(s_clean.startswith(rank) for rank in wingmen_ranks):
-                    parts = [p.strip() for p in s_clean.split(";")]
+            for record_index, s in enumerate(player_data):
+                if observed_layout:
+                    if record_index not in _OBSERVED_ROSTER_POSITIONS:
+                        continue
+                    if not s or s.casefold() == "n/a":
+                        continue
+                    # An invalid slot remains an error, not evidence of absence.
+                    expected_count = 36 if record_index < 79 else 32
+                    if len(s.split(";")) != expected_count:
+                        return self._reject(
+                            DossierValidationStatus.INVALID_ROSTER, fname, len(player_data)
+                        )
+                elif record_index <= _DOSSIER_CURRENT_FIXED_LAST_INDEX or ";" not in s:
+                    continue
+                source_parts = s.strip().split(";")
+                parts = [p.strip() for p in source_parts]
+                known_rank = (
+                    parts[0] in (
+                        _OBSERVED_PILOT_RANKS
+                        if record_index < 79 else _OBSERVED_OBSERVER_RANKS
+                    )
+                    if observed_layout else parts[0] in wingmen_ranks
+                )
+                # Keep rejecting recognized truncated records as well.
+                if self._has_roster_shape(parts) or (known_rank and len(parts) >= 3):
+                    if not known_rank or any(
+                        not name
+                        or name.casefold() in _DOSSIER_MISSING_TOKENS
+                        or not any(char.isalpha() for char in name)
+                        or any(
+                            not char.isalpha() and char not in _DOSSIER_NAME_SEPARATORS
+                            for char in name
+                        )
+                        for name in parts[1:3]
+                    ):
+                        return self._reject(
+                            DossierValidationStatus.INVALID_ROSTER, fname, len(player_data)
+                        )
                     if len(parts) >= 6:
+                        # An explicit missing token may preserve stored status,
+                        # but an empty required slot is malformed source input.
+                        if not parts[5]:
+                            return self._reject(
+                                DossierValidationStatus.INVALID_ROSTER,
+                                fname,
+                                len(player_data),
+                            )
                         wingman_numeric: dict[str, int] = {}
                         numeric_field = "unknown"
                         try:
@@ -400,13 +523,16 @@ class WoFFDossierParser:
                                     raise InvalidIntegerError("missing integer value")
                                 wingman_numeric[numeric_field] = parsed_value
 
-                            numeric_field = "flminutes"
-                            parsed_flight_minutes = parse_integer(
-                                parts[12] if len(parts) > 12 else None,
-                                policy=_DOSSIER_UNSIGNED_INTEGER,
-                            )
-                            if parsed_flight_minutes is not None:
-                                wingman_numeric[numeric_field] = parsed_flight_minutes
+                            for index, numeric_field in (
+                                (11, "missions"),
+                                (12, "flminutes"),
+                            ):
+                                parsed_value = parse_integer(
+                                    parts[index] if len(parts) > index else None,
+                                    policy=_DOSSIER_UNSIGNED_INTEGER,
+                                )
+                                if parsed_value is not None:
+                                    wingman_numeric[numeric_field] = parsed_value
                         except InvalidIntegerError as exc:
                             log.warning(
                                 "[BIN] Numeric field rejected: source=%s "
@@ -415,25 +541,79 @@ class WoFFDossierParser:
                                 numeric_field,
                                 exc,
                             )
-                            continue
+                            return self._reject(
+                                DossierValidationStatus.INVALID_ROSTER,
+                                fname,
+                                len(player_data),
+                            )
 
                         w = WoFFWingman()
+                        # In the observed layout, [4] is shown as Kills,
+                        # not morale. [3] is also not proven to mean skill.
+                        # Do not overwrite richer stored values with guesses.
+                        present_fields = (
+                            {"rank"} if observed_layout else {"rank", "skill", "morale"}
+                        )
                         w.rank = parts[0]
                         w.fName = parts[1]
                         w.sName = parts[2]
-                        w.skill = wingman_numeric["skill"]
-                        w.morale = wingman_numeric["morale"]
-                        w.status = parts[5] if len(parts) > 5 else "Active"
+                        if not observed_layout:
+                            w.skill = wingman_numeric["skill"]
+                            w.morale = wingman_numeric["morale"]
+                        if parts[5].casefold() not in _DOSSIER_MISSING_TOKENS:
+                            w.status = parts[5]
+                            present_fields.add("status")
+
+                        # Q2: preserve stronger personal/biographical source
+                        # evidence without promoting it to a native source ID.
+                        if len(parts) > 18:
+                            birth_parts = parts[16:19]
+                            if all(
+                                value
+                                and value.casefold() not in _DOSSIER_MISSING_TOKENS
+                                for value in birth_parts
+                            ):
+                                w.birthDate = normalize_date(
+                                    f"{birth_parts[0]}/{birth_parts[1]}/{birth_parts[2]}"
+                                )
+                        if (
+                            len(parts) > 24
+                            and parts[24]
+                            and parts[24].casefold() not in _DOSSIER_MISSING_TOKENS
+                        ):
+                            w.evidenceDate = normalize_date(parts[24])
+                        if (
+                            len(parts) > 25
+                            and parts[25]
+                            and parts[25].casefold() not in _DOSSIER_MISSING_TOKENS
+                        ):
+                            w.evidenceLocation = parts[25]
                         
-                        for part in parts:
-                            if "pilot" in part.lower() or "observer" in part.lower() or "outlook" in part.lower():
-                                w.bio = part
-                                break
+                        # Biography is field 19 in the supported roster layout.
+                        # Empty is authoritative; Null/absent is unavailable.
+                        if (
+                            len(parts) > 19
+                            and parts[19].casefold() not in _DOSSIER_MISSING_TOKENS
+                        ):
+                            w.bio = source_parts[19]
+                            present_fields.add("bio")
                         
+                        if "missions" in wingman_numeric:
+                            w.missions = wingman_numeric["missions"]
+                            present_fields.add("missions")
                         if "flminutes" in wingman_numeric:
                             w.flminutes = wingman_numeric["flminutes"]
+                            present_fields.add("flminutes")
+                        w.present_fields = frozenset(present_fields)
                             
                         self.wingmen.append(w)
+                    else:
+                        # A recognized occurrence cannot become absence evidence.
+                        return self._reject(
+                            DossierValidationStatus.INVALID_ROSTER,
+                            fname,
+                            len(player_data),
+                        )
 
             # 4. Extrair Medalhas Recebidas (Índices 19 a 26)
             self.decorations = []
@@ -449,6 +629,7 @@ class WoFFDossierParser:
                         d.source_file = fname
                         self.decorations.append(d)
             
+            self.has_verified_structure = observed_layout
             self.validation_status = (
                 DossierValidationStatus.SUPPORTED_FULL
                 if len(player_data) > _DOSSIER_CURRENT_FIXED_LAST_INDEX
@@ -456,11 +637,12 @@ class WoFFDossierParser:
             )
             log.info(
                 "[BIN] Dossier accepted: source=%s category=%s "
-                "layout=%s records=%d",
+                "layout=%s records=%d authority=%s",
                 fname,
                 self.validation_status.value,
                 _DOSSIER_LAYOUT,
                 len(player_data),
+                "runtime" if require_verified_layout else "diagnostic",
             )
             return True
             

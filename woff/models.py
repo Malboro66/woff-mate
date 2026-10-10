@@ -163,3 +163,13 @@ class WoFFWingman:
     missions:    int = 0
     flminutes:   int = 0
     bio:         str = ""
+    # Stable personal evidence observed longitudinally in Dossier records. It
+    # is not a native WoFF ID; persistence exists only to support conservative
+    # reconciliation across generations.
+    birthDate:   str = ""
+    evidenceDate: str = ""
+    evidenceLocation: str = ""
+    # ``None`` keeps backwards-compatible programmatic objects authoritative.
+    # Parsed Dossier records carry an explicit set so absent fields can preserve
+    # richer stored values while explicit zero/empty values remain writable.
+    present_fields: Optional[frozenset[str]] = None

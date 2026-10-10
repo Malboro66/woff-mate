@@ -37,7 +37,12 @@ from ..ingestion.vacancy import (
     scan_dossiers,
 )
 from ..identity import pilot_slot
-from .test_dossier_parser import _dossier_fixture, _encode_dossier
+from .test_dossier_parser import _dossier_fixture as _legacy_fixture, _encode_dossier
+from .dossier_support import verified_fixture
+
+def _dossier_fixture(name):
+    return verified_fixture(_legacy_fixture(name))
+
 
 
 @pytest.fixture

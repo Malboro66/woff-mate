@@ -13,61 +13,329 @@ from __future__ import annotations
 
 import sqlite3
 import logging
+import json
 from typing import Optional, List, Dict, Any
 
+from ..identity import (
+    WingmanIdentityResolutionError,
+    WingmanIdentityResolutionKind,
+    resolve_wingman_identity,
+    wingman_identity_key,
+)
 from ..models import _uid, WoFFWingman
 from .base import BaseRepository
 
 log = logging.getLogger("WoFFWatch")
 
+_MUTABLE_FIELDS = (
+    "rank",
+    "skill",
+    "morale",
+    "status",
+    "missions",
+    "flminutes",
+    "bio",
+)
+
 
 class WingmanRepository(BaseRepository):
     """Repositório especializado em Wingmen AI."""
 
-    def upsert_wingmen_batch(
-        self, pilot_id: str, wingmen: Optional[List[WoFFWingman]]
-    ) -> int:
-        """Insere/atualiza wingmen de um piloto dentro da transação atual."""
-        added_w = 0
-        if not wingmen:
-            return added_w
+    @staticmethod
+    def load_retired_wingman_ids(
+        connection: sqlite3.Connection, pilot_id: str
+    ) -> frozenset[str]:
+        """Read validated retirement evidence, also for read-only CLI readers."""
+        if connection.execute(
+            "SELECT 1 FROM sqlite_master WHERE type='table' AND name='meta' COLLATE NOCASE"
+        ).fetchone() is None:
+            return frozenset()
+        row = connection.execute(
+            "SELECT value FROM meta WHERE key=?", ("dossier_roster:" + pilot_id,)
+        ).fetchone()
+        if row is None:
+            return frozenset()
+        try:
+            decoded = json.loads(str(row[0]))
+            if isinstance(decoded, list):
+                return frozenset()
+            if not isinstance(decoded, dict):
+                raise ValueError("invalid roster payload")
+            payload = decoded.get("retired_wingman_ids", [])
+            if not isinstance(payload, list) or not all(
+                isinstance(member_id, str) and member_id for member_id in payload
+            ):
+                raise ValueError("invalid retired wingman identities")
+            retired = frozenset(payload)
+            if len(retired) != len(payload):
+                raise ValueError("duplicate retired identity")
+            if not retired:
+                return retired
+            rows = connection.execute(
+                "SELECT id,birthDate,evidenceDate,evidenceLocation "
+                "FROM squad_members WHERE pilotId=?", (pilot_id,)
+            ).fetchall()
+            owned = {str(member[0]) for member in rows}
+            identityless = {
+                str(member[0]) for member in rows
+                if not any(str(value or "") for value in member[1:])
+            }
+            if not retired <= identityless:
+                raise ValueError("invalid retired wingman identity scope")
+            version = decoded.get("version")
+            if type(version) is not int or version not in {1, 2}:
+                raise ValueError("invalid roster version")
+            collections = [decoded.get("wingmen")]
+            candidate = decoded.get("candidate")
+            if candidate is not None:
+                if not isinstance(candidate, dict):
+                    raise ValueError("invalid roster candidate")
+                collections.append(candidate.get("wingmen"))
+            for collection in collections:
+                if not isinstance(collection, list):
+                    raise ValueError("invalid roster members")
+                seen: set[str] = set()
+                for item in collection:
+                    if not (isinstance(item, list) and len(item) == (4 if version == 2 else 3)
+                            and all(isinstance(value, str) for value in item)):
+                        raise ValueError("invalid roster member")
+                    if version == 2:
+                        member_id = item[0]
+                        if not member_id or member_id not in owned or member_id in seen or member_id in retired:
+                            raise ValueError("invalid active roster identity")
+                        seen.add(member_id)
+            return retired
+        except (TypeError, ValueError) as error:
+            raise sqlite3.DatabaseError(
+                "Invalid persisted Dossier retirement scope"
+            ) from error
 
+    @staticmethod
+    def _row_to_wingman(row: sqlite3.Row | tuple) -> WoFFWingman:
+        return WoFFWingman(
+            id=str(row[0]),
+            pilotId=str(row[1] or ""),
+            rank=str(row[2] or ""),
+            fName=str(row[3] or ""),
+            sName=str(row[4] or ""),
+            skill=int(row[5]) if row[5] is not None else 0,
+            morale=int(row[6]) if row[6] is not None else 0,
+            status=str(row[7] or ""),
+            missions=int(row[8]) if row[8] is not None else 0,
+            flminutes=int(row[9]) if row[9] is not None else 0,
+            bio=str(row[10] or ""),
+            birthDate=str(row[11] or ""),
+            evidenceDate=str(row[12] or ""),
+            evidenceLocation=str(row[13] or ""),
+        )
+
+    def _stored_wingmen(self, pilot_id: str) -> List[WoFFWingman]:
+        rows = self._conn.execute(
+            """
+            SELECT id, pilotId, rank, fName, sName, skill, morale,
+                   status, missions, flminutes, bio,
+                   birthDate, evidenceDate, evidenceLocation
+            FROM squad_members
+            WHERE pilotId = ?
+            ORDER BY id
+            """,
+            (pilot_id,),
+        ).fetchall()
+        return [self._row_to_wingman(row) for row in rows]
+
+    def identityless_wingman_ids(self, pilot_id: str) -> frozenset[str]:
+        """Historical rows with no supported personal evidence at all."""
+        return frozenset(
+            member.id
+            for member in self._stored_wingmen(pilot_id)
+            if not any((member.birthDate, member.evidenceDate, member.evidenceLocation))
+        )
+
+    @staticmethod
+    def _authoritative_fields(wingman: WoFFWingman) -> tuple[str, ...]:
+        if wingman.present_fields is None:
+            return _MUTABLE_FIELDS
+        return tuple(
+            field for field in _MUTABLE_FIELDS if field in wingman.present_fields
+        )
+
+    def _insert_wingman(
+        self,
+        cursor: sqlite3.Cursor,
+        pilot_id: str,
+        wingman: WoFFWingman,
+    ) -> int:
+        authoritative = set(self._authoritative_fields(wingman))
+        wingman.pilotId = pilot_id
+
+        def value(field: str) -> object:
+            return getattr(wingman, field) if field in authoritative else None
+
+        cursor.execute(
+            """
+            INSERT INTO squad_members (
+                id, pilotId, rank, fName, sName, skill, morale,
+                status, missions, flminutes, bio,
+                birthDate, evidenceDate, evidenceLocation
+            ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+            """,
+            (
+                wingman.id,
+                pilot_id,
+                value("rank"),
+                wingman.fName,
+                wingman.sName,
+                value("skill"),
+                value("morale"),
+                value("status"),
+                value("missions"),
+                value("flminutes"),
+                value("bio"),
+                wingman.birthDate or None,
+                wingman.evidenceDate or None,
+                wingman.evidenceLocation or None,
+            ),
+        )
+        return cursor.rowcount
+
+    def _update_wingman(
+        self,
+        cursor: sqlite3.Cursor,
+        persistent_id: str,
+        wingman: WoFFWingman,
+    ) -> int:
+        fields = self._authoritative_fields(wingman)
+        if not fields:
+            return 0
+        assignments = ", ".join(f"{field} = ?" for field in fields)
+        values = [getattr(wingman, field) for field in fields]
+        cursor.execute(
+            f"UPDATE squad_members SET {assignments} WHERE id = ?",
+            (*values, persistent_id),
+        )
+        return cursor.rowcount
+
+    def _upsert_programmatic(
+        self,
+        cursor: sqlite3.Cursor,
+        pilot_id: str,
+        wingman: WoFFWingman,
+    ) -> int:
+        row = cursor.execute(
+            "SELECT pilotId FROM squad_members WHERE id = ?",
+            (wingman.id,),
+        ).fetchone()
+        if row is None:
+            return self._insert_wingman(cursor, pilot_id, wingman)
+        if str(row[0] or "") != pilot_id:
+            raise sqlite3.IntegrityError(
+                "wingman ID already belongs to another persistent pilot"
+            )
+        wingman.pilotId = pilot_id
+        return self._update_wingman(cursor, wingman.id, wingman)
+
+    @staticmethod
+    def _validate_incoming_dossier_batch(wingmen: List[WoFFWingman]) -> None:
+        seen: set[tuple[str, str, str, str, str]] = set()
+        for wingman in wingmen:
+            if wingman.present_fields is None:
+                continue
+            key = wingman_identity_key(wingman)
+            if key is None:
+                continue
+            if key in seen:
+                raise WingmanIdentityResolutionError(
+                    WingmanIdentityResolutionKind.AMBIGUOUS,
+                    "duplicate-incoming-evidence",
+                )
+            seen.add(key)
+
+    def upsert_wingmen_batch(
+        self,
+        pilot_id: str,
+        wingmen: Optional[List[WoFFWingman]],
+        *,
+        retired_wingman_ids: frozenset[str] = frozenset(),
+    ) -> int:
+        """Persist wingmen without using display name or row order as identity."""
+        if not wingmen:
+            return 0
+
+        self._validate_incoming_dossier_batch(wingmen)
         cursor = self._conn.cursor()
-        for w in wingmen:
-            w.pilotId = pilot_id
-            cursor.execute("""
-                INSERT INTO squad_members (
-                    id, pilotId, rank, fName, sName, skill, morale,
-                    status, missions, flminutes, bio
-                ) VALUES (?,?,?,?,?,?,?,?,?,?,?)
-                ON CONFLICT(pilotId, fName, sName) DO UPDATE SET
-                    rank=excluded.rank, skill=excluded.skill,
-                    morale=excluded.morale, status=excluded.status,
-                    missions=excluded.missions, flminutes=excluded.flminutes,
-                    bio=excluded.bio
-            """, (
-                w.id, w.pilotId, w.rank, w.fName, w.sName, w.skill,
-                w.morale, w.status, w.missions, w.flminutes, w.bio
-            ))
-            added_w += cursor.rowcount
-        return added_w
+        if retired_wingman_ids and not retired_wingman_ids <= self.identityless_wingman_ids(pilot_id):
+            raise sqlite3.IntegrityError("Invalid retired wingman identity")
+        stored = [
+            member for member in self._stored_wingmen(pilot_id)
+            if member.id not in retired_wingman_ids
+        ]
+        changed = 0
+
+        for wingman in wingmen:
+            wingman.pilotId = pilot_id
+
+            # Programmatic/legacy callers that have no Dossier presence metadata
+            # retain explicit ID semantics. They never fall back to name.
+            if wingman.present_fields is None:
+                changed += self._upsert_programmatic(cursor, pilot_id, wingman)
+                if not any(candidate.id == wingman.id for candidate in stored):
+                    stored.append(wingman)
+                continue
+
+            resolution = resolve_wingman_identity(wingman, stored)
+            if resolution.kind is WingmanIdentityResolutionKind.MATCHED:
+                assert resolution.wingman_id is not None
+                wingman.id = resolution.wingman_id
+                changed += self._update_wingman(
+                    cursor, resolution.wingman_id, wingman
+                )
+                continue
+            if resolution.kind is WingmanIdentityResolutionKind.NEW:
+                changed += self._insert_wingman(cursor, pilot_id, wingman)
+                stored.append(wingman)
+                continue
+            raise WingmanIdentityResolutionError(
+                resolution.kind,
+                resolution.reason,
+            )
+
+        return changed
 
     def get_wingmen_by_pilot(self, pilot_id: str) -> List[Dict[str, Any]]:
-        """Busca os wingmen atuais de um piloto."""
-        with self._lock:
+        """Legacy public projection: names and status, without identity keys."""
+        return [
+            {key: row[key] for key in ("fName", "sName", "status")}
+            for row in self.get_wingmen_with_identity_by_pilot(pilot_id)
+        ]
+
+    def get_wingmen_with_identity_by_pilot(
+        self, pilot_id: str, *, include_retired: bool = False
+    ) -> List[Dict[str, Any]]:
+        """Roster/event projection, excluding explicitly retired historical IDs.
+
+        Ownership validation can read retained rows with ``include_retired``.
+        Neither projection asserts that partial observations are a census.
+        """
+        with self._db.transaction():
             conn = self._conn
             conn.row_factory = sqlite3.Row
             try:
                 rows = conn.execute(
-                    "SELECT fName, sName, status FROM squad_members WHERE pilotId = ?",
+                    "SELECT id, fName, sName, status FROM squad_members WHERE pilotId = ?",
                     (pilot_id,),
                 ).fetchall()
-                return [dict(r) for r in rows]
+                members = [dict(r) for r in rows]
             except sqlite3.Error:
                 log.exception("Erro ao buscar wingmen")
                 return []
             finally:
                 conn.row_factory = None
+            retired = (
+                frozenset()
+                if include_retired
+                else self._db._load_retired_wingman_ids(pilot_id)
+            )
+            return [member for member in members if member["id"] not in retired]
 
     def get_wingman_personality(self, wingman_id: str) -> Optional[Dict[str, Any]]:
         """Busca a personalidade 3P de um wingman."""

@@ -220,7 +220,7 @@ def test_processor_parses_exact_verified_bytes_after_source_changes(tmp_path, mo
         victories = []
         decorations = []
 
-        def parse_bytes(self, data, name):
+        def parse_bytes(self, data, name, *, require_verified_layout=False):
             received.append((data, name))
             return False
 
@@ -264,7 +264,7 @@ def test_dossier_side_effects_never_use_filesystem_timestamp(
         def __init__(self):
             self.pilot = pilot
 
-        def parse_bytes(self, data, name):
+        def parse_bytes(self, data, name, *, require_verified_layout=False):
             return True
 
     monkeypatch.setattr("woff.handler.WoFFDossierParser", Parser)
@@ -314,7 +314,7 @@ def test_live_routing_supplies_verified_bytes_and_original_name(
         victories = []
         decorations = []
 
-        def parse_bytes(self, data, name):
+        def parse_bytes(self, data, name, *, require_verified_layout=False):
             received.append((data, name))
             return False
 
@@ -440,7 +440,7 @@ def test_unresolved_identity_does_not_acknowledge_coalesced_generation(monkeypat
             self.missions = [MagicMock(date="1917-01-01", time="08:00", id="m1")]
             self.victories = [MagicMock()]
 
-        def parse_bytes(self, data, name):
+        def parse_bytes(self, data, name, *, require_verified_layout=False):
             return True
 
     first_merge = True
@@ -539,7 +539,7 @@ def test_merge_rejection_never_acknowledges_any_ingestion_route(
             self.decorations = []
             self.wingmen = []
 
-        def parse_bytes(self, data, name):
+        def parse_bytes(self, data, name, *, require_verified_layout=False):
             return True
 
     monkeypatch.setattr(parser_target, Parser)
@@ -588,7 +588,7 @@ def test_merge_rejection_retries_same_generation_then_acknowledges_once(monkeypa
             self.missions = [mission]
             self.victories = [MagicMock()]
 
-        def parse_bytes(self, data, name):
+        def parse_bytes(self, data, name, *, require_verified_layout=False):
             return True
 
     def merge(**_kwargs):
@@ -639,7 +639,7 @@ def test_explicit_derived_failure_does_not_acknowledge_generation(monkeypatch):
             self.victories = []
             self.decorations = []
 
-        def parse_bytes(self, data, name):
+        def parse_bytes(self, data, name, *, require_verified_layout=False):
             return True
 
     monkeypatch.setattr("woff.handler.WoFFPilotDataParser", Parser)
@@ -711,7 +711,7 @@ def test_dossier_rejection_rolls_back_derived_effects_and_retry_commits_once(
             self.wingmen = [new_wingman]
             self.decorations = []
 
-        def parse_bytes(self, data, name):
+        def parse_bytes(self, data, name, *, require_verified_layout=False):
             parser_calls.append((data, name))
             return True
 
@@ -840,7 +840,7 @@ def test_incoming_dossier_date_preserves_pre_merge_wingman_event(
             self.wingmen = [new_wingman]
             self.decorations = []
 
-        def parse_bytes(self, data, name):
+        def parse_bytes(self, data, name, *, require_verified_layout=False):
             return True
 
     monkeypatch.setattr("woff.handler.WoFFDossierParser", Parser)
@@ -914,7 +914,7 @@ def test_mission_retry_uses_persisted_natural_identity_and_acknowledges_once(
             self.victories = []
             self.decorations = []
 
-        def parse_bytes(self, data, name):
+        def parse_bytes(self, data, name, *, require_verified_layout=False):
             return True
 
     monkeypatch.setattr("woff.handler.WoFFPilotDataParser", Parser)
@@ -1017,7 +1017,7 @@ def test_dossier_life_event_receives_original_optional_prior_state(
         def __init__(self):
             self.pilot = pilot
 
-        def parse_bytes(self, data, name):
+        def parse_bytes(self, data, name, *, require_verified_layout=False):
             return True
 
     captured = []

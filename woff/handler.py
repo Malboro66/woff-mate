@@ -55,6 +55,7 @@ from .identity import (
     PilotIdentityRejected,
     PilotIdentityUnavailable,
     PilotSlotBinding,
+    WingmanIdentityResolutionError,
     dossier_source_name,
     is_dossier_source,
     pilot_slot,
@@ -64,7 +65,7 @@ from .normalization import canonical_mission_order_key
 from .parsers.xml_parser import WoFFXMLParser
 from .parsers.mission_log_parser import WoFFMissionLogParser
 from .parsers.pilot_data_parser import WoFFPilotDataParser
-from .parsers.dossier_parser import WoFFDossierParser
+from .parsers.dossier_parser import DossierValidationStatus, WoFFDossierParser
 
 log = logging.getLogger("WoFFWatch")
 
@@ -477,6 +478,13 @@ class FileProcessor:
             return self._dependency_pending(retry_input)
         except PilotIdentityError as error:
             return self._identity_rejection(path, error)
+        except WingmanIdentityResolutionError as error:
+            log.warning(
+                "Wingman identity rejected: category=%s reason=%s",
+                error.kind.value,
+                error.reason,
+            )
+            return ProcessingOutcome.permanent(ProcessingReason.IDENTITY_REJECTED)
         except sqlite3.Error as error:
             reason = classify_transient_sqlite_error(error)
             if reason is not None:
@@ -712,20 +720,26 @@ class FileProcessor:
         data, name = self._parser_input(path, snapshot)
         if "dossier" in fname:
             parser = WoFFDossierParser()
-            if parser.parse_bytes(data, name) and parser.pilot:
+            if parser.parse_bytes(data, name, require_verified_layout=True) and parser.pilot:
                 identity = self._dossier_identity(snapshot, slot_epoch)
                 real_pilot_id = self.campaign_engine.process_dossier_import(
                     pilot=parser.pilot,
                     decorations=parser.decorations,
                     wingmen=parser.wingmen,
                     identity=identity,
+                    roster_complete=getattr(parser, "roster_complete", True),
                 )
                 return (
                     None
                     if real_pilot_id
                     else ProcessingReason.PERSISTENCE_REJECTED
                 )
-            return ProcessingReason.PARSER_REJECTED
+            return (
+                ProcessingReason.UNSUPPORTED_LAYOUT
+                if getattr(parser, "validation_status", None)
+                is DossierValidationStatus.UNSUPPORTED_LAYOUT
+                else ProcessingReason.PARSER_REJECTED
+            )
 
         if fname == "mission.log":
             parser = WoFFMissionLogParser()
