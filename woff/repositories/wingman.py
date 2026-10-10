@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import sqlite3
 import logging
+import json
 from typing import Optional, List, Dict, Any
 
 from ..identity import (
@@ -39,6 +40,75 @@ _MUTABLE_FIELDS = (
 
 class WingmanRepository(BaseRepository):
     """Repositório especializado em Wingmen AI."""
+
+    @staticmethod
+    def load_retired_wingman_ids(
+        connection: sqlite3.Connection, pilot_id: str
+    ) -> frozenset[str]:
+        """Read validated retirement evidence, also for read-only CLI readers."""
+        if connection.execute(
+            "SELECT 1 FROM sqlite_master WHERE type='table' AND name='meta' COLLATE NOCASE"
+        ).fetchone() is None:
+            return frozenset()
+        row = connection.execute(
+            "SELECT value FROM meta WHERE key=?", ("dossier_roster:" + pilot_id,)
+        ).fetchone()
+        if row is None:
+            return frozenset()
+        try:
+            decoded = json.loads(str(row[0]))
+            if isinstance(decoded, list):
+                return frozenset()
+            if not isinstance(decoded, dict):
+                raise ValueError("invalid roster payload")
+            payload = decoded.get("retired_wingman_ids", [])
+            if not isinstance(payload, list) or not all(
+                isinstance(member_id, str) and member_id for member_id in payload
+            ):
+                raise ValueError("invalid retired wingman identities")
+            retired = frozenset(payload)
+            if len(retired) != len(payload):
+                raise ValueError("duplicate retired identity")
+            if not retired:
+                return retired
+            rows = connection.execute(
+                "SELECT id,birthDate,evidenceDate,evidenceLocation "
+                "FROM squad_members WHERE pilotId=?", (pilot_id,)
+            ).fetchall()
+            owned = {str(member[0]) for member in rows}
+            identityless = {
+                str(member[0]) for member in rows
+                if not any(str(value or "") for value in member[1:])
+            }
+            if not retired <= identityless:
+                raise ValueError("invalid retired wingman identity scope")
+            version = decoded.get("version")
+            if type(version) is not int or version not in {1, 2}:
+                raise ValueError("invalid roster version")
+            collections = [decoded.get("wingmen")]
+            candidate = decoded.get("candidate")
+            if candidate is not None:
+                if not isinstance(candidate, dict):
+                    raise ValueError("invalid roster candidate")
+                collections.append(candidate.get("wingmen"))
+            for collection in collections:
+                if not isinstance(collection, list):
+                    raise ValueError("invalid roster members")
+                seen: set[str] = set()
+                for item in collection:
+                    if not (isinstance(item, list) and len(item) == (4 if version == 2 else 3)
+                            and all(isinstance(value, str) for value in item)):
+                        raise ValueError("invalid roster member")
+                    if version == 2:
+                        member_id = item[0]
+                        if not member_id or member_id not in owned or member_id in seen or member_id in retired:
+                            raise ValueError("invalid active roster identity")
+                        seen.add(member_id)
+            return retired
+        except (TypeError, ValueError) as error:
+            raise sqlite3.DatabaseError(
+                "Invalid persisted Dossier retirement scope"
+            ) from error
 
     @staticmethod
     def _row_to_wingman(row: sqlite3.Row | tuple) -> WoFFWingman:
@@ -238,9 +308,15 @@ class WingmanRepository(BaseRepository):
             for row in self.get_wingmen_with_identity_by_pilot(pilot_id)
         ]
 
-    def get_wingmen_with_identity_by_pilot(self, pilot_id: str) -> List[Dict[str, Any]]:
-        """Minimal rich projection for persistent roster/event identity."""
-        with self._lock:
+    def get_wingmen_with_identity_by_pilot(
+        self, pilot_id: str, *, include_retired: bool = False
+    ) -> List[Dict[str, Any]]:
+        """Roster/event projection, excluding explicitly retired historical IDs.
+
+        Ownership validation can read retained rows with ``include_retired``.
+        Neither projection asserts that partial observations are a census.
+        """
+        with self._db.transaction():
             conn = self._conn
             conn.row_factory = sqlite3.Row
             try:
@@ -248,12 +324,18 @@ class WingmanRepository(BaseRepository):
                     "SELECT id, fName, sName, status FROM squad_members WHERE pilotId = ?",
                     (pilot_id,),
                 ).fetchall()
-                return [dict(r) for r in rows]
+                members = [dict(r) for r in rows]
             except sqlite3.Error:
                 log.exception("Erro ao buscar wingmen")
                 return []
             finally:
                 conn.row_factory = None
+            retired = (
+                frozenset()
+                if include_retired
+                else self._db._load_retired_wingman_ids(pilot_id)
+            )
+            return [member for member in members if member["id"] not in retired]
 
     def get_wingman_personality(self, wingman_id: str) -> Optional[Dict[str, Any]]:
         """Busca a personalidade 3P de um wingman."""

@@ -174,7 +174,13 @@ def test_transfer_bypasses_legacy_candidates_and_retains_history(
     assert state.roster_squadron == "New Squadron" and not state.roster_baseline_pending
     new_ids = {member.wingman_id for member in state.wingmen}
     assert len(new_ids) == 2 and "wingman-a" not in new_ids
-    assert len(db.get_wingmen_by_pilot("pilot-96")) == 3
+    # Preserve the original three-row history assertion independently of the
+    # roster projection, which now excludes the explicitly retired old ID.
+    assert db._get_conn().execute(
+        "SELECT COUNT(*) FROM squad_members WHERE pilotId='pilot-96'"
+    ).fetchone() == (3,)
+    assert len(db.get_wingmen_by_pilot("pilot-96")) == 2
+    assert {row["id"] for row in db.get_wingmen_with_identity_by_pilot("pilot-96")} == new_ids
     assert _stored_state(db)["diary"] == []
     committed = list(db._get_conn().iterdump())
     db.close()

@@ -25,6 +25,7 @@ from woff.career_selection import (
 from woff.nation import NationService
 from woff.command_contract import ExitCode, emit_diagnostic
 from woff.config import InvalidConfigurationError, WatchdogConfig
+from woff.repositories.wingman import WingmanRepository
 
 
 class QueryConfigurationError(ValueError):
@@ -320,13 +321,25 @@ def show_diary(conn, pilot_id, c: Colors, args):
         print("-" * 60)
 
 def show_wingmen(conn, pilot_id, c: Colors, args):
-    cursor = conn.execute("""
-        SELECT s.pilotId AS pilot_id, s.rank, s.fName, s.sName,
-               s.status, s.skill, s.bio
-        FROM squad_members s
-        WHERE s.pilotId = ?
-    """, (pilot_id,))
-    wingmen = [dict(row) for row in cursor.fetchall()]
+    owns_read = not conn.in_transaction
+    if owns_read:
+        conn.execute("BEGIN")
+    try:
+        retired = WingmanRepository.load_retired_wingman_ids(conn, pilot_id)
+        cursor = conn.execute("""
+            SELECT s.id, s.pilotId AS pilot_id, s.rank, s.fName, s.sName,
+                   s.status, s.skill, s.bio
+            FROM squad_members s
+            WHERE s.pilotId = ?
+        """, (pilot_id,))
+        wingmen = []
+        for row in cursor.fetchall():
+            member = dict(row)
+            if member.pop("id") not in retired:
+                wingmen.append(member)
+    finally:
+        if owns_read:
+            conn.rollback()
     
     if args.format != "table":
         export_data(

@@ -2614,7 +2614,11 @@ class DatabaseManager:
             raise ValueError("invalid roster members")
         members = []
         seen: set[str] = set()
-        owned = {row["id"] for row in self.get_wingmen_with_identity_by_pilot(pilot_id)}
+        owned = {
+            row["id"] for row in self._wingmen.get_wingmen_with_identity_by_pilot(
+                pilot_id, include_retired=True
+            )
+        }
         for item in payload:
             if not (
                 isinstance(item, list)
@@ -2786,6 +2790,13 @@ class DatabaseManager:
         ):
             raise ValueError("invalid retired wingman identity scope")
         return ids
+
+    def _load_retired_wingman_ids(self, pilot_id: str) -> frozenset[str]:
+        """Read only the persisted retirement scope; never infer it from names."""
+        connection = self._get_conn()
+        if not connection.in_transaction:
+            raise RuntimeError("Retired identity scope requires a transaction")
+        return self._wingmen.load_retired_wingman_ids(connection, pilot_id)
 
     def load_resolved_dossier_roster(
         self, pilot_id: str, wingmen: Sequence[WoFFWingman]

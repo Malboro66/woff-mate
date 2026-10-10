@@ -292,10 +292,11 @@ class CampaignEngine:
                 legacy_partial_upgrade = bool(
                     not roster_complete
                     and stored is not None
-                    and (
-                        stored.roster_format_version == 1
-                        or (same_digest and not partial_marker_present)
-                    )
+                    # Only the exact observed digest proves that the legacy
+                    # generation was partial. v1 alone says nothing about its
+                    # coverage and cannot retire a trusted complete baseline.
+                    and same_digest
+                    and not partial_marker_present
                 )
                 if same_digest and (roster_complete or partial_marker_present):
                     real_pilot_id = stored.pilot_id if stored is not None else None
@@ -472,7 +473,12 @@ class CampaignEngine:
         ):
             log.warning("Wingman events rejected: category=unresolved-roster-identity")
             return False
-        old_wingmen = self.db_manager.get_wingmen_with_identity_by_pilot(pilot_id)
+        with self.db_manager.transaction():
+            retired = self.db_manager._load_retired_wingman_ids(pilot_id)
+            if any(member.id in retired for member in new_wingmen):
+                log.warning("Wingman events rejected: category=retired-roster-identity")
+                return False
+            old_wingmen = self.db_manager.get_wingmen_with_identity_by_pilot(pilot_id)
         try:
             old_map = self._roster_map(
                 tuple(
