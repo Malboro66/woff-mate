@@ -88,6 +88,7 @@ def test_161_physical_indices_and_context_remain_distinct():
     }
     # Observed [4] is displayed as Kills, never as morale.
     alex = next(w for w in parser.wingmen if w.fName == "Alex")
+    assert alex.present_fields is not None
     assert "morale" not in alex.present_fields
     assert "skill" not in alex.present_fields
     assert alex.status == "In Service"
