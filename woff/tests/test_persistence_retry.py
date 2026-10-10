@@ -15,6 +15,7 @@ from ..ingestion.outcome import (
     classify_transient_sqlite_error,
 )
 from .test_dossier_parser import _encode_dossier
+from .dossier_support import verified_fixture
 
 
 def _encoded_dossier() -> bytes:
@@ -35,7 +36,7 @@ def _encoded_dossier() -> bytes:
         89: "Arras",
     }.items():
         lines[index] = value
-    return _encode_dossier(lines, "Pilot1Dossier.txt")
+    return _encode_dossier(verified_fixture(lines), "Pilot1Dossier.txt")
 
 
 def _pilot_log(day: int, note: str) -> str:

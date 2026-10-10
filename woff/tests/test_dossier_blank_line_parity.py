@@ -1,3 +1,4 @@
+# Legacy synthetic decoding here is nonauthoritative; runtime admission is tested separately.
 from pathlib import Path
 
 from ..parsers.dossier_parser import WoFFDossierParser

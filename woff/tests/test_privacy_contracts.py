@@ -266,7 +266,7 @@ def test_identity_dependency_diagnostic_omits_personal_data_and_digest(
             self.missions = []
             self.victories = []
 
-        def parse_bytes(self, data: bytes, name: str) -> bool:
+        def parse_bytes(self, data: bytes, name: str, *, require_verified_layout=False) -> bool:
             return True
 
     monkeypatch.setattr("woff.handler.WoFFPilotDataParser", Parser)

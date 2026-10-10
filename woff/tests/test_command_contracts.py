@@ -469,6 +469,7 @@ def test_report_uses_selected_config_and_renders_zero_as_zero(
     )
 
     assert result.returncode == 0
+    assert "Diagnóstico não autoritativo: estrutura legada não verificada" in (tmp_path / "woff_data_report.txt").read_text(encoding="utf-8")
     report = (tmp_path / "woff_data_report.txt").read_text(encoding="utf-8")
     assert "Nº Total de Missões: 0" in report
     assert "Vitórias Confirmadas: 0" in report

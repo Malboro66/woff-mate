@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from .dossier_support import CompleteRosterDomainHarness
+
 import json
 import sqlite3
 from contextlib import closing
@@ -63,6 +65,13 @@ def _open(path):
 def _apply(processor, source, data):
     source.write_bytes(data)
     return processor.process(str(source), "modified")
+
+
+def _apply_complete(processor, source, data):
+    """Explicit historical complete-census engine contract, not source admission."""
+    source.write_bytes(data)
+    harness = CompleteRosterDomainHarness(processor.db_manager, processor.campaign_engine, stability_timeout=0.1, stability_interval=0.001)
+    return harness.process(str(source), "modified")
 
 
 def _state(db, source):
@@ -436,7 +445,7 @@ def test_trusted_homonym_baseline_and_candidate_survive_partial_reopens(tmp_path
     path, source = tmp_path / "trusted.sqlite", tmp_path / "Pilot1Dossier.txt"
     db, processor = _open(path)
     try:
-        assert _apply(processor, source, _homonyms(partial=False)).acknowledged_generation
+        assert _apply_complete(processor, source, _homonyms(partial=False)).acknowledged_generation
         initial = _state(db, source)
         ids = {member.wingman_id for member in initial.wingmen}
         for member_id in ids:
@@ -446,7 +455,7 @@ def test_trusted_homonym_baseline_and_candidate_survive_partial_reopens(tmp_path
             assert db.save_wingman_memory(member_id, "mission", "1915-11-10", "Synthetic " + member_id)
         ownership = _ownership(db)
         if candidate:
-            assert _apply(processor, source, _homonyms(partial=False, second=False, day=11)).acknowledged_generation
+            assert _apply_complete(processor, source, _homonyms(partial=False, second=False, day=11)).acknowledged_generation
         trusted = _state(db, source)
         assert (trusted.roster_candidate is not None) == candidate
         metadata = db._get_conn().execute("SELECT value FROM meta WHERE key=?",
@@ -464,22 +473,22 @@ def test_trusted_homonym_baseline_and_candidate_survive_partial_reopens(tmp_path
         assert _dump(db) == snapshot
         assert not _state(db, source).roster_baseline_pending
         if not candidate:
-            assert _apply(processor, source, _homonyms(partial=False, second=False, day=13)).acknowledged_generation
+            assert _apply_complete(processor, source, _homonyms(partial=False, second=False, day=13)).acknowledged_generation
             assert _state(db, source).roster_candidate is not None
-        assert _apply(processor, source, _homonyms(partial=False, day=14)).acknowledged_generation
+        assert _apply_complete(processor, source, _homonyms(partial=False, day=14)).acknowledged_generation
         assert _state(db, source).roster_candidate is None
         assert {row["id"] for row in db.get_wingmen_with_identity_by_pilot(initial.pilot_id)} == ids
         assert _ownership(db) == ownership
         assert db._get_conn().execute("SELECT COUNT(*) FROM diary_entries").fetchone() == (0,)
         wounded = _homonyms(partial=False, day=15, wounded=True)
-        assert _apply(processor, source, wounded).acknowledged_generation
+        assert _apply_complete(processor, source, wounded).acknowledged_generation
         assert db._get_conn().execute("SELECT evidenceLocation,status FROM squad_members WHERE fName='John' ORDER BY evidenceLocation").fetchall() == [
             ("Synthetic town of Alex", "In Service"), ("Synthetic town of Blair", "Wounded")]
         assert db._get_conn().execute("SELECT COUNT(*) FROM diary_entries").fetchone() == (1,)
         last = _dump(db)
         _close(db)
         db, processor = _open(path)
-        assert _apply(processor, source, wounded).acknowledged_generation
+        assert _apply_complete(processor, source, wounded).acknowledged_generation
         assert _dump(db) == last and _ownership(db) == ownership
         _healthy(db)
     finally:
@@ -491,7 +500,7 @@ def test_observed_structural_diagnostics_do_not_shift_or_transfer(tmp_path, arit
     path, source = tmp_path / "physical.sqlite", tmp_path / "Pilot1Dossier.txt"
     db, processor = _open(path)
     try:
-        assert _apply(processor, source, _dossier_bytes()).acknowledged_generation
+        assert _apply_complete(processor, source, _dossier_bytes()).acknowledged_generation
         trusted = _state(db, source)
         lines = _physical_lines()
         lines[3:6] = ["Lieutenant", "James", "Hartley"]

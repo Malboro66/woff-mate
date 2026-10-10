@@ -1,6 +1,8 @@
-"""Production-path regressions for Issue #96 review findings and legacy compatibility."""
+"""Engine-domain regressions for Issue #96 review findings and legacy compatibility."""
 
 from __future__ import annotations
+
+from .dossier_support import complete_roster_domain, CompleteRosterDomainHarness
 
 import json
 import sqlite3
@@ -12,7 +14,7 @@ from ..campaign_namespace import campaign_namespace_for_root
 from ..database import DatabaseManager
 from ..handler import FileProcessor
 from ..ingestion.outcome import ProcessingReason, ProcessingStatus
-from .test_dossier_transactions import _dossier_bytes, _stored_state, dossier_runtime
+from .test_dossier_transactions import _dossier_bytes, _stored_state
 from .test_roster_identity import _ids, _import, _member, _roster
 from .test_wingman_identity_evidence import _parse_single_wingman
 from .test_wingman_identity_migration import _legacy_database
@@ -46,18 +48,18 @@ def _submit(runtime, members, *, generation=1, squadron="No. 56 Squadron"):
     ],
 )
 def test_expected_identity_rejection_is_atomic_and_sanitized(
-    dossier_runtime,
+    complete_roster_domain,
     caplog,
     change,
     kind,
     reason,
 ):
-    db, _, _ = dossier_runtime
-    assert _import(dossier_runtime, [_member("a"), _member("b")])
+    db, _, _ = complete_roster_domain
+    assert _import(complete_roster_domain, [_member("a"), _member("b")])
     original_ids = _ids(db)
     member_id = original_ids["Synthetic town a"]
     assert db.save_wingman_personality(
-        member_id, _roster(dossier_runtime).pilot_id, {"personality_trait": "Steady"}
+        member_id, _roster(complete_roster_domain).pilot_id, {"personality_trait": "Steady"}
     )
     assert db.save_wingman_memory(
         member_id, "mission", "1917-04-01", "Synthetic memory"
@@ -74,7 +76,7 @@ def test_expected_identity_rejection_is_atomic_and_sanitized(
     if change == "duplicate":
         members.append(changed)
     caplog.clear()
-    outcome = _submit(dossier_runtime, members)
+    outcome = _submit(complete_roster_domain, members)
     assert outcome.status is ProcessingStatus.PERMANENT_REJECTION
     assert outcome.reason is ProcessingReason.IDENTITY_REJECTED
     assert outcome.retry_input is None and outcome.acknowledged_generation is None
@@ -94,7 +96,7 @@ def test_expected_identity_rejection_is_atomic_and_sanitized(
         token not in diagnostics[0].message
         for token in ("John", "Smith", "Jonathan", "town", "1891")
     )
-    assert _submit(dossier_runtime, members) == outcome
+    assert _submit(complete_roster_domain, members) == outcome
     assert list(db._get_conn().iterdump()) == original
 
 
@@ -136,7 +138,7 @@ def migrated_runtime(tmp_path, request):
         .execute("SELECT 1 FROM meta WHERE key LIKE 'dossier_roster:%'")
         .fetchone()
     ) == (metadata_version is not None)
-    processor = FileProcessor(
+    processor = CompleteRosterDomainHarness(
         db, CampaignEngine(db), stability_timeout=0.1, stability_interval=0.001
     )
     yield db, processor, path
@@ -271,29 +273,29 @@ def test_biography_field_presence_and_exact_value(biography, present):
         ("nUlL", "Reliable pilot."),
     ],
 )
-def test_biography_merge_and_replay(dossier_runtime, biography, expected):
-    db, _, _ = dossier_runtime
-    assert _import(dossier_runtime, [_member("a")])
+def test_biography_merge_and_replay(complete_roster_domain, biography, expected):
+    db, _, _ = complete_roster_domain
+    assert _import(complete_roster_domain, [_member("a")])
     ids = _ids(db)
     updated = _field(_member("a"), 19, biography)
-    assert _submit(dossier_runtime, [updated]).acknowledged_generation
+    assert _submit(complete_roster_domain, [updated]).acknowledged_generation
     assert db._get_conn().execute("SELECT bio FROM squad_members").fetchone() == (
         expected,
     )
     assert _ids(db) == ids
     before = list(db._get_conn().iterdump())
-    assert _submit(dossier_runtime, [updated]).acknowledged_generation
+    assert _submit(complete_roster_domain, [updated]).acknowledged_generation
     assert list(db._get_conn().iterdump()) == before
 
 
 @pytest.mark.parametrize("reverse", [False, True])
 def test_name_collision_inside_first_batch_cannot_create_identities(
-    dossier_runtime, reverse
+    complete_roster_domain, reverse
 ):
-    db, _, _ = dossier_runtime
+    db, _, _ = complete_roster_domain
     before = list(db._get_conn().iterdump())
     members = [_member("a"), _field(_member("a"), 1, "Jonathan")]
-    outcome = _submit(dossier_runtime, list(reversed(members)) if reverse else members)
+    outcome = _submit(complete_roster_domain, list(reversed(members)) if reverse else members)
     assert outcome.reason is ProcessingReason.IDENTITY_REJECTED
     assert list(db._get_conn().iterdump()) == before
 
@@ -324,25 +326,25 @@ def test_transfer_retirement_rolls_back_with_diary_failure(
     assert list(db._get_conn().iterdump()) == before
 
 
-def test_structurally_absent_biography_and_identity_cannot_erase_data(dossier_runtime):
-    db, _, _ = dossier_runtime
-    assert _import(dossier_runtime, [_member("a")])
+def test_structurally_absent_biography_and_identity_cannot_erase_data(complete_roster_domain):
+    db, _, _ = complete_roster_domain
+    assert _import(complete_roster_domain, [_member("a")])
     before = list(db._get_conn().iterdump())
-    outcome = _submit(dossier_runtime, [";".join(_member("a").split(";")[:19])])
+    outcome = _submit(complete_roster_domain, [";".join(_member("a").split(";")[:19])])
     assert outcome.reason is ProcessingReason.IDENTITY_REJECTED
     assert list(db._get_conn().iterdump()) == before
 
 
 def test_programming_errors_still_use_unexpected_error_boundary(
-    dossier_runtime, monkeypatch, caplog
+    complete_roster_domain, monkeypatch, caplog
 ):
-    _, processor, _ = dossier_runtime
+    _, processor, _ = complete_roster_domain
 
     def fail(*args, **kwargs):
         raise RuntimeError("synthetic programming error")
 
     monkeypatch.setattr(processor.campaign_engine, "process_dossier_import", fail)
-    outcome = _submit(dossier_runtime, [_member("a")])
+    outcome = _submit(complete_roster_domain, [_member("a")])
     assert outcome.reason is ProcessingReason.UNEXPECTED_ERROR
     assert any(record.exc_info for record in caplog.records)
 
@@ -367,16 +369,16 @@ def test_invalid_retirement_metadata_fails_closed(migrated_runtime, retired):
 
 @pytest.mark.parametrize("metadata_present", [False, True])
 def test_transfer_cannot_bypass_complete_name_evidence_conflict(
-    dossier_runtime, metadata_present
+    complete_roster_domain, metadata_present
 ):
-    db, _, _ = dossier_runtime
-    assert _import(dossier_runtime, [_member("a")])
+    db, _, _ = complete_roster_domain
+    assert _import(complete_roster_domain, [_member("a")])
     if not metadata_present:
         with db.transaction() as conn:
             conn.execute("DELETE FROM meta WHERE key LIKE 'dossier_roster:%'")
     before = list(db._get_conn().iterdump())
     outcome = _submit(
-        dossier_runtime, [_field(_member("a"), 1, "Jonathan")], squadron="New Squadron"
+        complete_roster_domain, [_field(_member("a"), 1, "Jonathan")], squadron="New Squadron"
     )
     assert outcome.reason is ProcessingReason.IDENTITY_REJECTED
     assert list(db._get_conn().iterdump()) == before
@@ -436,69 +438,69 @@ def test_present_unknown_roster_squadron_does_not_use_legacy_fallback(migrated_r
 @pytest.mark.parametrize("invalid_index", [3, 4, 11, 12])
 @pytest.mark.parametrize("candidate_pending", [False, True])
 def test_malformed_roster_generation_cannot_confirm_disappearance(
-    dossier_runtime, caplog, invalid_index, candidate_pending
+    complete_roster_domain, caplog, invalid_index, candidate_pending
 ):
-    db, _, _ = dossier_runtime
-    assert _import(dossier_runtime, [_member("a"), _member("b")])
+    db, _, _ = complete_roster_domain
+    assert _import(complete_roster_domain, [_member("a"), _member("b")])
     original_ids = _ids(db)
     assert len(original_ids) == 2
     member_id = original_ids["Synthetic town a"]
     assert db.save_wingman_personality(
-        member_id, _roster(dossier_runtime).pilot_id, {"personality_trait": "Steady"}
+        member_id, _roster(complete_roster_domain).pilot_id, {"personality_trait": "Steady"}
     )
     assert db.save_wingman_memory(
         member_id, "mission", "1917-04-01", "Synthetic memory"
     )
     if candidate_pending:
-        assert _import(dossier_runtime, [_member("b")], generation=1)
+        assert _import(complete_roster_domain, [_member("b")], generation=1)
     before = list(db._get_conn().iterdump())
-    state = _roster(dossier_runtime)
+    state = _roster(complete_roster_domain)
     malformed = _field(_member("a"), invalid_index, "bad")
     for generation in (2, 3):
         caplog.clear()
         outcome = _submit(
-            dossier_runtime, [_member("b", "Wounded"), malformed], generation=generation
+            complete_roster_domain, [_member("b", "Wounded"), malformed], generation=generation
         )
         assert outcome.status is ProcessingStatus.PERMANENT_REJECTION
         assert outcome.reason is ProcessingReason.PARSER_REJECTED
         assert outcome.retry_input is None and outcome.acknowledged_generation is None
         assert not any(record.exc_info for record in caplog.records)
         assert list(db._get_conn().iterdump()) == before
-        assert _roster(dossier_runtime) == state
+        assert _roster(complete_roster_domain) == state
         assert _ids(db) == original_ids
         assert _stored_state(db)["diary"] == []
     corrected = [_member("b"), _member("a")]
-    assert _submit(dossier_runtime, corrected, generation=4).acknowledged_generation
+    assert _submit(complete_roster_domain, corrected, generation=4).acknowledged_generation
     assert _ids(db) == original_ids
     assert _stored_state(db)["diary"] == []
     committed = list(db._get_conn().iterdump())
-    assert _submit(dossier_runtime, corrected, generation=4).acknowledged_generation
+    assert _submit(complete_roster_domain, corrected, generation=4).acknowledged_generation
     assert list(db._get_conn().iterdump()) == committed
 
 
 @pytest.mark.parametrize("row", ["Lieutenant;John;Smith", "Major;J;S"])
-def test_recognized_truncated_roster_row_rejects_generation(dossier_runtime, row):
-    db, _, _ = dossier_runtime
-    assert _import(dossier_runtime, [_member("a"), _member("b")])
+def test_recognized_truncated_roster_row_rejects_generation(complete_roster_domain, row):
+    db, _, _ = complete_roster_domain
+    assert _import(complete_roster_domain, [_member("a"), _member("b")])
     before = list(db._get_conn().iterdump())
-    outcome = _submit(dossier_runtime, [_member("b", "Wounded"), row])
+    outcome = _submit(complete_roster_domain, [_member("b", "Wounded"), row])
     assert outcome.reason is ProcessingReason.PARSER_REJECTED
     assert outcome.status is ProcessingStatus.PERMANENT_REJECTION
     assert list(db._get_conn().iterdump()) == before
 
 
 @pytest.mark.parametrize("pending", [False, True])
-def test_malformed_transfer_roster_preserves_baseline_state(dossier_runtime, pending):
-    db, _, _ = dossier_runtime
-    assert _import(dossier_runtime, [_member("a"), _member("b")])
+def test_malformed_transfer_roster_preserves_baseline_state(complete_roster_domain, pending):
+    db, _, _ = complete_roster_domain
+    assert _import(complete_roster_domain, [_member("a"), _member("b")])
     if pending:
         assert _submit(
-            dossier_runtime, [], squadron="New Squadron"
+            complete_roster_domain, [], squadron="New Squadron"
         ).acknowledged_generation
-        assert _roster(dossier_runtime).roster_baseline_pending
+        assert _roster(complete_roster_domain).roster_baseline_pending
     before = list(db._get_conn().iterdump())
     outcome = _submit(
-        dossier_runtime,
+        complete_roster_domain,
         [_member("b", "Wounded"), _field(_member("a"), 11, "bad")],
         generation=2,
         squadron="New Squadron",
@@ -506,25 +508,25 @@ def test_malformed_transfer_roster_preserves_baseline_state(dossier_runtime, pen
     assert outcome.reason is ProcessingReason.PARSER_REJECTED
     assert list(db._get_conn().iterdump()) == before
     assert _submit(
-        dossier_runtime,
+        complete_roster_domain,
         [_member("a"), _member("b")],
         generation=3,
         squadron="New Squadron",
     ).acknowledged_generation
-    assert not _roster(dossier_runtime).roster_baseline_pending
+    assert not _roster(complete_roster_domain).roster_baseline_pending
     assert _stored_state(db)["diary"] == []
 
 
 @pytest.mark.parametrize("index", [3, 4])
 @pytest.mark.parametrize("missing", ["", "Null"])
 def test_missing_required_roster_number_rejects_generation(
-    dossier_runtime, index, missing
+    complete_roster_domain, index, missing
 ):
-    db, _, _ = dossier_runtime
-    assert _import(dossier_runtime, [_member("a"), _member("b")])
+    db, _, _ = complete_roster_domain
+    assert _import(complete_roster_domain, [_member("a"), _member("b")])
     before = list(db._get_conn().iterdump())
     outcome = _submit(
-        dossier_runtime, [_member("b"), _field(_member("a"), index, missing)]
+        complete_roster_domain, [_member("b"), _field(_member("a"), index, missing)]
     )
     assert outcome.reason is ProcessingReason.PARSER_REJECTED
     assert list(db._get_conn().iterdump()) == before
@@ -533,13 +535,13 @@ def test_missing_required_roster_number_rejects_generation(
 @pytest.mark.parametrize("index,column", [(11, "missions"), (12, "flminutes")])
 @pytest.mark.parametrize("missing", ["", "Null"])
 def test_missing_optional_roster_number_preserves_stored_value(
-    dossier_runtime, index, column, missing
+    complete_roster_domain, index, column, missing
 ):
-    db, _, _ = dossier_runtime
+    db, _, _ = complete_roster_domain
     rich = _field(_member("a"), index, "42")
-    assert _import(dossier_runtime, [rich, _member("b")])
+    assert _import(complete_roster_domain, [rich, _member("b")])
     original_ids = _ids(db)
-    outcome = _submit(dossier_runtime, [_field(rich, index, missing), _member("b")])
+    outcome = _submit(complete_roster_domain, [_field(rich, index, missing), _member("b")])
     assert outcome.acknowledged_generation
     assert _ids(db) == original_ids
     assert db._get_conn().execute(
@@ -548,7 +550,7 @@ def test_missing_optional_roster_number_preserves_stored_value(
     ).fetchone() == (42,)
     assert _stored_state(db)["diary"] == []
     assert _submit(
-        dossier_runtime, [_field(rich, index, "0"), _member("b")], generation=2
+        complete_roster_domain, [_field(rich, index, "0"), _member("b")], generation=2
     ).acknowledged_generation
     assert db._get_conn().execute(
         f"SELECT {column} FROM squad_members WHERE id=?",

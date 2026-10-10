@@ -15,6 +15,7 @@ from ..ingestion.outcome import ProcessingStatus
 from ..ingestion.scheduler import EventScheduler
 from .. import woff_watchdog
 from .test_dossier_parser import _encode_dossier
+from .dossier_support import verified_fixture
 
 
 def _scheduler_metrics(**overrides):
@@ -194,7 +195,7 @@ def _encoded_dossier(
             "1550;1500;9;2;8;8;1896;Reliable pilot.;75;21;651;1;"
             "19/7/1913;Arras;2;0;Null;Null;Null;Null;Null;Null;Null"
         )
-    return _encode_dossier(lines, "Pilot1Dossier.txt")
+    return _encode_dossier(verified_fixture(lines), "Pilot1Dossier.txt")
 
 class TestHandlerIntegration(unittest.TestCase):
     """Testa o handler com ficheiros reais temporários."""

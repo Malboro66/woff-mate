@@ -1,3 +1,4 @@
+# Legacy synthetic decoding here is nonauthoritative; runtime admission is tested separately.
 """Issue #136: closed identities, source parity and lossless stored evidence."""
 
 from dataclasses import FrozenInstanceError

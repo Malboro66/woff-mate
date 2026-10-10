@@ -459,7 +459,7 @@ def test_package_cli_config_example_and_version_consumers_are_consistent():
 def test_compatibility_guide_documents_approved_support_contract():
     root = Path(__file__).parents[2]
     guide = (root / "docs" / "compatibility.md").read_text(encoding="utf-8")
-    for status in ("Supported", "Automatically validated", "Verified by sanitized samples", "Unconfirmed"):
+    for status in ("Supported", "Automatically validated", "Verified by sanitized samples", "Maintainer-attested"):
         assert status in guide
     assert "Windows 10 64-bit" in guide
     assert "Windows 11 64-bit" in guide
@@ -468,7 +468,11 @@ def test_compatibility_guide_documents_approved_support_contract():
     assert "windows-latest" in guide and "Python 3.10" in guide
     assert "WOFF BH&H II" in guide
     assert "sanitized samples and regression fixtures" in guide
-    assert "exact WoFF build is unconfirmed" in guide
+    assert "WOFF BH&H II base v1.38" in guide
+    assert "maintainer attests" in guide
+    assert "does not establish that every v1.38 Dossier has one layout" in guide
+    assert "synthetic\n50/105-record fixtures" in guide
+    assert "nonauthoritative diagnostics" in guide
 
 
 def test_compatibility_guide_defines_safe_report_contents_and_prohibited_data():

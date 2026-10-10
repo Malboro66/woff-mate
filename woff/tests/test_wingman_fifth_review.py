@@ -1,6 +1,11 @@
-"""Synthetic production regressions for the fourth directed Issue #96 review."""
+"""Complete-roster engine regressions for the fourth Issue #96 review.
+
+Completeness is stipulated by the test domain, never by v1.38 Dossier details.
+"""
 
 from __future__ import annotations
+
+from .dossier_support import complete_roster_domain
 
 import sqlite3
 
@@ -8,7 +13,7 @@ import pytest
 
 from ..database import DatabaseManager, SchemaCompatibilityError
 from ..ingestion.outcome import ProcessingReason, ProcessingStatus
-from .test_dossier_transactions import _dossier_bytes, _stored_state, dossier_runtime
+from .test_dossier_transactions import _dossier_bytes, _stored_state
 from .test_roster_identity import _ids, _import, _member, _roster
 from .test_wingman_review_regressions import _field, _submit
 from . import test_wingman_identity_migration as migration
@@ -16,26 +21,26 @@ from . import test_wingman_identity_migration as migration
 
 @pytest.mark.parametrize("rank", ["Lieutenan", "", "Air Commodore", "Lieutenant???"])
 @pytest.mark.parametrize("candidate", [False, True])
-def test_invalid_rank_cannot_become_absence(dossier_runtime, rank, candidate):
-    db, _, _ = dossier_runtime
-    assert _import(dossier_runtime, [_member("a"), _member("b")])
+def test_invalid_rank_cannot_become_absence(complete_roster_domain, rank, candidate):
+    db, _, _ = complete_roster_domain
+    assert _import(complete_roster_domain, [_member("a"), _member("b")])
     ids = _ids(db)
     assert len(ids) == 2
     assert db.save_wingman_personality(
         ids["Synthetic town a"],
-        _roster(dossier_runtime).pilot_id,
+        _roster(complete_roster_domain).pilot_id,
         {"personality_trait": "Steady"},
     )
     assert db.save_wingman_memory(
         ids["Synthetic town a"], "mission", "1917-04-01", "Synthetic"
     )
     if candidate:
-        assert _import(dossier_runtime, [_member("b")], generation=1)
-        assert _roster(dossier_runtime).roster_candidate is not None
+        assert _import(complete_roster_domain, [_member("b")], generation=1)
+        assert _roster(complete_roster_domain).roster_candidate is not None
     before = list(db._get_conn().iterdump())
     for generation in (2, 3):
         outcome = _submit(
-            dossier_runtime,
+            complete_roster_domain,
             [_member("b", "Wounded"), _field(_member("a"), 0, rank)],
             generation=generation,
         )
@@ -46,7 +51,7 @@ def test_invalid_rank_cannot_become_absence(dossier_runtime, rank, candidate):
         assert _ids(db) == ids
         assert _stored_state(db)["diary"] == []
     assert _submit(
-        dossier_runtime, [_member("b"), _member("a")], generation=4
+        complete_roster_domain, [_member("b"), _member("a")], generation=4
     ).acknowledged_generation
     assert _ids(db) == ids and _stored_state(db)["diary"] == []
 
@@ -55,8 +60,8 @@ def test_invalid_rank_cannot_become_absence(dossier_runtime, rank, candidate):
     "rank",
     ["Lieutenant", "Adjutant", "Sous Lieutenant", "Sous-Lieutenant", "Oberleutnant"],
 )
-def test_supported_rank_and_unrelated_semicolon_rows(dossier_runtime, rank):
-    db, processor, path = dossier_runtime
+def test_supported_rank_and_unrelated_semicolon_rows(complete_roster_domain, rank):
+    db, processor, path = complete_roster_domain
     path.write_bytes(
         _dossier_bytes(
             decorations=("Captain;1917-04-01",),
@@ -67,17 +72,17 @@ def test_supported_rank_and_unrelated_semicolon_rows(dossier_runtime, rank):
     assert len(_ids(db)) == 1
 
 
-def test_legacy_query_has_exact_shape_and_rich_query_is_separate(dossier_runtime):
-    db, _, _ = dossier_runtime
-    assert _import(dossier_runtime, [_member("a"), _member("b")])
-    pilot_id = _roster(dossier_runtime).pilot_id
+def test_legacy_query_has_exact_shape_and_rich_query_is_separate(complete_roster_domain):
+    db, _, _ = complete_roster_domain
+    assert _import(complete_roster_domain, [_member("a"), _member("b")])
+    pilot_id = _roster(complete_roster_domain).pilot_id
     expected = [{"fName": "John", "sName": "Smith", "status": "In Service"}] * 2
     assert db.get_wingmen_by_pilot(pilot_id) == expected
     assert db._wingmen.get_wingmen_by_pilot(pilot_id) == expected
     rich = db.get_wingmen_with_identity_by_pilot(pilot_id)
     assert {row["id"] for row in rich} == set(_ids(db).values())
     assert all(set(row) == {"id", "fName", "sName", "status"} for row in rich)
-    assert {w.wingman_id for w in _roster(dossier_runtime).wingmen} == {
+    assert {w.wingman_id for w in _roster(complete_roster_domain).wingmen} == {
         row["id"] for row in rich
     }
 
@@ -332,28 +337,28 @@ def test_shared_lexer_preserves_numeric_and_pilot_migrations(tmp_path, name_defi
 @pytest.mark.parametrize("index", [1, 2])
 @pytest.mark.parametrize("name", ["", "Null", "???"])
 def test_malformed_required_name_rejects_recognized_occurrence(
-    dossier_runtime, index, name
+    complete_roster_domain, index, name
 ):
-    db, _, _ = dossier_runtime
-    assert _import(dossier_runtime, [_member("a"), _member("b")])
+    db, _, _ = complete_roster_domain
+    assert _import(complete_roster_domain, [_member("a"), _member("b")])
     before = list(db._get_conn().iterdump())
     outcome = _submit(
-        dossier_runtime, [_member("b"), _field(_member("a"), index, name)]
+        complete_roster_domain, [_member("b"), _field(_member("a"), index, name)]
     )
     assert outcome.reason is ProcessingReason.PARSER_REJECTED
     assert list(db._get_conn().iterdump()) == before
 
 
-def test_full_roster_shape_does_not_depend_on_valid_required_values(dossier_runtime):
-    db, _, _ = dossier_runtime
-    assert _import(dossier_runtime, [_member("a"), _member("b")])
+def test_full_roster_shape_does_not_depend_on_valid_required_values(complete_roster_domain):
+    db, _, _ = complete_roster_domain
+    assert _import(complete_roster_domain, [_member("a"), _member("b")])
     before = list(db._get_conn().iterdump())
     malformed = _member("a").split(";")
     for index in range(13):
         malformed[index] = "bad"
     for generation in (1, 2):
         outcome = _submit(
-            dossier_runtime, [_member("b"), ";".join(malformed)], generation=generation
+            complete_roster_domain, [_member("b"), ";".join(malformed)], generation=generation
         )
         assert outcome.reason is ProcessingReason.PARSER_REJECTED
         assert list(db._get_conn().iterdump()) == before

@@ -13,6 +13,7 @@ from ..parsers.pilot_data_parser import WoFFPilotDataParser
 from ..parsers.xml_parser import WoFFXMLParser
 from .identity_support import dependent_evidence, dossier_evidence
 from .test_dossier_parser import _encode_dossier
+from .dossier_support import verified_fixture
 
 
 STATUS_STATS = (12, 845, 7, 5, 68, 420)
@@ -77,7 +78,7 @@ def _dossier_bytes(status: str | None, *, rank: str = "Captain") -> bytes:
         values[60] = status
     for index, value in values.items():
         lines[index] = value
-    return _encode_dossier(lines, "Pilot1Dossier.txt")
+    return _encode_dossier(verified_fixture(lines), "Pilot1Dossier.txt")
 
 
 def _parse_dossier(status: str | None, *, rank: str = "Captain") -> WoFFPilot:

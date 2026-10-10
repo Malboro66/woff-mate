@@ -76,7 +76,8 @@ class WoFFDossierParser:
         self.wingmen: List[WoFFWingman] = []
         self.decorations: List[WoFFDecoration] = []
         self.validation_status = DossierValidationStatus.UNPARSED
-        self.roster_complete = True
+        self.roster_complete = False
+        self.has_verified_structure = False
 
     def _reset_parse_state(self) -> None:
         self.pilot = None
@@ -84,7 +85,8 @@ class WoFFDossierParser:
         self.wingmen = []
         self.decorations = []
         self.validation_status = DossierValidationStatus.UNPARSED
-        self.roster_complete = True
+        self.roster_complete = False
+        self.has_verified_structure = False
 
     def _reject(
         self,
@@ -262,8 +264,15 @@ class WoFFDossierParser:
             return False
         return self.parse_bytes(data, source_name)
 
-    def parse_bytes(self, data: bytes, source_name: str) -> bool:
-        """Decode verified bytes, retaining the filename-derived cipher key."""
+    def parse_bytes(
+        self, data: bytes, source_name: str, *, require_verified_layout: bool = False,
+    ) -> bool:
+        """Decode a diagnostic input, or enforce the runtime structural contract.
+
+        Legacy fixed-index decoding remains diagnostic compatibility only. Its
+        variable tail has no proven census authority. Runtime callers require
+        the observed, maintainer-attested BH&H II base v1.38 family.
+        """
         self._reset_parse_state()
         raw_lines = data.splitlines(keepends=True)
         fname = ntpath.basename(source_name)
@@ -286,6 +295,10 @@ class WoFFDossierParser:
                 DossierValidationStatus.UNSUPPORTED_LAYOUT, fname, len(player_data)
             )
         observed_layout = len(player_data) == 161
+        if require_verified_layout and not observed_layout:
+            return self._reject(
+                DossierValidationStatus.UNSUPPORTED_LAYOUT, fname, len(player_data)
+            )
         if observed_layout:
             # This is a count of detailed pilot records, not all active airmen.
             present_pilots = sum(
@@ -429,7 +442,8 @@ class WoFFDossierParser:
             # 3. Extrair Membros do Esquadrão (AI Wingmen)
             self.wingmen = []
             # Verified detailed-member slots are NOT a complete active roster.
-            self.roster_complete = not observed_layout
+            # Neither legacy diagnostics nor observed detail slots prove a census.
+            self.roster_complete = False
             
             # FIX: Lista de patentes expandida para cobrir Britânicos, Franceses e Alemães
             wingmen_ranks = [
@@ -615,6 +629,7 @@ class WoFFDossierParser:
                         d.source_file = fname
                         self.decorations.append(d)
             
+            self.has_verified_structure = observed_layout
             self.validation_status = (
                 DossierValidationStatus.SUPPORTED_FULL
                 if len(player_data) > _DOSSIER_CURRENT_FIXED_LAST_INDEX
@@ -622,11 +637,12 @@ class WoFFDossierParser:
             )
             log.info(
                 "[BIN] Dossier accepted: source=%s category=%s "
-                "layout=%s records=%d",
+                "layout=%s records=%d authority=%s",
                 fname,
                 self.validation_status.value,
                 _DOSSIER_LAYOUT,
                 len(player_data),
+                "runtime" if require_verified_layout else "diagnostic",
             )
             return True
             

@@ -65,7 +65,7 @@ from .normalization import canonical_mission_order_key
 from .parsers.xml_parser import WoFFXMLParser
 from .parsers.mission_log_parser import WoFFMissionLogParser
 from .parsers.pilot_data_parser import WoFFPilotDataParser
-from .parsers.dossier_parser import WoFFDossierParser
+from .parsers.dossier_parser import DossierValidationStatus, WoFFDossierParser
 
 log = logging.getLogger("WoFFWatch")
 
@@ -720,7 +720,7 @@ class FileProcessor:
         data, name = self._parser_input(path, snapshot)
         if "dossier" in fname:
             parser = WoFFDossierParser()
-            if parser.parse_bytes(data, name) and parser.pilot:
+            if parser.parse_bytes(data, name, require_verified_layout=True) and parser.pilot:
                 identity = self._dossier_identity(snapshot, slot_epoch)
                 real_pilot_id = self.campaign_engine.process_dossier_import(
                     pilot=parser.pilot,
@@ -734,7 +734,12 @@ class FileProcessor:
                     if real_pilot_id
                     else ProcessingReason.PERSISTENCE_REJECTED
                 )
-            return ProcessingReason.PARSER_REJECTED
+            return (
+                ProcessingReason.UNSUPPORTED_LAYOUT
+                if getattr(parser, "validation_status", None)
+                is DossierValidationStatus.UNSUPPORTED_LAYOUT
+                else ProcessingReason.PARSER_REJECTED
+            )
 
         if fname == "mission.log":
             parser = WoFFMissionLogParser()

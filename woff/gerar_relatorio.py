@@ -76,6 +76,11 @@ def _write_report(report: TextIO, valid_paths: list[str]) -> None:
                     f"Falha ao processar o dossier {filename}."
                 )
             pilot = parser.pilot
+            report.write(
+                "Diagnóstico não autoritativo: estrutura "
+                + ("verificada" if parser.has_verified_structure else "legada não verificada")
+                + "; membros detalhados não constituem um censo completo.\n"
+            )
             if pilot:
                 affiliation = pilot.affiliation.presentation()
                 data = [

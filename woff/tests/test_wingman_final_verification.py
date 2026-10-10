@@ -1,4 +1,6 @@
-"""Synthetic regressions for the final two Issue #96 verification findings."""
+"""Complete-roster domain and legacy diagnostic regressions for Issue #96."""
+
+from .dossier_support import complete_roster_domain
 
 import sqlite3
 
@@ -7,7 +9,7 @@ import pytest
 from ..database import DatabaseManager
 from ..ingestion.outcome import ProcessingReason, ProcessingStatus
 from ..parsers.dossier_parser import WoFFDossierParser
-from .test_dossier_transactions import _dossier_bytes, _stored_state, dossier_runtime
+from .test_dossier_transactions import _dossier_bytes, _stored_state
 from .test_roster_identity import _ids, _import, _member, _roster
 from .test_wingman_review_regressions import _submit
 from . import test_wingman_identity_migration as migration
@@ -28,29 +30,29 @@ from . import test_wingman_identity_migration as migration
     ],
 )
 def test_short_malformed_occurrence_never_advances_absence(
-    dossier_runtime, candidate, malformed
+    complete_roster_domain, candidate, malformed
 ):
-    db, _, _ = dossier_runtime
-    assert _import(dossier_runtime, [_member("a"), _member("b")])
+    db, _, _ = complete_roster_domain
+    assert _import(complete_roster_domain, [_member("a"), _member("b")])
     ids = _ids(db)
     assert len(ids) == 2
     assert db.save_wingman_personality(
         ids["Synthetic town a"],
-        _roster(dossier_runtime).pilot_id,
+        _roster(complete_roster_domain).pilot_id,
         {"personality_trait": "Steady"},
     )
     assert db.save_wingman_memory(
         ids["Synthetic town a"], "mission", "1917-04-01", "Synthetic"
     )
     if candidate:
-        assert _import(dossier_runtime, [_member("b")], generation=1)
-        assert _roster(dossier_runtime).roster_candidate is not None
+        assert _import(complete_roster_domain, [_member("b")], generation=1)
+        assert _roster(complete_roster_domain).roster_candidate is not None
     before = list(db._get_conn().iterdump())
     changed = _member("b", "Wounded").split(";")
     changed[3], changed[11], changed[12] = "8", "99", "999"
     for generation in (2, 3):
         outcome = _submit(
-            dossier_runtime, [";".join(changed), malformed], generation=generation
+            complete_roster_domain, [";".join(changed), malformed], generation=generation
         )
         assert outcome.status is ProcessingStatus.PERMANENT_REJECTION
         assert outcome.reason is ProcessingReason.PARSER_REJECTED
@@ -61,20 +63,20 @@ def test_short_malformed_occurrence_never_advances_absence(
         assert _ids(db) == ids
         assert _stored_state(db)["diary"] == []
     assert _submit(
-        dossier_runtime, [_member("b"), _member("a")], generation=4
+        complete_roster_domain, [_member("b"), _member("a")], generation=4
     ).acknowledged_generation
     assert _ids(db) == ids
     assert _stored_state(db)["diary"] == []
-    assert _roster(dossier_runtime).roster_candidate is None
+    assert _roster(complete_roster_domain).roster_candidate is None
 
 
 @pytest.mark.parametrize(
     "record", ["Lieutenant;John;Smith;3;5;In Service", _member("a")]
 )
 def test_supported_short_and_long_forms_keep_nonroster_records_separate(
-    dossier_runtime, record
+    complete_roster_domain, record
 ):
-    db, processor, path = dossier_runtime
+    db, processor, path = complete_roster_domain
     data = _dossier_bytes(
         # Six positional fields outside the roster region are not occurrences.
         decorations=("Synthetic;1917-04-01;one;two;three;four",),

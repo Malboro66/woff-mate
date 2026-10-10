@@ -6,6 +6,8 @@ relationships are tested without committing any real WoFF career content.
 
 from __future__ import annotations
 
+from .dossier_support import CompleteRosterDomainHarness
+
 import json
 
 from ..campaign_engine import CampaignEngine
@@ -40,6 +42,14 @@ def _apply(runtime, data: bytes):
     _, processor, path = runtime
     path.write_bytes(data)
     return processor.process(str(path), "modified")
+
+
+def _apply_complete(runtime, data: bytes):
+    """Stipulated historical census through the real engine domain interface."""
+    db, processor, path = runtime
+    path.write_bytes(data)
+    harness = CompleteRosterDomainHarness(db, processor.campaign_engine, stability_timeout=0.1, stability_interval=0.001)
+    return harness.process(str(path), "modified")
 
 
 def _state(runtime):
@@ -89,7 +99,7 @@ def test_partial_observation_preserves_complete_baseline_and_history(
     dossier_runtime,
 ):
     db, _, _ = dossier_runtime
-    assert _apply(dossier_runtime, _complete()).acknowledged_generation
+    assert _apply_complete(dossier_runtime, _complete()).acknowledged_generation
     before = _state(dossier_runtime)
     assert not before.roster_baseline_pending
     assert before.roster_candidate is None
@@ -121,10 +131,10 @@ def test_partial_observation_preserves_complete_baseline_and_history(
 
     # Full[A,B,C] -> partial[A,C] -> full[A,C] -> full[A,B,C].
     # The partial observation must not turn B's reappearance into "new".
-    assert _apply(dossier_runtime, _complete(second=False)).acknowledged_generation
+    assert _apply_complete(dossier_runtime, _complete(second=False)).acknowledged_generation
     candidate = _state(dossier_runtime)
     assert candidate.roster_candidate is not None
-    assert _apply(dossier_runtime, _complete(second=True)).acknowledged_generation
+    assert _apply_complete(dossier_runtime, _complete(second=True)).acknowledged_generation
     after = _state(dossier_runtime)
     assert after.roster_candidate is None
     assert _member_ids(db, after.pilot_id) == initial_ids

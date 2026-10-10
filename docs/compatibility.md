@@ -11,11 +11,11 @@ This guide distinguishes what WoFF Mate supports from what the project actually 
 | Linux CI | **Automatically validated** | Python 3.10 and 3.14 on Linux |
 | Windows smoke test | **Automatically validated** | Python 3.10 on `windows-latest` |
 | Game data | **Verified by sanitized samples** | WOFF BH&H II formats confirmed by sanitized samples and regression fixtures |
-| Game build | **Unconfirmed** | The exact WoFF build is unconfirmed |
+| Primary game reference | **Maintainer-attested** | WOFF BH&H II base v1.38, without additional DLC or expansions; provenance of the supplied Pilot1/Pilot2 captures |
 
 Automatic CI coverage is not a statement that Linux is a supported end-user platform. It checks portability and the endpoints of the supported Python range. Versions between those endpoints remain supported even when they do not have a dedicated CI job.
 
-WOFF BH&H II support is limited to formats confirmed by sanitized samples and regression fixtures. Do not infer compatibility with a new or altered format solely from the game name. Because the exact WoFF build is unconfirmed, reports about an unknown format help establish compatibility without making an unsupported build claim.
+WOFF BH&H II base v1.38 is the primary reference installation. The maintainer attests that the previously supplied Pilot1/Pilot2 captures came from that installation and were not manually modified. Their physical structure was examined in the earlier source investigations; the installation/build provenance is a separate maintainer attestation. This does not establish that every v1.38 Dossier has one layout. Older, alternate and future formats require separate structural evidence.
 
 ## Categorical normalization
 
@@ -59,56 +59,64 @@ representative evidence and are ignored with a bounded diagnostic until such
 evidence exists. In the verified PilotLog fixed layout, the date/time components
 and the observed duration-like field at index 10 remain independent.
 
-## Dossier layout validation
+## Dossier runtime admission and diagnostic decoding
 
-WoFF Mate names the existing fixed-index contract `fixed-index-v1`. This name
-documents the parser behavior already covered by sanitized regression data. It
-does not identify a WoFF build and does not claim compatibility with another
-layout.
+Authoritative Dossier ingestion accepts the observed 161-physical-position
+family from the maintainer-attested BH&H II base v1.38 captures. Index 0 must
+contain `160`; pilot detail slots are 63-78 and observer detail slots 113-128.
+Index 112 is contextual, not a roster record. Physical blank positions retain
+their indices and advance filename-derived XOR alternation. Pilot-detail
+occupancy at index 81 and the established 36/32-field record widths are checked.
+Malformed recognized slots, invalid required status and decoding/identity
+failures reject the generation; they are never silently omitted.
 
-The supported layout requires a nonempty first name at decoded index 4 and a
-nonempty surname at decoded index 5. Both fields must contain alphabetic text
-and only name-compatible separators. The parser validates these identity
-fields before reading optional statistics or constructing a pilot.
+These detailed records are **partial observations, not a complete active
+squadron census**. Omission cannot prove departure, transfer or death. Partial
+observations preserve trusted complete historical baselines and existing absence
+candidates; they cannot confirm those candidates or produce roster arrival or
+absence events. Persistent identities, historical personality/memory and
+field-presence semantics remain intact.
 
-Every decoded record is validated before surrounding whitespace is normalized
-and must contain only printable text. A replacement character or control
-character is treated as evidence that the filename-derived XOR key did not
-decode the input safely. This is a structural guard, not a cryptographic
-integrity check; the confirmed format provides no authenticated marker or
-checksum.
+`FileProcessor` explicitly requires verified structure through the parser's
+shared admission rule. Decodable unverified layouts, including synthetic
+50/105-record fixtures, return permanent `unsupported-layout` before persistence
+or generation acknowledgment. They cannot alter bindings, digests, provenance,
+roster state or diary entries. This is deterministic format rejection, not a
+transient snapshot failure. A later supported generation may still be processed.
+The restriction may reject legitimate older or alternate inputs until their
+formats are separately verified; no exhaustive simulator-version claim is made.
 
-Partial input is accepted only when the filename-derived key is structurally
-unambiguous. The parser checks all 128 key variants produced by the format's
-modulo-128 filename sum. If another distinct key also produces printable
-records with a valid required identity, the input fails closed as
-`decryption-failed` before persistence. Two filenames that produce the same
-complete key remain indistinguishable from the file alone; resolving an exact
-key collision requires external evidence that the confirmed format does not
-provide.
+Legacy `fixed-index-v1` decoding remains available through `parse`/`parse_bytes`
+for explicitly nonauthoritative diagnostics, including `--parse-file` and
+`woff-report`. Those interfaces label Dossier output as diagnostic and distinguish
+verified structure from unverified legacy structure. They do not persist it or
+assert a complete roster. The legacy variable-tail ambiguity, including six-field
+prose recognition, has not been universally solved; runtime ingestion never
+enters that fallback for an unverified layout.
 
-Decoded input receives one structural classification:
+Diagnostic `supported-full` means fixed pilot fields through index 100 are
+addressable; `supported-partial` means later optional pilot fields are absent.
+Neither classification grants runtime admission or complete-roster authority.
+Short diagnostic inputs retain the 128-key ambiguity checks, printable-text
+validation and required identity at indices 4/5. Invalid markers in 161-position
+payloads remain unsupported even in diagnostics. Filename-key collisions remain
+indistinguishable without external evidence; this is not authenticated encryption.
 
-| Classification | Policy |
-| --- | --- |
-| `supported-full` | Required identity is valid and every fixed field through index 100 is addressable. |
-| `supported-partial` | Required identity is valid, but one or more later fixed fields are unavailable. Present optional fields are parsed independently. |
-| `truncated` | Input ends before the required identity positions are complete. It is rejected. |
-| `unsupported-layout` | Required positions exist, but identity fields are missing or semantically invalid. It is rejected. |
-| `decryption-failed` | No decoded fields are produced, any decoded record contains evidence of the wrong key or invalid decoded text, or a partial input is valid under more than one distinct key. It is rejected. |
+The prior automatic admission of short partial Dossiers is withdrawn. The
+independent field-presence contract remains: missing optional values do not erase
+richer persisted values, missing numeric observations remain SQL `NULL`, and
+explicit authoritative zero stays distinct. These guarantees are tested using
+admitted runtime structure and independent model/repository/engine contracts.
 
-Missing optional string sentinels are normalized to absent values before a
-pilot is constructed. Missing optional numeric values remain unknown. A new
-partial Dossier stores missing numeric values as SQL `NULL`, and a later
-partial update does not replace an existing authoritative string or numeric
-value. Explicit numeric zero remains distinct and writable.
+All source fixtures are synthetic or sanitized structural reconstructions.
+Synthetic legacy decoding behavior is not verified simulator output. Complete
+roster scenarios in domain tests stipulate completeness explicitly; they do not
+attribute it to the simulator's partial Dossier family. No schema change or
+historical-data removal is part of this admission policy.
 
-Dossier acceptance and structural-rejection diagnostics contain only the
-source basename, classification, layout name, and decoded record count.
-Numeric-field diagnostics add the field name and sanitized failure reason.
-Neither form logs pilot identity or campaign fields. Future layout variants
-require separate identifiers and sanitized representative evidence. Fixed
-indexes must not shift silently.
+Diagnostics expose only bounded categories, layout information and source
+basenames, never raw campaign records. Future runtime format families require
+separate documented evidence and regression coverage.
 
 ## Reporting a compatibility problem safely
 
