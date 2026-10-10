@@ -158,6 +158,8 @@ class CampaignEngine:
         stored: DossierState,
         pilot: WoFFPilot,
         wingmen: Sequence[DossierWingmanState],
+        *,
+        roster_complete: bool = True,
     ) -> Tuple[List[Tuple[str, str]], bool, _RosterAction]:
         """Derive effects from resolved IDs before committing the Dossier transaction."""
         effects: List[Tuple[str, str]] = []
@@ -165,7 +167,12 @@ class CampaignEngine:
         roster_action: _RosterAction = "keep"
         roster_events: List[Tuple[str, DossierWingmanState]] = []
 
-        if transfer:
+        if not roster_complete:
+            # Detailed Dossier slots are only a subset of the active squadron.
+            # Save a pending baseline; never infer new/missing/transfer events
+            # from a difference between incomplete lists.
+            roster_action = "pending-baseline"
+        elif transfer:
             roster_action = "baseline" if wingmen else "pending-baseline"
         elif wingmen:
             # An untrusted legacy list has no comparison identity. Establish a
@@ -238,6 +245,8 @@ class CampaignEngine:
         decorations: List[WoFFDecoration],
         wingmen: List[WoFFWingman],
         identity: PilotIdentityEvidence,
+        *,
+        roster_complete: bool = True,
     ) -> Optional[str]:
         """Persist one Dossier generation and all derived diary effects atomically."""
         if (
@@ -252,7 +261,7 @@ class CampaignEngine:
         replayed = False
         roster_action: _RosterAction = (
             "baseline"
-            if pilot.squadron and wingmen
+            if roster_complete and pilot.squadron and wingmen
             else "pending-baseline" if pilot.squadron or wingmen else "keep"
         )
         real_pilot_id: Optional[str] = None
@@ -305,7 +314,8 @@ class CampaignEngine:
                     if stored is not None:
                         effects, transferred, roster_action = (
                             self._plan_dossier_diary_effects(
-                                stored, pilot, resolved_roster
+                                stored, pilot, resolved_roster,
+                                roster_complete=roster_complete,
                             )
                         )
                         if effects and not event_date:
