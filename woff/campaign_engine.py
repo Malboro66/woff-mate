@@ -160,18 +160,24 @@ class CampaignEngine:
         wingmen: Sequence[DossierWingmanState],
         *,
         roster_complete: bool = True,
+        legacy_partial_upgrade: bool = False,
     ) -> Tuple[List[Tuple[str, str]], bool, _RosterAction]:
         """Derive effects from resolved IDs before committing the Dossier transaction."""
         effects: List[Tuple[str, str]] = []
-        transfer = self._is_roster_transfer(stored, pilot)
+        # Partial detailed rows cannot establish an authoritative transfer.
+        transfer = roster_complete and self._is_roster_transfer(stored, pilot)
         roster_action: _RosterAction = "keep"
         roster_events: List[Tuple[str, DossierWingmanState]] = []
 
         if not roster_complete:
-            # Detailed Dossier slots are only a subset of the active squadron.
-            # Save a pending baseline; never infer new/missing/transfer events
-            # from a difference between incomplete lists.
-            roster_action = "pending-baseline"
+            # Preserve trusted complete history and any existing candidate.
+            # Only a first/legacy untrusted import establishes a pending
+            # baseline. Neither path derives events from partial rows.
+            roster_action = (
+                "pending-baseline"
+                if legacy_partial_upgrade or not stored.roster_metadata_present
+                else "keep"
+            )
         elif transfer:
             roster_action = "baseline" if wingmen else "pending-baseline"
         elif wingmen:
@@ -272,11 +278,27 @@ class CampaignEngine:
                     identity.campaign_namespace,
                     identity.slot,
                 )
-                if (
+                same_digest = bool(
                     stored is not None
                     and stored.dossier_digest == identity.dossier_digest
-                ):
-                    real_pilot_id = stored.pilot_id
+                )
+                partial_marker_present = bool(
+                    not roster_complete
+                    and stored is not None
+                    and self.db_manager.partial_dossier_digest_recorded(
+                        stored.pilot_id, identity.dossier_digest or ""
+                    )
+                )
+                legacy_partial_upgrade = bool(
+                    not roster_complete
+                    and stored is not None
+                    and (
+                        stored.roster_format_version == 1
+                        or (same_digest and not partial_marker_present)
+                    )
+                )
+                if same_digest and (roster_complete or partial_marker_present):
+                    real_pilot_id = stored.pilot_id if stored is not None else None
                     replayed = True
                 else:
                     event_date: Optional[str] = None
@@ -286,6 +308,14 @@ class CampaignEngine:
                         ) or normalize_date(pilot.startDate)
 
                     retired_ids = stored.retired_wingman_ids if stored else frozenset()
+                    if legacy_partial_upgrade and stored is not None:
+                        # Legacy detailed-only rosters were once marked as
+                        # complete. An identity-less historical row cannot be
+                        # joined by name without risking personality/memory.
+                        # Retain it intact, but retire it from new ID matching.
+                        retired_ids |= self.db_manager.identityless_wingman_ids(
+                            stored.pilot_id
+                        )
                     if (
                         roster_complete
                         and stored is not None
@@ -320,6 +350,7 @@ class CampaignEngine:
                             self._plan_dossier_diary_effects(
                                 stored, pilot, resolved_roster,
                                 roster_complete=roster_complete,
+                                legacy_partial_upgrade=legacy_partial_upgrade,
                             )
                         )
                         if effects and not event_date:
@@ -344,6 +375,12 @@ class CampaignEngine:
                             resolved_roster,
                             baseline_pending=(roster_action == "pending-baseline"),
                             retired_wingman_ids=retired_ids,
+                        )
+                    if not roster_complete:
+                        # Provenance is written only after successful merge and
+                        # roster-state reconciliation in the same transaction.
+                        self.db_manager.record_partial_dossier_digest(
+                            real_pilot_id, identity.dossier_digest or ""
                         )
 
                     for _category, narrative in effects:
