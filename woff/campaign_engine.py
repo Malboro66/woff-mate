@@ -286,7 +286,11 @@ class CampaignEngine:
                         ) or normalize_date(pilot.startDate)
 
                     retired_ids = stored.retired_wingman_ids if stored else frozenset()
-                    if stored is not None and self._is_roster_transfer(stored, pilot):
+                    if (
+                        roster_complete
+                        and stored is not None
+                        and self._is_roster_transfer(stored, pilot)
+                    ):
                         # An explicit boundary retires only evidence-less historical
                         # candidates, never their rows or personality/memory links.
                         # Persist the scope even when the new baseline is pending.
