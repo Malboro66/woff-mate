@@ -727,7 +727,7 @@ class FileProcessor:
                     decorations=parser.decorations,
                     wingmen=parser.wingmen,
                     identity=identity,
-                    roster_complete=parser.roster_complete,
+                    roster_complete=getattr(parser, "roster_complete", True),
                 )
                 return (
                     None
