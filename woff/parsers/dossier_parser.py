@@ -279,7 +279,13 @@ class WoFFDossierParser:
             )
 
         player_data = [value.strip() for value in player_data]
-        observed_layout = len(player_data) == 161 and player_data[0] == "160"
+        # A 161-position payload has a verified marker and partial roster.
+        # A different marker is unsupported, never a complete-roster fallback.
+        if len(player_data) == 161 and player_data[0] != "160":
+            return self._reject(
+                DossierValidationStatus.UNSUPPORTED_LAYOUT, fname, len(player_data)
+            )
+        observed_layout = len(player_data) == 161
         if observed_layout:
             # This is a count of detailed pilot records, not all active airmen.
             present_pilots = sum(
