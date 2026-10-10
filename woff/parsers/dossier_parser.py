@@ -37,6 +37,14 @@ _DOSSIER_MISSING_TOKENS = frozenset({"null"})
 _DOSSIER_LAYOUT = "fixed-index-v1"
 _DOSSIER_REQUIRED_LAST_INDEX = 5
 _DOSSIER_CURRENT_FIXED_LAST_INDEX = 100
+# Six validated generations share these physical slots. This is not a
+# universal contract for all WOFF careers or versions.
+_OBSERVED_ROSTER_POSITIONS = frozenset((*range(63, 79), *range(113, 129)))
+_OBSERVED_PILOT_RANKS = frozenset({
+    "Squadron Commander", "Flight Commander", "Flight Lieutenant",
+    "Flight Sub-Lieutenant",
+})
+_OBSERVED_OBSERVER_RANKS = frozenset({"2nd Lieutenant", "Captain", "Lieutenant"})
 _DOSSIER_NAME_SEPARATORS = frozenset({" ", "-", "'", "’", "."})
 # Sanitized evidence confirms only reputation as signed-capable. Counts,
 # flight minutes, skill, and morale remain nonnegative until new samples prove
@@ -68,6 +76,7 @@ class WoFFDossierParser:
         self.wingmen: List[WoFFWingman] = []
         self.decorations: List[WoFFDecoration] = []
         self.validation_status = DossierValidationStatus.UNPARSED
+        self.roster_complete = True
 
     def _reset_parse_state(self) -> None:
         self.pilot = None
@@ -75,6 +84,7 @@ class WoFFDossierParser:
         self.wingmen = []
         self.decorations = []
         self.validation_status = DossierValidationStatus.UNPARSED
+        self.roster_complete = True
 
     def _reject(
         self,
@@ -130,6 +140,9 @@ class WoFFDossierParser:
         for raw_line in raw_lines:
             line = raw_line.decode("cp1252", errors="replace").strip()
             if not line:
+                # Empty physical lines still occupy a positional field and
+                # reverse the XOR key. Dropping them shifts all later indices.
+                player_data.append("")
                 current_key = current_key[::-1]
                 continue
 
@@ -266,6 +279,17 @@ class WoFFDossierParser:
             )
 
         player_data = [value.strip() for value in player_data]
+        observed_layout = len(player_data) == 161 and player_data[0] == "160"
+        if observed_layout:
+            # This is a count of detailed pilot records, not all active airmen.
+            present_pilots = sum(
+                bool(record and record.casefold() != "n/a")
+                for record in player_data[63:79]
+            )
+            if player_data[81] != str(present_pilots):
+                return self._reject(
+                    DossierValidationStatus.INVALID_ROSTER, fname, len(player_data)
+                )
         if len(player_data) > _DOSSIER_REQUIRED_LAST_INDEX:
             first_name = player_data[4].strip()
             last_name = player_data[5].strip()
@@ -398,6 +422,8 @@ class WoFFDossierParser:
             
             # 3. Extrair Membros do Esquadrão (AI Wingmen)
             self.wingmen = []
+            # Verified detailed-member slots are NOT a complete active roster.
+            self.roster_complete = not observed_layout
             
             # FIX: Lista de patentes expandida para cobrir Britânicos, Franceses e Alemães
             wingmen_ranks = [
@@ -416,11 +442,28 @@ class WoFFDossierParser:
             ]
             
             for record_index, s in enumerate(player_data):
-                if record_index <= _DOSSIER_CURRENT_FIXED_LAST_INDEX or ";" not in s:
+                if observed_layout:
+                    if record_index not in _OBSERVED_ROSTER_POSITIONS:
+                        continue
+                    if not s or s.casefold() == "n/a":
+                        continue
+                    # An invalid slot remains an error, not evidence of absence.
+                    expected_count = 36 if record_index < 79 else 32
+                    if len(s.split(";")) != expected_count:
+                        return self._reject(
+                            DossierValidationStatus.INVALID_ROSTER, fname, len(player_data)
+                        )
+                elif record_index <= _DOSSIER_CURRENT_FIXED_LAST_INDEX or ";" not in s:
                     continue
                 source_parts = s.strip().split(";")
                 parts = [p.strip() for p in source_parts]
-                known_rank = parts[0] in wingmen_ranks
+                known_rank = (
+                    parts[0] in (
+                        _OBSERVED_PILOT_RANKS
+                        if record_index < 79 else _OBSERVED_OBSERVER_RANKS
+                    )
+                    if observed_layout else parts[0] in wingmen_ranks
+                )
                 # Keep rejecting recognized truncated records as well.
                 if self._has_roster_shape(parts) or (known_rank and len(parts) >= 3):
                     if not known_rank or any(
@@ -485,12 +528,18 @@ class WoFFDossierParser:
                             )
 
                         w = WoFFWingman()
-                        present_fields = {"rank", "skill", "morale"}
+                        # In the observed layout, [4] is shown as Kills,
+                        # not morale. [3] is also not proven to mean skill.
+                        # Do not overwrite richer stored values with guesses.
+                        present_fields = (
+                            {"rank"} if observed_layout else {"rank", "skill", "morale"}
+                        )
                         w.rank = parts[0]
                         w.fName = parts[1]
                         w.sName = parts[2]
-                        w.skill = wingman_numeric["skill"]
-                        w.morale = wingman_numeric["morale"]
+                        if not observed_layout:
+                            w.skill = wingman_numeric["skill"]
+                            w.morale = wingman_numeric["morale"]
                         if parts[5].casefold() not in _DOSSIER_MISSING_TOKENS:
                             w.status = parts[5]
                             present_fields.add("status")
