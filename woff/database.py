@@ -53,6 +53,7 @@ from .version import SCHEMA_VERSION, __version__
 
 log = logging.getLogger("WoFFWatch")
 _DOSSIER_ROSTER_META_PREFIX = "dossier_roster:"
+_DOSSIER_PARTIAL_DIGEST_PREFIX = "dossier_partial_digest:"
 SQLITE_BUSY_TIMEOUT_SECONDS = 5.0
 _SQUAD_INDEX_SQL = (
     "CREATE INDEX IF NOT EXISTS idx_squad_members_pilot "
@@ -110,6 +111,7 @@ class DossierState:
     roster_candidate: Optional[DossierRosterCandidate]
     retired_wingman_ids: frozenset[str] = frozenset()
     roster_metadata_present: bool = True
+    roster_format_version: int = 0
 
 
 @dataclass(frozen=True)
@@ -2659,6 +2661,7 @@ class DatabaseManager:
             ).fetchone()
             candidate = None
             retired_wingman_ids: frozenset[str] = frozenset()
+            version = 0
             if roster is None:
                 roster_squadron = ""
                 pending = True
@@ -2737,6 +2740,30 @@ class DatabaseManager:
                 roster_candidate=candidate,
                 retired_wingman_ids=retired_wingman_ids,
                 roster_metadata_present=(roster is not None),
+                roster_format_version=version,
+            )
+
+    def partial_dossier_digest_recorded(self, pilot_id: str, digest: str) -> bool:
+        """Whether this exact Dossier digest passed partial-roster ingestion."""
+        with self._lock:
+            connection = self._get_conn()
+            if not connection.in_transaction:
+                raise RuntimeError("Partial Dossier provenance requires a transaction")
+            row = connection.execute(
+                "SELECT value FROM meta WHERE key = ?",
+                (f"{_DOSSIER_PARTIAL_DIGEST_PREFIX}{pilot_id}",),
+            ).fetchone()
+            return bool(row is not None and row[0] == digest)
+
+    def record_partial_dossier_digest(self, pilot_id: str, digest: str) -> None:
+        """Atomically bind partial-roster coverage to the accepted source digest."""
+        with self._lock:
+            connection = self._get_conn()
+            if not connection.in_transaction:
+                raise RuntimeError("Partial Dossier provenance requires a transaction")
+            connection.execute(
+                "INSERT OR REPLACE INTO meta (key, value) VALUES (?, ?)",
+                (f"{_DOSSIER_PARTIAL_DIGEST_PREFIX}{pilot_id}", digest),
             )
 
     def identityless_wingman_ids(self, pilot_id: str) -> frozenset[str]:
