@@ -17,6 +17,34 @@ from scripts import ui_adoption_support as policy
 ROOT = Path(__file__).resolve().parents[1]
 
 
+def _historical_p0_input_bytes(name: str) -> bytes:
+    raw = (ROOT / name).read_bytes()
+    if name != 'pyproject.toml':
+        return raw
+    # #187 adds only two source-preview package exclusions. Authenticate the
+    # historical metadata from the exact integrated base, and require EVERY
+    # current metadata byte to equal that base plus the explicit bounded delta.
+    # This does not relabel the old package evidence as a new preview execution.
+    base = subprocess.check_output(
+        ['git', 'show', '10be2bbd923b69720fe4aa3f64de17bc41187779:pyproject.toml'], cwd=ROOT
+    ).replace(b'\r\n', b'\n')
+    before = b'"woff.p0_desktop.*"]'
+    after = b'"woff.p0_desktop.*", "woff.source_preview_desktop", "woff.source_preview_desktop.*"]'
+    assert base.count(before) == 1
+    assert raw.replace(b'\r\n', b'\n') == base.replace(before, after), 'Unapproved package metadata drift'
+    return base
+
+
+def test_preview_exclusion_does_not_weaken_historical_p0_metadata_check(monkeypatch):
+    actual = Path.read_bytes
+    def changed(path):
+        raw = actual(path)
+        return raw.replace(b'watchdog>=3.0', b'watchdog>=99.0') if path == ROOT / 'pyproject.toml' else raw
+    monkeypatch.setattr(Path, 'read_bytes', changed)
+    with pytest.raises(AssertionError, match='Unapproved package metadata drift'):
+        _historical_p0_input_bytes('pyproject.toml')
+
+
 def test_optional_dependency_policy():
     if sys.version_info >= (3, 11):
         import tomllib
@@ -132,7 +160,7 @@ def test_pre_fix_evidence_remains_intact_and_truthful():
         for name, digest in inputs.items():
             if name in corrected:
                 continue
-            data = (ROOT / name).read_bytes()
+            data = _historical_p0_input_bytes(name)
             candidates = [data]
             try:
                 data.decode('utf-8')
@@ -206,7 +234,7 @@ def test_post_fix_evidence_is_complete_and_bound_to_current_candidate():
         assert set(inputs) == set(current)
         assert record['input_digest'] == hashlib.sha256(json.dumps(inputs, sort_keys=True).encode()).hexdigest()
         for name, expected in inputs.items():
-            raw = (ROOT / name).read_bytes()
+            raw = _historical_p0_input_bytes(name)
             candidates = [raw]
             try:
                 raw.decode('utf-8')
@@ -290,7 +318,7 @@ def test_physical_windows10_completion_preserves_raw_reports_and_attestation():
     assert set(inputs) == set(policy.provenance()['input_sha256'])
     assert record['input_digest'] == hashlib.sha256(json.dumps(inputs, sort_keys=True).encode()).hexdigest()
     for name, expected in inputs.items():
-        data = (ROOT / name).read_bytes()
+        data = _historical_p0_input_bytes(name)
         candidates = [data]
         try:
             data.decode('utf-8')

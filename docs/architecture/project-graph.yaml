@@ -92,6 +92,7 @@ modules:
       - woff/ingestion/**/*.py
       - woff/parsers/**/*.py
       - woff/squadron_cataloger.py
+      - woff/source_preview_inputs.py
     may_depend_on:
       - foundation
       - domain
@@ -152,6 +153,50 @@ modules:
       - ingestion
       - application
       - platform
+
+  source_preview_contracts:
+    responsibility: Deeply immutable experimental copy identities, provenance, fields and diagnostic values; no career identity.
+    paths:
+      - woff/source_preview_contracts.py
+    may_depend_on:
+      - presentation
+    forbidden_dependencies:
+      - persistence
+      - ingestion
+      - application
+      - platform
+      - p0_desktop
+
+  source_preview_application:
+    responsibility: Bounded verified-copy preview orchestration and fresh parser projections; no ingestion or persistence.
+    paths:
+      - woff/source_preview_service.py
+    may_depend_on:
+      - source_preview_contracts
+      - ingestion
+      - domain
+      - presentation
+    forbidden_dependencies:
+      - persistence
+      - application
+      - platform
+      - p0_desktop
+
+  source_preview_desktop:
+    responsibility: Explicit optional experimental R0.3 Qt composition and source-only presentation; independent of synthetic P0.
+    paths:
+      - woff/source_preview_desktop/**/*.py
+    may_depend_on:
+      - source_preview_contracts
+      - source_preview_application
+      - presentation
+      - foundation
+    forbidden_dependencies:
+      - persistence
+      - ingestion
+      - application
+      - platform
+      - p0_desktop
 
   governance:
     responsibility: Executable repository policy, project graph and immutable evidence validation.
@@ -226,6 +271,26 @@ gates:
     description: All twenty 3.4.0 work items, applicable evals, functional exit criteria, documentation, and CI are approved.
 
 evals:
+  EVAL-SOURCE-PREVIEW-VALUES-001:
+    work_items: [issue-187]
+    status: implemented
+    evidence: Fictional exact parser projections, empty versus unavailable fields, immutable source identities, independent Mission.log and current guarded diagnostic semantics.
+    enforced_by:
+      - tests/test_source_preview_contracts.py
+      - tests/test_source_preview_service.py
+  EVAL-SOURCE-PREVIEW-INPUTS-001:
+    work_items: [issue-187]
+    status: implemented
+    evidence: Explicit legacy manifest, bounded two-observation hash admission, path/link/reparse/replacement failures, closed logging and audited no-original/no-database/no-write runtime.
+    enforced_by:
+      - tests/test_source_preview_service.py
+  EVAL-SOURCE-PREVIEW-DESKTOP-001:
+    work_items: [issue-187]
+    status: implemented
+    evidence: Optional fictional Qt tests prove selection clearing, dataset/source/generation/request rejection, independent panels, keyboard focus, bounded worker close/reopen and P0 import isolation; physical attestation remains separate.
+    enforced_by:
+      - tests/test_source_preview_desktop.py
+      - tests/test_source_preview_service.py
   EVAL-DIARY-001:
     work_items: [issue-26]
     status: implemented
@@ -1488,6 +1553,17 @@ work_items:
     depends_on:
       - {id: issue-81, status: satisfied}
       - {id: issue-82, status: satisfied}
+      - {id: issue-140, status: satisfied}
+      - {id: issue-177, status: satisfied}
+
+  issue-187:
+    title: Add an explicit immutable-source PySide6 preview without changing synthetic P0
+    module: source_preview_application
+    state: in_progress
+    evals: [EVAL-SOURCE-PREVIEW-VALUES-001, EVAL-SOURCE-PREVIEW-INPUTS-001, EVAL-SOURCE-PREVIEW-DESKTOP-001]
+    gates: [Q0, Q1, Q3, Q4]
+    depends_on:
+      - {id: issue-81, status: satisfied}
       - {id: issue-140, status: satisfied}
       - {id: issue-177, status: satisfied}
 

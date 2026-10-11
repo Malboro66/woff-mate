@@ -976,6 +976,19 @@ campaign data or personal paths.
 
 ## Execution workflow
 
+The additive #187 R0.3 evals are `EVAL-SOURCE-PREVIEW-VALUES-001`,
+`EVAL-SOURCE-PREVIEW-INPUTS-001` and `EVAL-SOURCE-PREVIEW-DESKTOP-001`.
+They use independently fabricated temporary copies and exercise parser fidelity,
+deep immutability, source identity, guarded admission, explicit manifest/hash/path
+boundaries, private parser output, selection clearing, stale reply rejection,
+keyboard interaction and worker close/reopen. The optional Qt CI lane runs the
+fictional desktop tests. A separate subprocess audit forbids original-file,
+SQLite, ingestion-package, watchdog, network and write access. P0 retains its
+existing fixture-only tests and imports. Public CI never discovers or opens R0
+copies. These automated evals do not certify human visual acceptance, game
+correspondence, production P1, toolkit ADR acceptance, Product Gates or R1.
+See [the bounded preview instructions](../ui/real-source-preview.md).
+
 1. Reproduce the current failure or document preventive evidence.
 2. Add the eval or test and confirm the expected failure.
 3. Implement the smallest scoped change.
