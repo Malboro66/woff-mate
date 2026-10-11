@@ -120,6 +120,8 @@ def test_verified_synthetic_roster_occupancy_and_width(ending: bytes) -> None:
     # Occupancy is five: a terminal 0xA0 may not shorten the N/A at 78
     # to N/, nor remove the final semicolon of the 32-field observer at 125.
     records = ["Null"] * 161
+    for slot in (*range(63, 79), *range(113, 129)):
+        records[slot] = "N/A"
     records[0] = "160"
     records[1] = "Britain"
     records[3] = "Flight Lieutenant"
