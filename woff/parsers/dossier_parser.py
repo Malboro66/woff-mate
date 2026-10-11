@@ -170,9 +170,9 @@ class WoFFDossierParser:
                             key_index = 0
                         hex_buffer = ""
                 elif code != 32:
-                    # One- or two-digit uppercase hex is the supported token.
-                    # Never silently discard malformed or overlong tokens.
-                    if char not in "0123456789ABCDEF" or len(hex_buffer) >= 2:
+                    # Preserve legacy wider hex values (e.g. Unicode in
+                    # synthetic fixtures), but never discard invalid tokens.
+                    if char not in "0123456789ABCDEF":
                         raise ValueError("Malformed Dossier hexadecimal token")
                     hex_buffer += char
 
