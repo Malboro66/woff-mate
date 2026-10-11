@@ -125,9 +125,9 @@ def test_verified_synthetic_roster_occupancy_and_width(ending: bytes) -> None:
     records[3] = "Flight Lieutenant"
     records[4:6] = ["Fictional", "Flyer"]
     records[81] = "5"
-    for offset in range(5):
+    for offset, given_name in enumerate(("Alfred", "Bert", "Clive", "Derek", "Ernest")):
         records[63 + offset] = _member_record(
-            "Flight Lieutenant", f"Pilot{offset}", "Example", 36
+            "Flight Lieutenant", given_name, "Example", 36
         )
     records[78] = "N/A"
     records[125] = _member_record("Captain", "Observer", "Example", 32)
