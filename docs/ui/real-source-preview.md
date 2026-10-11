@@ -131,6 +131,16 @@ and match/mismatch/availability outcomes in shareable evidence. Do not capture
 or upload screenshots with real identities. Previous R0.2 game confirmation is
 historical evidence, not a new Qt attestation or Mission.log ownership proof.
 
+The maintainer explicitly confirmed in the follow-up for PR #188 that the
+actual R0.3 PySide6 window opens on Windows and displays correct real-source
+data at reviewed head `58fdcfcd5cd9d5bfcbda05907724dda5deb060ea`.
+This is a human observation for that revision only; it supplies no screenshots,
+scaling-profile measurements or external Computer Use evidence. It is not
+automatically transferred to a later head. The follow-up ctypes typing correction
+guards only the two Windows native entrypoints before platform-specific imports;
+Windows access modes, locking, reparse/share protection, audit and cleanup remain
+unchanged. Validation on the corrected revision is recorded separately in the PR.
+
 Native Python 3.14/#184 certification is separate; hosted or 3.10 success does
 not waive failures there. No #183/#185/#186 parser remediation is included.
 Review, CI, any future Codex Review and explicit human merge authorization

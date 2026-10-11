@@ -165,6 +165,17 @@ def test_windows_unsafe_path_forms(raw):
         _path(raw)
 
 
+@pytest.mark.parametrize("operation", ["open", "close"])
+def test_windows_native_entrypoints_reject_non_windows(tmp_path, monkeypatch, operation):
+    from woff import source_preview_inputs as module
+    monkeypatch.setattr(sys, "platform", "linux")
+    with pytest.raises(CopyInputError, match="unsafe"):
+        if operation == "open":
+            module._windows_open(tmp_path / "fictional-unsupported.txt")
+        else:
+            module._windows_close(0)
+
+
 def test_hardlink_substitution_denied(dataset):
     reader = VerifiedCopyInputs(str(dataset))
     source = reader.sources[0]

@@ -90,6 +90,8 @@ def _check_components(path: Path) -> os.stat_result:
 
 
 def _windows_open(path: Path, *, directory: bool = False) -> int:
+    if sys.platform != "win32":
+        raise CopyInputError("unsafe")
     import ctypes
     from ctypes import wintypes
     kernel = ctypes.WinDLL("kernel32", use_last_error=True)
@@ -114,6 +116,8 @@ def _windows_open(path: Path, *, directory: bool = False) -> int:
 
 
 def _windows_close(handle: int) -> None:
+    if sys.platform != "win32":
+        raise CopyInputError("unsafe")
     import ctypes
     from ctypes import wintypes
     close = ctypes.WinDLL("kernel32", use_last_error=True).CloseHandle
