@@ -163,3 +163,49 @@ def test_malformed_or_unterminated_sources_fail_closed(raw: bytes) -> None:
     assert parser.validation_status == DossierValidationStatus.DECRYPTION_FAILED
     assert parser.pilot is None
     assert not parser.wingmen
+
+
+@pytest.mark.parametrize(
+    "bad_line",
+    [
+        b"1G\\xa0\\n",  # Invalid hex token terminated by legitimate 0xA0.
+        b"41\\r\\n",  # Valid hex digits but missing counter/separator.
+        b"\\x00\\n",  # Unsupported control byte, not encoded hex.
+    ],
+    ids=["invalid-hex", "unterminated-hex", "control-byte"],
+)
+@pytest.mark.parametrize("verified", [False, True], ids=["diagnostic", "runtime"])
+def test_malformed_encoded_line_rejects_otherwise_valid_dossier(
+    bad_line: bytes, verified: bool
+) -> None:
+    # The malformed record is in a nonessential context slot; every other
+    # position constitutes a valid fictional 161/160 Dossier. Merely testing
+    # a one-line file would pass via the global nonempty-text guard.
+    records = ["Null"] * 161
+    for slot in (*range(63, 79), *range(113, 129)):
+        records[slot] = "N/A"
+    records[0] = "160"
+    records[1] = "Britain"
+    records[3] = "Flight Lieutenant"
+    records[4:6] = ["Fictional", "Flyer"]
+    records[81] = "0"
+
+    original = _encode_lines(records, b"\\r\\n")
+    control = WoFFDossierParser()
+    assert control.parse_bytes(
+        original, _FILENAME, require_verified_layout=True
+    )
+    assert control.validation_status == DossierValidationStatus.SUPPORTED_FULL
+
+    physical = original.splitlines(keepends=True)
+    assert len(physical) == 161
+    physical[2] = bad_line
+    parser = WoFFDossierParser()
+    assert not parser.parse_bytes(
+        b"".join(physical), _FILENAME, require_verified_layout=verified
+    )
+    assert parser.validation_status == DossierValidationStatus.DECRYPTION_FAILED
+    assert parser.raw_strings == []
+    assert parser.pilot is None
+    assert parser.wingmen == []
+    assert parser.decorations == []
