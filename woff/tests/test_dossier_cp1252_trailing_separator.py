@@ -168,9 +168,9 @@ def test_malformed_or_unterminated_sources_fail_closed(raw: bytes) -> None:
 @pytest.mark.parametrize(
     "bad_line",
     [
-        b"1G\\xa0\\n",  # Invalid hex token terminated by legitimate 0xA0.
-        b"41\\r\\n",  # Valid hex digits but missing counter/separator.
-        b"\\x00\\n",  # Unsupported control byte, not encoded hex.
+        b"1G\xa0\n",  # Invalid hex token terminated by legitimate 0xA0.
+        b"41\r\n",  # Valid hex digits but missing counter/separator.
+        b"\x00\n",  # Unsupported control byte, not encoded hex.
     ],
     ids=["invalid-hex", "unterminated-hex", "control-byte"],
 )
@@ -190,7 +190,7 @@ def test_malformed_encoded_line_rejects_otherwise_valid_dossier(
     records[4:6] = ["Fictional", "Flyer"]
     records[81] = "0"
 
-    original = _encode_lines(records, b"\\r\\n")
+    original = _encode_lines(records, b"\r\n")
     control = WoFFDossierParser()
     assert control.parse_bytes(
         original, _FILENAME, require_verified_layout=True
