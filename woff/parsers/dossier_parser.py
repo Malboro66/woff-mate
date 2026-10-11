@@ -140,7 +140,9 @@ class WoFFDossierParser:
         player_data: List[str] = []
 
         for raw_line in raw_lines:
-            line = raw_line.decode("cp1252", errors="replace").strip()
+            # Keep encoded counter bytes (notably CP1252 0xA0) until consumed.
+            # Only CR/LF terminate a physical source line.
+            line = raw_line.decode("cp1252", errors="replace").rstrip("\r\n")
             if not line:
                 # Empty physical lines still occupy a positional field and
                 # reverse the XOR key. Dropping them shifts all later indices.
