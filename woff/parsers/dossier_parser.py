@@ -140,7 +140,9 @@ class WoFFDossierParser:
         player_data: List[str] = []
 
         for raw_line in raw_lines:
-            line = raw_line.decode("cp1252", errors="replace").strip()
+            # Keep encoded counter bytes (notably CP1252 0xA0) until consumed.
+            # Only CR/LF terminate a physical source line.
+            line = raw_line.decode("cp1252", errors="replace").rstrip("\r\n")
             if not line:
                 # Empty physical lines still occupy a positional field and
                 # reverse the XOR key. Dropping them shifts all later indices.
@@ -158,20 +160,24 @@ class WoFFDossierParser:
                     if hex_buffer:
                         if len(hex_buffer) < 2:
                             hex_buffer = "0" + hex_buffer
-                        try:
-                            val = int(hex_buffer, 16)
-                            key_char = ord(current_key[key_index])
-                            fin_val = val ^ key_char  # Cifra XOR
-                            decoded_line += chr(fin_val)
-                        except ValueError:
-                            pass
+                        val = int(hex_buffer, 16)
+                        key_char = ord(current_key[key_index])
+                        fin_val = val ^ key_char  # Cifra XOR
+                        decoded_line += chr(fin_val)
 
                         key_index += 1
                         if key_index == len(current_key):
                             key_index = 0
                         hex_buffer = ""
                 elif code != 32:
+                    # Preserve legacy wider hex values (e.g. Unicode in
+                    # synthetic fixtures), but never discard invalid tokens.
+                    if char not in "0123456789ABCDEF":
+                        raise ValueError("Malformed Dossier hexadecimal token")
                     hex_buffer += char
+
+            if hex_buffer:
+                raise ValueError("Unterminated Dossier hexadecimal token")
 
             current_key = current_key[::-1]
             player_data.append(decoded_line)
@@ -278,7 +284,14 @@ class WoFFDossierParser:
         fname = ntpath.basename(source_name)
         pName = fname.replace(".txt", "")
         selected_key = self._create_key(pName)
-        player_data = self._decode_lines(raw_lines, selected_key)
+        try:
+            player_data = self._decode_lines(raw_lines, selected_key)
+        except ValueError:
+            # Reject the entire source, not just the affected physical field.
+            # Never include original encoded records in diagnostics.
+            return self._reject(
+                DossierValidationStatus.DECRYPTION_FAILED, fname, len(raw_lines)
+            )
 
         if not self._has_valid_decoded_text(player_data):
             return self._reject(
