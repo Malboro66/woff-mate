@@ -82,6 +82,8 @@ def test_attested_profiles_accept_only_matching_roles(
         ("Britain", "Unknown Unit", "Major", "Captain"),
         ("Britain", "1 Sqn RNAS", "Sergeant", "Captain"),
         ("RFC", "1 Sqn RNAS", "Major", "Captain"),  # contradictory service
+        ("RFC", "RAF", "Major", "Captain"),  # explicit RFC/RAF conflict
+        ("RFC", "RAF", "Lieutenant", "2nd Lieutenant"),
         ("France", "Escadrille N 15", "Capitaine", "Capitaine"),
         ("Germany", "Jasta 4", "Flugmaat", "Leutnant"),
         ("Germany", "Marine Feld Jagdstaffel 1", "Gefreiter", "N/A"),
@@ -219,3 +221,149 @@ def test_german_naval_unverified_or_conflicting_source_fails_closed(
     assert parser.validation_status is DossierValidationStatus.INVALID_ROSTER
     assert parser.wingmen == []
     assert parser.raw_strings == []
+
+
+# The literal values in these profiles are transcribed from all eleven
+# maintainer-supplied base-v1.38 *Ranks.txt catalogues, deduplicated by
+# service+role (not merged into a global allowlist). Each rank is exercised
+# as field zero of the correct detailed 36/32-field record.
+@pytest.mark.parametrize("verified", [False, True], ids=["diagnostic", "runtime"])
+@pytest.mark.parametrize(
+    ("nation", "squadron", "source_unit", "pilot_ranks", "observer_ranks"),
+    [
+        pytest.param(
+            "RFC", "16 RFC", None,
+            ("Sergeant", "2nd Lieutenant", "Lieutenant", "Captain", "Major"),
+            ("2nd Lieutenant", "Lieutenant", "Captain"),
+            id="britain-rfc",
+        ),
+        pytest.param(
+            "RAF", "RAF", None,
+            ("Sergeant", "2nd Lieutenant", "Lieutenant", "Captain", "Major"),
+            ("2nd Lieutenant", "Lieutenant", "Captain"),
+            id="britain-raf",
+        ),
+        pytest.param(
+            "RNAS", "1 Sqn RNAS", None,
+            (
+                "Flight Sub-Lieutenant", "Flight Lieutenant",
+                "Flight Commander", "Squadron Commander",
+            ),
+            ("2nd Lieutenant", "Lieutenant", "Captain"),
+            id="britain-rnas",
+        ),
+        pytest.param(
+            "France", "Escadrille C 13", None,
+            (
+                "Caporal", "Sergent", "Adjutant", "Sous Lieutenant",
+                "Lieutenant", "Capitaine",
+            ),
+            ("Caporal", "Sergent", "Adjutant", "Sous Lieutenant", "Lieutenant"),
+            id="france",
+        ),
+        pytest.param(
+            "Germany", "FFA 27", None,
+            (
+                "Gefreiter", "Unteroffizier", "Vizefeldwebel", "Feldwebel",
+                "Leutnant", "Oberleutnant", "Hauptmann", "Rittmeister",
+            ),
+            ("Leutnant", "Oberleutnant", "Hauptmann"),
+            id="germany-land",
+        ),
+        pytest.param(
+            "Germany", "III MLFA", "MFJ I",
+            (
+                "Flugmaat", "Oberflugmaat", "Vizeflugmeister",
+                "Flugmeister", "Oberflugmeister",
+                "Leutnant zur See", "Oberleutnant zur See",
+            ),
+            ("Leutnant", "Oberleutnant", "Hauptmann"),
+            id="germany-naval-verified",
+        ),
+        pytest.param(
+            "USA", "20th Aero", None,
+            ("2nd Lieutenant", "1st Lieutenant", "Captain", "Major", "Lt Colonel"),
+            ("2nd Lieutenant", "1st Lieutenant", "Captain", "Major", "Lt Colonel"),
+            id="usa",
+        ),
+    ],
+)
+def test_each_catalogue_rank_in_its_explicit_service_and_role(
+    nation: str,
+    squadron: str,
+    source_unit: str | None,
+    pilot_ranks: tuple[str, ...],
+    observer_ranks: tuple[str, ...],
+    verified: bool,
+) -> None:
+    # Validate each pilot token in the *pilot block* and each observer
+    # token in the *observer block*. Synthetic names and encoding only.
+    for rank in pilot_ranks:
+        parser = WoFFDossierParser()
+        accepted = parser.parse_bytes(
+            _case(
+                nation, squadron, rank, observer_ranks[0],
+                source_unit=source_unit,
+            ),
+            "Pilot1Dossier.txt", require_verified_layout=verified,
+        )
+        assert accepted, ("pilot", nation, squadron, rank, parser.validation_status)
+        assert parser.validation_status is DossierValidationStatus.SUPPORTED_FULL
+        assert parser.has_verified_structure
+        assert not parser.roster_complete
+        assert len(parser.wingmen) == 2
+        assert parser.wingmen[0].rank == rank
+        assert parser.wingmen[1].rank == observer_ranks[0]
+
+    for rank in observer_ranks:
+        parser = WoFFDossierParser()
+        accepted = parser.parse_bytes(
+            _case(
+                nation, squadron, pilot_ranks[0], rank,
+                source_unit=source_unit,
+            ),
+            "Pilot1Dossier.txt", require_verified_layout=verified,
+        )
+        assert accepted, ("observer", nation, squadron, rank, parser.validation_status)
+        assert parser.validation_status is DossierValidationStatus.SUPPORTED_FULL
+        assert parser.has_verified_structure
+        assert not parser.roster_complete
+        assert len(parser.wingmen) == 2
+        assert parser.wingmen[0].rank == pilot_ranks[0]
+        assert parser.wingmen[1].rank == rank
+
+
+@pytest.mark.parametrize("verified", [False, True], ids=["diagnostic", "runtime"])
+@pytest.mark.parametrize("pilot_rank", ["Major", "Lieutenant", "Sergeant"])
+def test_explicit_rfc_conflicts_with_raf_squadron(
+    pilot_rank: str, verified: bool,
+) -> None:
+    # Explicit service identity RFC cannot be broadened to an RAF source.
+    parser = WoFFDossierParser()
+    assert not parser.parse_bytes(
+        _case("RFC", "RAF", pilot_rank, "Captain"),
+        "Pilot1Dossier.txt", require_verified_layout=verified,
+    )
+    assert parser.validation_status is DossierValidationStatus.INVALID_ROSTER
+    assert parser.raw_strings == []
+    assert parser.wingmen == []
+
+
+@pytest.mark.parametrize("verified", [False, True], ids=["diagnostic", "runtime"])
+@pytest.mark.parametrize(
+    ("nation", "squadron", "pilot_rank"),
+    [
+        ("RFC", "16 RFC", "Major"),
+        ("RAF", "RAF", "Major"),
+    ],
+)
+def test_nonconflicting_rfc_and_raf_still_admitted(
+    nation: str, squadron: str, pilot_rank: str, verified: bool,
+) -> None:
+    parser = WoFFDossierParser()
+    assert parser.parse_bytes(
+        _case(nation, squadron, pilot_rank, "Lieutenant"),
+        "Pilot1Dossier.txt", require_verified_layout=verified,
+    )
+    assert parser.validation_status is DossierValidationStatus.SUPPORTED_FULL
+    assert not parser.roster_complete
