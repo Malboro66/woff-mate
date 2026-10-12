@@ -24,7 +24,8 @@ def verified_dossier_lines(
     """Place fictional field values in the observed pilot-detail envelope.
 
     Legacy synthetic member values are expressed as fictional pilot details:
-    Lieutenant becomes Flight Lieutenant, missing extension fields stay Null.
+    British legacy Lieutenant becomes Flight Lieutenant; French, German and US
+    samples retain their own service-specific tokens. Extensions stay Null.
     This is fixture construction, never production recognition or provenance.
     """
     if len(members) > 16:
@@ -39,7 +40,19 @@ def verified_dossier_lines(
     for index, member in enumerate(members, start=63):
         parts = member.split(";")
         if parts[0] == "Lieutenant":
-            parts[0] = "Flight Lieutenant"
+            # The legacy test helper used to invent a British naval rank
+            # even when a synthetic fixture declared a French nationality.
+            # Keep fictional rows consistent with their explicit source
+            # country rather than weakening production admission rules.
+            nation = fields.get(1, "").casefold()
+            if nation in ("france", "french"):
+                parts[0] = "Lieutenant"
+            elif nation in ("germany", "german"):
+                parts[0] = "Leutnant"
+            elif nation in ("usa", "american", "us"):
+                parts[0] = "1st Lieutenant"
+            else:
+                parts[0] = "Flight Lieutenant"
         if 26 <= len(parts) < 36:
             parts.extend(["Null"] * (36 - len(parts)))
         lines[index] = ";".join(parts)
