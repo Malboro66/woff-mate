@@ -289,6 +289,7 @@ class WoFFDossierParser:
         # evidence-location field [25] of an otherwise complete 36/32-field
         # detailed member. Every other control remains a decode failure.
         observed_layout = len(player_data) == 161 and player_data[0] == "160"
+        seen_location_tab = False
         for record_index, value in enumerate(player_data):
             if "\ufffd" in value:
                 return False
@@ -302,7 +303,16 @@ class WoFFDossierParser:
             if len(fields) != expected:
                 return False
             location = fields[25]
-            if location.count("\t") != 1 or location.startswith("\t") or location.endswith("\t"):
+            # Compare against the same surrounding-whitespace normalization
+            # used when extracting the member's evidenceLocation below.
+            trimmed_location = location.strip()
+            if (
+                seen_location_tab
+                or location.count("\t") != 1
+                or not trimmed_location
+                or trimmed_location.startswith("\t")
+                or trimmed_location.endswith("\t")
+            ):
                 return False
             if any(
                 not character.isprintable()
@@ -311,6 +321,7 @@ class WoFFDossierParser:
                 for character in field
             ):
                 return False
+            seen_location_tab = True
         return True
 
     @staticmethod
