@@ -309,6 +309,7 @@ class WoFFDossierParser:
             if (
                 seen_location_tab
                 or location.count("\t") != 1
+                or trimmed_location.count("\t") != 1
                 or not trimmed_location
                 or trimmed_location.startswith("\t")
                 or trimmed_location.endswith("\t")
