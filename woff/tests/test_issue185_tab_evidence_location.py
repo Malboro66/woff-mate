@@ -145,3 +145,99 @@ def test_other_envelope_cannot_admit_control_character(verified: bool) -> None:
     )
     assert parser.validation_status is DossierValidationStatus.DECRYPTION_FAILED
     assert parser.wingmen == []
+
+
+@pytest.mark.parametrize("verified", [False, True], ids=["diagnostic", "runtime"])
+@pytest.mark.parametrize(
+    ("first_slot", "second_slot"),
+    [(63, 113), (63, 64), (113, 114)],
+    ids=["pilot-and-observer", "two-pilots", "two-observers"],
+)
+def test_two_distinct_member_location_tabs_reject_entire_dossier(
+    verified: bool, first_slot: int, second_slot: int,
+) -> None:
+    # Each location individually looks valid, but the source has two TABs.
+    lines = _candidate_lines()
+    if second_slot == 64:
+        lines[64] = _member("Flight Commander", "Bert")
+        lines[81] = "2"
+    if second_slot == 114:
+        lines[114] = _member("Captain", "Bert", observer=True)
+    for slot in (first_slot, second_slot):
+        fields = lines[slot].split(";")
+        fields[25] = "Fictional town\tnear station"
+        lines[slot] = ";".join(fields)
+    parser = WoFFDossierParser()
+    assert not parser.parse_bytes(
+        _encode_dossier(lines, _SOURCE),
+        _SOURCE, require_verified_layout=verified,
+    )
+    assert parser.validation_status is DossierValidationStatus.DECRYPTION_FAILED
+    assert parser.raw_strings == []
+    assert parser.wingmen == []
+    assert parser.pilot is None
+
+
+@pytest.mark.parametrize("verified", [False, True], ids=["diagnostic", "runtime"])
+@pytest.mark.parametrize("slot", [63, 113], ids=["pilot", "observer"])
+@pytest.mark.parametrize(
+    "location",
+    [
+        " \tCity",
+        "City\t ",
+        " \t ",
+        "  \t City  ",
+        "City \t  ",
+        " \tCity ",
+        " City\t ",
+        "   \t City",
+    ],
+    ids=[
+        "leading-space-then-tab", "trailing-tab-then-space",
+        "only-surrounding-whitespace", "padded-leading-tab",
+        "padded-trailing-tab", "leading-tab-with-trailing-space",
+        "left-space-and-boundary-tab", "wide-leading-padding",
+    ],
+)
+def test_padded_boundary_tab_fails_closed(
+    verified: bool, slot: int, location: str,
+) -> None:
+    parser = WoFFDossierParser()
+    assert not parser.parse_bytes(
+        _case(slot, 25, location),
+        _SOURCE, require_verified_layout=verified,
+    )
+    assert parser.validation_status is DossierValidationStatus.DECRYPTION_FAILED
+    assert parser.raw_strings == []
+    assert parser.wingmen == []
+    assert parser.pilot is None
+
+
+@pytest.mark.parametrize("verified", [False, True], ids=["diagnostic", "runtime"])
+@pytest.mark.parametrize("slot", [63, 113], ids=["pilot", "observer"])
+def test_genuinely_embedded_tab_survives_surrounding_location_spaces(
+    verified: bool, slot: int,
+) -> None:
+    location = "  Fictional town \t near station  "
+    parser = WoFFDossierParser()
+    assert parser.parse_bytes(
+        _case(slot, 25, location),
+        _SOURCE, require_verified_layout=verified,
+    )
+    assert parser.validation_status is DossierValidationStatus.SUPPORTED_FULL
+    assert parser.has_verified_structure
+    assert parser.roster_complete is False
+    assert len(parser.wingmen) == 2
+    assert any(w.evidenceLocation == location.strip() for w in parser.wingmen)
+
+
+@pytest.mark.parametrize("verified", [False, True], ids=["diagnostic", "runtime"])
+def test_no_tab_payload_still_admitted(verified: bool) -> None:
+    parser = WoFFDossierParser()
+    assert parser.parse_bytes(
+        _encode_dossier(_candidate_lines(), _SOURCE),
+        _SOURCE, require_verified_layout=verified,
+    )
+    assert parser.validation_status is DossierValidationStatus.SUPPORTED_FULL
+    assert len(parser.wingmen) == 2
+    assert parser.roster_complete is False
