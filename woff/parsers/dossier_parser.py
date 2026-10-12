@@ -107,6 +107,10 @@ def _observed_rank_profile(
                 return frozenset(), frozenset()
             if service is ServiceCode.RAF and unit in _GB_RFC_SQUADRON:
                 return frozenset(), frozenset()
+            if service is ServiceCode.RFC and unit == "raf":
+                # Explicitly contradictory service evidence must not select
+                # the shared British general catalogue.
+                return frozenset(), frozenset()
             return _GB_GENERAL_PILOT_RANKS, _OBSERVED_OBSERVER_RANKS
         if unit in _GB_RFC_SQUADRON or unit == "raf":
             return _GB_GENERAL_PILOT_RANKS, _OBSERVED_OBSERVER_RANKS
