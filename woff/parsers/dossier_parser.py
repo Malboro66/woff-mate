@@ -76,8 +76,9 @@ _US_PILOT_RANKS = frozenset({
 
 # Whitelisted context anchors, not a generic substring-based service guess.
 # The RFC and RNAS strings are attested in the maintainer's actual career
-# captures. Naval German profiles require an explicitly naval squadron label;
-# unspecified or conflicting service evidence must never select naval ranks.
+# captures. The German naval v1.38 sample identifies its source unit at
+# index 2 as MFJ I and its squadron at index 83 as III MLFA. Both are needed:
+# naval labels alone and unverified aliases must never select a new profile.
 _GB_RFC_SQUADRON = frozenset({"16 rfc"})
 _GB_RNAS_SQUADRON = frozenset({"1 sqn rnas", "hq sqn 1 wing rnas"})
 
@@ -86,6 +87,7 @@ def _observed_rank_profile(
     nation: NationCode | None,
     service: ServiceCode | None,
     squadron: str,
+    source_unit: str,
 ) -> tuple[frozenset[str], frozenset[str]]:
     """Choose role-specific ranks from source evidence, never member rank.
 
@@ -94,6 +96,7 @@ def _observed_rank_profile(
     #185, until specific squadron/service evidence exists.
     """
     unit = squadron.strip().casefold()
+    context_unit = source_unit.strip().casefold()
     if nation is NationCode.GB:
         if service is ServiceCode.RNAS:
             if unit in _GB_RFC_SQUADRON or unit == "raf":
@@ -113,14 +116,17 @@ def _observed_rank_profile(
     if nation is NationCode.FR:
         return _FR_PILOT_RANKS, _FR_OBSERVER_RANKS
     if nation is NationCode.DE:
-        if unit.startswith("marine feld jagdstaffel "):
-            number = unit.removeprefix("marine feld jagdstaffel ")
-            if number.isascii() and number.isdecimal() and int(number) > 0:
-                # No separate German naval observer catalogue was supplied:
-                # an occupied observer slot is unsupported for this profile.
-                return _DE_NAVAL_PILOT_RANKS, frozenset()
-            return frozenset(), frozenset()
-        if unit.startswith("marine"):
+        if unit == "iii mlfa" and context_unit == "mfj i":
+            # Real v1.38 naval roster: pilot ranks are naval, but detailed
+            # observers use the German observer catalogue. Never interpret
+            # the pilot's own rank as an authority for choosing a profile.
+            return _DE_NAVAL_PILOT_RANKS, _DE_OBSERVER_RANKS
+        if (
+            unit.endswith(" mlfa") or unit.startswith("marine")
+            or context_unit.startswith("mfj ")
+        ):
+            # Known naval-shaped but unverified/conflicting context.
+            # No broad pattern inference from a single naval sample.
             return frozenset(), frozenset()
         return _DE_PILOT_RANKS, _DE_OBSERVER_RANKS
     if nation is NationCode.US:
@@ -565,6 +571,7 @@ class WoFFDossierParser:
                     self.pilot.nation_code,
                     self.pilot.service_code,
                     self.pilot.squadron,
+                    player_data[2],
                 )
                 if observed_layout else (frozenset(), frozenset())
             )
