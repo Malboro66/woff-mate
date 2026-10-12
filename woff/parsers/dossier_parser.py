@@ -22,7 +22,7 @@ from typing import Optional, List
 from ..models import WoFFPilot, WoFFWingman, WoFFDecoration
 # FIX: Importa as funções de normalização para aplicar aos dados do Dossier.
 from ..normalization import normalize_date
-from ..nation import normalize_nation_evidence
+from ..nation import NationCode, ServiceCode, normalize_nation_evidence
 from .numeric import (
     SIGNED_SQLITE_INTEGER,
     UNSIGNED_SQLITE_INTEGER,
@@ -40,11 +40,92 @@ _DOSSIER_CURRENT_FIXED_LAST_INDEX = 100
 # Six validated generations share these physical slots. This is not a
 # universal contract for all WOFF careers or versions.
 _OBSERVED_ROSTER_POSITIONS = frozenset((*range(63, 79), *range(113, 129)))
+# Legacy, already-admitted observed-family ranks: retained only when British
+# source evidence cannot distinguish RFC/RAF from RNAS. Do not widen this
+# ambiguous legacy case or use the diagnostic wingmen vocabulary here.
 _OBSERVED_PILOT_RANKS = frozenset({
     "Squadron Commander", "Flight Commander", "Flight Lieutenant",
     "Flight Sub-Lieutenant",
 })
 _OBSERVED_OBSERVER_RANKS = frozenset({"2nd Lieutenant", "Captain", "Lieutenant"})
+
+# Literal rank tokens transcribed from maintainer-supplied base-v1.38
+# CampaignData/Pilots/*Ranks.txt catalogues. Names are not normalized:
+# "Adjutant", "Sous Lieutenant" and "Lt Colonel" are exact WOFF tokens.
+_GB_GENERAL_PILOT_RANKS = frozenset({
+    "Sergeant", "2nd Lieutenant", "Lieutenant", "Captain", "Major",
+})
+_GB_NAVAL_PILOT_RANKS = _OBSERVED_PILOT_RANKS
+_FR_PILOT_RANKS = frozenset({
+    "Caporal", "Sergent", "Adjutant", "Sous Lieutenant",
+    "Lieutenant", "Capitaine",
+})
+_FR_OBSERVER_RANKS = _FR_PILOT_RANKS - {"Capitaine"}
+_DE_PILOT_RANKS = frozenset({
+    "Gefreiter", "Unteroffizier", "Vizefeldwebel", "Feldwebel",
+    "Leutnant", "Oberleutnant", "Hauptmann", "Rittmeister",
+})
+_DE_OBSERVER_RANKS = frozenset({"Leutnant", "Oberleutnant", "Hauptmann"})
+_DE_NAVAL_PILOT_RANKS = frozenset({
+    "Flugmaat", "Oberflugmaat", "Vizeflugmeister", "Flugmeister",
+    "Oberflugmeister", "Leutnant zur See", "Oberleutnant zur See",
+})
+_US_PILOT_RANKS = frozenset({
+    "2nd Lieutenant", "1st Lieutenant", "Captain", "Major", "Lt Colonel",
+})
+
+# Whitelisted context anchors, not a generic substring-based service guess.
+# The RFC and RNAS strings are attested in the maintainer's actual career
+# captures. Naval German profiles require an explicitly naval squadron label;
+# unspecified or conflicting service evidence must never select naval ranks.
+_GB_RFC_SQUADRON = frozenset({"16 rfc"})
+_GB_RNAS_SQUADRON = frozenset({"1 sqn rnas", "hq sqn 1 wing rnas"})
+
+
+def _observed_rank_profile(
+    nation: NationCode | None,
+    service: ServiceCode | None,
+    squadron: str,
+) -> tuple[frozenset[str], frozenset[str]]:
+    """Choose role-specific ranks from source evidence, never member rank.
+
+    Unknown/conflicting identities do not receive a union or global fallback.
+    British country-only legacy inputs retain ONLY the ranks admitted before
+    #185, until specific squadron/service evidence exists.
+    """
+    unit = squadron.strip().casefold()
+    if nation is NationCode.GB:
+        if service is ServiceCode.RNAS:
+            if unit in _GB_RFC_SQUADRON or unit == "raf":
+                return frozenset(), frozenset()
+            return _GB_NAVAL_PILOT_RANKS, _OBSERVED_OBSERVER_RANKS
+        if service in (ServiceCode.RFC, ServiceCode.RAF):
+            if unit in _GB_RNAS_SQUADRON:
+                return frozenset(), frozenset()
+            if service is ServiceCode.RAF and unit in _GB_RFC_SQUADRON:
+                return frozenset(), frozenset()
+            return _GB_GENERAL_PILOT_RANKS, _OBSERVED_OBSERVER_RANKS
+        if unit in _GB_RFC_SQUADRON or unit == "raf":
+            return _GB_GENERAL_PILOT_RANKS, _OBSERVED_OBSERVER_RANKS
+        if unit in _GB_RNAS_SQUADRON:
+            return _GB_NAVAL_PILOT_RANKS, _OBSERVED_OBSERVER_RANKS
+        return _OBSERVED_PILOT_RANKS, _OBSERVED_OBSERVER_RANKS
+    if nation is NationCode.FR:
+        return _FR_PILOT_RANKS, _FR_OBSERVER_RANKS
+    if nation is NationCode.DE:
+        if unit.startswith("marine feld jagdstaffel "):
+            number = unit.removeprefix("marine feld jagdstaffel ")
+            if number.isascii() and number.isdecimal() and int(number) > 0:
+                # No separate German naval observer catalogue was supplied:
+                # an occupied observer slot is unsupported for this profile.
+                return _DE_NAVAL_PILOT_RANKS, frozenset()
+            return frozenset(), frozenset()
+        if unit.startswith("marine"):
+            return frozenset(), frozenset()
+        return _DE_PILOT_RANKS, _DE_OBSERVER_RANKS
+    if nation is NationCode.US:
+        return _US_PILOT_RANKS, _US_PILOT_RANKS
+    return frozenset(), frozenset()
 _DOSSIER_NAME_SEPARATORS = frozenset({" ", "-", "'", "’", "."})
 # Sanitized evidence confirms only reputation as signed-capable. Counts,
 # flight minutes, skill, and morale remain nonnegative until new samples prove
@@ -474,6 +555,15 @@ class WoFFDossierParser:
                 "Vizefeldwebel", "Feldwebel", "Unteroffizier", "Gefreiter"
             ]
             
+            observed_pilot_ranks, observed_observer_ranks = (
+                _observed_rank_profile(
+                    self.pilot.nation_code,
+                    self.pilot.service_code,
+                    self.pilot.squadron,
+                )
+                if observed_layout else (frozenset(), frozenset())
+            )
+
             for record_index, s in enumerate(player_data):
                 if observed_layout:
                     if record_index not in _OBSERVED_ROSTER_POSITIONS:
@@ -492,8 +582,8 @@ class WoFFDossierParser:
                 parts = [p.strip() for p in source_parts]
                 known_rank = (
                     parts[0] in (
-                        _OBSERVED_PILOT_RANKS
-                        if record_index < 79 else _OBSERVED_OBSERVER_RANKS
+                        observed_pilot_ranks
+                        if record_index < 79 else observed_observer_ranks
                     )
                     if observed_layout else parts[0] in wingmen_ranks
                 )
