@@ -282,11 +282,48 @@ class WoFFDossierParser:
 
     @staticmethod
     def _has_valid_decoded_text(player_data: List[str]) -> bool:
-        return any(value.strip() for value in player_data) and not any(
-            "\ufffd" in value
-            or not all(character.isprintable() for character in value)
-            for value in player_data
-        )
+        if not any(value.strip() for value in player_data):
+            return False
+
+        # Real v1.38 evidence: one embedded TAB occurs in the textual
+        # evidence-location field [25] of an otherwise complete 36/32-field
+        # detailed member. Every other control remains a decode failure.
+        observed_layout = len(player_data) == 161 and player_data[0] == "160"
+        seen_location_tab = False
+        for record_index, value in enumerate(player_data):
+            if "\ufffd" in value:
+                return False
+            if all(character.isprintable() for character in value):
+                continue
+            if not observed_layout or record_index not in _OBSERVED_ROSTER_POSITIONS:
+                return False
+
+            fields = value.split(";")
+            expected = 36 if record_index < 79 else 32
+            if len(fields) != expected:
+                return False
+            location = fields[25]
+            # Compare against the same surrounding-whitespace normalization
+            # used when extracting the member's evidenceLocation below.
+            trimmed_location = location.strip()
+            if (
+                seen_location_tab
+                or location.count("\t") != 1
+                or trimmed_location.count("\t") != 1
+                or not trimmed_location
+                or trimmed_location.startswith("\t")
+                or trimmed_location.endswith("\t")
+            ):
+                return False
+            if any(
+                not character.isprintable()
+                and not (field_index == 25 and character == "\t")
+                for field_index, field in enumerate(fields)
+                for character in field
+            ):
+                return False
+            seen_location_tab = True
+        return True
 
     @staticmethod
     def _has_supported_identity(player_data: List[str]) -> bool:
