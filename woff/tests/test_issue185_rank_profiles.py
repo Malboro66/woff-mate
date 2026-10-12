@@ -21,9 +21,12 @@ def _case(
     *,
     change_index: int | None = None,
     change_to: str | None = None,
+    source_unit: str | None = None,
 ) -> bytes:
     lines = _physical_lines(second_pilot=False)
     lines[1], lines[3], lines[83] = nation, pilot_rank, squadron
+    if source_unit is not None:
+        lines[2] = source_unit
     lines[4], lines[5] = "Fictional", "Aviator"
     lines[63] = _member(pilot_rank, "Emil", "Example")
     lines[113] = (
@@ -53,8 +56,6 @@ def _case(
         ("Germany", "Jasta 4", "Gefreiter", "Leutnant"),
         ("USA", "20th Aero", "1st Lieutenant", "Lt Colonel"),
         ("USA", "20th Aero", "Major", "Major"),
-        ("Germany", "Marine Feld Jagdstaffel 1", "Flugmaat", "N/A"),
-        ("Germany", "Marine Feld Jagdstaffel 1", "Leutnant zur See", "N/A"),
     ],
 )
 def test_attested_profiles_accept_only_matching_roles(
@@ -138,3 +139,83 @@ def test_context_is_not_roster_and_absent_slots_are_not_people(verified: bool) -
     assert parser.raw_strings[112] == "Captain;Context;Only"
     assert parser.raw_strings[65] == "N/A"
     assert parser.roster_complete is False
+
+
+@pytest.mark.parametrize("verified", [False, True], ids=["diagnostic", "runtime"])
+def test_german_naval_verified_two_field_source_has_pilots_and_observers(
+    verified: bool,
+) -> None:
+    # Sanitized structural pattern only: 5 pilot details and 6 observers.
+    # These are invented names, NOT a copy of the real naval career.
+    lines = _physical_lines(second_pilot=False)
+    lines[1], lines[2], lines[3], lines[83] = (
+        "Germany", "MFJ I", "Flugmaat", "III MLFA"
+    )
+    pilot_names = ("Alfred", "Bert", "Clive", "Derek", "Ernest")
+    observer_names = ("Felix", "Gustav", "Heinz", "Ingo", "Julius", "Kurt")
+    pilot_ranks = (
+        "Oberflugmeister", "Oberflugmaat", "Leutnant zur See",
+        "Oberflugmeister", "Oberflugmaat",
+    )
+    observer_ranks = (
+        "Hauptmann", "Oberleutnant", "Hauptmann",
+        "Oberleutnant", "Hauptmann", "Hauptmann",
+    )
+    for offset, (rank, name) in enumerate(zip(pilot_ranks, pilot_names)):
+        lines[63 + offset] = _member(rank, name, "Example")
+    for offset, (rank, name) in enumerate(zip(observer_ranks, observer_names)):
+        lines[113 + offset] = _member(rank, name, "Example", observer=True)
+    lines[81] = "5"
+    parser = WoFFDossierParser()
+    assert parser.parse_bytes(
+        _encode_dossier(lines, "Pilot1Dossier.txt"), "Pilot1Dossier.txt",
+        require_verified_layout=verified,
+    )
+    assert parser.validation_status is DossierValidationStatus.SUPPORTED_FULL
+    assert parser.has_verified_structure
+    assert parser.roster_complete is False
+    assert len(parser.wingmen) == 11
+    assert len(parser.raw_strings) == 161
+    assert parser.raw_strings[0] == "160"
+    assert parser.raw_strings[81] == "5"
+    assert all(len(parser.raw_strings[i].split(";")) == 36 for i in range(63, 68))
+    assert all(len(parser.raw_strings[i].split(";")) == 32 for i in range(113, 119))
+    assert parser.raw_strings[68] == "N/A"
+    assert parser.raw_strings[119] == "N/A"
+
+
+@pytest.mark.parametrize("verified", [False, True], ids=["diagnostic", "runtime"])
+@pytest.mark.parametrize(
+    ("nation", "squadron", "source_unit", "pilot_rank", "observer_rank"),
+    [
+        ("Germany", "III MLFA", None, "Oberflugmeister", "Hauptmann"),
+        ("Germany", "III MLFA", "Jasta 4", "Oberflugmeister", "Hauptmann"),
+        ("Germany", "Jasta 4", "MFJ I", "Oberflugmeister", "Hauptmann"),
+        ("Germany", "IV MLFA", "MFJ I", "Oberflugmeister", "Hauptmann"),
+        ("Germany", "III MLFA", "MFJ II", "Oberflugmeister", "Hauptmann"),
+        ("France", "III MLFA", "MFJ I", "Oberflugmeister", "Hauptmann"),
+        ("Germany", "Marine Feld Jagdstaffel 1", None, "Flugmaat", "N/A"),
+        ("Germany", "III MLFA", "MFJ I", "Gefreiter", "Hauptmann"),
+        ("Germany", "III MLFA", "MFJ I", "Oberflugmeister", "Rittmeister"),
+        ("Germany", "III MLFA", "MFJ I", "Leutnant", "Hauptmann"),
+    ],
+)
+def test_german_naval_unverified_or_conflicting_source_fails_closed(
+    nation: str,
+    squadron: str,
+    source_unit: str | None,
+    pilot_rank: str,
+    observer_rank: str,
+    verified: bool,
+) -> None:
+    parser = WoFFDossierParser()
+    assert not parser.parse_bytes(
+        _case(
+            nation, squadron, pilot_rank, observer_rank,
+            source_unit=source_unit,
+        ),
+        "Pilot1Dossier.txt", require_verified_layout=verified,
+    )
+    assert parser.validation_status is DossierValidationStatus.INVALID_ROSTER
+    assert parser.wingmen == []
+    assert parser.raw_strings == []
