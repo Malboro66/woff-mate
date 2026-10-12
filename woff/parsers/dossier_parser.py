@@ -125,6 +125,11 @@ def _observed_rank_profile(
         return _DE_PILOT_RANKS, _DE_OBSERVER_RANKS
     if nation is NationCode.US:
         return _US_PILOT_RANKS, _US_PILOT_RANKS
+    if nation is None:
+        # Historically admissible synthetic/legacy Dossiers with missing
+        # nation already passed the original bounded role sets. Preserve
+        # only that existing behavior; never widen it to a new profile.
+        return _OBSERVED_PILOT_RANKS, _OBSERVED_OBSERVER_RANKS
     return frozenset(), frozenset()
 _DOSSIER_NAME_SEPARATORS = frozenset({" ", "-", "'", "’", "."})
 # Sanitized evidence confirms only reputation as signed-capable. Counts,
