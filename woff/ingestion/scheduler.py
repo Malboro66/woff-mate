@@ -78,6 +78,7 @@ class EventScheduler:
         persistence_retry_policy: Optional[PersistenceRetryPolicy] = None,
         dependency_retry_policy: Optional[DependencyRetryPolicy] = None,
         vacancy_pending: Optional[Callable[[PilotSlotBinding], bool]] = None,
+        worker_cleanup: Optional[Callable[[], None]] = None,
     ) -> None:
         if (
             isinstance(max_pending_events, bool)
@@ -91,6 +92,8 @@ class EventScheduler:
         self._dependency_retry_process = dependency_retry_process
         self._dependency_key_for_event = dependency_key_for_event
         self._vacancy_pending = vacancy_pending
+        self._worker_cleanup = worker_cleanup
+        self._cleanup_errors: list[Exception] = []
         self._persistence_retry_policy = (
             persistence_retry_policy or PersistenceRetryPolicy()
         )
@@ -266,7 +269,7 @@ class EventScheduler:
             )
             self._metrics["queued"] += 1
             try:
-                self._executor.submit(self._run, key, event)
+                self._executor.submit(self._run_with_cleanup, key, event)
             except Exception:
                 del self._states[key]
                 if terminal_outcome is not None and terminal_outcome.confirmed_vacancy is not None:
@@ -342,7 +345,7 @@ class EventScheduler:
         event = self._take_pending_locked(state)
         self._metrics["retried"] += 1
         try:
-            self._executor.submit(self._run, key, event)
+            self._executor.submit(self._run_with_cleanup, key, event)
         except Exception:
             self._metrics["queued"] -= 1
             self._metrics["rejected"] += 1
@@ -353,6 +356,24 @@ class EventScheduler:
             )
             return False
         return True
+
+    def _run_with_cleanup(
+        self,
+        key: str,
+        event: Event,
+        dependency_outcome: Optional[ProcessingOutcome] = None,
+    ) -> None:
+        """Release a worker's resources after its complete processing task."""
+        try:
+            self._run(key, event, dependency_outcome)
+        finally:
+            if self._worker_cleanup is not None:
+                try:
+                    self._worker_cleanup()
+                except Exception as error:
+                    log.exception("Worker resource cleanup failed")
+                    with self._lock:
+                        self._cleanup_errors.append(error)
 
     def _run(
         self,
@@ -679,7 +700,7 @@ class EventScheduler:
             self._metrics["retried"] += 1
             self._metrics["dependency_replays"] += 1
             try:
-                self._executor.submit(self._run, key, event, outcome)
+                self._executor.submit(self._run_with_cleanup, key, event, outcome)
             except Exception:
                 self._metrics["queued"] -= 1
                 self._metrics["rejected"] += 1
@@ -842,7 +863,7 @@ class EventScheduler:
             self._metrics["retried"] += 1
             self._metrics["dependency_replays"] += 1
             try:
-                self._executor.submit(self._run, key, event, outcome)
+                self._executor.submit(self._run_with_cleanup, key, event, outcome)
             except Exception:
                 self._metrics["queued"] -= 1
                 self._metrics["rejected"] += 1
@@ -944,6 +965,9 @@ class EventScheduler:
         self._executor.shutdown(wait=True)
         if dependency_monitor is not None:
             dependency_monitor.join()
+        with self._lock:
+            if self._cleanup_errors:
+                raise RuntimeError("Worker resource cleanup failed") from self._cleanup_errors[0]
 
     def wait_for_paths(self, paths: list[str], timeout: float) -> bool:
         """Wait at most ``timeout`` for the named admitted paths to drain."""

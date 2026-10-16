@@ -119,6 +119,15 @@ jobs:
         run: python -m pytest woff/tests/test_pilot_vacancy.py -q
       - name: Exercise output-path isolation on Windows
         run: python -m pytest woff/tests/test_output_path_isolation.py -q
+      - name: Exercise SQLite worker cleanup and handler teardown on Windows
+        run: >-
+          python -m pytest
+          woff/tests/test_ingestion_scheduler.py::test_worker_closes_own_connection_before_shutdown_and_directory_removal
+          woff/tests/test_handler_integration.py::TestHandlerIntegration::test_all_dependent_sources_converge_after_dossier_without_duplicates
+          woff/tests/test_handler_integration.py::TestHandlerIntegration::test_file_modified_event
+          woff/tests/test_handler_integration.py::TestHandlerIntegration::test_log_received_before_dossier_is_replayed_after_identity_persists
+          woff/tests/test_handler_integration.py::TestHandlerIntegration::test_startup_wait_settles_while_missing_dossier_is_retained
+          -q
       - name: Import every installed module
         shell: python {0}
         working-directory: ${{ runner.temp }}
