@@ -1,7 +1,9 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
+import hashlib
 import os
 import threading
 import time
+from types import SimpleNamespace
 from typing import Any, cast
 from unittest.mock import MagicMock
 
@@ -17,6 +19,7 @@ from ..ingestion.outcome import (
     ProcessingStatus,
 )
 from ..ingestion.scheduler import EventScheduler
+from ..ingestion import snapshot as snapshot_module
 from ..ingestion.snapshot import (
     FileGeneration,
     SnapshotFailure,
@@ -72,6 +75,250 @@ class FakeMetadata:
     st_ctime_ns: int
     st_dev: int
     st_ino: int
+
+
+@dataclass
+class BirthMetadata(FakeMetadata):
+    st_birthtime_ns: int
+
+
+@dataclass
+class VerifiedObservation:
+    """Independent scripted OS responses; the production reader is not replaced."""
+
+    path_before: FakeMetadata
+    descriptor_before: FakeMetadata
+    data: bytes
+    descriptor_after: FakeMetadata
+    path_after: FakeMetadata
+    path_final: FakeMetadata
+
+
+def unchanged_observation(*, platform="nt", birthtime=True, delta=251_489_500):
+    metadata = FakeMetadata(43, 2_000_000_000, 1_000_000_000, 7, 19)
+    if birthtime:
+        metadata = BirthMetadata(**vars(metadata), st_birthtime_ns=1_000_000_000)
+    descriptor = replace(metadata)
+    if platform == "nt" and birthtime:
+        descriptor.st_ctime_ns += delta
+    return VerifiedObservation(
+        metadata, descriptor, b"A" * 43, descriptor, metadata, metadata
+    )
+
+
+def verified_reader(monkeypatch, observations, *, platform="nt", failures=None):
+    """Inject at open/read/close/stat boundaries without sleeps or global OS edits."""
+    pending = iter(observations)
+    active = None
+    stat_count = 0
+    fd_count = 0
+    trace = []
+    sleeps = []
+    failures = failures or {}
+
+    def boundary(stage):
+        trace.append(stage)
+        if stage in failures:
+            raise failures[stage]
+
+    def stat(_path):
+        nonlocal active, stat_count
+        if active is None:
+            active = next(pending)
+        stage = ("path_before", "path_after", "path_final")[stat_count]
+        stat_count += 1
+        boundary(stage)
+        return getattr(active, stage)
+
+    def fstat(_fd):
+        nonlocal fd_count
+        stage = ("descriptor_before", "descriptor_after")[fd_count]
+        fd_count += 1
+        boundary(stage)
+        return getattr(active, stage)
+
+    class Source:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_args):
+            boundary("close")
+
+        def fileno(self):
+            return 17
+
+        def read(self):
+            boundary("read")
+            assert active is not None
+            return active.data
+
+    def open_source(_path, mode):
+        assert mode == "rb"
+        boundary("open")
+        return Source()
+
+    def sleep(delay):
+        nonlocal active, stat_count, fd_count
+        sleeps.append(delay)
+        active = None
+        stat_count = fd_count = 0
+
+    monkeypatch.setattr(snapshot_module, "open", open_source, raising=False)
+    monkeypatch.setattr(snapshot_module, "os", SimpleNamespace(name=platform, fstat=fstat))
+    return StableSnapshotReader(timeout=3, interval=1, stat=stat, sleep=sleep), trace, sleeps
+
+
+@pytest.mark.parametrize("platform,birthtime,delta", [
+    ("nt", False, 0),  # Windows 3.10/3.11: creation time in both ctime fields
+    ("nt", True, 251_582_600),  # reported Windows 3.12 semantics
+    ("nt", True, 251_064_500),  # reported Windows 3.13 semantics
+    ("nt", True, 251_489_500),  # reported Windows 3.14 semantics
+    ("nt", True, 0),  # runtime where both ctime observations agree
+    ("posix", False, 0),
+    ("posix", True, 0),  # birthtime availability must not disable POSIX ctime
+])
+def test_verified_reader_accepts_unchanged_cross_observation_metadata(
+    platform, birthtime, delta, monkeypatch
+):
+    stable = unchanged_observation(platform=platform, birthtime=birthtime, delta=delta)
+    acquisition, trace, sleeps = verified_reader(
+        monkeypatch, [stable, stable, stable], platform=platform
+    )
+    result = acquisition.acquire("synthetic.bin")
+    assert result.attempts == 2
+    assert result.data == b"A" * 43
+    assert result.generation == FileGeneration(
+        7, 19, 43, 2_000_000_000, 1_000_000_000,
+        hashlib.sha256(b"A" * 43).hexdigest(),
+    )
+    assert trace == [
+        "path_before", "open", "descriptor_before", "read", "descriptor_after",
+        "close", "path_after", "path_final",
+    ] * 2
+    assert sleeps == [1]
+
+
+def test_native_nonempty_rewritten_file_is_accepted(tmp_path):
+    path = tmp_path / "synthetic.bin"
+    path.write_bytes(b"A" * 43)
+    path.write_bytes(b"B" * 43)
+    result = StableSnapshotReader(timeout=3, interval=1, sleep=lambda _: None).acquire(str(path))
+    assert result.data == b"B" * 43
+    assert result.attempts == 2
+    assert result.generation.changed_ns == os.stat(path).st_ctime_ns
+    assert result.generation.digest == hashlib.sha256(b"B" * 43).hexdigest()
+
+
+@pytest.mark.parametrize("platform", ["nt", "posix"])
+@pytest.mark.parametrize("stage,field", [
+    ("descriptor_after", "st_ctime_ns"),  # same size / restored mtime during read
+    ("descriptor_after", "st_mtime_ns"),
+    ("descriptor_after", "st_size"),  # truncation during read
+    ("path_after", "st_dev"),
+    ("path_after", "st_ino"),  # replaced after close, even if bytes/digest match
+    ("path_after", "st_mtime_ns"),  # same-size rewrite after close
+    ("path_after", "st_size"),
+    ("path_final", "st_ctime_ns"),  # retain same-observation path ctime check
+])
+def test_verified_reader_discards_observable_generation_change(
+    platform, stage, field, monkeypatch
+):
+    stable = unchanged_observation(platform=platform)
+    changed = replace(getattr(stable, stage), **{field: getattr(getattr(stable, stage), field) + 1})
+    raced = replace(stable, **{stage: changed})
+    acquisition, _, sleeps = verified_reader(monkeypatch, [raced, stable, stable], platform=platform)
+    result = acquisition.acquire("synthetic.bin")
+    assert result.attempts == 3
+    assert result.data == stable.data
+    assert sleeps == [1, 2]
+
+
+@pytest.mark.parametrize("stage", ["descriptor_before", "path_after"])
+def test_windows_birthtime_change_rejects_reused_identity(monkeypatch, stage):
+    stable = unchanged_observation()
+    changed = replace(cast(BirthMetadata, getattr(stable, stage)), st_birthtime_ns=99)
+    raced = replace(stable, **{stage: changed})
+    acquisition, _, _ = verified_reader(monkeypatch, [raced, stable, stable])
+    assert acquisition.acquire("synthetic.bin").attempts == 3
+
+
+@pytest.mark.parametrize("platform,birthtime", [("posix", False), ("posix", True), ("nt", False)])
+def test_comparable_cross_observation_ctime_still_detects_change(
+    monkeypatch, platform, birthtime
+):
+    stable = unchanged_observation(platform=platform, birthtime=birthtime)
+    raced = replace(stable, path_after=replace(stable.path_after, st_ctime_ns=99))
+    acquisition, _, _ = verified_reader(monkeypatch, [raced, stable, stable], platform=platform)
+    assert acquisition.acquire("synthetic.bin").attempts == 3
+
+
+@pytest.mark.parametrize("data", [b"", b"A" * 21])
+def test_verified_reader_rejects_inconsistent_length(monkeypatch, data):
+    short = replace(unchanged_observation(), data=data)
+    acquisition, _, sleeps = verified_reader(monkeypatch, [short] * 3)
+    with pytest.raises(SnapshotFailure) as caught:
+        acquisition.acquire("synthetic.bin")
+    assert caught.value.kind is SnapshotFailureKind.CHANGED
+    assert caught.value.attempts == acquisition.max_attempts == 3
+    assert sleeps == [1, 2]
+
+
+def test_equal_metadata_with_changed_bytes_requires_two_matching_reads(monkeypatch):
+    stable = unchanged_observation()
+    earlier = replace(stable, data=b"B" * 43)
+    acquisition, _, _ = verified_reader(monkeypatch, [earlier, stable, stable])
+    result = acquisition.acquire("synthetic.bin")
+    assert result.attempts == 3
+    assert result.data == stable.data
+    assert result.generation.digest == hashlib.sha256(stable.data).hexdigest()
+
+
+def test_observed_aba_does_not_count_nonconsecutive_matches(monkeypatch):
+    stable = unchanged_observation()
+    intervening = replace(stable, data=b"B" * 43)
+    acquisition, _, sleeps = verified_reader(monkeypatch, [stable, intervening, stable])
+    with pytest.raises(SnapshotFailure) as caught:
+        acquisition.acquire("synthetic.bin")
+    assert caught.value.kind is SnapshotFailureKind.CHANGED
+    assert caught.value.attempts == 3
+    assert sleeps == [1, 2]
+
+
+@pytest.mark.parametrize("stage", ["open", "read", "close", "descriptor_after", "path_after"])
+@pytest.mark.parametrize("error", [FileNotFoundError, PermissionError, OSError])
+def test_verified_reader_io_failures_remain_bounded_and_sanitized(monkeypatch, stage, error):
+    stable = unchanged_observation()
+    acquisition, _, sleeps = verified_reader(
+        monkeypatch, [stable] * 3, failures={stage: error("synthetic-private-detail")}
+    )
+    with pytest.raises(SnapshotFailure) as caught:
+        acquisition.acquire("synthetic.bin")
+    assert caught.value.kind is SnapshotFailureKind.INACCESSIBLE
+    assert caught.value.attempts == 3
+    assert "synthetic-private-detail" not in str(caught.value)
+    assert sleeps == [1, 2]
+
+
+@pytest.mark.parametrize("event_type", ["initial", "modified"])
+def test_observable_mixed_read_never_reaches_parser_or_acknowledgment(monkeypatch, event_type):
+    stable = unchanged_observation()
+    mixed = replace(
+        stable, data=b"A" * 21 + b"B" * 22,
+        descriptor_after=replace(stable.descriptor_after, st_ctime_ns=99),
+    )
+    acquisition, _, _ = verified_reader(monkeypatch, [mixed] * 3)
+    database, engine, parser = MagicMock(), MagicMock(), MagicMock()
+    monkeypatch.setattr("woff.handler.WoFFXMLParser", parser)
+    processor = FileProcessor(database, engine)
+    processor.guard = cast(Any, acquisition)
+    outcome = processor.process("synthetic.xml", event_type)
+    assert outcome.status is ProcessingStatus.PERMANENT_REJECTION
+    assert outcome.reason is ProcessingReason.SNAPSHOT_REJECTED
+    assert outcome.acknowledged_generation is None
+    assert outcome.retry_input is None
+    parser.assert_not_called()
+    assert database.mock_calls == []
+    assert engine.mock_calls == []
 
 
 class ScriptedFilesystem:
