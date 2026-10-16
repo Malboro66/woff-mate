@@ -1,6 +1,7 @@
 import threading
 import shutil
 import sqlite3
+from contextlib import closing
 from unittest.mock import Mock
 
 import pytest
@@ -36,7 +37,7 @@ def test_worker_closes_own_connection_before_shutdown_and_directory_removal(tmp_
     assert closed == [(opened[0][0], False)]
     with pytest.raises(sqlite3.ProgrammingError):
         opened[0][1].execute("SELECT 1")
-    with sqlite3.connect(database_directory / "test.db") as reopened:
+    with closing(sqlite3.connect(database_directory / "test.db")) as reopened:
         assert reopened.execute("SELECT value FROM lifecycle").fetchall() == [(1,)]
         assert reopened.execute("PRAGMA integrity_check").fetchone() == ("ok",)
     db.close()
@@ -68,7 +69,7 @@ def test_worker_rolls_back_before_owner_cleanup_on_processing_exception(tmp_path
     assert "synthetic processing failure" in caplog.text
     with pytest.raises(sqlite3.ProgrammingError):
         observed[0][1].execute("SELECT 1")
-    with sqlite3.connect(db.db_path) as reopened:
+    with closing(sqlite3.connect(db.db_path)) as reopened:
         assert reopened.execute("SELECT name FROM sqlite_master WHERE name='lifecycle'").fetchone() is None
         assert reopened.execute("PRAGMA foreign_key_check").fetchall() == []
     db.close()
@@ -126,7 +127,7 @@ def test_coalesced_task_and_reused_worker_close_at_task_boundaries(tmp_path):
     assert closed == [opened[0][0], opened[2][0]]
     assert opened[0][1] is opened[1][1]
     assert opened[2][1] is not opened[0][1]
-    with sqlite3.connect(db.db_path) as reopened:
+    with closing(sqlite3.connect(db.db_path)) as reopened:
         assert reopened.execute("SELECT value FROM lifecycle").fetchall() == [
             ("created",), ("modified",), ("initial",)
         ]
