@@ -833,6 +833,7 @@ class WoFFEventHandler(FileSystemEventHandler):
             dependency_retry_process=self._execute_dependency_retry_pipeline,
             dependency_key_for_event=self._dependency_key_for_event,
             vacancy_pending=self.processor.vacancy_pending,
+            worker_task_cleanup=db_manager.close,
         )
         self._startup_admission_timeout = config.stability_timeout_sec
 

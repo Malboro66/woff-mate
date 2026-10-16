@@ -3,6 +3,7 @@ import tempfile
 import threading
 import os
 import shutil
+import sqlite3
 from unittest.mock import patch, MagicMock
 
 
@@ -234,9 +235,128 @@ class TestHandlerIntegration(unittest.TestCase):
             self.handler.shutdown()
         finally:
             self.db.close()
-            if os.path.exists(self.tmp_dir):
+            if os.path.exists(self.tmp_dir) and not getattr(
+                self, "_temporary_directory_cleanup_attempted", False
+            ):
                 shutil.rmtree(self.tmp_dir)
-    
+
+    def test_worker_database_connection_is_closed_on_its_owner_thread(self):
+        events = []
+        events_lock = threading.Lock()
+        original_connect = sqlite3.connect
+
+        def record(event, thread_id=None):
+            with events_lock:
+                events.append((event, thread_id or threading.get_ident()))
+
+        class ObservedConnection(sqlite3.Connection):
+            def close(self):
+                record("close")
+                return super().close()
+
+        def observed_connect(*args, **kwargs):
+            connection = original_connect(
+                *args, factory=ObservedConnection, **kwargs
+            )
+            record("open")
+            return connection
+
+        def process_synthetic_event(_path, _event_type):
+            with patch(
+                "woff.database.sqlite3.connect",
+                side_effect=observed_connect,
+            ):
+                connection = self.db._get_conn()
+            connection.execute("SELECT 1").fetchone()
+            record("process_complete")
+
+        self.handler.processor.process = process_synthetic_event
+        original_run = self.handler.scheduler._run
+
+        def observe_task_completion(*args, **kwargs):
+            try:
+                return original_run(*args, **kwargs)
+            finally:
+                record("task_complete")
+
+        with patch.object(
+            self.handler.scheduler, "_run", observe_task_completion
+        ):
+            self.assertTrue(
+                self.handler.scheduler.submit(
+                    "synthetic-worker-event", "created"
+                )
+            )
+            self.handler.shutdown()
+            record("shutdown_return")
+
+        self.db.close()
+        self._temporary_directory_cleanup_attempted = True
+        cleanup_error = None
+        try:
+            shutil.rmtree(self.tmp_dir)
+        except OSError as error:
+            cleanup_error = error
+
+        opens = [thread_id for event, thread_id in events if event == "open"]
+        closes = [thread_id for event, thread_id in events if event == "close"]
+        process_complete_index = next(
+            (
+                index
+                for index, (event, _) in enumerate(events)
+                if event == "process_complete"
+            ),
+            None,
+        )
+        close_index = next(
+            (index for index, (event, _) in enumerate(events) if event == "close"),
+            None,
+        )
+        task_complete_index = next(
+            (
+                index
+                for index, (event, _) in enumerate(events)
+                if event == "task_complete"
+            ),
+            None,
+        )
+        shutdown_return_index = next(
+            (
+                index
+                for index, (event, _) in enumerate(events)
+                if event == "shutdown_return"
+            ),
+            None,
+        )
+
+        with self.subTest("explicit owner-thread close before task completion"):
+            self.assertEqual(len(opens), 1)
+            self.assertEqual(
+                closes,
+                opens,
+                "worker connection was not explicitly closed on its owner thread",
+            )
+            self.assertLess(process_complete_index, close_index)
+            self.assertIsNotNone(close_index)
+            self.assertLess(close_index, task_complete_index)
+            self.assertLess(task_complete_index, shutdown_return_index)
+
+        with self.subTest("immediate temporary database cleanup"):
+            self.assertIsNone(cleanup_error, repr(cleanup_error))
+            self.assertFalse(os.path.exists(self.tmp_dir))
+
+    def test_shutdown_propagates_scheduler_cleanup_failure(self):
+        cleanup_error = RuntimeError("worker cleanup failed")
+        with patch.object(
+            self.handler.scheduler,
+            "shutdown",
+            side_effect=cleanup_error,
+        ):
+            with self.assertRaises(RuntimeError) as raised:
+                self.handler.shutdown()
+
+        self.assertIs(raised.exception, cleanup_error)
+
     def test_file_modified_event(self):
         """Simula evento de modificação e verifica processamento assíncrono determinístico."""
         xml_path = os.path.join(self.tmp_dir, "campaign.xml")

@@ -1,10 +1,12 @@
 from concurrent.futures import ThreadPoolExecutor
+from queue import Queue
 import threading
 import time
 import unittest
 from typing import Any, Callable
 from unittest import mock
 
+from ..database import DatabaseManager
 from ..ingestion import outcome as outcome_module
 from ..ingestion.deferred import DependencyRetryPolicy
 from ..ingestion.outcome import (
@@ -1250,6 +1252,125 @@ class TestDeferredIngestion(unittest.TestCase):
         self.assertEqual(scheduler.admitted_paths, 0)
         self.assertEqual(scheduler.metrics()["submission_failures"], 1)
         self.assertEqual(scheduler.metrics()["queued"], 0)
+
+
+def test_worker_cleanup_covers_dependency_replay_and_persistence_retry(
+    tmp_path,
+):
+    database = DatabaseManager(str(tmp_path / "deferred-worker.sqlite"))
+    source_path = "synthetic/Pilot1Log.txt"
+    dossier_path = "synthetic/Pilot1Dossier.txt"
+    retained = _pending_outcome(source_path)
+    callback_connections = []
+    cleanup_records = Queue()
+
+    def record_write(callback, key):
+        connection = database._get_conn()
+        with database.transaction() as transaction:
+            assert transaction.execute(
+                "PRAGMA foreign_keys"
+            ).fetchone() == (1,)
+            transaction.execute(
+                "INSERT INTO meta(key, value) VALUES (?, ?)",
+                (key, callback),
+            )
+        callback_connections.append(
+            (callback, threading.get_ident(), connection)
+        )
+
+    def process(path, _event_type):
+        if path == dossier_path:
+            record_write("dossier", "t04-dossier")
+            return _resolved_outcome(path)
+        record_write("initial", "t04-initial")
+        return retained
+
+    def replay_dependency(_path, _event_type, outcome):
+        record_write("dependency", "t04-dependency")
+        return ProcessingOutcome.transient(
+            _retained_input(outcome), ProcessingReason.SQLITE_BUSY
+        )
+
+    def replay_persistence(_path, _event_type, outcome):
+        record_write("persistence", "t04-persistence")
+        return ProcessingOutcome.success(
+            _retained_input(outcome).snapshot.generation
+        )
+
+    def cleanup():
+        connection = getattr(database._local, "conn", None)
+        cleanup_records.put((threading.get_ident(), connection))
+        database.close()
+
+    scheduler = EventScheduler(
+        process,
+        max_workers=1,
+        max_pending_events=2,
+        dependency_retry_process=replay_dependency,
+        persistence_retry_process=replay_persistence,
+        persistence_retry_policy=PersistenceRetryPolicy(
+            max_attempts=4, initial_delay=0, max_delay=0
+        ),
+        worker_task_cleanup=cleanup,
+    )
+    try:
+        assert scheduler.submit(source_path, "created")
+        assert scheduler.wait_for_settled_paths([source_path], 2)
+        assert scheduler.submit(dossier_path, "created")
+        assert scheduler.wait_for_paths([source_path, dossier_path], 2)
+        scheduler.shutdown()
+
+        cleanups = [cleanup_records.get_nowait() for _ in range(3)]
+        assert [callback for callback, _, _ in callback_connections] == [
+            "initial",
+            "dossier",
+            "dependency",
+            "persistence",
+        ]
+        assert len(cleanups) == 3
+        assert [
+            cleanups[0][1],
+            cleanups[1][1],
+            cleanups[2][1],
+        ] == [
+            callback_connections[0][2],
+            callback_connections[1][2],
+            callback_connections[2][2],
+        ]
+        assert callback_connections[2][2] is callback_connections[3][2]
+        assert all(
+            callback_connections[index][1] == cleanups[index][0]
+            for index in range(3)
+        )
+        assert all(
+            callback_connections[index][1] == callback_connections[0][1]
+            for index in range(4)
+        )
+        assert scheduler.metrics()["dependency_replays"] == 1
+        assert scheduler.metrics()["transient_retries"] == 1
+        assert scheduler.metrics()["successful_replays"] == 1
+    finally:
+        if scheduler.accepting:
+            scheduler.shutdown()
+        database.close()
+
+    reopened = DatabaseManager(str(tmp_path / "deferred-worker.sqlite"))
+    try:
+        connection = reopened._get_conn()
+        assert connection.execute(
+            "SELECT key, value FROM meta WHERE key LIKE 't04-%' ORDER BY key"
+        ).fetchall() == [
+            ("t04-dependency", "dependency"),
+            ("t04-dossier", "dossier"),
+            ("t04-initial", "initial"),
+            ("t04-persistence", "persistence"),
+        ]
+        assert connection.execute("PRAGMA integrity_check").fetchone() == (
+            "ok",
+        )
+        assert connection.execute("PRAGMA foreign_key_check").fetchall() == []
+    finally:
+        reopened.close()
 
 
 if __name__ == "__main__":
