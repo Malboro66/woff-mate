@@ -1,7 +1,7 @@
 # Specification
 
 Issue: #193
-Status: Draft
+Status: Approved
 Revision: 2
 Baseline: 28d6e94d732f99a71ac3482490cac3c60d24cacd
 Owner: maintainer
@@ -348,10 +348,10 @@ Python 3.10.
 
 ## Approval record
 
-Approved revision: —
-Approved spec commit: —
-Approved by: —
-Approval evidence: —
+Approved revision: 2
+Approved spec commit: 5436c1315592cfe54663c6550642907774a632a8
+Approved by: mksdpro
+Approval evidence: https://github.com/Malboro66/woff-mate/issues/193#issuecomment-6241153390
 
 Normative amendment approved by: mksdpro
 Normative amendment evidence: https://github.com/Malboro66/woff-mate/issues/193#issuecomment-6224564336
