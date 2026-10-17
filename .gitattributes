@@ -21,3 +21,6 @@ docs/ui/evidence/ui-v2-branding-2026-09-24/SHA256SUMS text eol=lf
 docs/ui/evidence/ui-v2-branding-2026-09-24/*.png binary
 woff/assets/ui/branding/** text eol=lf
 woff/assets/ui/branding/*.ico binary
+
+# Preserve exact approved normative proposal: intentional Markdown hard line breaks.
+specs/193-sqlite-worker-connection-lifecycle/history/Issue-193-Proposed-SDD-Revision-2-REVISED-UNAPPROVED.md text eol=lf whitespace=-blank-at-eol

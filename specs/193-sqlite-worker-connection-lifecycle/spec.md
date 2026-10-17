@@ -2,7 +2,7 @@
 
 Issue: #193
 Status: Approved
-Revision: 1
+Revision: 2
 Baseline: 28d6e94d732f99a71ac3482490cac3c60d24cacd
 Owner: maintainer
 
@@ -110,14 +110,17 @@ connection usage. The correction must guarantee deterministic connection
 release through the established ownership model and preserve the existing
 cross-thread connection policy.
 
+The owner-thread release obligation applies to any `EventScheduler` configuration whose scheduler-managed work may acquire a SQLite connection, including direct scheduler callers outside `WoFFEventHandler`. Before the first admission, each scheduler configuration MUST explicitly declare whether scheduler-managed work **may access SQLite** (`SQLite-capable`) or **cannot access SQLite** (`no-SQLite`). The declaration covers all processing, retry and replay callbacks that can execute on scheduler-managed worker threads, including indirect calls. Omission or an unknown declaration MUST NOT be interpreted as `no-SQLite`.
+
+A `SQLite-capable` configuration MUST register a deterministic owner-thread release mechanism before admitting any work. The registered mechanism MUST run on the worker that owns the connection, after the entire task and all active transactions have completed through the existing commit or rollback paths. An explicitly declared `no-SQLite` configuration MAY omit a SQLite cleanup callback, but its worker callbacks MUST NOT open or use SQLite connections. The scheduler MUST NOT attempt to compensate for absent cleanup by closing a worker's connection from another thread. The existing `check_same_thread=False` setting and cross-thread policy are unchanged.
+
 ### R-02 — Shutdown is a resource-lifecycle boundary
 
-When `EventScheduler.shutdown()` and the delegating handler shutdown return,
-all accepted work and dependency-monitor activity have finished, and no
-SQLite connection owned by that completed background work remains open.
-Shutdown is successful only if this resource-release guarantee is met.
-Shutdown must continue to honor its existing bounded-admission and work-drain
-semantics; this requirement does not authorize dropping accepted work.
+A scheduler MUST validate its explicit SQLite capability declaration and, for a `SQLite-capable` configuration, the presence of an owner-thread release mechanism **before accepting any work**. If the declaration is missing, invalid or `SQLite-capable` without an appropriate release mechanism, the scheduler MUST fail closed during configuration or reject admission **before dispatch**. This failure MUST be deterministic and observable to the caller; it MUST NOT be reported as successful acceptance, successful processing or successful shutdown of rejected work. Already accepted work MUST NOT be silently discarded to enforce the contract.
+
+For an explicitly declared `no-SQLite` configuration, SQLite cleanup registration is not required and existing non-SQLite scheduling behavior remains available. Such a declaration is a binding contract about the work supplied by the caller; it is not a claim that the scheduler can infer or inspect arbitrary callback internals. A caller that declares `no-SQLite` but permits its callbacks to acquire SQLite violates the configuration contract and cannot claim the R-01/R-02 resource guarantee.
+
+When `EventScheduler.shutdown()` and the delegating handler shutdown return successfully for correctly configured work, all accepted work and dependency-monitor activity have finished, and no SQLite connection owned by completed scheduler-managed work remains open. Registered cleanup MUST run on the owning worker after work and transaction unwinding, including exceptional paths. A cleanup failure MUST remain observable under repository-standard reporting, and shutdown MUST NOT return successfully while an owned connection is known to remain unreleased. Shutdown MUST preserve existing bounded admission, coalescing, retry/replay and work-drain behavior.
 
 ### R-03 — Close only outside active transactions
 
@@ -206,6 +209,29 @@ dependency monitor is stopped, and no worker-owned SQLite connection remains
 open. Shutdown reports success only when this guarantee is satisfied; if
 owner-thread cleanup fails, shutdown remains observably failed and cannot be
 represented as successful completion.
+
+#### Revision 2 — Explicit scheduler-capability cases
+
+**Negative — absent declaration:** Given a direct scheduler caller that does not explicitly declare its SQLite capability, configuration or first admission is rejected before task dispatch with an observable failure. The scheduler MUST NOT silently assume `no-SQLite`.
+
+**Negative — SQLite-capable without cleanup:** Given a caller that declares `SQLite-capable` but supplies no valid owner-thread release mechanism, configuration or admission is rejected before task dispatch. No SQLite-using callback executes, no task is silently accepted, and no cleanup success is claimed.
+
+**Positive — explicitly no-SQLite:** Given work that genuinely cannot access SQLite and an explicit `no-SQLite` declaration, the scheduler may process and drain accepted work without a SQLite cleanup callback, preserving existing admission, retry and shutdown semantics.
+
+**Positive — SQLite-capable with cleanup:** Given registered owner-thread release and admitted SQLite-using work, successful, exceptional, retried, dependency-replayed and coalesced tasks finish according to existing policy; the worker closes its own connection only after commit/rollback and the full task. Cleanup errors remain observable and cause shutdown to report failure rather than success.
+
+#### Revision 2 — Verification and evidence
+
+Verify with synthetic scheduler/handler tests that:
+
+1. An absent/invalid capability declaration is rejected before dispatch; absence is **not** silently mapped to `no-SQLite`.
+2. `SQLite-capable` without registered owner-thread cleanup fails closed before any task admission; the rejection is observable and does not destroy already accepted work.
+3. Explicit `no-SQLite` work continues to function without a SQLite cleanup callback, including bounded admission and shutdown. This test must use callbacks that truly do not access SQLite.
+4. An explicitly `SQLite-capable` direct caller with cleanup passes the synthetic owner-thread lifecycle regression, commits/rollbacks before close, reopens the database, and deletes the temporary database immediately on applicable native Windows versions without GC, sleeps or retry loops.
+5. The configured `WoFFEventHandler` preserves its existing owner-thread cleanup behavior, even on exceptions, retries, dependency replay and coalescing, and reports cleanup failures from `shutdown()`.
+6. Existing test and production scheduler construction sites are inventoried and supplied with explicit valid declarations, without changing the underlying processing, transaction or retry rules. The API naming/shape is an implementation design choice requiring a separate explicit authorization after SDD approval.
+
+**Limits of verification:** The scheduler cannot guarantee detection of a caller that falsely declares `no-SQLite` while its opaque callback acquires SQLite. The enforceable runtime rule is to reject missing/invalid declarations and declared `SQLite-capable` configurations lacking cleanup; violating the explicit `no-SQLite` contract remains a caller defect. Do not claim universal automatic inspection of SQLite usage or silently weaken this limitation.
 
 ### S-04 — Transaction composition and reopen remain correct
 
@@ -322,10 +348,17 @@ Python 3.10.
 
 ## Approval record
 
-Approved revision: 1
-Approved spec commit: 0d7886faf80933dd07f5a4a533a6859c99438e59
+Approved revision: 2
+Approved spec commit: 5436c1315592cfe54663c6550642907774a632a8
 Approved by: mksdpro
-Approval evidence: https://github.com/Malboro66/woff-mate/issues/193#issuecomment-6182061636
+Approval evidence: https://github.com/Malboro66/woff-mate/issues/193#issuecomment-6241153390
+
+Normative amendment approved by: mksdpro
+Normative amendment evidence: https://github.com/Malboro66/woff-mate/issues/193#issuecomment-6224564336
+Approved normative source SHA-256: ec50a626580f15a05d915fbf3d4e5b193f2542df16397d1fe3f60ea0f8d3481a
+Approved normative source: history/Issue-193-Proposed-SDD-Revision-2-REVISED-UNAPPROVED.md
+Revision 1 archive: history/revision-1-approved.md
+Revision 1 approved-spec commit: 0d7886faf80933dd07f5a4a533a6859c99438e59
 
 ## Implementation record
 
