@@ -205,9 +205,10 @@ native Windows CI step verify the output/input-isolation contract. PR #174
 reconciled the versioned governance state, and GitHub Issue #151 is closed as
 Completed. The former **still-open GitHub issue** state is therefore historical
 and resolved; it is not a current implementation or Gate A blocker. Gate A
-remains unapproved: #142, #96, the required affected-scope R1 repeat, applicable
-cycle evidence, the reliable-companion/recovery demonstration and explicit
-maintainer approval remain outstanding. The #152 repository-protection guardrail
+remains unapproved: #142 and other applicable unresolved findings, the required
+affected-scope R1 repeat, applicable cycle evidence, reliable-companion/recovery
+demonstration and explicit maintainer approval remain outstanding. Issue #96 was
+completed through PR #182 and is no longer an open blocker. The #152 repository-protection guardrail
 is complete: active GitHub ruleset `24065034` and its
 [revision-bound evidence](main-protection-2026-09-27.md) enforce and record the
 required control. This completion is repository governance, not an application
@@ -222,8 +223,9 @@ The graph tracks `review-r2` after #81, #82 and P0/#140. The first R2 review
 returned HOLD and remains historical evidence. Bounded adoption-readiness evidence
 is now integrated through PR #178, and the [repeated R2](r2-ui-architecture-review-repeat.md)
 records GO / Recommend Retain at `f394ece9d139b9af1a0ae14faea5d7982816a33a`.
-The explicit maintainer ADR decision remains separate and pending until this
-review record is reviewed and integrated; the ADR remains Proposed.
+The separate maintainer decision explicitly accepted PySide6 + Qt Widgets 6.11.2
+on 2026-10-05, following integration of the repeated R2 governance record. The
+historical technical-review recommendation is not itself ADR acceptance.
 
 For this narrower architecture decision, physical Windows 10 is the
 maintainer-validated reference platform. Windows 11 remains target/upstream
@@ -237,14 +239,14 @@ and Qt licensing/plugin evidence remain required.
 
 Product Gate A and Product Gate B remain fully authoritative and unapproved.
 They are not evidence of whether PySide6 itself is a suitable retained toolkit.
-Accepting the toolkit later would **not** authorize P1, live WoFF/SQLite data,
+Accepting the toolkit on 2026-10-05 did **not** authorize P1, live WoFF/SQLite data,
 watchdog/query-service integration or launcher behavior. P1/live integration
 requires the retained architecture decision **and explicit approval of every
 applicable Product Gate A/B decision under Q5**. Satisfying technical gate
 conditions without the required revision-valid Full Application Review,
 product-demonstrability record and explicit maintainer approval is insufficient.
-In particular, #96 and #142 remain valid Gate A/P1 blockers until resolved under
-their own contracts.
+In particular, #142 remains an unresolved Gate A/P1 blocker; #96 was completed
+through PR #182 and must not be counted as an open blocker.
 
 The [first R2 review](r2-ui-architecture-review.md) audited integrated `main`
 `bfa7647ac94cafba658a077e52a55a3c2240a4dd` after #140/P0 completion and
@@ -260,7 +262,7 @@ not for formal ADR acceptance. A scope-impact determination may cover only
 unrelated, non-material changes between that repeated R2 revision and the final
 decision revision; it cannot replace the mandatory repeat review or review of
 material subsequent changes. No Product Gate is approved by either R2 result or
-this reconciliation. The maintainer's separate ADR decision remains pending.
+this reconciliation. The subsequent separate maintainer ADR acceptance was recorded on 2026-10-05.
 
 ### Privacy and security release evidence
 
@@ -331,8 +333,8 @@ stable-career isolation, persistent sparse-slot presentation, destination
 focus, complete Tab sequences, per-control targets/read-only inventories,
 semantic states, status labels and actual logical-canvas reflow. The executable
 driver and immutable source/capture are pinned; CI replay is not a live-Site
-or native Windows DPI certification. Issue #101 remains blocked by #96 after
-#37 satisfied its roster-lifecycle dependency. The aggregate gate remains
+or native Windows DPI certification. Issue #101 is no longer blocked by #96 (completed through PR #182); it remains
+unimplemented backlog work after #37 satisfied the other dependency. The aggregate gate remains
 pending until every member and `EVAL-CYCLE-340-001` pass.
 
 Cycle 3.4.0 is approved only when all conditions below pass:
@@ -359,10 +361,10 @@ and #81, #82 and #140/P0 are integrated and complete. The first R2 review of
 that integrated state returned HOLD and remains unchanged. Bounded readiness is
 now integrated through PR #178; the repeated R2 at `f394ece9` recommends retention.
 `review-r2` is done and its eval Implemented as a technical review, while the
-explicit ADR decision and every Product Gate remain pending. The review is a
-product-review checkpoint, not another release-cycle issue. Issues #44, #43, #76 and #96 remain incomplete,
-and #101 remains blocked by #96, so cycle 3.4.0 and `EVAL-CYCLE-340-001` remain
-active/planned. The historical
+explicit ADR decision was accepted on 2026-10-05 and every Product Gate remains
+unapproved. The review is a
+product-review checkpoint, not another release-cycle issue. Issues #44, #43, #76 and #101 remain incomplete; #96 is completed. Therefore
+cycle 3.4.0 and `EVAL-CYCLE-340-001` remain active/planned. The historical
 [#136 closure discrepancy](evals.md#136-closure-discrepancy) is resolved by the
 implementation merged through PR #164. No aggregate tracker is declared for 3.4.0;
 `EVAL-CYCLE-340-001` and its graph members define the aggregate scope.

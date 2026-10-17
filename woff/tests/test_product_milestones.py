@@ -109,9 +109,11 @@ def test_product_path_and_cycle_ownership_are_executable() -> None:
     assert cycles["cycle-3.4.0"]["state"] == "active"
     assert evals["EVAL-CYCLE-340-001"]["status"] == "planned"
     assert {items[item_id]["state"] for item_id in {
-        "issue-44", "issue-43", "issue-76", "issue-96"
+        "issue-44", "issue-43", "issue-76", "issue-101"
     }} == {"backlog"}
-    assert items["issue-101"]["state"] == "blocked"
+    assert items["issue-96"]["state"] == "done"
+    assert items["issue-187"]["state"] == "done"
+    assert items["issue-101"]["depends_on"][-1] == {"id": "issue-96", "status": "satisfied"}
     assert "issue-82" not in cycles["cycle-3.5.0"]["members"]
     assert "All twenty 3.4.0 work items" in graph["gates"]["Q6-CYCLE-3.4.0"]["description"]
     quality = _text("docs/engineering/quality-gates.md").split("## Q6-CYCLE-3.4.0:", 1)[1]
@@ -445,7 +447,7 @@ def test_security_baseline_ownership_and_scheduling_are_reconciled() -> None:
     assert "#151 must be resolved" not in quality
     assert "#151 is now implemented" in quality
     assert "still-open GitHub issue" in quality
-    assert "#142, #96" in quality
+    assert "#142 and other applicable unresolved findings" in quality
     assert "The #152 repository-protection guardrail is complete" in quality
     assert "#153 and #154 remain staged P3 work" in quality
     assert "#155 is pre-release work" in quality
@@ -534,7 +536,7 @@ def test_r2_follows_p0_before_retained_production_work() -> None:
                  for token in ("**#81**", "**#82**", "**#140", "**R2", "**P1")]
     assert positions == sorted(set(positions))
     adr = _text("docs/architecture/adr-ui-toolkit.md")
-    assert "R2" in adr and "#140" in adr and "Status: Proposed" in adr
+    assert "R2" in adr and "#140" in adr and "Status: Accepted" in adr
     assert "Q5-UI-ARCHITECTURE" in _text("docs/engineering/quality-gates.md")
     assert "neither #82 nor P0 accepts a production toolkit" in policy
 
@@ -796,7 +798,7 @@ def test_post_p0_r2_hold_is_revision_bound_without_authorizing_adoption() -> Non
     assert "it cannot replace the mandatory repeat R2" in record
 
     adr = (ROOT / "docs/architecture/adr-ui-toolkit.md").read_text(encoding="utf-8")
-    assert re.search(r"^Status:\s*Proposed\s*$", adr, re.MULTILINE)
+    assert re.search(r"^Status:\s*Accepted\s*$", adr, re.MULTILINE)
 
     reconciled_docs = " ".join(
         _text(path)

@@ -1,5 +1,5 @@
 version: 1
-updated: 2026-10-04
+updated: 2026-10-16
 
 project:
   repository: Malboro66/woff-mate
@@ -529,12 +529,14 @@ evals:
       - woff/tests/test_handler_integration.py
   EVAL-WINGMAN-IDENTITY-001:
     work_items: [issue-96]
-    status: planned
-    evidence: Distinct same-name wingmen retain separate identities, histories, and personality ownership across Dossier replays.
+    status: implemented
+    evidence: Distinct same-name wingmen retain separate identities, histories, and personality ownership across Dossier replays; completed through PR #182.
+    enforced_by: [woff/tests/test_wingman_identity_evidence.py, woff/tests/test_wingman_identity_migration.py]
   EVAL-WINGMAN-MERGE-001:
     work_items: [issue-96]
-    status: planned
-    evidence: A poorer roster source never erases richer stored wingman fields or reassigns personality to another occurrence.
+    status: implemented
+    evidence: A poorer roster source never erases richer stored wingman fields or reassigns personality to another occurrence; completed through PR #182.
+    enforced_by: [woff/tests/test_wingman_persistence.py, woff/tests/test_wingman_identity_evidence.py]
   EVAL-WINGMAN-TRANSFER-001:
     work_items: [issue-101]
     status: planned
@@ -1326,7 +1328,7 @@ work_items:
   issue-96:
     title: Preserve distinct wingman identities and richer roster data
     module: persistence
-    state: backlog
+    state: done
     evals: [EVAL-WINGMAN-IDENTITY-001, EVAL-WINGMAN-MERGE-001]
     gates: [Q0, Q1, Q2, Q6-CYCLE-3.4.0]
     depends_on: []
@@ -1354,12 +1356,12 @@ work_items:
   issue-101:
     title: Track wingman squadron transfers and notify the player
     module: application
-    state: blocked
+    state: backlog
     evals: [EVAL-WINGMAN-TRANSFER-001, EVAL-WINGMAN-TRANSFER-002, EVAL-WINGMAN-TRANSFER-003]
     gates: [Q0, Q1, Q2, Q6-CYCLE-3.4.0]
     depends_on:
       - {id: issue-37, status: satisfied}
-      - {id: issue-96, status: unsatisfied}
+      - {id: issue-96, status: satisfied}
   issue-122:
     title: Reconcile pilot-slot vacancy after campaign deletion and reuse
     module: ingestion
@@ -1559,7 +1561,7 @@ work_items:
   issue-187:
     title: Add an explicit immutable-source PySide6 preview without changing synthetic P0
     module: source_preview_application
-    state: in_progress
+    state: done
     evals: [EVAL-SOURCE-PREVIEW-VALUES-001, EVAL-SOURCE-PREVIEW-INPUTS-001, EVAL-SOURCE-PREVIEW-DESKTOP-001]
     gates: [Q0, Q1, Q3, Q4]
     depends_on:

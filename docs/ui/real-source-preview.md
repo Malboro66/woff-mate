@@ -3,8 +3,8 @@
 R0.3 adds an independent PySide6 window with source-only values from explicitly
 selected, previously acquired copies. The maintainer authorized Option A of the
 private R0.3 integration plan. This is an experimental diagnostic capability.
-The toolkit ADR remains **Proposed**, Product Gates are unchanged, production P1
-is unauthorized and R1 remains **HOLD**. Synthetic P0 is unchanged.
+The toolkit ADR was accepted on 2026-10-05, but Product Gates remain
+unapproved, production P1 is unauthorized and R1/Gate A remains blocked. Synthetic P0 is unchanged.
 
 From the dedicated source checkout, use the existing approved isolated
 environment (CPython 3.10.11, PySide6/Qt/shiboken6 6.11.2). The environment must

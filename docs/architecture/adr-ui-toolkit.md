@@ -1,8 +1,24 @@
 # ADR: desktop UI toolkit
 
-Status: Proposed
+Status: Accepted
 
 Date: 2026-08-19
+
+## Maintainer acceptance (2026-10-05)
+
+The maintainer explicitly accepted **PySide6 + Qt Widgets 6.11.2** as the retained
+WoFF Mate production desktop UI architecture, following the #82 feasibility
+spike, #140 fixture-backed P0, #177 adoption-readiness work, and the repeated
+R2 **GO / Recommend Retain** at integrated `main`
+`f394ece9d139b9af1a0ae14faea5d7982816a33a`. The first R2
+**HOLD / Conditional No-Go** remains preserved as historical evidence.
+
+This acceptance selects the toolkit **only**. It does not approve Product Gates
+A–D, authorize P1/live WoFF or SQLite binding, waive applicable Q5 reviews,
+create a general production UI runtime dependency, or certify public release.
+Dated sections below that describe the ADR as *Proposed* or acceptance as
+*pending* reflect the historical state **before 2026-10-05**, not the current
+status. Historical measurements, reviews and their revision bounds are intact.
 
 Current review status (2026-10-04): bounded readiness is integrated through PR #178.
 The [repeated R2](../engineering/r2-ui-architecture-review-repeat.md) against

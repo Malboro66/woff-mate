@@ -179,7 +179,7 @@ claim Q5 or approval of Product Gate A or Gate B.
 | `EVAL-UI-ADOPTION-MATRIX-001` | #177 | Implemented | Optional pinned UI extra, Qt-free base, mixed-binding rejection and executed Python 3.10–3.14 source key/accessibility probe; results are revision-bound in the readiness record | `tests/test_ui_adoption.py`, `scripts/ui_adoption_probe.py`, `.github/workflows/ui-adoption.yml` |
 | `EVAL-UI-ADOPTION-PACKAGE-001` | #177 | Implemented | Separate fixture candidate, endpoint package/startup and native UIA harness; physical Windows 10 Pro build 19045 delta passed at real 100/125/150/200% with raw physical reports for the run #8 candidate and separate maintainer attestation; bounded evidence complete and integrated at `f394ece9`; repeated R2 recommends retention; explicit ADR decision remains separate | `ui_adoption.spec`, `scripts/validate_ui_adoption_windows.ps1`, `docs/ui/ui-adoption-readiness.md`, `docs/ui/evidence/issue-177-physical-windows10/README.md` |
 | `EVAL-UI-ADOPTION-LICENSE-001` | #177 | Implemented | Actual bundle inventory, source/hash identities, restricted modules/plugins and explicit engineering LGPL disposition; Virtual Keyboard prohibited; public-release obligations deferred | `scripts/ui_adoption_inventory.py`, `docs/ui/ui-adoption-licensing.md`, `tests/test_ui_adoption.py` |
-| `EVAL-R2-REVIEW-001` | `review-r2` | Implemented | Repeated R2 at integrated `main` `f394ece9d139b9af1a0ae14faea5d7982816a33a`: GO / Recommend Retain — PySide6 + Qt Widgets 6.11.2. Records completed technical review, not formal ADR acceptance; ADR remains Proposed pending a separate explicit maintainer decision after the record is reviewed and integrated. Physical Windows 11 and clean-machine end-user execution are not toolkit-retention prerequisites under #175. P1/live integration remains separately blocked until every applicable Product Gate A/B decision is explicitly approved under Q5 | `docs/engineering/r2-ui-architecture-review-repeat.md`, `woff/tests/test_ui_adoption_governance.py`, `woff/tests/test_product_milestones.py` |
+| `EVAL-R2-REVIEW-001` | `review-r2` | Implemented | Repeated R2 at integrated `main` `f394ece9d139b9af1a0ae14faea5d7982816a33a`: GO / Recommend Retain — PySide6 + Qt Widgets 6.11.2. Records the completed technical review, not ADR acceptance by itself; the separate maintainer decision accepted PySide6 + Qt Widgets 6.11.2 on 2026-10-05. Physical Windows 11 and clean-machine end-user execution are not toolkit-retention prerequisites under #175. P1/live integration remains separately blocked until every applicable Product Gate A/B decision is explicitly approved under Q5 | `docs/engineering/r2-ui-architecture-review-repeat.md`, `woff/tests/test_ui_adoption_governance.py`, `woff/tests/test_product_milestones.py` |
 
 The [#82 exploratory report](../ui/pyside6-spike-82.md) archives Windows 10
 measurements and deterministic replay checks in `tests/test_ui_spike_evidence.py`.
@@ -198,8 +198,9 @@ this records bounded feasibility, not completion of deferred release work. The
 [post-spike ADR decision](../architecture/adr-ui-toolkit.md#post-spike-p0-authorization-2026-09-28)
 records integrated `main` at `20f742868a71e2092b8a82397304fef668638bed` and the
 maintainer's authorization of PySide6 + Qt Widgets 6.11.2 for experimental P0
-only. The ADR remains Proposed. Historical evidence is unchanged, and no new
-external evidence campaign, production adoption or Product Gate is authorized.
+only. The ADR was Proposed at this historical P0 checkpoint; it was subsequently
+accepted by the maintainer on 2026-10-05. Historical evidence is unchanged, and
+no new external evidence campaign or Product Gate is authorized.
 
 The executable UI-architecture sequence is #81 -> #82 -> P0/#140 -> first R2
 HOLD -> bounded UI adoption-readiness -> repeated revision-bound R2 -> explicit
@@ -220,9 +221,8 @@ Issue #175 re-scoped retention evidence and #177/PR #178 completed and integrate
 that evidence. The [repeated R2](r2-ui-architecture-review-repeat.md) audits
 `f394ece9d139b9af1a0ae14faea5d7982816a33a` and records **GO / Recommend Retain —
 PySide6 + Qt Widgets 6.11.2**. `review-r2` is now done and `EVAL-R2-REVIEW-001` is
-Implemented for the completed technical review. Neither state includes or implies
-formal ADR acceptance: the ADR remains Proposed until a separate explicit
-maintainer decision after this governance record is reviewed and integrated.
+Implemented for the completed technical review. Neither review state independently constitutes formal ADR acceptance; that
+separate maintainer decision was made on 2026-10-05.
 A scope-impact determination may cover only unrelated, non-material intervening
 changes between the audited revision and the final decision; it cannot replace
 review of material changes. P1 remains unauthorized and Product Gates A–D remain
@@ -786,9 +786,9 @@ roster-generation, transfer-baseline, and incomplete-input policy.
 | #140 | `EVAL-P0-FLOW-001`, `EVAL-P0-BOUNDARY-001`, `EVAL-P0-DEMO-001` |
 
 Cycle 3.4.0 is `active`. Issues #28, #35, #37, #38, #41, #74, #75, #79, #80,
-#81, #82, #97, #136, #139, and #140 are complete. Issues #44, #43, #76 and #96
-remain incomplete, and #101 remains blocked by #96 after #37 satisfied its
-roster-lifecycle dependency.
+#81, #82, #97, #136, #139, and #140 are complete. Issues #44, #43, #76 and #101 remain incomplete. #96 completed through PR #182
+and no longer blocks #101; transfer work remains backlog, and the aggregate
+cycle eval remains planned.
 `EVAL-CYCLE-340-001` aggregates all twenty members and remains planned until
 every member acceptance criterion, applicable eval, and `Q6-CYCLE-3.4.0`
 condition passes.
