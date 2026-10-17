@@ -270,7 +270,7 @@ class TestHandlerIntegration(unittest.TestCase):
             connection.execute("SELECT 1").fetchone()
             record("process_complete")
 
-        self.handler.processor.process = process_synthetic_event
+        setattr(self.handler.processor, "process", process_synthetic_event)
         original_run = self.handler.scheduler._run
 
         def observe_task_completion(*args, **kwargs):
@@ -336,8 +336,11 @@ class TestHandlerIntegration(unittest.TestCase):
                 opens,
                 "worker connection was not explicitly closed on its owner thread",
             )
+            assert process_complete_index is not None
+            assert close_index is not None
+            assert task_complete_index is not None
+            assert shutdown_return_index is not None
             self.assertLess(process_complete_index, close_index)
-            self.assertIsNotNone(close_index)
             self.assertLess(close_index, task_complete_index)
             self.assertLess(task_complete_index, shutdown_return_index)
 
