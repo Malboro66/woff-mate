@@ -117,7 +117,10 @@ def test_shell_recipe_has_no_application_integration():
         elif isinstance(node, ast.ImportFrom):
             imported.add((node.module or '').split('.')[0])
     assert imported <= {'time', 'json', 'os', 'sys', 'pathlib', 'PySide6', 'psutil'}
-    assert 'Status: Proposed' in (ROOT / 'docs/architecture/adr-ui-toolkit.md').read_text(encoding='utf-8')
+    # The #82 spike remains historical; the current ADR was accepted on 2026-10-05.
+    adr = (ROOT / 'docs/architecture/adr-ui-toolkit.md').read_text(encoding='utf-8')
+    assert 'Status: Accepted' in adr
+    assert '## Maintainer acceptance (2026-10-05)' in adr
     # #177 adds an optional pinned UI extra; historical #82 evidence stays intact.
     for name in ['requirements.txt']:
         content = (ROOT / name).read_text(encoding='utf-8').lower()
