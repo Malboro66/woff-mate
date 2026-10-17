@@ -132,6 +132,7 @@ class TestDeferredIngestion(unittest.TestCase):
             ),
             max_workers=1,
             max_pending_events=1,
+            sqlite_capability="no-sqlite",
         )
         self.assertTrue(scheduler.submit(first, "created"))
         self.assertTrue(_wait_for_metric(scheduler, "dependency_pending", 1))
@@ -157,6 +158,7 @@ class TestDeferredIngestion(unittest.TestCase):
             lambda *_: _pending_outcome(path),
             max_workers=1,
             max_pending_events=2,
+            sqlite_capability="no-sqlite",
         )
         self.assertTrue(scheduler.submit(path, "created"))
         self.assertTrue(_wait_for_metric(scheduler, "dependency_pending", 1))
@@ -189,6 +191,7 @@ class TestDeferredIngestion(unittest.TestCase):
             max_workers=1,
             max_pending_events=2,
             dependency_retry_policy=policy,
+            sqlite_capability="no-sqlite",
         )
 
         with self.assertLogs("WoFFWatch", level="ERROR") as records:
@@ -231,6 +234,7 @@ class TestDeferredIngestion(unittest.TestCase):
                 max_age_seconds=0.02,
                 max_retained_bytes=1024,
             ),
+            sqlite_capability="no-sqlite",
         )
         self.assertTrue(scheduler.submit(path, "created"))
         self.assertTrue(_wait_for_metric(scheduler, "dependency_pending", 1))
@@ -265,6 +269,7 @@ class TestDeferredIngestion(unittest.TestCase):
             max_workers=1,
             max_pending_events=2,
             dependency_retry_policy=policy,
+            sqlite_capability="no-sqlite",
         )
         self.assertTrue(scheduler.submit(first, "created"))
         self.assertTrue(_wait_for_metric(scheduler, "dependency_pending", 1))
@@ -318,6 +323,7 @@ class TestDeferredIngestion(unittest.TestCase):
             dependency_retry_policy=DependencyRetryPolicy(
                 max_retained_bytes=4
             ),
+            sqlite_capability="no-sqlite",
         )
         self.assertTrue(scheduler.submit(blocker, "created"))
         self.assertTrue(_wait_for_metric(scheduler, "dependency_pending", 1))
@@ -368,6 +374,7 @@ class TestDeferredIngestion(unittest.TestCase):
                 max_age_seconds=300.0,
                 max_retained_bytes=4,
             ),
+            sqlite_capability="no-sqlite",
         )
         self.assertTrue(scheduler.submit(first, "created"))
         self.assertTrue(_wait_for_metric(scheduler, "dependency_pending", 1))
@@ -426,6 +433,7 @@ class TestDeferredIngestion(unittest.TestCase):
             persistence_retry_policy=PersistenceRetryPolicy(
                 max_attempts=2, initial_delay=0.05, max_delay=0.05
             ),
+            sqlite_capability="no-sqlite",
         )
         self.assertTrue(scheduler.submit(source, "created"))
         self.assertTrue(_wait_for_metric(scheduler, "dependency_pending", 1))
@@ -462,7 +470,8 @@ class TestDeferredIngestion(unittest.TestCase):
             return _resolved_outcome(path, ("root-v1:synthetic", slot))
 
         scheduler = EventScheduler(
-            process, max_workers=2, max_pending_events=2
+            process, max_workers=2, max_pending_events=2,
+            sqlite_capability="no-sqlite",
         )
         self.assertTrue(scheduler.submit(source, "created"))
         self.assertTrue(source_started.wait(1.0))
@@ -503,6 +512,7 @@ class TestDeferredIngestion(unittest.TestCase):
             dependency_retry_policy=DependencyRetryPolicy(
                 max_retained_bytes=4
             ),
+            sqlite_capability="no-sqlite",
         )
         self.assertTrue(scheduler.submit(source, "created"))
         self.assertTrue(_wait_for_metric(scheduler, "dependency_pending", 1))
@@ -537,6 +547,7 @@ class TestDeferredIngestion(unittest.TestCase):
             max_workers=1,
             max_pending_events=2,
             dependency_retry_process=replay_dependency,
+            sqlite_capability="no-sqlite",
         )
         self.assertTrue(scheduler.submit(source_path, "created"))
         self.assertTrue(_wait_for_metric(scheduler, "dependency_pending", 1))
@@ -592,6 +603,7 @@ class TestDeferredIngestion(unittest.TestCase):
             retry_process=process_coalesced,
             dependency_retry_process=lambda path, *_: _pending_outcome(path),
             dependency_retry_policy=DependencyRetryPolicy(max_attempts=2),
+            sqlite_capability="no-sqlite",
         )
         self.assertTrue(scheduler.submit(source_path, "created"))
         self.assertTrue(_wait_for_metric(scheduler, "dependency_pending", 1))
@@ -645,6 +657,7 @@ class TestDeferredIngestion(unittest.TestCase):
                 initial_delay=0,
                 max_delay=0,
             ),
+            sqlite_capability="no-sqlite",
         )
         self.assertTrue(scheduler.submit(source_path, "created"))
         self.assertTrue(_wait_for_metric(scheduler, "dependency_pending", 1))
@@ -708,6 +721,7 @@ class TestDeferredIngestion(unittest.TestCase):
                 initial_delay=0,
                 max_delay=0,
             ),
+            sqlite_capability="no-sqlite",
         )
         self.assertTrue(scheduler.submit(source_path, "created"))
         self.assertTrue(_wait_for_metric(scheduler, "dependency_pending", 1))
@@ -756,6 +770,7 @@ class TestDeferredIngestion(unittest.TestCase):
             max_workers=2,
             max_pending_events=2,
             dependency_retry_process=replay_dependency,
+            sqlite_capability="no-sqlite",
         )
         scheduler_holder.append(scheduler)
         self.assertTrue(scheduler.submit(source_path, "created"))
@@ -792,6 +807,7 @@ class TestDeferredIngestion(unittest.TestCase):
             max_workers=1,
             max_pending_events=1,
             dependency_retry_process=replay_dependency,
+            sqlite_capability="no-sqlite",
         )
         self.assertTrue(scheduler.submit(dossier_path, "created"))
         self.assertTrue(scheduler.wait_for_paths([dossier_path], 1.0))
@@ -836,6 +852,7 @@ class TestDeferredIngestion(unittest.TestCase):
             max_workers=2,
             max_pending_events=2,
             dependency_retry_process=replay_dependency,
+            sqlite_capability="no-sqlite",
         )
         self.assertTrue(scheduler.submit(source_path, "created"))
         self.assertTrue(source_started.wait(1.0))
@@ -889,6 +906,7 @@ class TestDeferredIngestion(unittest.TestCase):
             dependency_key_for_event=lambda path, _event_type: (
                 matching_key if path == source else None
             ),
+            sqlite_capability="no-sqlite",
         )
         self.assertTrue(scheduler.submit(source, "created"))
         self.assertTrue(source_started.wait(1.0))
@@ -915,6 +933,7 @@ class TestDeferredIngestion(unittest.TestCase):
             lambda *_: _pending_outcome(source_path),
             max_workers=1,
             max_pending_events=1,
+            sqlite_capability="no-sqlite",
         )
         self.assertTrue(scheduler.submit(source_path, "initial"))
         self.assertTrue(
@@ -950,6 +969,7 @@ class TestDeferredIngestion(unittest.TestCase):
             max_pending_events=2,
             retry_process=lambda path, *_: _pending_outcome(path),
             dependency_retry_process=replay_dependency,
+            sqlite_capability="no-sqlite",
         )
         self.assertTrue(scheduler.submit(source_path, "created"))
         self.assertTrue(_wait_for_metric(scheduler, "dependency_pending", 1))
@@ -1010,6 +1030,7 @@ class TestDeferredIngestion(unittest.TestCase):
             max_workers=2,
             max_pending_events=4,
             dependency_retry_process=replay_dependency,
+            sqlite_capability="no-sqlite",
         )
         self.assertTrue(scheduler.submit(source_a, "created"))
         self.assertTrue(scheduler.submit(source_b, "created"))
@@ -1063,6 +1084,7 @@ class TestDeferredIngestion(unittest.TestCase):
             max_pending_events=2,
             retry_process=replay_coalesced,
             dependency_retry_process=replay_dependency,
+            sqlite_capability="no-sqlite",
         )
         self.assertTrue(scheduler.submit(source_path, "created"))
         self.assertTrue(_wait_for_metric(scheduler, "dependency_pending", 1))
@@ -1106,6 +1128,7 @@ class TestDeferredIngestion(unittest.TestCase):
                     _pending_outcome(source_path)
                 ).snapshot.generation
             ),
+            sqlite_capability="no-sqlite",
         )
         self.assertTrue(scheduler.submit(source_path, "created"))
         self.assertTrue(_wait_for_metric(scheduler, "dependency_pending", 1))
@@ -1156,6 +1179,7 @@ class TestDeferredIngestion(unittest.TestCase):
                     _pending_outcome(source_path)
                 ).snapshot.generation
             ),
+            sqlite_capability="no-sqlite",
         )
         self.assertTrue(scheduler.submit(source_path, "created"))
         self.assertTrue(_wait_for_metric(scheduler, "dependency_pending", 1))
@@ -1189,6 +1213,7 @@ class TestDeferredIngestion(unittest.TestCase):
             lambda *_: _pending_outcome(source_path),
             max_workers=1,
             max_pending_events=1,
+            sqlite_capability="no-sqlite",
         )
 
         with mock.patch.object(
@@ -1231,7 +1256,8 @@ class TestDeferredIngestion(unittest.TestCase):
             return _pending_outcome(path)
 
         scheduler = EventScheduler(
-            process, max_workers=1, max_pending_events=1
+            process, max_workers=1, max_pending_events=1,
+            sqlite_capability="no-sqlite",
         )
         with mock.patch.object(
             scheduler,
@@ -1312,6 +1338,7 @@ def test_worker_cleanup_covers_dependency_replay_and_persistence_retry(
             max_attempts=4, initial_delay=0, max_delay=0
         ),
         worker_task_cleanup=cleanup,
+        sqlite_capability="sqlite-capable",
     )
     try:
         assert scheduler.submit(source_path, "created")

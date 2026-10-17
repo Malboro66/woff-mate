@@ -817,7 +817,8 @@ class TestWatchdogStartup(unittest.TestCase):
         class Handler:
             def __init__(self, *_args):
                 self.scheduler = EventScheduler(
-                    self.process, 2, 2, retry_process=self.retry
+                    self.process, 2, 2, retry_process=self.retry,
+                    sqlite_capability="no-sqlite",
                 )
 
             def process(self, submitted_path, event_type, previous=None):
@@ -950,7 +951,7 @@ class TestWatchdogStartup(unittest.TestCase):
 
         class Handler:
             def __init__(self, *_args):
-                self.scheduler = EventScheduler(self.process, 4, 8)
+                self.scheduler = EventScheduler(self.process, 4, 8, sqlite_capability="no-sqlite")
 
             def process(self, path, event_type):
                 completed.append(os.path.basename(path))
@@ -1091,7 +1092,8 @@ class TestWatchdogStartup(unittest.TestCase):
         class StartupHandler:
             def __init__(self, *_args, **_kwargs):
                 self.scheduler = EventScheduler(
-                    self.process, 1, 1, retry_process=self.retry_process
+                    self.process, 1, 1, retry_process=self.retry_process,
+                    sqlite_capability="no-sqlite",
                 )
 
             def process(self, path, event_type, previous=None):

@@ -50,7 +50,7 @@ def test_windows_aliases_share_one_latest_pending_generation():
             started.set()
             assert release.wait(2)
 
-    scheduler = EventScheduler(process, max_workers=1, max_pending_events=2)
+    scheduler = EventScheduler(process, max_workers=1, max_pending_events=2, sqlite_capability="no-sqlite")
     assert scheduler.submit(r"C:\Campaign\Pilot.LOG", "created")
     assert started.wait(2)
     assert scheduler.submit(r"c:/campaign/pilot.log", "modified")
@@ -79,7 +79,7 @@ def test_unique_path_burst_is_bounded_and_saturation_is_visible(caplog):
         started.set()
         assert release.wait(2)
 
-    scheduler = EventScheduler(process, max_workers=1, max_pending_events=2)
+    scheduler = EventScheduler(process, max_workers=1, max_pending_events=2, sqlite_capability="no-sqlite")
     assert scheduler.submit("first.xml", "created")
     assert started.wait(2)
     assert scheduler.submit("second.xml", "created")
@@ -102,7 +102,7 @@ class FailingExecutor:
 
 
 def test_submit_failure_releases_admission_state():
-    scheduler = EventScheduler(Mock(), 1, 1, executor=FailingExecutor())
+    scheduler = EventScheduler(Mock(), 1, 1, executor=FailingExecutor(), sqlite_capability="no-sqlite")
     with pytest.raises(RuntimeError, match="submit failed"):
         scheduler.submit("pilot.xml", "created")
     assert scheduler.metrics()["queued"] == 0
@@ -112,7 +112,7 @@ def test_submit_failure_releases_admission_state():
 
 def test_shutdown_rejects_new_work_and_drains_accepted_work():
     called = threading.Event()
-    scheduler = EventScheduler(lambda *_: called.set(), 1, 1)
+    scheduler = EventScheduler(lambda *_: called.set(), 1, 1, sqlite_capability="no-sqlite")
     assert scheduler.submit("pilot.xml", "created")
     scheduler.shutdown()
     assert called.is_set()
@@ -132,7 +132,7 @@ def test_bounded_startup_admission_waits_for_capacity_without_second_queue():
             first_started.set()
             assert release_first.wait(2)
 
-    scheduler = EventScheduler(process, max_workers=2, max_pending_events=1)
+    scheduler = EventScheduler(process, max_workers=2, max_pending_events=1, sqlite_capability="no-sqlite")
     assert scheduler.submit("Pilot1Dossier.txt", "initial")
     assert first_started.wait(2)
 
@@ -158,7 +158,8 @@ def test_startup_admission_timeout_is_bounded_and_diagnostic(caplog):
     started = threading.Event()
     release = threading.Event()
     scheduler = EventScheduler(
-        lambda *_: (started.set(), release.wait(2)), 1, 1
+        lambda *_: (started.set(), release.wait(2)), 1, 1,
+        sqlite_capability="no-sqlite",
     )
     assert scheduler.submit("Pilot1Dossier.txt", "initial")
     assert started.wait(2)
@@ -185,7 +186,8 @@ def test_successful_processing_cleanup_failure_is_reported_at_shutdown(caplog):
         raise OSError("private path and campaign data")
 
     scheduler = EventScheduler(
-        process, 1, 1, worker_task_cleanup=cleanup
+        process, 1, 1, worker_task_cleanup=cleanup,
+        sqlite_capability="sqlite-capable",
     )
     assert scheduler.submit("synthetic.xml", "created")
 
@@ -206,7 +208,8 @@ def test_processing_failure_remains_logged_when_cleanup_also_fails(caplog):
         raise OSError("private path")
 
     scheduler = EventScheduler(
-        process, 1, 1, worker_task_cleanup=cleanup
+        process, 1, 1, worker_task_cleanup=cleanup,
+        sqlite_capability="sqlite-capable",
     )
     assert scheduler.submit("synthetic.xml", "created")
 
@@ -250,7 +253,8 @@ def test_transaction_rolls_back_before_worker_cleanup(tmp_path, caplog):
         database.close()
 
     scheduler = EventScheduler(
-        process, 1, 1, worker_task_cleanup=cleanup
+        process, 1, 1, worker_task_cleanup=cleanup,
+        sqlite_capability="sqlite-capable",
     )
     try:
         assert scheduler.submit("synthetic-transaction", "created")
@@ -286,7 +290,8 @@ def test_multiple_cleanup_failures_are_reported_after_drain_and_monitor_join(
         raise OSError("synthetic cleanup failure")
 
     scheduler = EventScheduler(
-        process, 1, 2, worker_task_cleanup=cleanup
+        process, 1, 2, worker_task_cleanup=cleanup,
+        sqlite_capability="sqlite-capable",
     )
 
     def join_monitor():
@@ -316,6 +321,7 @@ def test_shutdown_succeeds_when_worker_cleanup_succeeds():
         1,
         1,
         worker_task_cleanup=lambda: events.append("cleanup"),
+        sqlite_capability="sqlite-capable",
     )
     assert scheduler.submit("synthetic.xml", "created")
 
@@ -345,7 +351,8 @@ def test_worker_cleanup_follows_coalescing_and_reused_worker_tasks(tmp_path):
         database.close()
 
     scheduler = EventScheduler(
-        process, 1, 2, worker_task_cleanup=cleanup
+        process, 1, 2, worker_task_cleanup=cleanup,
+        sqlite_capability="sqlite-capable",
     )
     try:
         assert scheduler.submit("initial.xml", "initial")
@@ -381,3 +388,74 @@ def test_worker_cleanup_follows_coalescing_and_reused_worker_tasks(tmp_path):
         if scheduler.accepting:
             scheduler.shutdown()
         database.close()
+
+def test_scheduler_requires_explicit_sqlite_capability_before_dispatch():
+    ran = threading.Event()
+    with pytest.raises(ValueError, match="sqlite_capability"):
+        EventScheduler(lambda *_: ran.set(), 1, 1)
+    assert not ran.is_set()
+
+
+@pytest.mark.parametrize("invalid", [None, "", "unknown", "SQLite-capable", 0, False])
+def test_scheduler_rejects_invalid_sqlite_capability_before_dispatch(invalid):
+    ran = threading.Event()
+    with pytest.raises(ValueError, match="sqlite_capability"):
+        EventScheduler(
+            lambda *_: ran.set(), 1, 1,
+            sqlite_capability=invalid,
+        )
+    assert not ran.is_set()
+
+
+@pytest.mark.parametrize("invalid_cleanup", [None, object()])
+def test_sqlite_capable_scheduler_requires_callable_cleanup_before_dispatch(
+    invalid_cleanup,
+):
+    ran = threading.Event()
+    with pytest.raises(ValueError, match="worker_task_cleanup"):
+        EventScheduler(
+            lambda *_: ran.set(), 1, 1,
+            sqlite_capability="sqlite-capable",
+            worker_task_cleanup=invalid_cleanup,
+        )
+    assert not ran.is_set()
+
+
+def test_genuine_no_sqlite_scheduler_does_not_require_worker_cleanup():
+    completed = []
+    scheduler = EventScheduler(
+        lambda path, event: completed.append((path, event)), 1, 2,
+        sqlite_capability="no-sqlite",
+    )
+    assert scheduler.submit("synthetic.txt", "created")
+    scheduler.shutdown()
+    assert completed == [("synthetic.txt", "created")]
+
+
+def test_sqlite_capable_direct_scheduler_closes_connection_on_owner_thread(tmp_path):
+    manager = DatabaseManager(str(tmp_path / "direct.sqlite"))
+    worker_threads = []
+    closed_threads = []
+
+    def process(*_args):
+        worker_threads.append(threading.get_ident())
+        manager._get_conn().execute("SELECT 1").fetchone()
+
+    def cleanup():
+        closed_threads.append(threading.get_ident())
+        manager.close()
+
+    scheduler = EventScheduler(
+        process, 1, 1,
+        sqlite_capability="sqlite-capable",
+        worker_task_cleanup=cleanup,
+    )
+    try:
+        assert scheduler.submit("synthetic.txt", "created")
+        scheduler.shutdown()
+        assert worker_threads == closed_threads
+        assert len(worker_threads) == 1
+        assert getattr(manager._local, "conn", None) is None
+        manager._get_conn().execute("SELECT 1").fetchone()
+    finally:
+        manager.close()

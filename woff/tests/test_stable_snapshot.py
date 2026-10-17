@@ -586,7 +586,7 @@ def test_scheduler_releases_exhausted_snapshot_without_diagnostic_leak(caplog):
         timeout=3, interval=1, stat=filesystem.stat, read=filesystem.read,
         sleep=lambda _: None,
     )
-    scheduler = EventScheduler(processor.process, max_workers=1, max_pending_events=1)
+    scheduler = EventScheduler(processor.process, max_workers=1, max_pending_events=1, sqlite_capability="no-sqlite")
     assert scheduler.submit(personal_path, "modified")
     scheduler.shutdown()
 
@@ -650,6 +650,7 @@ def test_active_acquisition_and_pending_event_persist_new_generation_once():
         retry_process=lambda path, event, previous: processor.process(
             path, event, previous_generation=previous
         ),
+        sqlite_capability="no-sqlite",
     )
 
     path = r"C:\Campaign\campaign.xml"
@@ -733,6 +734,7 @@ def test_unresolved_identity_does_not_acknowledge_coalesced_generation(monkeypat
         dependency_retry_process=lambda _path, event, previous: (
             processor.replay_dependency(previous, event)
         ),
+        sqlite_capability="no-sqlite",
     )
 
     assert scheduler.submit(path, "modified")
@@ -858,6 +860,7 @@ def test_merge_rejection_retries_same_generation_then_acknowledges_once(monkeypa
         retry_process=lambda submitted_path, event, previous: processor.process(
             submitted_path, event, previous_generation=previous
         ),
+        sqlite_capability="no-sqlite",
     )
 
     assert scheduler.submit(path, "modified")

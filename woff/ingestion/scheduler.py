@@ -79,7 +79,15 @@ class EventScheduler:
         dependency_retry_policy: Optional[DependencyRetryPolicy] = None,
         vacancy_pending: Optional[Callable[[PilotSlotBinding], bool]] = None,
         worker_task_cleanup: Optional[Callable[[], None]] = None,
+        sqlite_capability: Optional[str] = None,
     ) -> None:
+        if (
+            not isinstance(sqlite_capability, str)
+            or sqlite_capability not in ("sqlite-capable", "no-sqlite")
+        ):
+            raise ValueError("sqlite_capability must be explicitly declared as sqlite-capable or no-sqlite")
+        if sqlite_capability == "sqlite-capable" and not callable(worker_task_cleanup):
+            raise ValueError("worker_task_cleanup must be callable for sqlite-capable work")
         if (
             isinstance(max_pending_events, bool)
             or not isinstance(max_pending_events, int)
@@ -93,6 +101,7 @@ class EventScheduler:
         self._dependency_key_for_event = dependency_key_for_event
         self._vacancy_pending = vacancy_pending
         self._worker_task_cleanup = worker_task_cleanup
+        self._sqlite_capability = sqlite_capability
         self._persistence_retry_policy = (
             persistence_retry_policy or PersistenceRetryPolicy()
         )

@@ -368,7 +368,8 @@ def test_worker_cleanup_preserves_transactions_and_reopen(tmp_path, caplog):
         database.close()
 
     scheduler = EventScheduler(
-        process, 1, 1, worker_task_cleanup=cleanup
+        process, 1, 1, worker_task_cleanup=cleanup,
+        sqlite_capability="sqlite-capable",
     )
     try:
         for event_type in ("commit", "rollback", "rollback-only"):

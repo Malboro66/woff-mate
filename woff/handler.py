@@ -834,6 +834,7 @@ class WoFFEventHandler(FileSystemEventHandler):
             dependency_key_for_event=self._dependency_key_for_event,
             vacancy_pending=self.processor.vacancy_pending,
             worker_task_cleanup=db_manager.close,
+            sqlite_capability="sqlite-capable",
         )
         self._startup_admission_timeout = config.stability_timeout_sec
 
