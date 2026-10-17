@@ -20,12 +20,13 @@ Dated sections below that describe the ADR as *Proposed* or acceptance as
 *pending* reflect the historical state **before 2026-10-05**, not the current
 status. Historical measurements, reviews and their revision bounds are intact.
 
-Current review status (2026-10-04): bounded readiness is integrated through PR #178.
+Historical pre-decision review status (2026-10-04): bounded readiness was integrated through PR #178.
 The [repeated R2](../engineering/r2-ui-architecture-review-repeat.md) against
 `f394ece9d139b9af1a0ae14faea5d7982816a33a` records **GO / Recommend Retain —
 PySide6 + Qt Widgets 6.11.2**. This is a technical recommendation, not acceptance
-of this ADR. After that governance record is reviewed and integrated, a separate
-explicit maintainer decision is required. P1 remains unauthorized and Product
+of this ADR. At that historical checkpoint, a separate explicit maintainer
+decision was still required; that acceptance occurred on 2026-10-05. P1 remains
+unauthorized and Product
 Gates A–D remain unapproved. Historical authorization/re-scope sections below
 retain their original decision context.
 

@@ -208,8 +208,8 @@ and resolved; it is not a current implementation or Gate A blocker. Gate A
 remains unapproved: #142 and other applicable unresolved findings, the required
 affected-scope R1 repeat, applicable cycle evidence, reliable-companion/recovery
 demonstration and explicit maintainer approval remain outstanding. Issue #96 was
-completed through PR #182 and is no longer an open blocker. The #152 repository-protection guardrail
-is complete: active GitHub ruleset `24065034` and its
+completed through PR #182 and is no longer an open blocker. The #152
+repository-protection guardrail is complete: active GitHub ruleset `24065034` and its
 [revision-bound evidence](main-protection-2026-09-27.md) enforce and record the
 required control. This completion is repository governance, not an application
 or data-integrity change, and does not approve a Product Gate. #153 and #154

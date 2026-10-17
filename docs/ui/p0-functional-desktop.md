@@ -148,8 +148,8 @@ post-merge, and no physical rerun was required.
 The maintainer accepted PySide6 + Qt Widgets 6.11.2 on 2026-10-05; this does not
 retroactively turn the fixture-only P0 evidence into live-product evidence.
 
-PySide6 + Qt Widgets **6.11.2** is authorized only for experimental P0. The UI
-toolkit ADR remains **Proposed**. The [first R2 review](../engineering/r2-ui-architecture-review.md)
+At the historical P0 integration checkpoint, PySide6 + Qt Widgets **6.11.2**
+was authorized for experimental P0 only and the toolkit ADR was **Proposed**. The [first R2 review](../engineering/r2-ui-architecture-review.md)
 of the exact integrated SHA returned **HOLD / Conditional No-Go for production
 retention**: it found no new priority:P0 or priority:P1 UI defect and confirmed
 the fixture-only boundary, but adoption-readiness evidence was incomplete at that
@@ -157,8 +157,8 @@ historical revision. Bounded readiness is now complete and integrated through
 PR #178. The [repeated R2](../engineering/r2-ui-architecture-review-repeat.md) at
 `f394ece9d139b9af1a0ae14faea5d7982816a33a` records **GO / Recommend Retain —
 PySide6 + Qt Widgets 6.11.2**. `review-r2` is done and its eval Implemented for the
-technical review. The maintainer accepted the toolkit ADR on 2026-10-05; P1 is not authorized and
-no Product Gate is approved.
+technical review. The maintainer accepted the toolkit ADR on 2026-10-05;
+P1 is not authorized and no Product Gate is approved.
 
 Actual blockers to **P1 — Read-only Vertical Slice**:
 **explicit

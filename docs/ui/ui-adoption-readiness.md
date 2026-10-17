@@ -15,8 +15,9 @@ This candidate validated PySide6 + Qt Widgets 6.11.2 with deterministic
 synthetic fixtures. At this #177 checkpoint the ADR was **Proposed**; the
 maintainer subsequently accepted it on 2026-10-05. Historical first R2 remains
 **HOLD / Conditional No-Go for production retention**. P1 is not authorized and
-Product Gates A, B, C and D remain unapproved. #96 was later completed through PR #182; #142 remains an unresolved Gate A/P1 blocker,
-not toolkit-retention blockers.
+Product Gates A, B, C and D remain unapproved. #96 was later completed through
+PR #182; #142 remains an unresolved Gate A/P1 blocker, not a toolkit-retention
+blocker.
 
 ## Evaluation contract
 
@@ -145,8 +146,8 @@ outside the evidence scope.
 ## Decision sequence and exclusions
 
 Implementation and main integration are complete. The revision-bound repeated R2
-records GO / Recommend Retain. The governance record was subsequently integrated, followed by explicit
-maintainer acceptance of the ADR on 2026-10-05.
+records GO / Recommend Retain. The governance record was subsequently integrated,
+followed by explicit maintainer acceptance of the ADR on 2026-10-05.
 `review-r2` is done and `EVAL-R2-REVIEW-001` is Implemented for the technical review;
 the ADR was subsequently accepted on 2026-10-05, while P1 remains unauthorized
 and Product Gates A–D remain unapproved.

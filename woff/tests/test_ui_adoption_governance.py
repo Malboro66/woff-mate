@@ -90,7 +90,7 @@ def test_p0_record_requires_explicit_gate_approvals_before_p1() -> None:
     p0 = _normalized_text("docs/ui/p0-functional-desktop.md")
 
     blockers = p0.split("Actual blockers to **P1 — Read-only Vertical Slice**:", 1)[1]
-    assert "explicit approval of every applicable Product Gate A/B decision under Q5" in blockers
+    assert "The maintainer accepted PySide6 + Qt Widgets 6.11.2 on 2026-10-05" in p0
     assert "explicit approval of every applicable Product Gate A/B decision under Q5" in blockers
     assert "revision-valid Full Application Review" in blockers
     assert "product-demonstrability record" in blockers
