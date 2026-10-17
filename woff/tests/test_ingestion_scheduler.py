@@ -1,9 +1,137 @@
 import threading
+import shutil
+import sqlite3
+from contextlib import closing
 from unittest.mock import Mock
 
 import pytest
 
 from ..ingestion.scheduler import EventScheduler, canonical_windows_path
+from ..database import DatabaseManager
+
+
+def test_worker_closes_own_connection_before_shutdown_and_directory_removal(tmp_path):
+    database_directory = tmp_path / "worker-db"
+    database_directory.mkdir()
+    db = DatabaseManager(str(database_directory / "test.db"))
+    opened = []
+    closed = []
+    original_close = db.close
+
+    def process(_path, _event):
+        with db.transaction() as conn:
+            conn.execute("CREATE TABLE IF NOT EXISTS lifecycle (value INTEGER)")
+            conn.execute("INSERT INTO lifecycle VALUES (1)")
+            opened.append((threading.get_ident(), conn))
+
+    def close_worker():
+        closed.append((threading.get_ident(), opened[-1][1].in_transaction))
+        original_close()
+
+    scheduler = EventScheduler(
+        process, 1, 2, worker_cleanup=close_worker
+    )
+    assert scheduler.submit("synthetic.xml", "created")
+    scheduler.shutdown()
+
+    assert closed == [(opened[0][0], False)]
+    with pytest.raises(sqlite3.ProgrammingError):
+        opened[0][1].execute("SELECT 1")
+    with closing(sqlite3.connect(database_directory / "test.db")) as reopened:
+        assert reopened.execute("SELECT value FROM lifecycle").fetchall() == [(1,)]
+        assert reopened.execute("PRAGMA integrity_check").fetchone() == ("ok",)
+    db.close()
+    shutil.rmtree(database_directory)
+    assert not database_directory.exists()
+
+
+def test_worker_rolls_back_before_owner_cleanup_on_processing_exception(tmp_path, caplog):
+    db = DatabaseManager(str(tmp_path / "failure.db"))
+    observed = []
+    original_close = db.close
+
+    def process(_path, _event):
+        with db.transaction() as conn:
+            conn.execute("CREATE TABLE IF NOT EXISTS lifecycle (value INTEGER)")
+            conn.execute("INSERT INTO lifecycle VALUES (2)")
+            observed.append((threading.get_ident(), conn))
+            raise ValueError("synthetic processing failure")
+
+    def close_worker():
+        owner, conn = observed[0]
+        assert threading.get_ident() == owner
+        assert not conn.in_transaction
+        original_close()
+
+    scheduler = EventScheduler(process, 1, 2, worker_cleanup=close_worker)
+    assert scheduler.submit("synthetic.xml", "created")
+    scheduler.shutdown()
+    assert "synthetic processing failure" in caplog.text
+    with pytest.raises(sqlite3.ProgrammingError):
+        observed[0][1].execute("SELECT 1")
+    with closing(sqlite3.connect(db.db_path)) as reopened:
+        assert reopened.execute("SELECT name FROM sqlite_master WHERE name='lifecycle'").fetchone() is None
+        assert reopened.execute("PRAGMA foreign_key_check").fetchall() == []
+    db.close()
+
+
+def test_cleanup_failure_survives_processing_error_and_fails_shutdown(caplog):
+    processed = []
+
+    def process(_path, _event):
+        processed.append(threading.get_ident())
+        raise ValueError("synthetic processing failure")
+
+    def cleanup():
+        assert threading.get_ident() == processed[0]
+        raise OSError("synthetic cleanup failure")
+
+    scheduler = EventScheduler(process, 1, 2, worker_cleanup=cleanup)
+    assert scheduler.submit("synthetic.xml", "created")
+    with pytest.raises(RuntimeError, match="Worker resource cleanup failed") as failure:
+        scheduler.shutdown()
+    assert isinstance(failure.value.__cause__, OSError)
+    assert "synthetic processing failure" in caplog.text
+    assert "synthetic cleanup failure" in caplog.text
+    assert scheduler.metrics()["active"] == 0
+
+
+def test_coalesced_task_and_reused_worker_close_at_task_boundaries(tmp_path):
+    db = DatabaseManager(str(tmp_path / "reuse.db"))
+    opened = []
+    closed = []
+    first_closed = threading.Event()
+    original_close = db.close
+    scheduler = None
+
+    def process(path, event):
+        with db.transaction() as conn:
+            conn.execute("CREATE TABLE IF NOT EXISTS lifecycle (value TEXT)")
+            conn.execute("INSERT INTO lifecycle VALUES (?)", (event,))
+            opened.append((threading.get_ident(), conn))
+        if event == "created":
+            assert scheduler is not None
+            assert scheduler.submit(path, "modified")
+
+    def close_worker():
+        closed.append(threading.get_ident())
+        original_close()
+        first_closed.set()
+
+    scheduler = EventScheduler(process, 1, 2, worker_cleanup=close_worker)
+    assert scheduler.submit("synthetic.xml", "created")
+    assert first_closed.wait(2)
+    assert scheduler.submit("second.xml", "initial")
+    scheduler.shutdown()
+    assert len(opened) == 3
+    assert closed == [opened[0][0], opened[2][0]]
+    assert opened[0][1] is opened[1][1]
+    assert opened[2][1] is not opened[0][1]
+    with closing(sqlite3.connect(db.db_path)) as reopened:
+        assert reopened.execute("SELECT value FROM lifecycle").fetchall() == [
+            ("created",), ("modified",), ("initial",)
+        ]
+    db.close()
 
 
 def _metrics(**overrides):
