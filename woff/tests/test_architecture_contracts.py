@@ -1505,7 +1505,7 @@ def test_ui_read_only_foundation_contract() -> None:
     assert "docs/ui/read-only-foundation.md" in readme
 
     adr = adr_path.read_text(encoding="utf-8")
-    assert re.search(r"^Status:\s*Proposed\s*$", adr, re.MULTILINE)
+    assert re.search(r"^Status:\s*Accepted\s*$", adr, re.MULTILINE)
     assert "PySide6 + Qt Widgets" in adr
     assert re.search(r"proposed direction", adr, re.IGNORECASE)
 

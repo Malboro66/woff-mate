@@ -51,16 +51,16 @@ def test_ui_toolkit_retention_is_separate_from_p1_live_gates() -> None:
 
     assert graph["work_items"]["review-r2"]["state"] == "done"
     assert graph["evals"]["EVAL-R2-REVIEW-001"]["status"] == "implemented"
-    assert graph["work_items"]["issue-96"]["state"] == "backlog"
+    assert graph["work_items"]["issue-96"]["state"] == "done"
     assert graph["work_items"]["issue-142"]["state"] == "backlog"
-    assert graph["evals"]["EVAL-WINGMAN-IDENTITY-001"]["status"] == "planned"
+    assert graph["evals"]["EVAL-WINGMAN-IDENTITY-001"]["status"] == "implemented"
     assert graph["evals"]["EVAL-STARTUP-RECURSIVE-001"]["status"] == "planned"
 
 
 def test_adr_records_maintainer_available_platform_scope_without_claiming_windows11() -> None:
     adr = _normalized_text("docs/architecture/adr-ui-toolkit.md")
 
-    assert "Status: Proposed" in adr
+    assert "Status: Accepted" in adr
     assert "Windows 10 is the physically validated maintainer reference platform" in adr
     assert "Windows 11 remains a target/upstream-compatible platform but is **not**" in adr
     assert "physically validated by WoFF Mate" in adr
@@ -90,7 +90,7 @@ def test_p0_record_requires_explicit_gate_approvals_before_p1() -> None:
     p0 = _normalized_text("docs/ui/p0-functional-desktop.md")
 
     blockers = p0.split("Actual blockers to **P1 — Read-only Vertical Slice**:", 1)[1]
-    assert "explicit maintainer acceptance of the UI toolkit ADR" in blockers
+    assert "The maintainer accepted PySide6 + Qt Widgets 6.11.2 on 2026-10-05" in p0
     assert "explicit approval of every applicable Product Gate A/B decision under Q5" in blockers
     assert "revision-valid Full Application Review" in blockers
     assert "product-demonstrability record" in blockers
@@ -116,7 +116,7 @@ def test_clean_machine_and_release_obligations_remain_deferred_not_waived() -> N
     assert "clean-machine" in ui_gate
     assert "full-Q4/release/Product-Gate-D evidence" in ui_gate
     assert "Product Gate A and Product Gate B remain fully authoritative and unapproved" in ui_gate
-    assert "#96 and #142 remain valid Gate A/P1 blockers" in ui_gate
+    assert "#142 remains an unresolved Gate A/P1 blocker" in ui_gate
     assert "explicit approval of every applicable Product Gate A/B decision under Q5" in ui_gate
 
     assert "Physical Windows 11 and clean-machine end-user execution are not prerequisites to toolkit retention" in policy
@@ -161,7 +161,7 @@ def test_repeated_r2_is_bound_to_integrated_main_without_deleted_branch_dependen
     assert "not formal ADR acceptance" in record
     assert "P1: **not authorized**" in record
     assert "Product Gates A, B, C and D: **not approved**" in record
-    assert "Status: Proposed" in _text("docs/architecture/adr-ui-toolkit.md")
+    assert "Status: Accepted" in _text("docs/architecture/adr-ui-toolkit.md")
     assert all(
         dependency["status"] == "satisfied"
         for dependency in graph["work_items"]["review-r2"]["depends_on"]

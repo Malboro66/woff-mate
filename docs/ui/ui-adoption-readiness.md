@@ -11,11 +11,13 @@ formal ADR acceptance.
 Implementation started from verified main
 `741bad8192517c4ade38e9e718845f086beff849` after #175 / PR #176.
 
-This candidate validates PySide6 + Qt Widgets 6.11.2 with deterministic synthetic
-fixtures. The UI toolkit ADR remains **Proposed**. Historical first R2 remains
+This candidate validated PySide6 + Qt Widgets 6.11.2 with deterministic
+synthetic fixtures. At this #177 checkpoint the ADR was **Proposed**; the
+maintainer subsequently accepted it on 2026-10-05. Historical first R2 remains
 **HOLD / Conditional No-Go for production retention**. P1 is not authorized and
-Product Gates A, B, C and D remain unapproved. #96/#142 remain Gate A/P1 blockers,
-not toolkit-retention blockers.
+Product Gates A, B, C and D remain unapproved. #96 was later completed through
+PR #182; #142 remains an unresolved Gate A/P1 blocker, not a toolkit-retention
+blocker.
 
 ## Evaluation contract
 
@@ -144,10 +146,11 @@ outside the evidence scope.
 ## Decision sequence and exclusions
 
 Implementation and main integration are complete. The revision-bound repeated R2
-records GO / Recommend Retain. The current step is review and integration of that
-governance record, followed by a separate explicit maintainer ADR decision.
+records GO / Recommend Retain. The governance record was subsequently integrated,
+followed by explicit maintainer acceptance of the ADR on 2026-10-05.
 `review-r2` is done and `EVAL-R2-REVIEW-001` is Implemented for the technical review;
-the ADR remains Proposed, P1 unauthorized and Product Gates A–D unapproved.
+the ADR was subsequently accepted on 2026-10-05, while P1 remains unauthorized
+and Product Gates A–D remain unapproved.
 
 Physical Windows 11, clean-machine/installer/updater/install-update-rollback,
 signing, public provenance/distribution/release SBOM, Narrator/NVDA speech,
