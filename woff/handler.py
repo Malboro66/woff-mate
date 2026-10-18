@@ -13,6 +13,7 @@ import logging
 import ntpath
 import os
 import sqlite3
+import stat
 import time
 import threading
 import weakref
@@ -843,12 +844,39 @@ class WoFFEventHandler(FileSystemEventHandler):
         self._startup_inventory_active = False
         self._startup_inventory_rejected = False
         self._startup_inventory_epoch = 0
+        self._startup_inventory_verified = False
+        self._startup_source_bindings: dict[tuple[str, int, str], str] = {}
 
     def begin_startup_inventory(self) -> None:
         with self._startup_inventory_lock:
             self._startup_inventory_active = True
             self._startup_inventory_rejected = False
             self._startup_inventory_epoch = 0
+            self._startup_inventory_verified = False
+            self._startup_source_bindings.clear()
+
+    def record_startup_sources(
+        self, inventories: Sequence[dict[str, list[str]]]
+    ) -> None:
+        """Retain only verified root/family/slot paths for late live admission."""
+        with self._startup_inventory_lock:
+            if not self._startup_inventory_active:
+                raise RuntimeError("startup inventory is no longer active")
+            bindings: dict[tuple[str, int, str], str] = {}
+            for inventory in inventories:
+                for pattern, paths in inventory.items():
+                    family = pattern.replace("Pilot*", "").casefold()
+                    for path in paths:
+                        slot = pilot_slot(path)
+                        if slot is None:
+                            raise RuntimeError("invalid startup source slot")
+                        namespace = self.processor._campaign_namespaces.namespace_for(path)
+                        key = (namespace, slot, family)
+                        canonical = os.path.normcase(os.path.abspath(path))
+                        if key in bindings:
+                            raise RuntimeError("duplicate startup binding")
+                        bindings[key] = canonical
+            self._startup_source_bindings = bindings
 
     def startup_inventory_epoch(self) -> int:
         with self._startup_inventory_lock:
@@ -858,13 +886,80 @@ class WoFFEventHandler(FileSystemEventHandler):
         """Atomically close startup tracking, requiring its verified epoch."""
         with self._startup_inventory_lock:
             self._startup_inventory_active = False
-            return (
+            complete = (
                 not self._startup_inventory_rejected
                 and (
                     expected_epoch is None
                     or self._startup_inventory_epoch == expected_epoch
                 )
             )
+            self._startup_inventory_verified = complete and ".txt" in self.watched_extensions
+            return complete
+
+    def _live_pilot_source_unique(self, path: str) -> bool:
+        """Fail closed for delayed observer delivery of an ambiguous pilot slot.
+
+        A verified startup source has a root/family/slot binding. Its normal
+        edits take a constant-time path; a new or relocated source requires a
+        non-link-following recursive check before any worker is submitted.
+        """
+        slot = pilot_slot(path)
+        if slot is None:
+            return True
+        name = _safe_filename(path).casefold()
+        family = name[len(f"pilot{slot}") :]
+        try:
+            resolver = self.processor._campaign_namespaces
+            root = resolver.root_for(path)
+            key = (resolver.namespace_for(path), slot, family)
+            canonical = os.path.normcase(os.path.abspath(path))
+            source_info = os.stat(path, follow_symlinks=False)
+            if (
+                not stat.S_ISREG(source_info.st_mode)
+                or getattr(source_info, "st_file_attributes", 0) & 0x400
+            ):
+                raise OSError("invalid-live-pilot-source")
+            known = self._startup_source_bindings.get(key)
+            if known == canonical:
+                return True
+            if known is not None and os.path.exists(known):
+                raise OSError("ambiguous-live-pilot-slot")
+            matches: list[str] = []
+
+            def visit(directory: str) -> None:
+                with os.scandir(directory) as entries:
+                    for entry in entries:
+                        metadata = entry.stat(follow_symlinks=False)
+                        is_alias = entry.is_symlink() or bool(
+                            getattr(metadata, "st_file_attributes", 0) & 0x400
+                        )
+                        if is_alias and entry.is_dir(follow_symlinks=True):
+                            raise OSError("ambiguous-live-pilot-subtree")
+                        if stat.S_ISDIR(metadata.st_mode):
+                            visit(entry.path)
+                            continue
+                        if (
+                            pilot_slot(entry.name) == slot
+                            and entry.name.casefold().endswith(family)
+                        ):
+                            if is_alias or not stat.S_ISREG(metadata.st_mode):
+                                raise OSError("ambiguous-live-pilot-source")
+                            matches.append(entry.path)
+                            if len(matches) > 1:
+                                raise OSError("ambiguous-live-pilot-slot")
+
+            visit(root)
+            if len(matches) != 1 or (
+                os.path.normcase(os.path.abspath(matches[0])) != canonical
+            ):
+                raise OSError("unverified-live-pilot-source")
+            self._startup_source_bindings[key] = canonical
+            return True
+        except (OSError, CampaignNamespaceError):
+            log.error(
+                "Live pilot admission deferred: category=ambiguous-or-incomplete-inventory"
+            )
+            return False
 
     def on_modified(self, event):
         if not event.is_directory:
@@ -919,31 +1014,28 @@ class WoFFEventHandler(FileSystemEventHandler):
             )
 
     def _handle(self, path: str, event_type: str):
-        bn = os.path.basename(path).lower()
-        ext = os.path.splitext(path)[1].lower()
-
-        if ext not in self.watched_extensions or any(p in bn for p in self.IGNORED):
-            return False
-        if ext in {".txt", ".log"} and not is_preview_allowed(path):
-            if self.discovery:
-                self.discovery.log_file(path, event_type)
-            return False
-
-        # Live writes must not escape validation of ambiguous recursive
-        # startup inventory. A live mutation during cold start invalidates
-        # that inventory and fails startup closed; a fresh startup scan is
-        # required. Do not run its scheduler worker before the validation
-        # barrier, even when the scheduler has capacity.
-        #
-        # Holding the lock across the normal post-startup submission keeps
-        # this transition atomic with finish_startup_inventory().
+        # Register at callback entry, before filename filtering or discovery.
+        # Finalization cannot overtake an already-running callback. Callbacks
+        # still queued by the OS are covered by post-start source validation.
         with self._startup_inventory_lock:
-            # Only the four approved pilot .txt families participate in the
-            # recursive inventory. Preserve the existing live-only handling
-            # of other allowed sources and configurations without .txt.
+            bn = os.path.basename(path).lower()
+            ext = os.path.splitext(path)[1].lower()
+            if ext not in self.watched_extensions or any(p in bn for p in self.IGNORED):
+                return False
+            if ext in {".txt", ".log"} and not is_preview_allowed(path):
+                if self.discovery:
+                    self.discovery.log_file(path, event_type)
+                return False
             if self._startup_inventory_active and ext == ".txt":
                 self._startup_inventory_epoch += 1
                 self._startup_inventory_rejected = True
+                return False
+            if (
+                self._startup_inventory_verified
+                and ext == ".txt"
+                and event_type not in {"deleted", "moved-away"}
+                and not self._live_pilot_source_unique(path)
+            ):
                 return False
             return self.scheduler.submit(path, event_type)
 

@@ -383,6 +383,12 @@ class WoFFWatchdog:
                     or epoch_changed
                 ):
                     raise RuntimeError("startup recursive inventory changed")
+                # Preserve the verified per-root slot/family sources across
+                # finalization, so delayed observer callbacks cannot admit a
+                # duplicate under a stale startup identity.
+                record_sources = getattr(self._handler, "record_startup_sources", None)
+                if callable(record_sources):
+                    record_sources(startup_sources)
             finish = getattr(self._handler, "finish_startup_inventory", None)
             if callable(finish) and not finish(verified_epoch):
                 raise RuntimeError("startup live admission incomplete")

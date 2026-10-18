@@ -416,6 +416,175 @@ def test_live_event_during_startup_cannot_run_a_worker(
         db.close()
 
 
+def test_callback_filter_in_flight_cannot_finalize_startup(tmp_path: Path) -> None:
+    """Callback entering before finish is counted even if filename filtering blocks."""
+    from ..handler import WoFFEventHandler
+    from ..database import DatabaseManager
+    from ..campaign_engine import CampaignEngine
+    from .. import handler as handler_module
+
+    root = tmp_path / "campaign"
+    root.mkdir()
+    path = root / "Pilot1Dossier.txt"
+    path.write_bytes(b"synthetic")
+    config = WatchdogConfig(
+        watch_paths=[str(root)],
+        export_path=str(tmp_path / "export" / "db.sqlite"),
+        watched_extensions=[".txt"],
+    )
+    db = DatabaseManager(config.export_path, campaign_namespaces=config.campaign_namespaces)
+    handler = WoFFEventHandler(config, db, CampaignEngine(db))
+    entered_filter = threading.Event()
+    release_filter = threading.Event()
+    finalized = threading.Event()
+    outcome: dict[str, bool] = {}
+    original_filter = handler_module.is_preview_allowed
+
+    def slow_filter(candidate: str) -> bool:
+        entered_filter.set()
+        assert release_filter.wait(5), "filter barrier timed out"
+        return original_filter(candidate)
+
+    def callback() -> None:
+        outcome["submitted"] = handler._handle(str(path), "modified")
+
+    def finish() -> None:
+        outcome["completed"] = handler.finish_startup_inventory(0)
+        finalized.set()
+
+    try:
+        handler.begin_startup_inventory()
+        with patch.object(handler_module, "is_preview_allowed", side_effect=slow_filter), patch.object(
+            handler.scheduler, "submit", return_value=True
+        ) as submit:
+            worker = threading.Thread(target=callback)
+            closing = threading.Thread(target=finish)
+            worker.start()
+            try:
+                assert entered_filter.wait(5)
+                closing.start()
+                assert not finalized.wait(0.1)
+            finally:
+                release_filter.set()
+                worker.join(5)
+                if closing.ident is not None:
+                    closing.join(5)
+            assert not worker.is_alive()
+            assert not closing.is_alive()
+            assert outcome == {"submitted": False, "completed": False}
+            submit.assert_not_called()
+    finally:
+        handler.shutdown()
+        db.close()
+
+
+def test_queued_duplicate_callback_after_finalization_cannot_submit(
+    tmp_path: Path,
+) -> None:
+    """A duplicate already on disk cannot bypass validation via a late observer callback."""
+    from ..handler import WoFFEventHandler
+    from ..database import DatabaseManager
+    from ..campaign_engine import CampaignEngine
+
+    root = tmp_path / "campaign"
+    first = root / "alpha"
+    second = root / "bravo"
+    first.mkdir(parents=True)
+    second.mkdir()
+    approved = first / "Pilot1Dossier.txt"
+    delayed = second / "Pilot1Dossier.txt"
+    approved.write_bytes(b"first")
+    config = WatchdogConfig(
+        watch_paths=[str(root)],
+        export_path=str(tmp_path / "export" / "db.sqlite"),
+        watched_extensions=[".txt"],
+    )
+    db = DatabaseManager(config.export_path, campaign_namespaces=config.campaign_namespaces)
+    handler = WoFFEventHandler(config, db, CampaignEngine(db))
+    try:
+        handler.begin_startup_inventory()
+        handler.record_startup_sources([
+            {"Pilot*Dossier.txt": [str(approved)]}
+        ])
+        assert handler.finish_startup_inventory(0)
+        delayed.write_bytes(b"duplicate")
+        with patch.object(handler.scheduler, "submit", return_value=True) as submit:
+            assert handler._handle(str(delayed), "created") is False
+            submit.assert_not_called()
+            # Normal edits of the already-bound source are constant time.
+            with patch("os.scandir", side_effect=AssertionError("unexpected full rescan")):
+                assert handler._handle(str(approved), "modified") is True
+            submit.assert_called_once_with(str(approved), "modified")
+    finally:
+        handler.shutdown()
+        db.close()
+
+
+def test_new_live_source_is_checked_once_then_reused(tmp_path: Path) -> None:
+    """Valid new sources remain admitted without rescanning each later modification."""
+    from ..handler import WoFFEventHandler
+    from ..database import DatabaseManager
+    from ..campaign_engine import CampaignEngine
+
+    root = tmp_path / "campaign"
+    root.mkdir()
+    config = WatchdogConfig(
+        watch_paths=[str(root)],
+        export_path=str(tmp_path / "export" / "db.sqlite"),
+        watched_extensions=[".txt"],
+    )
+    db = DatabaseManager(config.export_path, campaign_namespaces=config.campaign_namespaces)
+    handler = WoFFEventHandler(config, db, CampaignEngine(db))
+    try:
+        handler.begin_startup_inventory()
+        handler.record_startup_sources([{"Pilot*Dossier.txt": []}])
+        assert handler.finish_startup_inventory(0)
+        new = root / "nested" / "Pilot5Dossier.txt"
+        new.parent.mkdir()
+        new.write_bytes(b"new")
+        with patch.object(handler.scheduler, "submit", return_value=True) as submit:
+            assert handler._handle(str(new), "created") is True
+            with patch("os.scandir", side_effect=AssertionError("unexpected rescan")):
+                assert handler._handle(str(new), "modified") is True
+            assert submit.call_count == 2
+    finally:
+        handler.shutdown()
+        db.close()
+
+
+def test_delayed_duplicate_is_root_scoped(tmp_path: Path) -> None:
+    """The same pilot slot in two independent roots is not a duplicate."""
+    from ..handler import WoFFEventHandler
+    from ..database import DatabaseManager
+    from ..campaign_engine import CampaignEngine
+
+    roots = [tmp_path / "first", tmp_path / "second"]
+    for root in roots:
+        root.mkdir()
+        (root / "Pilot1Dossier.txt").write_bytes(b"synthetic")
+    config = WatchdogConfig(
+        watch_paths=[str(root) for root in roots],
+        export_path=str(tmp_path / "export" / "db.sqlite"),
+        watched_extensions=[".txt"],
+    )
+    db = DatabaseManager(config.export_path, campaign_namespaces=config.campaign_namespaces)
+    handler = WoFFEventHandler(config, db, CampaignEngine(db))
+    try:
+        handler.begin_startup_inventory()
+        handler.record_startup_sources([
+            {"Pilot*Dossier.txt": [str(root / "Pilot1Dossier.txt")]}
+            for root in roots
+        ])
+        assert handler.finish_startup_inventory(0)
+        with patch.object(handler.scheduler, "submit", return_value=True) as submit:
+            for root in roots:
+                assert handler._handle(str(root / "Pilot1Dossier.txt"), "modified")
+            assert submit.call_count == 2
+    finally:
+        handler.shutdown()
+        db.close()
+
+
 def test_live_scheduler_rejection_during_startup_remains_a_blocker(
     tmp_path: Path,
 ) -> None:
