@@ -63,7 +63,7 @@ try:
     from .command_contract import ExitCode
     from .config import InvalidConfigurationError, WatchdogConfig, load_config
     from .handler import WoFFEventHandler
-    from .identity import dossier_source_name
+    from .identity import dossier_source_name, pilot_slot
     from .ingestion.vacancy import scan_dossiers
     from .database import DatabaseManager
     from .discovery import DiscoveryLogger
@@ -135,17 +135,37 @@ def _scan_startup_sources(root: str) -> dict[str, list[str]]:
             raise OSError("unsupported-startup-subtree")
         with os.scandir(directory) as entries:
             for entry in entries:
+                # Filename admission must match the existing case-insensitive
+                # live slot policy, even on a case-sensitive host filesystem.
+                slot = pilot_slot(entry.name)
+                matched = (
+                    next(
+                        (
+                            pattern for pattern in _STARTUP_PILOT_PATTERNS
+                            if slot is not None and entry.name.casefold()
+                            == pattern.replace("*", str(slot)).casefold()
+                        ),
+                        None,
+                    )
+                )
                 metadata = entry.stat(follow_symlinks=False)
-                if entry.is_symlink() or getattr(
-                    metadata, "st_file_attributes", 0
-                ) & 0x400:
+                is_alias = entry.is_symlink() or bool(
+                    getattr(metadata, "st_file_attributes", 0) & 0x400
+                )
+                if is_alias and entry.is_dir(follow_symlinks=True):
+                    # Do not follow a directory alias (junction/symlink)
+                    # outside the configured campaign namespace.
                     raise OSError("unverified-startup-subtree")
                 if stat.S_ISDIR(metadata.st_mode):
                     visit(entry.path)
-                elif stat.S_ISREG(metadata.st_mode):
-                    for pattern in _STARTUP_PILOT_PATTERNS:
-                        if fnmatch(entry.name, pattern):
-                            sources[pattern].append(entry.path)
+                elif is_alias and matched is not None:
+                    raise OSError("unverified-startup-source")
+                elif is_alias:
+                    # An irrelevant file alias cannot affect the bounded
+                    # pilot inventory; directory aliases remain unsafe.
+                    continue
+                elif stat.S_ISREG(metadata.st_mode) and matched is not None:
+                    sources[matched].append(entry.path)
         after = os.stat(directory, follow_symlinks=False)
         if (
             before.st_dev,
@@ -161,8 +181,14 @@ def _scan_startup_sources(root: str) -> dict[str, list[str]]:
             raise OSError("changed-startup-inventory")
 
     visit(root)
-    for paths in sources.values():
-        paths.sort(key=os.path.normcase)
+    for pattern, paths in sources.items():
+        logical_slots: set[int] = set()
+        for path in paths:
+            slot = pilot_slot(path)
+            if slot is None or slot in logical_slots:
+                raise OSError("ambiguous-startup-pilot-slot")
+            logical_slots.add(slot)
+        paths.sort(key=lambda path: (os.path.normcase(path), path))
     return sources
 
 
@@ -226,6 +252,9 @@ class WoFFWatchdog:
             self._handler = WoFFEventHandler(
                 self.config, self.db_manager, self.campaign_engine, self.discovery
             )
+            startup_begin = getattr(self._handler, "begin_startup_inventory", None)
+            if callable(startup_begin):
+                startup_begin()
             for path in valid:
                 obs = Observer()
                 obs.schedule(self._handler, path, recursive=True)
@@ -265,7 +294,19 @@ class WoFFWatchdog:
                 # Collect all roots before submitting any positives or
                 # authoritative vacancy assertions. A subtree scan error
                 # fails startup rather than silently accepting a partial set.
+                epoch_reader = getattr(
+                    self._handler, "startup_inventory_epoch", None
+                )
+                epoch_before = epoch_reader() if callable(epoch_reader) else None
                 startup_sources = [_scan_startup_sources(path) for path in valid]
+                # A child can change after its own post-scan stat check while
+                # its sibling is still being visited. An independent second
+                # traversal guards against claiming a complete stale tree.
+                repeat_sources = [_scan_startup_sources(path) for path in valid]
+                if startup_sources != repeat_sources or (
+                    epoch_before is not None and epoch_reader() != epoch_before
+                ):
+                    raise RuntimeError("startup recursive inventory changed")
                 self._reconcile_vacant_slots(valid)
                 log.info("A sincronizar dados iniciais dos pilotos...")
 
@@ -294,6 +335,20 @@ class WoFFWatchdog:
                             "bounded startup reconciliation failed for "
                             f"{file_pattern}"
                         )
+            if startup_sources:
+                # Recheck after all phase waits: changes in a previously
+                # visited child cannot silently complete startup.
+                epoch_reader = getattr(
+                    self._handler, "startup_inventory_epoch", None
+                )
+                epoch_before = epoch_reader() if callable(epoch_reader) else None
+                if [_scan_startup_sources(path) for path in valid] != startup_sources or (
+                    epoch_before is not None and epoch_reader() != epoch_before
+                ):
+                    raise RuntimeError("startup recursive inventory changed")
+            finish = getattr(self._handler, "finish_startup_inventory", None)
+            if callable(finish) and not finish():
+                raise RuntimeError("startup live admission incomplete")
         except Exception:
             self._cleanup(suppress_errors=True)
             raise

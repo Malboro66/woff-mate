@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import os
+from contextlib import contextmanager
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -257,3 +258,143 @@ def test_all_nested_source_families_use_bounded_phase_order(tmp_path: Path) -> N
     assert waits == phase_groups
     assert observer_calls == [(str(root), True) for root in roots]
     assert set(admissions) == set(samples)
+
+@pytest.mark.parametrize("family", ("Dossier", "Log", "Claims", "Squads"))
+def test_duplicate_slot_in_one_root_fails_closed(tmp_path: Path, family: str) -> None:
+    root = tmp_path / "campaign"
+    nested = root / "nested"
+    nested.mkdir(parents=True)
+    (root / f"Pilot1{family}.txt").write_bytes(b"synthetic")
+    (nested / f"PILOT1{family.upper()}.TXT").write_bytes(b"synthetic")
+    with pytest.raises(OSError, match="ambiguous-startup-pilot-slot"):
+        _scan(root)
+
+
+def test_case_variants_follow_live_slot_policy(tmp_path: Path) -> None:
+    root = tmp_path / "campaign"
+    nested = root / "nested"
+    nested.mkdir(parents=True)
+    for name in (
+        "pilot1dossier.txt",
+        "PILOT2LOG.TXT",
+        "pIlOt3cLaImS.tXt",
+        "Pilot4squads.TXT",
+    ):
+        (nested / name).write_bytes(b"synthetic")
+    inventory = _scan(root)
+    assert [len(inventory[k]) for k in woff_watchdog._STARTUP_PILOT_PATTERNS] == [1] * 4
+
+
+def test_irrelevant_file_alias_is_ignored_but_approved_alias_fails(
+    tmp_path: Path,
+) -> None:
+    root = tmp_path / "campaign"
+    root.mkdir()
+    harmless = root / "irrelevant.txt"
+    supported = root / "Pilot1Dossier.txt"
+    harmless.write_bytes(b"unrelated")
+    supported.write_bytes(b"synthetic")
+    original_scandir = os.scandir
+
+    class Alias:
+        def __init__(self, entry):
+            self._entry = entry
+            self.name = entry.name
+            self.path = entry.path
+
+        def stat(self, **kwargs):
+            return self._entry.stat(**kwargs)
+
+        def is_symlink(self):
+            return True
+
+        def is_dir(self, *, follow_symlinks=True):
+            return False
+
+    @contextmanager
+    def simulated_scandir(path: str, alias_name: str):
+        with original_scandir(path) as iterator:
+            entries = [Alias(entry) if entry.name == alias_name else entry
+                       for entry in iterator]
+            yield entries
+
+    with patch.object(
+        woff_watchdog.os, "scandir",
+        side_effect=lambda directory: simulated_scandir(directory, harmless.name),
+    ):
+        assert _scan(root)[woff_watchdog._STARTUP_PILOT_PATTERNS[0]] == [
+            str(supported)
+        ]
+    with patch.object(
+        woff_watchdog.os, "scandir",
+        side_effect=lambda directory: simulated_scandir(directory, supported.name),
+    ):
+        with pytest.raises(OSError, match="unverified-startup-source"):
+            _scan(root)
+
+
+def test_file_added_after_child_scan_forces_startup_retry_not_false_success(
+    tmp_path: Path,
+) -> None:
+    root = tmp_path / "campaign"
+    first = root / "a-child"
+    sibling = root / "z-child"
+    first.mkdir(parents=True)
+    sibling.mkdir()
+    source = first / "Pilot2Dossier.txt"
+    config = WatchdogConfig(
+        watch_paths=[str(root)],
+        export_path=str(tmp_path / "export" / "db.sqlite"),
+        watched_extensions=[".txt"],
+    )
+    original_scandir = os.scandir
+    added = False
+
+    def simulate_late_nested_source(directory: str):
+        nonlocal added
+        if str(directory) == str(sibling) and not added:
+            added = True
+            source.write_bytes(b"synthetic")
+        return original_scandir(directory)
+
+    fake_handler = MagicMock()
+    with patch.object(
+        woff_watchdog.os, "scandir", side_effect=simulate_late_nested_source
+    ), patch.object(woff_watchdog, "Observer"), patch.object(
+        woff_watchdog, "WoFFEventHandler", return_value=fake_handler
+    ), patch.object(woff_watchdog, "CampaignEngine"), patch.object(
+        woff_watchdog, "catalog_medals"
+    ), patch.object(woff_watchdog, "catalog_squadrons"):
+        watchdog = woff_watchdog.WoFFWatchdog(config)
+        with pytest.raises(RuntimeError, match="startup recursive inventory changed"):
+            watchdog.start()
+    assert added
+    fake_handler.submit_initial.assert_not_called()
+    fake_handler.shutdown.assert_called_once()
+
+
+def test_live_scheduler_rejection_during_startup_remains_a_blocker(
+    tmp_path: Path,
+) -> None:
+    from ..handler import WoFFEventHandler
+    from ..database import DatabaseManager
+    from ..campaign_engine import CampaignEngine
+
+    root = tmp_path / "campaign"
+    root.mkdir()
+    config = WatchdogConfig(
+        watch_paths=[str(root)],
+        export_path=str(tmp_path / "export" / "db.sqlite"),
+        watched_extensions=[".txt"],
+    )
+    db = DatabaseManager(config.export_path, campaign_namespaces=config.campaign_namespaces)
+    handler = WoFFEventHandler(config, db, CampaignEngine(db))
+    try:
+        handler.begin_startup_inventory()
+        with patch.object(handler.scheduler, "submit", return_value=False):
+            assert not handler._handle(str(root / "Pilot1Dossier.txt"), "created")
+        assert handler.startup_inventory_epoch() == 1
+        assert handler.finish_startup_inventory() is False
+    finally:
+        handler.shutdown()
+        db.close()

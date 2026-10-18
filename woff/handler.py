@@ -837,6 +837,28 @@ class WoFFEventHandler(FileSystemEventHandler):
             sqlite_capability="sqlite-capable",
         )
         self._startup_admission_timeout = config.stability_timeout_sec
+        # Startup cannot report an authoritative positive inventory after a
+        # live event was rejected by the bounded scheduler.
+        self._startup_inventory_lock = threading.Lock()
+        self._startup_inventory_active = False
+        self._startup_inventory_rejected = False
+        self._startup_inventory_epoch = 0
+
+    def begin_startup_inventory(self) -> None:
+        with self._startup_inventory_lock:
+            self._startup_inventory_active = True
+            self._startup_inventory_rejected = False
+            self._startup_inventory_epoch = 0
+
+    def startup_inventory_epoch(self) -> int:
+        with self._startup_inventory_lock:
+            return self._startup_inventory_epoch
+
+    def finish_startup_inventory(self) -> bool:
+        """Return false if a relevant live event was lost during startup."""
+        with self._startup_inventory_lock:
+            self._startup_inventory_active = False
+            return not self._startup_inventory_rejected
 
     def on_modified(self, event):
         if not event.is_directory:
@@ -893,7 +915,13 @@ class WoFFEventHandler(FileSystemEventHandler):
                 self.discovery.log_file(path, event_type)
             return False
 
-        return self.scheduler.submit(path, event_type)
+        accepted = self.scheduler.submit(path, event_type)
+        with self._startup_inventory_lock:
+            if self._startup_inventory_active:
+                self._startup_inventory_epoch += 1
+                if not accepted:
+                    self._startup_inventory_rejected = True
+        return accepted
 
     def submit_initial(self, path: str) -> bool:
         """Route startup reconciliation through the bounded live scheduler."""

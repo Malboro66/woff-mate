@@ -1053,7 +1053,7 @@ class TestWatchdogStartup(unittest.TestCase):
             [".txt"]
         )
 
-        self.assertEqual(pilot_glob.call_count, 1)
+        self.assertEqual(pilot_glob.call_count, 3)
         engine.assert_called_once()
         handler.assert_called_once()
         observer.return_value.schedule.assert_called_once()
