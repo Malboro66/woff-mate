@@ -82,7 +82,9 @@ def test_registry_value_allowlist_is_explicit_and_minimal() -> None:
     assert allowed == frozenset({"CFS3Path"})
 
 
-def test_registry_discovery_queries_only_the_install_path_value(monkeypatch) -> None:
+def test_registry_discovery_queries_only_the_install_path_value(monkeypatch, tmp_path: Path) -> None:
+    (tmp_path / "campaigns" / "CampaignData" / "Pilots").mkdir(parents=True)
+    (tmp_path / "Logs").mkdir()
     queried_values: list[str] = []
 
     class FakeWinReg:
@@ -95,7 +97,7 @@ def test_registry_discovery_queries_only_the_install_path_value(monkeypatch) -> 
         @staticmethod
         def QueryValueEx(key, value_name: str):
             queried_values.append(value_name)
-            return (r"C:\OBDSoftware\WOFF", 1)
+            return (str(tmp_path), 1)
 
         @staticmethod
         def CloseKey(key) -> None:
@@ -103,7 +105,7 @@ def test_registry_discovery_queries_only_the_install_path_value(monkeypatch) -> 
 
     monkeypatch.setitem(sys.modules, "winreg", FakeWinReg)
 
-    assert win_registry.get_woff_install_path() == r"C:\OBDSoftware\WOFF"
+    assert win_registry.get_woff_install_path() == str(tmp_path)
     assert queried_values == ["CFS3Path"]
 
 

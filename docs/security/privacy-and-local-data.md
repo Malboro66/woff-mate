@@ -57,16 +57,17 @@ This rule applies even to temporary collection performed only for diagnostics.
 
 ### Registry boundary
 
-Current WoFF auto-discovery reads one Windows registry value:
+WoFF auto-discovery probes a fixed two-key HKCU allowlist, in deterministic order:
 
 ```text
+HKCU\Software\VB and VBA Program Settings\OFFManager5\Settings
 HKCU\Software\VB and VBA Program Settings\OFFManager4\Settings
 value: CFS3Path
 ```
 
 `CFS3Path` is used only to locate the local WoFF installation. Registry access remains read-only.
 
-Future work under Issue #49 may support additional explicitly approved WoFF manager keys. It may still query only the approved installation-path value. Arbitrary registry enumeration is outside the security contract.
+The OFFManager4 key is historically observed. OFFManager5 is an explicitly approved synthetic forward-compatibility candidate, not confirmation that any released game build uses it. Only the approved installation-path value is read. Absolute existing WoFF roots containing the expected Pilots and Logs directories take precedence in the listed order; stale, malformed, or missing candidates are skipped and manual configuration remains available. Missing keys do not establish that the game is uninstalled. Arbitrary registry enumeration remains forbidden.
 
 ## NET-001: Offline Core Operation and No External Telemetry
 
