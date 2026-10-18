@@ -18,8 +18,8 @@ import stat
 import time
 import threading
 import weakref
-from contextlib import nullcontext
-from typing import Any, Callable, Optional, List, Sequence
+from contextlib import contextmanager, nullcontext
+from typing import Any, Callable, ContextManager, Iterator, Optional, List, Sequence
 
 from watchdog.events import FileSystemEventHandler
 
@@ -165,6 +165,20 @@ class FileProcessor:
         # Optional handler-owned filesystem safety fence for production observers.
         # Direct FileProcessor users retain the previous standalone contract.
         self._source_commit_guard: Optional[Callable[..., None]] = None
+        self._source_commit_fence: Optional[Callable[..., ContextManager[None]]] = None
+
+    def _transaction_commit_fence(
+        self, snapshot: Optional[StableFileSnapshot], verify_generation: bool
+    ) -> Optional[Callable[[], ContextManager[None]]]:
+        """Bind one source's proof to its actual outer SQLite COMMIT."""
+        fence = self._source_commit_fence
+        if fence is None or snapshot is None:
+            return None
+
+        def apply() -> ContextManager[None]:
+            return fence(snapshot.path, snapshot, verify_generation=verify_generation)
+
+        return apply
 
     def _slot_lock(self, path: str):
         if pilot_slot(path) is None:
@@ -610,7 +624,11 @@ class FileProcessor:
         latest_mission = get_latest_mission(parser)
         mission_id = None
         try:
-            with self.db_manager.transaction():
+            with self.db_manager.transaction(
+                commit_fence=self._transaction_commit_fence(
+                    source_snapshot, verify_generation
+                )
+            ):
                 guard = self._source_commit_guard
                 if guard is not None and source_snapshot is not None:
                     guard(
@@ -760,7 +778,11 @@ class FileProcessor:
                 # The outer transaction is composable with CampaignEngine's
                 # own Dossier transaction, so postflight failure rolls back
                 # the identity, roster and derived diary together.
-                with self.db_manager.transaction():
+                with self.db_manager.transaction(
+                    commit_fence=self._transaction_commit_fence(
+                        snapshot, verify_generation
+                    )
+                ):
                     if guard is not None and snapshot is not None:
                         guard(path, snapshot, verify_generation=verify_generation)
                     real_pilot_id = self.campaign_engine.process_dossier_import(
@@ -891,6 +913,7 @@ class WoFFEventHandler(FileSystemEventHandler):
         self._startup_inventory_verified = False
         self._startup_source_bindings: dict[tuple[str, int, str], str] = {}
         self.processor._source_commit_guard = self._verify_pilot_commit
+        self.processor._source_commit_fence = self._pilot_commit_fence
 
     def _invalidate_live_inventory(self, reason: str) -> None:
         """Surface incomplete live reconciliation instead of silently losing it."""
@@ -955,6 +978,20 @@ class WoFFEventHandler(FileSystemEventHandler):
         with self._startup_inventory_lock:
             if self._startup_inventory_rejected or self._startup_inventory_epoch != epoch:
                 raise PilotIdentityRejected("startup-inventory-changed", slot)
+
+    @contextmanager
+    def _pilot_commit_fence(
+        self, path: str, snapshot: StableFileSnapshot, *, verify_generation: bool
+    ) -> Iterator[None]:
+        """Serialize last inventory proof and actual COMMIT with invalidation.
+
+        Lock order is DatabaseManager._lock, then startup RLock, matching the
+        existing in-transaction source guard. This is not a filesystem-atomic
+        snapshot: later OS deliveries still revoke reconciliation completeness.
+        """
+        with self._startup_inventory_lock:
+            self._verify_pilot_commit(path, snapshot, verify_generation=verify_generation)
+            yield
 
     def begin_startup_inventory(self) -> None:
         with self._startup_inventory_lock:

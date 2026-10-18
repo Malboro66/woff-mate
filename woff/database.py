@@ -21,12 +21,14 @@ import shutil
 import sqlite3
 import time
 import threading
-from contextlib import contextmanager
+from contextlib import ExitStack, contextmanager
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 from typing import (
     Any,
+    Callable,
+    ContextManager,
     Dict,
     List,
     Iterator,
@@ -315,8 +317,15 @@ class DatabaseManager:
         return self._local.conn
 
     @contextmanager
-    def transaction(self):
-        """Run a composable transaction on the current thread's connection."""
+    def transaction(
+        self, *, commit_fence: Optional[Callable[[], ContextManager[None]]] = None
+    ):
+        """Run a composable transaction with an optional outer-commit fence.
+
+        The fence is entered only at the outermost SQLite COMMIT, under the
+        existing DB lock, and held until that COMMIT returns. Ordinary callers
+        and nested transactions keep their original contract.
+        """
         with self._lock:
             conn = self._get_conn()
             depth = getattr(self._local, "transaction_depth", 0)
@@ -324,7 +333,12 @@ class DatabaseManager:
             if outermost:
                 conn.execute("BEGIN")
                 self._local.transaction_rollback_only = False
+                self._local.transaction_commit_fences = []
             self._local.transaction_depth = depth + 1
+            # An inner pilot import may run inside a caller's transaction;
+            # its fence must still protect the eventual outermost COMMIT.
+            if commit_fence is not None:
+                self._local.transaction_commit_fences.append(commit_fence)
             exception_propagating = False
             try:
                 yield conn
@@ -355,7 +369,14 @@ class DatabaseManager:
                                 )
                         else:
                             try:
-                                conn.commit()
+                                # A source can be invalidated after a caller's
+                                # final validation but before this COMMIT.
+                                # Keep its inventory lock and final proof live
+                                # across the actual SQLite commit boundary.
+                                with ExitStack() as fences:
+                                    for guard in self._local.transaction_commit_fences:
+                                        fences.enter_context(guard())
+                                    conn.commit()
                             except Exception:
                                 try:
                                     conn.rollback()
@@ -365,6 +386,7 @@ class DatabaseManager:
                                 raise
                     finally:
                         self._local.transaction_rollback_only = False
+                        self._local.transaction_commit_fences = []
 
     def _discard_failed_connection(self, conn: sqlite3.Connection) -> None:
         """Discard a connection whose transactional state is uncertain."""

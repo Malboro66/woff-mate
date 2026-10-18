@@ -4,10 +4,13 @@ from __future__ import annotations
 from typing import Any, cast
 from unittest.mock import patch
 
+import pytest
+
 from ..campaign_engine import CampaignEngine
 from ..config import WatchdogConfig
 from ..database import DatabaseManager
 from ..handler import WoFFEventHandler
+from ..identity import PilotIdentityRejected
 from ..ingestion.outcome import ProcessingReason
 from .test_handler_integration import _encoded_dossier
 
@@ -202,6 +205,87 @@ def test_startup_rejection_does_not_commit_an_ambiguous_initial_worker(tmp_path)
     finally:
         verify.close()
 
+
+
+@pytest.mark.parametrize("nested_parent", [False, True])
+def test_inventory_rejection_before_outer_commit_rolls_back_binding(
+    tmp_path, nested_parent
+):
+    """A competing Dossier delivered after the final guard must veto COMMIT."""
+    from contextlib import contextmanager
+    from threading import Event, Thread
+
+    root, source, db, engine, handler = _fixture(tmp_path)
+    released = Event()
+    before_commit = Event()
+    try:
+        source.write_bytes(_encoded_dossier("Alpha", "Synthetic", "Captain", "A Squadron"))
+        assert handler.processor.process(str(source), "initial").reason is ProcessingReason.SUCCESS
+        original = _pilot(db)
+        original_digest = db._get_conn().execute(
+            "SELECT dossier_digest FROM pilot_slot_bindings WHERE slot=1"
+        ).fetchone()
+
+        handler.begin_startup_inventory()
+        handler.record_startup_sources([{"Pilot*Dossier.txt": [str(source)]}])
+        assert handler.finish_startup_inventory(0)
+        source.write_bytes(_encoded_dossier("Beta", "Synthetic", "Captain", "A Squadron"))
+
+        real_transaction = db.transaction
+        result = {}
+
+        @contextmanager
+        def hold_outer_commit(*args, **kwargs):
+            is_outer = getattr(db._local, "transaction_depth", 0) == 0
+            with real_transaction(*args, **kwargs) as conn:
+                yield conn
+                if is_outer:
+                    before_commit.set()
+                    assert released.wait(8), "commit release not signalled"
+
+        def update():
+            try:
+                if nested_parent:
+                    with db.transaction():
+                        result["outcome"] = handler.processor.process(
+                            str(source), "modified"
+                        ).reason
+                else:
+                    result["outcome"] = handler.processor.process(
+                        str(source), "modified"
+                    ).reason
+            except PilotIdentityRejected:
+                # A nested handler call may return before its enclosing
+                # transaction commits; the enclosing caller sees the veto.
+                result["outcome"] = ProcessingReason.IDENTITY_REJECTED
+            finally:
+                db.close()
+
+        with patch.object(db, "transaction", hold_outer_commit):
+            worker = Thread(target=update)
+            worker.start()
+            try:
+                assert before_commit.wait(8), "worker did not reach commit boundary"
+                duplicate = root / "bravo" / "Pilot1Dossier.txt"
+                duplicate.parent.mkdir()
+                duplicate.write_bytes(
+                    _encoded_dossier("Gamma", "Synthetic", "Captain", "A Squadron")
+                )
+                assert handler._handle(str(duplicate), "created") is False
+                assert not handler.reconciliation_complete
+            finally:
+                released.set()
+                worker.join(8)
+            assert not worker.is_alive()
+        assert result["outcome"] is ProcessingReason.IDENTITY_REJECTED
+        assert _pilot(db) == original
+        assert db._get_conn().execute(
+            "SELECT dossier_digest FROM pilot_slot_bindings WHERE slot=1"
+        ).fetchone() == original_digest
+    finally:
+        released.set()
+        handler.shutdown()
+        db.close()
 
 def test_prelock_callback_delay_cannot_rebind_after_finalization(tmp_path):
     """A callback overtaken by finish still cannot persist a competing slot."""
