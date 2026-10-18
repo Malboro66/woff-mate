@@ -470,3 +470,78 @@ def test_live_scheduler_rejection_during_startup_remains_a_blocker(
     finally:
         handler.shutdown()
         db.close()
+
+
+
+def test_phase_event_invalidates_verification_epoch(tmp_path: Path) -> None:
+    """An accepted live update during Log must invalidate Dossier-first startup."""
+    root = tmp_path / "campaign"
+    root.mkdir()
+    (root / "Pilot1Dossier.txt").write_bytes(b"synthetic")
+    (root / "Pilot1Log.txt").write_bytes(b"synthetic")
+    config = WatchdogConfig(
+        watch_paths=[str(root)],
+        export_path=str(tmp_path / "export" / "db.sqlite"),
+        watched_extensions=[".txt"],
+    )
+    handler = MagicMock()
+    epoch = 0
+    seen_log = False
+
+    def get_epoch() -> int:
+        return epoch
+
+    def phase_wait(paths, _timeout):
+        nonlocal epoch, seen_log
+        if any(str(path).endswith("Pilot1Log.txt") for path in paths):
+            epoch += 1
+            seen_log = True
+        return True
+
+    handler.startup_inventory_epoch.side_effect = get_epoch
+    handler.wait_initial.side_effect = phase_wait
+    handler.submit_initial.return_value = True
+    handler.startup_phase_timeout.return_value = 0.1
+
+    with patch.object(woff_watchdog, "Observer"), patch.object(
+        woff_watchdog, "WoFFEventHandler", return_value=handler
+    ), patch.object(woff_watchdog, "CampaignEngine"), patch.object(
+        woff_watchdog, "catalog_medals"
+    ), patch.object(woff_watchdog, "catalog_squadrons"), patch.object(
+        woff_watchdog.WoFFWatchdog, "_reconcile_vacant_slots", return_value=None
+    ):
+        watchdog = woff_watchdog.WoFFWatchdog(config)
+        with pytest.raises(RuntimeError, match="startup recursive inventory changed"):
+            watchdog.start()
+    assert seen_log
+    handler.shutdown.assert_called_once()
+    handler.finish_startup_inventory.assert_not_called()
+
+
+def test_finalization_rejects_new_event_after_last_epoch_read(
+    tmp_path: Path,
+) -> None:
+    """An event just before finalization must not disappear after the final scan."""
+    from ..handler import WoFFEventHandler
+    from ..database import DatabaseManager
+    from ..campaign_engine import CampaignEngine
+
+    root = tmp_path / "campaign"
+    root.mkdir()
+    config = WatchdogConfig(
+        watch_paths=[str(root)],
+        export_path=str(tmp_path / "export" / "db.sqlite"),
+        watched_extensions=[".txt"],
+    )
+    db = DatabaseManager(config.export_path, campaign_namespaces=config.campaign_namespaces)
+    handler = WoFFEventHandler(config, db, CampaignEngine(db))
+    try:
+        handler.begin_startup_inventory()
+        initial_epoch = handler.startup_inventory_epoch()
+        with patch.object(handler.scheduler, "submit", return_value=True):
+            assert handler._handle(str(root / "Pilot1Dossier.txt"), "created")
+        assert handler.startup_inventory_epoch() == initial_epoch + 1
+        assert handler.finish_startup_inventory(initial_epoch) is False
+    finally:
+        handler.shutdown()
+        db.close()

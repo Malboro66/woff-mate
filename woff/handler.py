@@ -854,11 +854,17 @@ class WoFFEventHandler(FileSystemEventHandler):
         with self._startup_inventory_lock:
             return self._startup_inventory_epoch
 
-    def finish_startup_inventory(self) -> bool:
-        """Return false if a relevant live event was lost during startup."""
+    def finish_startup_inventory(self, expected_epoch: int | None = None) -> bool:
+        """Atomically close startup tracking, requiring its verified epoch."""
         with self._startup_inventory_lock:
             self._startup_inventory_active = False
-            return not self._startup_inventory_rejected
+            return (
+                not self._startup_inventory_rejected
+                and (
+                    expected_epoch is None
+                    or self._startup_inventory_epoch == expected_epoch
+                )
+            )
 
     def on_modified(self, event):
         if not event.is_directory:

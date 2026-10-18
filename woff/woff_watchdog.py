@@ -290,6 +290,7 @@ class WoFFWatchdog:
         # SINCRONIZAÇÃO INICIAL DE TODOS OS PILOTOS
         # ──────────────────────────────────────────────────────────────
             startup_sources: list[dict[str, list[str]]] = []
+            verified_epoch: int | None = None
             if ".txt" in self.config.watched_extensions:
                 # Collect all roots before submitting any positives or
                 # authoritative vacancy assertions. A subtree scan error
@@ -297,16 +298,16 @@ class WoFFWatchdog:
                 epoch_reader = getattr(
                     self._handler, "startup_inventory_epoch", None
                 )
-                epoch_before = epoch_reader() if callable(epoch_reader) else None
+                verified_epoch = epoch_reader() if callable(epoch_reader) else None
                 startup_sources = [_scan_startup_sources(path) for path in valid]
                 # A child can change after its own post-scan stat check while
                 # its sibling is still being visited. An independent second
                 # traversal guards against claiming a complete stale tree.
                 repeat_sources = [_scan_startup_sources(path) for path in valid]
                 epoch_changed = (
-                    epoch_before is not None
+                    verified_epoch is not None
                     and callable(epoch_reader)
-                    and epoch_reader() != epoch_before
+                    and epoch_reader() != verified_epoch
                 )
                 if startup_sources != repeat_sources or epoch_changed:
                     raise RuntimeError("startup recursive inventory changed")
@@ -344,11 +345,12 @@ class WoFFWatchdog:
                 epoch_reader = getattr(
                     self._handler, "startup_inventory_epoch", None
                 )
-                epoch_before = epoch_reader() if callable(epoch_reader) else None
+                # Retain the epoch verified *before* all startup phases.
+                # Do not rebase the comparison at the end of the work.
                 epoch_changed = (
-                    epoch_before is not None
+                    verified_epoch is not None
                     and callable(epoch_reader)
-                    and epoch_reader() != epoch_before
+                    and epoch_reader() != verified_epoch
                 )
                 if (
                     [_scan_startup_sources(path) for path in valid] != startup_sources
@@ -356,7 +358,7 @@ class WoFFWatchdog:
                 ):
                     raise RuntimeError("startup recursive inventory changed")
             finish = getattr(self._handler, "finish_startup_inventory", None)
-            if callable(finish) and not finish():
+            if callable(finish) and not finish(verified_epoch):
                 raise RuntimeError("startup live admission incomplete")
         except Exception:
             self._cleanup(suppress_errors=True)
