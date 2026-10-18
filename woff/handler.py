@@ -894,7 +894,7 @@ class WoFFEventHandler(FileSystemEventHandler):
         # Never submit a vacancy worker before that inventory is validated:
         # failure is reported to startup, which must retry on a fresh scan.
         with self._startup_inventory_lock:
-            if self._startup_inventory_active:
+            if self._startup_inventory_active and ".txt" in self.watched_extensions:
                 self._startup_inventory_epoch += 1
                 self._startup_inventory_rejected = True
                 return
@@ -938,7 +938,10 @@ class WoFFEventHandler(FileSystemEventHandler):
         # Holding the lock across the normal post-startup submission keeps
         # this transition atomic with finish_startup_inventory().
         with self._startup_inventory_lock:
-            if self._startup_inventory_active:
+            # Only the four approved pilot .txt families participate in the
+            # recursive inventory. Preserve the existing live-only handling
+            # of other allowed sources and configurations without .txt.
+            if self._startup_inventory_active and ext == ".txt":
                 self._startup_inventory_epoch += 1
                 self._startup_inventory_rejected = True
                 return False

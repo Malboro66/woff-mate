@@ -616,3 +616,34 @@ def test_directory_departure_during_startup_cannot_run_vacancy_worker(
     finally:
         handler.shutdown()
         db.close()
+
+
+@pytest.mark.parametrize("extensions", ([".log"], [".txt", ".log"]))
+def test_non_pilot_live_source_keeps_its_existing_startup_policy(
+    tmp_path: Path, extensions: list[str],
+) -> None:
+    """The recursive pilot inventory cannot block unrelated live-only sources."""
+    from ..handler import WoFFEventHandler
+    from ..database import DatabaseManager
+    from ..campaign_engine import CampaignEngine
+
+    root = tmp_path / "campaign"
+    root.mkdir()
+    config = WatchdogConfig(
+        watch_paths=[str(root)],
+        export_path=str(tmp_path / "export" / "db.sqlite"),
+        watched_extensions=extensions,
+    )
+    db = DatabaseManager(config.export_path, campaign_namespaces=config.campaign_namespaces)
+    handler = WoFFEventHandler(config, db, CampaignEngine(db))
+    path = str(root / "mission.log")
+    try:
+        handler.begin_startup_inventory()
+        with patch.object(handler.scheduler, "submit", return_value=True) as submit:
+            assert handler._handle(path, "modified") is True
+            submit.assert_called_once_with(path, "modified")
+        assert handler.startup_inventory_epoch() == 0
+        assert handler.finish_startup_inventory(0) is True
+    finally:
+        handler.shutdown()
+        db.close()
