@@ -556,12 +556,14 @@ evals:
     enforced_by: [woff/tests/test_woff_editor.py]
   EVAL-CATALOG-STABILITY-001:
     work_items: [issue-98]
-    status: planned
-    evidence: Empty, truncated, or changing squadron input cannot replace the last known-good catalog payload.
+    status: implemented
+    evidence: Synthetic rejected empty, short, unsupported, inaccessible and changing generations preserve retained catalog rows; detection limits documented.
+    enforced_by: [woff/tests/test_issue98_squadron_catalog.py]
   EVAL-CATALOG-STABILITY-002:
     work_items: [issue-98]
-    status: planned
-    evidence: A stable validated squadron generation replaces data atomically and remains idempotent on replay.
+    status: implemented
+    evidence: Synthetic stable generations commit in one transaction, roll back on batch failure and replay without rewriting unchanged rows.
+    enforced_by: [woff/tests/test_issue98_squadron_catalog.py]
   EVAL-PILOT-PROVENANCE-001:
     work_items: [issue-99]
     status: implemented
@@ -1026,11 +1028,11 @@ work_items:
   issue-29:
     title: Centralize SQLite connections used by catalogers
     module: persistence
-    state: blocked
+    state: backlog
     evals: [EVAL-CATALOG-001]
     gates: [Q0, Q1, Q2]
     depends_on:
-      - {id: issue-98, status: unsatisfied}
+      - {id: issue-98, status: satisfied}
   issue-30:
     title: Define a Ruff baseline and eliminate lint debt
     module: governance
@@ -1142,7 +1144,7 @@ work_items:
     gates: [Q0, Q1, Q2, Q4]
     depends_on:
       - {id: issue-29, status: unsatisfied}
-      - {id: issue-98, status: unsatisfied}
+      - {id: issue-98, status: satisfied}
   issue-47:
     title: Decode obfuscated files without per-token allocations
     module: ingestion
@@ -1344,7 +1346,7 @@ work_items:
   issue-98:
     title: Reject empty or unstable squadron catalog generations before replacing data
     module: ingestion
-    state: backlog
+    state: done
     evals: [EVAL-CATALOG-STABILITY-001, EVAL-CATALOG-STABILITY-002]
     gates: [Q0, Q1, Q2, Q3]
     depends_on: []
