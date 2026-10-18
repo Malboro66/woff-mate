@@ -88,7 +88,6 @@ Autonomy drops when:
 | 2026-08-14 | Documentation and executable governance | L2 | Issue #51 authorized as a small independent draft PR |
 | 2026-08-14 | Issue #34 transactions and repositories | L1 | Structural data work remains under human publication and merge control |
 | 2026-08-14 | Merge and release | Human only | Approved Master Plan and repository policy |
-
 | 2026-10-18 | Governance reconciliation (#209) | L2 maximum, unchanged | Documentation and checkpoint Draft PR permitted; no autonomy promotion, gate approval or merge |
 
 See [the dated integrated checkpoint](governance-checkpoint-2026-10-18.md) for
