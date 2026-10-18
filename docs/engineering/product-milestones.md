@@ -11,6 +11,30 @@ A technically healthier codebase is valuable even when it adds no visible capabi
 
 This document supplements rather than replaces `quality-gates.md`, the project graph, issue acceptance criteria, Codex Review policy, or maintainer approval.
 
+## Current integrated checkpoint — 2026-10-18
+
+The [revision-bound governance reconciliation](governance-checkpoint-2026-10-18.md)
+records integrated `main` at
+`d230d1e139a49e1746e9e24fb70b0adc9905d8ab`, the accepted toolkit
+ADR and the independently observed open and closed issue/PR states. **R1's
+original FAIL, the first R2 HOLD and the repeated R2 GO remain immutable
+historical results for their specific audited SHAs.** Issue #96 and the
+Windows/SQLite work #184/#193 were completed; #142 (Draft PR #203), #146,
+#195 and #87 still need their own resolution or disposition, and #98 remains
+a distinct unmerged P3 Draft PR #208. This is a status snapshot, not a new R1
+Full Application Review.
+
+**Product Gates A, B, C and D remain unapproved.** PySide6 + Qt Widgets 6.11.2
+was separately accepted on 2026-10-05, but P1/live WoFF binding, launcher,
+social RPG and release are not thereby authorized. A maintainer's test flight,
+sanitized real-source decoding and any experimental read-only preview are
+valuable *scoped observations*, not an automatic reliable-data/recovery PASS.
+A Gate A decision still needs current integrated-revision evidence, the
+applicable repeated R1 review, a bounded real-WoFF data/recovery demonstration,
+and explicit maintainer approval. Perform only proportional validation
+material to the next decision; record other gaps without altering older audit
+verdicts or Q4 release obligations.
+
 ## Milestone model
 
 The identifiers below are product/review checkpoints. They do not replace semantic versions, GitHub milestones, or Product Gates A-D.
