@@ -179,6 +179,14 @@ SCHEMA_REQUIRED_NOT_NULL: Dict[str, Tuple[str, ...]] = {
     "diary_entries": ("pilotId",),
 }
 
+# An unknown status is represented by SQL NULL in repository write paths.
+# A NOT NULL constraint without a default can pass default certification,
+# but then rejects legitimate source generations with unknown status.
+SCHEMA_REQUIRED_NULLABLE: Dict[str, Tuple[str, ...]] = {
+    "pilots": ("status",),
+    "squad_members": ("status",),
+}
+
 # A None expected default means the source must leave the value unknown.
 # Explicit SQL DEFAULT NULL has identical SQLite insert behavior.
 SCHEMA_REQUIRED_DEFAULTS: Dict[str, Dict[str, Optional[int]]] = {
@@ -1101,6 +1109,10 @@ class DatabaseManager:
                 row = rows_by_column.get(column)
                 if row is not None and not row[3]:
                     errors.append(f"missing NOT NULL {table}.{column}")
+            for column in SCHEMA_REQUIRED_NULLABLE.get(table, ()):
+                row = rows_by_column.get(column)
+                if row is not None and row[3]:
+                    errors.append(f"forbidden NOT NULL {table}.{column}")
             for column, required_default in SCHEMA_REQUIRED_DEFAULTS.get(
                 table, {}
             ).items():

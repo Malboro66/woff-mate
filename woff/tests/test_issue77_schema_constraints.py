@@ -115,3 +115,44 @@ def test_status_default_null_is_semantically_absent(tmp_path):
     )
     db = DatabaseManager(str(path))
     db.close()
+
+
+@pytest.mark.parametrize("table", ["pilots", "squad_members"])
+@pytest.mark.parametrize("default", ["", " DEFAULT NULL"])
+def test_rejects_not_null_status_with_unknown_value(tmp_path, table, default):
+    path = _clean_database(tmp_path)
+    _rebuild_empty_table(
+        path,
+        table,
+        "status TEXT",
+        f"status TEXT NOT NULL{default}",
+    )
+    with pytest.raises(
+        SchemaCompatibilityError, match=rf"forbidden NOT NULL {table}\.status"
+    ):
+        DatabaseManager(str(path))
+
+
+@pytest.mark.parametrize("table", ["pilots", "squad_members"])
+def test_status_nullability_failure_does_not_advance_version(tmp_path, table):
+    path = _clean_database(tmp_path)
+    _rebuild_empty_table(
+        path, table, "status TEXT", "status TEXT NOT NULL"
+    )
+    with sqlite3.connect(path) as conn:
+        conn.execute(
+            "UPDATE meta SET value='3.3' WHERE key='schema_version'"
+        )
+    with pytest.raises(
+        SchemaCompatibilityError, match=rf"forbidden NOT NULL {table}\.status"
+    ):
+        DatabaseManager(str(path))
+    with sqlite3.connect(path) as conn:
+        value = conn.execute(
+            "SELECT value FROM meta WHERE key='schema_version'"
+        ).fetchone()[0]
+        not_null = conn.execute(
+            f"PRAGMA table_info({table})"
+        ).fetchall()
+    assert value == "3.3"
+    assert next(row[3] for row in not_null if row[1] == "status") == 1
