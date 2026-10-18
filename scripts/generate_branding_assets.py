@@ -749,9 +749,28 @@ def _is_canonical_toolchain() -> bool:
         sys.platform == "win32"
         and sys.implementation.name == "cpython"
         and sys.version_info[:3] == CANONICAL_PYTHON
+        and sys.version_info.releaselevel == "final"
+        and sys.version_info.serial == 0
         and zlib.ZLIB_VERSION == CANONICAL_ZLIB
         and zlib.ZLIB_RUNTIME_VERSION == CANONICAL_ZLIB
     )
+
+
+def _guard_noncanonical_destinations(output_root: Path, repository_root: Path) -> None:
+    """Reject any destination resolving inside this checkout."""
+    assets = output_root / "woff" / "assets" / "ui" / "branding"
+    evidence = output_root / "docs" / "ui" / "evidence" / "ui-v2-branding-2026-09-24"
+    files = (
+        assets / "woff_mate_app.ico", assets / "SHA256SUMS",
+        evidence / "brand-review.png", evidence / "windows-icon-review.png",
+        evidence / "SHA256SUMS",
+    )
+    for target in (output_root, assets, evidence, *files):
+        resolved = target.resolve()
+        if resolved == repository_root or repository_root in resolved.parents:
+            raise ValueError("noncanonical branding toolchain: output aliases canonical repository")
+        if target in files and target.exists() and target.stat().st_nlink > 1:
+            raise ValueError("noncanonical branding toolchain: multiply-linked output")
 
 
 def main() -> int:
@@ -766,12 +785,10 @@ def main() -> int:
     output_root = arguments.output_root.resolve()
     repository_root = Path(__file__).resolve().parents[1]
     if not _is_canonical_toolchain():
-        if output_root == repository_root:
-            parser.error(
-                "noncanonical branding toolchain: checked-in derivatives "
-                "require Windows CPython 3.10.11 and zlib 1.2.13; "
-                "specify a separate --output-root for diagnostics"
-            )
+        try:
+            _guard_noncanonical_destinations(output_root, repository_root)
+        except ValueError as exc:
+            parser.error(str(exc))
         print(
             "NONCANONICAL BRANDING OUTPUT (diagnostic only): compressed "
             "PNG and checksum bytes are not authoritative. "

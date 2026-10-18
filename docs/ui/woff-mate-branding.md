@@ -164,13 +164,20 @@ assets**, not for running WoFF Mate on another supported interpreter.
 After an intentional SVG change use:
 `py -3.10 -I -S scripts/generate_branding_assets.py`
 
-When executed outside that toolchain, the generator refuses to write to its
-own repository root. Supplying an explicit **separate** `--output-root` allows
-diagnostic generation only, labeled NONCANONICAL; its compressed PNG/ICO bytes
-and resulting checksum inventory must never replace committed release assets.
+When executed outside that toolchain, the generator refuses to write into its
+checkout, including nested output-directory symlinks/NTFS junctions and
+multiply-linked existing output files. A genuinely **separate** `--output-root`
+allows diagnostic-only generation, labeled NONCANONICAL; its compressed PNG/ICO
+bytes and checksum inventory must never replace committed release assets.
 This prevents accidental mutation of approved outputs.
 
-All environments continue to validate committed canonical SHA-256 inventories.
+All environments validate committed canonical SHA-256 inventories **against
+independently pinned approved inventory-file digests**, not solely the contents
+of the inventories being inspected. The package SHA256SUMS digest is
+`4dad33e6083dbd3cc685cc60627908018b8ca8b2f60a05f71a70ae536d86c99d`
+and the evidence SHA256SUMS digest is
+`a92a0c3761ec76458f8a3062a11ef3be0db1e7cc95ea9882802c9c4d072c83f6`.
+This prevents a self-consistent but noncanonical binary/inventory replacement.
 Diagnostic regeneration checks the complete PNG chunk structure and CRCs,
 canonical non-IDAT contents, width/height, and decompressed unfiltered RGBA
 scanlines of the five ICO PNG entries and both review PNGs. This does not

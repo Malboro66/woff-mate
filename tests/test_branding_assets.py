@@ -1,14 +1,20 @@
 from __future__ import annotations
 
 import hashlib
+import os
+import runpy
 import json
 import math
+from unittest import mock
 import re
 import shutil
 import struct
 import subprocess
 import sys
 import zlib
+
+import pytest
+from scripts import generate_branding_assets as branding_generator
 from pathlib import Path
 from xml.etree import ElementTree as ET
 
@@ -33,6 +39,10 @@ SVG_ASSETS = {
     "woff_mate_app_icon_small.svg",
 }
 GENERATED_ASSETS = SVG_ASSETS | {"woff_mate_app.ico"}
+
+# Approved original inventories; independent of mutable checksum files.
+APPROVED_ASSET_SUMS_SHA256 = "4dad33e6083dbd3cc685cc60627908018b8ca8b2f60a05f71a70ae536d86c99d"
+APPROVED_EVIDENCE_SUMS_SHA256 = "a92a0c3761ec76458f8a3062a11ef3be0db1e7cc95ea9882802c9c4d072c83f6"
 GENERATOR_INPUTS = SVG_ASSETS | {"README.md", "manifest.json"}
 
 
@@ -531,6 +541,7 @@ def test_usage_geometry_and_future_packaging_boundary_are_documented() -> None:
 
 
 def test_package_and_evidence_checksums_cover_deliverables() -> None:
+    _assert_approved_inventory_digests()
     package_checksums = _checksums(ASSET_ROOT / "SHA256SUMS")
     assert set(package_checksums) == GENERATED_ASSETS | {"README.md", "manifest.json"}
     for relative, expected in package_checksums.items():
@@ -556,10 +567,17 @@ def test_package_and_evidence_checksums_cover_deliverables() -> None:
 
 
 def _canonical_branding_toolchain() -> bool:
-    return (
-        sys.platform == "win32"
-        and sys.version_info[:3] == (3, 10, 11)
-        and zlib.ZLIB_VERSION == zlib.ZLIB_RUNTIME_VERSION == "1.2.13"
+    return branding_generator._is_canonical_toolchain()
+
+
+def _assert_approved_inventory_digests(
+    asset_root: Path = ASSET_ROOT, evidence_root: Path = EVIDENCE_ROOT
+) -> None:
+    assert hashlib.sha256((asset_root / "SHA256SUMS").read_bytes()).hexdigest() == (
+        APPROVED_ASSET_SUMS_SHA256
+    )
+    assert hashlib.sha256((evidence_root / "SHA256SUMS").read_bytes()).hexdigest() == (
+        APPROVED_EVIDENCE_SUMS_SHA256
     )
 
 
@@ -588,7 +606,11 @@ def _verified_png_content(payload: bytes) -> tuple[tuple[bytes, ...], bytes]:
     assert kinds == [b"IHDR", b"IDAT", b"IEND"]
     width, height, depth, color, _, _ = _png_info(payload)
     assert (depth, color) == (8, 6)
-    raw = zlib.decompress(bytes(compressed))
+    inflater = zlib.decompressobj()
+    raw = inflater.decompress(bytes(compressed)) + inflater.flush()
+    assert inflater.eof, "incomplete zlib stream"
+    assert not inflater.unused_data, "extra bytes after zlib stream"
+    assert not inflater.unconsumed_tail, "unconsumed compressed data"
     assert len(raw) == height * (1 + 4 * width)
     for row in range(height):
         assert raw[row * (1 + 4 * width)] == 0
@@ -626,6 +648,7 @@ def test_generation_is_deterministic_and_stdlib_only(tmp_path: Path) -> None:
     # inventories when running on a different Python/zlib toolchain.
     assets = GENERATED_ASSETS | {"README.md", "manifest.json"}
     evidence = {"brand-review.png", "windows-icon-review.png"}
+    _assert_approved_inventory_digests()
     _assert_inventory(ASSET_ROOT, assets)
     _assert_inventory(EVIDENCE_ROOT, evidence)
     _assert_inventory(generated_asset_root, assets)
@@ -663,35 +686,140 @@ def test_generation_is_deterministic_and_stdlib_only(tmp_path: Path) -> None:
         assert forbidden not in source
 
 
-def test_noncanonical_default_root_fails_closed_without_asset_write(
-    tmp_path: Path,
-) -> None:
-    if _canonical_branding_toolchain():
-        return  # Canonical generation is intentionally allowed.
+def _isolated_generator(tmp_path: Path):
+    """Load a separate disposable generator with a forced noncanonical host."""
+    import importlib.util
 
     fake_repo = tmp_path / "isolated-repository"
     fake_script = fake_repo / "scripts" / "generate_branding_assets.py"
     fake_script.parent.mkdir(parents=True)
-    shutil.copyfile(
-        REPOSITORY_ROOT / "scripts" / "generate_branding_assets.py", fake_script
-    )
+    shutil.copyfile(REPOSITORY_ROOT / "scripts" / "generate_branding_assets.py", fake_script)
     fake_assets = fake_repo / "woff" / "assets" / "ui" / "branding"
     fake_assets.mkdir(parents=True)
     sample = fake_assets / "woff_mate_wordmark_dark.svg"
-    sample.write_bytes((ASSET_ROOT / sample.name).read_bytes())
-    baseline = sample.read_bytes()
-    result = subprocess.run(
-        [sys.executable, "-I", "-S", str(fake_script)],
-        cwd=fake_repo,
-        check=False,
-        capture_output=True,
-        text=True,
-        encoding="utf-8",
+    shutil.copyfile(ASSET_ROOT / sample.name, sample)
+    spec = importlib.util.spec_from_file_location("_woff194_isolated_generator", fake_script)
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    with mock.patch.dict(sys.modules, {spec.name: module}):
+        spec.loader.exec_module(module)
+    return fake_repo, fake_script, fake_assets, module
+
+
+def _assert_noncanonical_refusal(module, script: Path, root: Path) -> None:
+    import contextlib
+    import io
+
+    error_stream = io.StringIO()
+    with (
+        mock.patch.object(module, "_is_canonical_toolchain", return_value=False),
+        mock.patch.object(sys, "argv", [str(script), "--output-root", str(root)]),
+        contextlib.redirect_stderr(error_stream),
+        pytest.raises(SystemExit) as failure,
+    ):
+        module.main()
+    assert failure.value.code == 2
+    assert "noncanonical branding toolchain" in error_stream.getvalue()
+
+
+def test_noncanonical_default_root_fails_closed_without_asset_write(
+    tmp_path: Path,
+) -> None:
+    fake_repo, script, assets, module = _isolated_generator(tmp_path)
+    _assert_noncanonical_refusal(module, script, fake_repo)
+    assert not (assets / "woff_mate_app.ico").exists()
+
+
+def _make_directory_alias(link: Path, target: Path) -> None:
+    if sys.platform == "win32":
+        subprocess.run(
+            ["cmd", "/c", "mklink", "/J", str(link), str(target)],
+            check=True, capture_output=True, text=True,
+        )
+    else:
+        link.symlink_to(target, target_is_directory=True)
+
+
+def test_noncanonical_nested_directory_aliases_are_rejected(tmp_path: Path) -> None:
+    fake_repo, script, assets, module = _isolated_generator(tmp_path)
+    (fake_repo / "docs").mkdir()
+    diagnostics = tmp_path / "separate-diagnostics"
+    diagnostics.mkdir()
+    _make_directory_alias(diagnostics / "woff", fake_repo / "woff")
+    _make_directory_alias(diagnostics / "docs", fake_repo / "docs")
+    _assert_noncanonical_refusal(module, script, diagnostics)
+    assert not (assets / "woff_mate_app.ico").exists()
+
+
+def test_noncanonical_hardlinked_output_is_rejected(tmp_path: Path) -> None:
+    fake_repo, script, assets, module = _isolated_generator(tmp_path)
+    output_dir = tmp_path / "separate-diagnostics" / "woff" / "assets" / "ui" / "branding"
+    output_dir.mkdir(parents=True)
+    official_ico = assets / "woff_mate_app.ico"
+    official_ico.write_bytes(b"disposable canary")
+    os.link(official_ico, output_dir / "woff_mate_app.ico")
+    _assert_noncanonical_refusal(module, script, output_dir.parents[3])
+    assert official_ico.read_bytes() == b"disposable canary"
+
+
+def test_approved_digest_pins_reject_replaced_self_consistent_inventory(
+    tmp_path: Path,
+) -> None:
+    assets = tmp_path / "assets"
+    evidence = tmp_path / "evidence"
+    shutil.copytree(ASSET_ROOT, assets)
+    shutil.copytree(EVIDENCE_ROOT, evidence)
+    _assert_approved_inventory_digests(assets, evidence)
+    ico = assets / "woff_mate_app.ico"
+    ico.write_bytes(b"noncanonical counterfeit")
+    sums = assets / "SHA256SUMS"
+    old_digest = _checksums(sums)["woff_mate_app.ico"]
+    sums.write_text(
+        sums.read_text(encoding="ascii").replace(
+            old_digest, hashlib.sha256(ico.read_bytes()).hexdigest()
+        ), encoding="ascii",
     )
-    assert result.returncode != 0
-    assert "noncanonical branding toolchain" in result.stderr
-    assert sample.read_bytes() == baseline
-    assert not (fake_assets / "woff_mate_app.ico").exists()
+    _assert_inventory(assets, GENERATED_ASSETS | {"README.md", "manifest.json"})
+    with pytest.raises(AssertionError):
+        _assert_approved_inventory_digests(assets, evidence)
+
+
+def test_png_rejects_trailing_data_after_valid_zlib_stream() -> None:
+    canonical = (EVIDENCE_ROOT / "brand-review.png").read_bytes()
+    chunks = []
+    cursor = 8
+    while cursor < len(canonical):
+        length = struct.unpack(">I", canonical[cursor : cursor + 4])[0]
+        kind = canonical[cursor + 4 : cursor + 8]
+        data = canonical[cursor + 8 : cursor + 8 + length]
+        if kind == b"IDAT":
+            data += b"trailing bytes"
+        chunks.append(
+            struct.pack(">I", len(data)) + kind + data
+            + struct.pack(">I", zlib.crc32(kind + data) & 0xFFFFFFFF)
+        )
+        cursor += length + 12
+    tampered = canonical[:8] + b"".join(chunks)
+    with pytest.raises(AssertionError, match="extra bytes after zlib stream"):
+        _assert_png_equivalence(canonical, tampered)
+
+
+def test_exact_final_cpython_release_requirement() -> None:
+    from collections import namedtuple
+
+    info = namedtuple("Version", "major minor micro releaselevel serial")
+    canonical = info(3, 10, 11, "final", 0)
+    with (
+        mock.patch.object(branding_generator.sys, "platform", "win32"),
+        mock.patch.object(branding_generator.sys, "version_info", canonical),
+        mock.patch.object(branding_generator.zlib, "ZLIB_VERSION", "1.2.13"),
+        mock.patch.object(branding_generator.zlib, "ZLIB_RUNTIME_VERSION", "1.2.13"),
+    ):
+        assert branding_generator._is_canonical_toolchain() is True
+        with mock.patch.object(
+            branding_generator.sys, "version_info", info(3, 10, 11, "candidate", 1)
+        ):
+            assert branding_generator._is_canonical_toolchain() is False
 
 
 def test_canonical_svg_edits_drive_derivatives_and_keep_rounded_dividers(
