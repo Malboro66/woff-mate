@@ -9,15 +9,17 @@ do processamento de domínio (Parse, DB, RPG).
 
 from __future__ import annotations
 
+import hashlib
 import logging
 import ntpath
 import os
 import sqlite3
+import stat
 import time
 import threading
 import weakref
-from contextlib import nullcontext
-from typing import Any, Optional, List, Sequence
+from contextlib import contextmanager, nullcontext
+from typing import Any, Callable, ContextManager, Iterator, Optional, List, Sequence
 
 from watchdog.events import FileSystemEventHandler
 
@@ -160,6 +162,23 @@ class FileProcessor:
         # Keep it namespace-keyed as well, so sibling sources and path moves
         # cannot bypass a confirmed boundary while SQLite is unavailable.
         self._confirmed_vacancies: dict[tuple[str, int], PilotSlotBinding] = {}
+        # Optional handler-owned filesystem safety fence for production observers.
+        # Direct FileProcessor users retain the previous standalone contract.
+        self._source_commit_guard: Optional[Callable[..., None]] = None
+        self._source_commit_fence: Optional[Callable[..., ContextManager[None]]] = None
+
+    def _transaction_commit_fence(
+        self, snapshot: Optional[StableFileSnapshot], verify_generation: bool
+    ) -> Optional[Callable[[], ContextManager[None]]]:
+        """Bind one source's proof to its actual outer SQLite COMMIT."""
+        fence = self._source_commit_fence
+        if fence is None or snapshot is None:
+            return None
+
+        def apply() -> ContextManager[None]:
+            return fence(snapshot.path, snapshot, verify_generation=verify_generation)
+
+        return apply
 
     def _slot_lock(self, path: str):
         if pilot_slot(path) is None:
@@ -457,13 +476,22 @@ class FileProcessor:
             if ext == ".xml":
                 rejection = self._process_xml(path, snapshot)
             elif ext in SUPPORTED_WATCHED_EXTENSIONS:
-                rejection = self._process_text(
-                    path,
-                    filename,
-                    snapshot,
-                    dependent_identity=retry_input.dependent_identity,
-                    slot_epoch=retry_input.slot_epoch,
-                )
+                # The pilot-family commit fence lives inside the actual
+                # SQLite write transactions. Do not extend it across the
+                # separate, post-commit mission-derivation replay contract.
+                if self._source_commit_guard is not None:
+                    rejection = self._process_text(
+                        path, filename, snapshot,
+                        dependent_identity=retry_input.dependent_identity,
+                        slot_epoch=retry_input.slot_epoch,
+                        verify_generation=record_discovery,
+                    )
+                else:
+                    rejection = self._process_text(
+                        path, filename, snapshot,
+                        dependent_identity=retry_input.dependent_identity,
+                        slot_epoch=retry_input.slot_epoch,
+                    )
             else:
                 return ProcessingOutcome.permanent(
                     ProcessingReason.UNSUPPORTED_SOURCE
@@ -589,11 +617,24 @@ class FileProcessor:
         self,
         parser: Any,
         identity: PilotIdentityEvidence,
+        *,
+        source_snapshot: Optional[StableFileSnapshot] = None,
+        verify_generation: bool = True,
     ) -> Optional[str]:
         latest_mission = get_latest_mission(parser)
         mission_id = None
         try:
-            with self.db_manager.transaction():
+            with self.db_manager.transaction(
+                commit_fence=self._transaction_commit_fence(
+                    source_snapshot, verify_generation
+                )
+            ):
+                guard = self._source_commit_guard
+                if guard is not None and source_snapshot is not None:
+                    guard(
+                        source_snapshot.path, source_snapshot,
+                        verify_generation=verify_generation,
+                    )
                 merge_result = self.db_manager.merge_and_write(
                     pilot=parser.pilot,
                     missions=parser.missions,
@@ -625,7 +666,17 @@ class FileProcessor:
                         )
                         if derived_result is not True:
                             raise _MissionDerivedWriteRejected
+                        if guard is not None and source_snapshot is not None:
+                            guard(
+                                source_snapshot.path, source_snapshot,
+                                verify_generation=verify_generation,
+                            )
                         return pilot_id
+                if guard is not None and source_snapshot is not None:
+                    guard(
+                        source_snapshot.path, source_snapshot,
+                        verify_generation=verify_generation,
+                    )
         except _MissionDerivedWriteRejected:
             return None
 
@@ -716,19 +767,33 @@ class FileProcessor:
         *,
         dependent_identity: Optional[PilotIdentityEvidence] = None,
         slot_epoch: Optional[int] = None,
+        verify_generation: bool = True,
     ) -> Optional[ProcessingReason]:
         data, name = self._parser_input(path, snapshot)
         if "dossier" in fname:
             parser = WoFFDossierParser()
             if parser.parse_bytes(data, name, require_verified_layout=True) and parser.pilot:
                 identity = self._dossier_identity(snapshot, slot_epoch)
-                real_pilot_id = self.campaign_engine.process_dossier_import(
-                    pilot=parser.pilot,
-                    decorations=parser.decorations,
-                    wingmen=parser.wingmen,
-                    identity=identity,
-                    roster_complete=getattr(parser, "roster_complete", True),
-                )
+                guard = self._source_commit_guard
+                # The outer transaction is composable with CampaignEngine's
+                # own Dossier transaction, so postflight failure rolls back
+                # the identity, roster and derived diary together.
+                with self.db_manager.transaction(
+                    commit_fence=self._transaction_commit_fence(
+                        snapshot, verify_generation
+                    )
+                ):
+                    if guard is not None and snapshot is not None:
+                        guard(path, snapshot, verify_generation=verify_generation)
+                    real_pilot_id = self.campaign_engine.process_dossier_import(
+                        pilot=parser.pilot,
+                        decorations=parser.decorations,
+                        wingmen=parser.wingmen,
+                        identity=identity,
+                        roster_complete=getattr(parser, "roster_complete", True),
+                    )
+                    if guard is not None and snapshot is not None:
+                        guard(path, snapshot, verify_generation=verify_generation)
                 return (
                     None
                     if real_pilot_id
@@ -788,6 +853,8 @@ class FileProcessor:
                     if dependent_identity is not None
                     else self._dependent_identity(path, name, slot_epoch)
                 ),
+                source_snapshot=snapshot,
+                verify_generation=verify_generation,
             )
             return (
                 None
@@ -837,6 +904,225 @@ class WoFFEventHandler(FileSystemEventHandler):
             sqlite_capability="sqlite-capable",
         )
         self._startup_admission_timeout = config.stability_timeout_sec
+        # Startup cannot report an authoritative positive inventory after a
+        # live event was rejected by the bounded scheduler.
+        self._startup_inventory_lock = threading.RLock()
+        self._startup_inventory_active = False
+        self._startup_inventory_rejected = False
+        self._startup_inventory_epoch = 0
+        self._startup_inventory_verified = False
+        self._startup_source_bindings: dict[tuple[str, int, str], str] = {}
+        self.processor._source_commit_guard = self._verify_pilot_commit
+        self.processor._source_commit_fence = self._pilot_commit_fence
+
+    def _invalidate_live_inventory(self, reason: str) -> None:
+        """Surface incomplete live reconciliation instead of silently losing it."""
+        with self._startup_inventory_lock:
+            self._startup_inventory_epoch += 1
+            self._startup_inventory_rejected = True
+            self._startup_inventory_verified = False
+        log.error("Pilot reconciliation incomplete: category=%s", reason)
+
+    def _verify_pilot_commit(
+        self, path: str, snapshot: StableFileSnapshot, *, verify_generation: bool = True
+    ) -> None:
+        """Verify unique, contained and unchanged source at the SQLite boundary.
+
+        Filesystem writes are not locked by SQLite. Two independent full scans
+        plus byte/generation checks before AND after the nested import bound the
+        observable races and roll back the entire import on a changed proof.
+        """
+        slot = pilot_slot(path)
+        if slot is None:
+            return
+        with self._startup_inventory_lock:
+            epoch = self._startup_inventory_epoch
+            if self._startup_inventory_rejected:
+                raise PilotIdentityRejected("startup-inventory-rejected", slot)
+        try:
+            # Delayed callbacks can reach this worker after initial scanning.
+            # Do not trust a previously cached successful source path.
+            from .woff_watchdog import _scan_startup_sources
+
+            root = self.processor._campaign_namespaces.root_for(path)
+            inventory = _scan_startup_sources(root)
+            if inventory != _scan_startup_sources(root):
+                raise OSError("changed-pilot-inventory")
+            canonical = os.path.normcase(os.path.abspath(path))
+            matches = [
+                candidate
+                for family_paths in inventory.values()
+                for candidate in family_paths
+                if pilot_slot(candidate) == slot
+                and os.path.normcase(os.path.abspath(candidate)) == canonical
+            ]
+            if len(matches) != 1:
+                raise OSError("unverified-pilot-source")
+            metadata = os.stat(path, follow_symlinks=False)
+            generation = snapshot.generation
+            if verify_generation and (
+                metadata.st_dev != generation.device
+                or metadata.st_ino != generation.inode
+                or metadata.st_size != generation.size
+                or metadata.st_mtime_ns != generation.modified_ns
+                or metadata.st_ctime_ns != generation.changed_ns
+            ):
+                raise OSError("changed-pilot-generation")
+            if verify_generation:
+                with open(path, "rb") as file:
+                    if hashlib.sha256(file.read()).hexdigest() != generation.digest:
+                        raise OSError("changed-pilot-content")
+        except (OSError, CampaignNamespaceError) as error:
+            self._invalidate_live_inventory("ambiguous-or-changed-pilot-source")
+            raise PilotIdentityRejected("ambiguous-or-changed-pilot-source", slot) from error
+        with self._startup_inventory_lock:
+            if self._startup_inventory_rejected or self._startup_inventory_epoch != epoch:
+                raise PilotIdentityRejected("startup-inventory-changed", slot)
+
+    @contextmanager
+    def _pilot_commit_fence(
+        self, path: str, snapshot: StableFileSnapshot, *, verify_generation: bool
+    ) -> Iterator[None]:
+        """Serialize last inventory proof and actual COMMIT with invalidation.
+
+        Lock order is DatabaseManager._lock, then startup RLock, matching the
+        existing in-transaction source guard. This is not a filesystem-atomic
+        snapshot: later OS deliveries still revoke reconciliation completeness.
+        """
+        with self._startup_inventory_lock:
+            self._verify_pilot_commit(path, snapshot, verify_generation=verify_generation)
+            yield
+
+    def begin_startup_inventory(self) -> None:
+        with self._startup_inventory_lock:
+            self._startup_inventory_active = True
+            self._startup_inventory_rejected = False
+            self._startup_inventory_epoch = 0
+            self._startup_inventory_verified = False
+            self._startup_source_bindings.clear()
+
+    def record_startup_sources(
+        self, inventories: Sequence[dict[str, list[str]]]
+    ) -> None:
+        """Retain only verified root/family/slot paths for late live admission."""
+        with self._startup_inventory_lock:
+            if not self._startup_inventory_active:
+                raise RuntimeError("startup inventory is no longer active")
+            bindings: dict[tuple[str, int, str], str] = {}
+            for inventory in inventories:
+                for pattern, paths in inventory.items():
+                    family = pattern.replace("Pilot*", "").casefold()
+                    for path in paths:
+                        slot = pilot_slot(path)
+                        if slot is None:
+                            raise RuntimeError("invalid startup source slot")
+                        namespace = self.processor._campaign_namespaces.namespace_for(path)
+                        key = (namespace, slot, family)
+                        canonical = os.path.normcase(os.path.abspath(path))
+                        if key in bindings:
+                            raise RuntimeError("duplicate startup binding")
+                        bindings[key] = canonical
+            self._startup_source_bindings = bindings
+
+    def startup_inventory_epoch(self) -> int:
+        with self._startup_inventory_lock:
+            return self._startup_inventory_epoch
+
+    @property
+    def reconciliation_complete(self) -> bool:
+        """Expose a revocable runtime completeness status after startup."""
+        with self._startup_inventory_lock:
+            if self._startup_inventory_rejected or self._startup_inventory_active:
+                return False
+            return (
+                ".txt" not in self.watched_extensions
+                or self._startup_inventory_verified
+            )
+
+    def finish_startup_inventory(self, expected_epoch: int | None = None) -> bool:
+        """Atomically close startup tracking, requiring its verified epoch."""
+        with self._startup_inventory_lock:
+            self._startup_inventory_active = False
+            complete = (
+                not self._startup_inventory_rejected
+                and (
+                    expected_epoch is None
+                    or self._startup_inventory_epoch == expected_epoch
+                )
+            )
+            self._startup_inventory_verified = complete and ".txt" in self.watched_extensions
+            return complete
+
+    def _live_pilot_source_unique(self, path: str) -> bool:
+        """Fail closed for delayed observer delivery of an ambiguous pilot slot.
+
+        A previously verified path is not a durable uniqueness proof. Every
+        positive must pass a fresh non-link-following root scan, including
+        familiar sources after an alternate duplicate was rejected.
+        """
+        slot = pilot_slot(path)
+        if slot is None:
+            return True
+        name = _safe_filename(path).casefold()
+        family = name[len(f"pilot{slot}") :]
+        try:
+            resolver = self.processor._campaign_namespaces
+            root = resolver.root_for(path)
+            key = (resolver.namespace_for(path), slot, family)
+            canonical = os.path.normcase(os.path.abspath(path))
+            source_info = os.stat(path, follow_symlinks=False)
+            if (
+                not stat.S_ISREG(source_info.st_mode)
+                or getattr(source_info, "st_file_attributes", 0) & 0x400
+            ):
+                raise OSError("invalid-live-pilot-source")
+            known = self._startup_source_bindings.get(key)
+            # A known-path cache is not an inventory validity token: another
+            # source may have appeared since its previous successful import.
+            if known is not None and known != canonical and os.path.exists(known):
+                raise OSError("ambiguous-live-pilot-slot")
+            matches: list[str] = []
+
+            def visit(directory: str) -> None:
+                current = os.stat(directory, follow_symlinks=False)
+                if not stat.S_ISDIR(current.st_mode) or (
+                    getattr(current, "st_file_attributes", 0) & 0x400
+                ):
+                    raise OSError("unverified-live-subtree")
+                with os.scandir(directory) as entries:
+                    for entry in entries:
+                        metadata = entry.stat(follow_symlinks=False)
+                        is_alias = entry.is_symlink() or bool(
+                            getattr(metadata, "st_file_attributes", 0) & 0x400
+                        )
+                        if is_alias and entry.is_dir(follow_symlinks=True):
+                            raise OSError("ambiguous-live-pilot-subtree")
+                        if stat.S_ISDIR(metadata.st_mode):
+                            visit(entry.path)
+                            continue
+                        if (
+                            pilot_slot(entry.name) == slot
+                            and entry.name.casefold().endswith(family)
+                        ):
+                            if is_alias or not stat.S_ISREG(metadata.st_mode):
+                                raise OSError("ambiguous-live-pilot-source")
+                            matches.append(entry.path)
+                            if len(matches) > 1:
+                                raise OSError("ambiguous-live-pilot-slot")
+
+            visit(root)
+            first = tuple(matches)
+            matches.clear()
+            visit(root)
+            if tuple(matches) != first or len(matches) != 1 or (
+                os.path.normcase(os.path.abspath(matches[0])) != canonical
+            ):
+                raise OSError("unverified-live-pilot-source")
+            self._startup_source_bindings[key] = canonical
+            return True
+        except (OSError, CampaignNamespaceError):
+            self._invalidate_live_inventory("ambiguous-or-incomplete-inventory")
+            return False
 
     def on_modified(self, event):
         if not event.is_directory:
@@ -862,6 +1148,14 @@ class WoFFEventHandler(FileSystemEventHandler):
 
     def _reconcile_directory(self, path: str, event_type: str) -> None:
         """Recheck occupied slots after a subtree may have left a watch root."""
+        # A directory departure can invalidate the cold-start inventory.
+        # Never submit a vacancy worker before that inventory is validated:
+        # failure is reported to startup, which must retry on a fresh scan.
+        with self._startup_inventory_lock:
+            if self._startup_inventory_active and ".txt" in self.watched_extensions:
+                self._startup_inventory_epoch += 1
+                self._startup_inventory_rejected = True
+                return
         dossier_paths = self.processor.vacancy_paths_for_directory(path)
         for dossier_path in dossier_paths:
             if not self.scheduler.submit(
@@ -873,6 +1167,8 @@ class WoFFEventHandler(FileSystemEventHandler):
                     "Directory vacancy reconciliation incomplete: "
                     "category=admission-timeout"
                 )
+                if ".txt" in self.watched_extensions:
+                    self._invalidate_live_inventory("directory-vacancy-admission")
                 return
         if dossier_paths and not self.scheduler.wait_for_paths(
             dossier_paths, 2 * self.startup_phase_timeout(dossier_paths)
@@ -881,19 +1177,46 @@ class WoFFEventHandler(FileSystemEventHandler):
                 "Directory vacancy reconciliation incomplete: "
                 "category=processing-timeout"
             )
+            if ".txt" in self.watched_extensions:
+                self._invalidate_live_inventory("directory-vacancy-processing")
 
     def _handle(self, path: str, event_type: str):
-        bn = os.path.basename(path).lower()
-        ext = os.path.splitext(path)[1].lower()
-
-        if ext not in self.watched_extensions or any(p in bn for p in self.IGNORED):
-            return False
-        if ext in {".txt", ".log"} and not is_preview_allowed(path):
-            if self.discovery:
-                self.discovery.log_file(path, event_type)
-            return False
-
-        return self.scheduler.submit(path, event_type)
+        # Register at callback entry, before filename filtering or discovery.
+        # Finalization cannot overtake an already-running callback. Callbacks
+        # still queued by the OS are covered by post-start source validation.
+        with self._startup_inventory_lock:
+            bn = os.path.basename(path).lower()
+            ext = os.path.splitext(path)[1].lower()
+            if ext not in self.watched_extensions or any(p in bn for p in self.IGNORED):
+                return False
+            if ext in {".txt", ".log"} and not is_preview_allowed(path):
+                if self.discovery:
+                    self.discovery.log_file(path, event_type)
+                return False
+            if self._startup_inventory_active and ext == ".txt":
+                self._startup_inventory_epoch += 1
+                self._startup_inventory_rejected = True
+                return False
+            if self._startup_inventory_rejected and ext == ".txt":
+                return False
+            if (
+                self._startup_inventory_verified
+                and ext == ".txt"
+                and event_type not in {"deleted", "moved-away"}
+                and not self._live_pilot_source_unique(path)
+            ):
+                return False
+            accepted = self.scheduler.submit(path, event_type)
+            if not accepted and ext == ".txt":
+                # Delayed OS events must never disappear behind a successful
+                # startup flag when the bounded scheduler is saturated.
+                self._startup_inventory_epoch += 1
+                self._startup_inventory_rejected = True
+                self._startup_inventory_verified = False
+                log.error(
+                    "Pilot reconciliation incomplete: category=live-admission-rejected"
+                )
+            return accepted
 
     def submit_initial(self, path: str) -> bool:
         """Route startup reconciliation through the bounded live scheduler."""

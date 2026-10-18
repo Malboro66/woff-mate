@@ -24,12 +24,14 @@ Modos de uso:
 
 from __future__ import annotations
 
+import hashlib
 import os
 import sys
-import glob
+import stat
 import argparse
 import logging
 import threading
+import time
 from fnmatch import fnmatch
 from pathlib import Path
 from typing import Optional, List, Any, TextIO
@@ -63,7 +65,7 @@ try:
     from .command_contract import ExitCode
     from .config import InvalidConfigurationError, WatchdogConfig, load_config
     from .handler import WoFFEventHandler
-    from .identity import dossier_source_name
+    from .identity import dossier_source_name, pilot_slot
     from .ingestion.vacancy import scan_dossiers
     from .database import DatabaseManager
     from .discovery import DiscoveryLogger
@@ -104,6 +106,148 @@ log = logging.getLogger("WoFFWatch")
 # ──────────────────────────────────────────────────────────────
 # ORQUESTRADOR PRINCIPAL
 # ──────────────────────────────────────────────────────────────
+
+# Keep startup's positive inventory bounded by the same approved filename
+# families as live event admission; this is not general filesystem ingestion.
+_STARTUP_PILOT_PATTERNS = (
+    "Pilot*Dossier.txt",
+    "Pilot*Log.txt",
+    "Pilot*Claims.txt",
+    "Pilot*Squads.txt",
+)
+
+
+def _scan_startup_sources(root: str) -> dict[str, list[str]]:
+    """Enumerate one complete, non-link-following recursive pilot inventory.
+
+    A partially scanned root must not produce a seemingly complete startup
+    inventory. The watcher starts before this enumeration; any concurrent file
+    modifications are coalesced through the existing event scheduler.
+    """
+    sources: dict[str, list[str]] = {
+        pattern: [] for pattern in _STARTUP_PILOT_PATTERNS
+    }
+
+    def visit(directory: str) -> None:
+        before = os.stat(directory, follow_symlinks=False)
+        if (
+            not stat.S_ISDIR(before.st_mode)
+            or getattr(before, "st_file_attributes", 0) & 0x400
+        ):
+            raise OSError("unsupported-startup-subtree")
+        with os.scandir(directory) as entries:
+            for entry in entries:
+                # Filename admission must match the existing case-insensitive
+                # live slot policy, even on a case-sensitive host filesystem.
+                slot = pilot_slot(entry.name)
+                matched = (
+                    next(
+                        (
+                            pattern for pattern in _STARTUP_PILOT_PATTERNS
+                            if slot is not None and entry.name.casefold()
+                            == pattern.replace("*", str(slot)).casefold()
+                        ),
+                        None,
+                    )
+                )
+                metadata = entry.stat(follow_symlinks=False)
+                is_alias = entry.is_symlink() or bool(
+                    getattr(metadata, "st_file_attributes", 0) & 0x400
+                )
+                if is_alias and entry.is_dir(follow_symlinks=True):
+                    # Do not follow a directory alias (junction/symlink)
+                    # outside the configured campaign namespace.
+                    raise OSError("unverified-startup-subtree")
+                if stat.S_ISDIR(metadata.st_mode):
+                    visit(entry.path)
+                elif is_alias and matched is not None:
+                    raise OSError("unverified-startup-source")
+                elif is_alias:
+                    # An irrelevant file alias cannot affect the bounded
+                    # pilot inventory; directory aliases remain unsafe.
+                    continue
+                elif stat.S_ISREG(metadata.st_mode) and matched is not None:
+                    sources[matched].append(entry.path)
+        after = os.stat(directory, follow_symlinks=False)
+        if (
+            before.st_dev,
+            before.st_ino,
+            before.st_mtime_ns,
+            before.st_ctime_ns,
+        ) != (
+            after.st_dev,
+            after.st_ino,
+            after.st_mtime_ns,
+            after.st_ctime_ns,
+        ):
+            raise OSError("changed-startup-inventory")
+
+    visit(root)
+    for pattern, paths in sources.items():
+        logical_slots: set[int] = set()
+        for path in paths:
+            slot = pilot_slot(path)
+            if slot is None or slot in logical_slots:
+                raise OSError("ambiguous-startup-pilot-slot")
+            logical_slots.add(slot)
+        paths.sort(key=lambda path: (os.path.normcase(path), path))
+
+    # Dependent source identity resolves the Dossier next to that file, NOT a
+    # Dossier elsewhere in the configured campaign namespace. Do not submit
+    # an impossible cross-subdirectory dependency as a settled startup phase.
+    dossiers_by_slot = {
+        pilot_slot(path): path
+        for path in sources["Pilot*Dossier.txt"]
+    }
+    for family in _STARTUP_PILOT_PATTERNS[1:]:
+        for path in sources[family]:
+            slot = pilot_slot(path)
+            if slot is None:
+                raise OSError("invalid-startup-dependent-slot")
+            dossier = dossiers_by_slot.get(slot)
+            if dossier is None:
+                # Preserve existing dependency-pending behavior when no
+                # Dossier is known for the slot anywhere in this root.
+                continue
+            expected = os.path.join(
+                os.path.dirname(path), dossier_source_name(slot)
+            )
+            if os.path.normcase(os.path.abspath(dossier)) != os.path.normcase(
+                os.path.abspath(expected)
+            ):
+                raise OSError("unresolvable-startup-dependent-identity")
+    return sources
+
+
+def _startup_source_generations(
+    inventories: list[dict[str, list[str]]],
+) -> tuple[tuple[object, ...], ...]:
+    """Bind recursive inventory to file generations as well as paths."""
+    evidence: list[tuple[object, ...]] = []
+    for inventory in inventories:
+        for paths in inventory.values():
+            for path in paths:
+                before = os.stat(path, follow_symlinks=False)
+                if not stat.S_ISREG(before.st_mode) or (
+                    getattr(before, "st_file_attributes", 0) & 0x400
+                ):
+                    raise OSError("unverified-startup-generation")
+                with open(path, "rb") as source:
+                    digest = hashlib.sha256(source.read()).hexdigest()
+                after = os.stat(path, follow_symlinks=False)
+                identity_before = (
+                    before.st_dev, before.st_ino, before.st_size,
+                    before.st_mtime_ns, before.st_ctime_ns,
+                )
+                identity_after = (
+                    after.st_dev, after.st_ino, after.st_size,
+                    after.st_mtime_ns, after.st_ctime_ns,
+                )
+                if identity_before != identity_after:
+                    raise OSError("changed-startup-generation")
+                evidence.append((os.path.normcase(os.path.abspath(path)), *identity_after, digest))
+    return tuple(sorted(evidence))
+
 
 class WoFFWatchdog:
     """
@@ -165,6 +309,9 @@ class WoFFWatchdog:
             self._handler = WoFFEventHandler(
                 self.config, self.db_manager, self.campaign_engine, self.discovery
             )
+            startup_begin = getattr(self._handler, "begin_startup_inventory", None)
+            if callable(startup_begin):
+                startup_begin()
             for path in valid:
                 obs = Observer()
                 obs.schedule(self._handler, path, recursive=True)
@@ -199,21 +346,42 @@ class WoFFWatchdog:
         # ──────────────────────────────────────────────────────────────
         # SINCRONIZAÇÃO INICIAL DE TODOS OS PILOTOS
         # ──────────────────────────────────────────────────────────────
-            file_patterns = []
+            startup_sources: list[dict[str, list[str]]] = []
+            startup_evidence: tuple[tuple[object, ...], ...] = ()
+            verified_epoch: int | None = None
             if ".txt" in self.config.watched_extensions:
+                # Collect all roots before submitting any positives or
+                # authoritative vacancy assertions. A subtree scan error
+                # fails startup rather than silently accepting a partial set.
+                epoch_reader = getattr(
+                    self._handler, "startup_inventory_epoch", None
+                )
+                raw_epoch = epoch_reader() if callable(epoch_reader) else None
+                verified_epoch = raw_epoch if isinstance(raw_epoch, int) else None
+                startup_sources = [_scan_startup_sources(path) for path in valid]
+                # A child can change after its own post-scan stat check while
+                # its sibling is still being visited. An independent second
+                # traversal guards against claiming a complete stale tree.
+                repeat_sources = [_scan_startup_sources(path) for path in valid]
+                epoch_changed = (
+                    verified_epoch is not None
+                    and callable(epoch_reader)
+                    and epoch_reader() != verified_epoch
+                )
+                if startup_sources != repeat_sources or epoch_changed:
+                    raise RuntimeError("startup recursive inventory changed")
+                startup_evidence = _startup_source_generations(repeat_sources)
                 self._reconcile_vacant_slots(valid)
                 log.info("A sincronizar dados iniciais dos pilotos...")
-                file_patterns = [
-                    "Pilot*Dossier.txt",
-                    "Pilot*Log.txt",
-                    "Pilot*Claims.txt",
-                    "Pilot*Squads.txt",
-                ]
 
-            for file_pattern in file_patterns:
-                phase_files = []
-                for path in valid:
-                    phase_files.extend(glob.glob(os.path.join(path, file_pattern)))
+            for file_pattern in (
+                _STARTUP_PILOT_PATTERNS if startup_sources else ()
+            ):
+                phase_files = [
+                    file_path
+                    for inventory in startup_sources
+                    for file_path in inventory[file_pattern]
+                ]
                 for file_path in phase_files:
                     if not self._handler.submit_initial(file_path):
                         raise RuntimeError(
@@ -231,6 +399,39 @@ class WoFFWatchdog:
                             "bounded startup reconciliation failed for "
                             f"{file_pattern}"
                         )
+            if startup_sources:
+                self._wait_startup_observer_idle()
+                # Recheck after all phase waits: changes in a previously
+                # visited child cannot silently complete startup.
+                epoch_reader = getattr(
+                    self._handler, "startup_inventory_epoch", None
+                )
+                # Retain the epoch verified *before* all startup phases.
+                # Do not rebase the comparison at the end of the work.
+                epoch_changed = (
+                    verified_epoch is not None
+                    and callable(epoch_reader)
+                    and epoch_reader() != verified_epoch
+                )
+                final_sources = [_scan_startup_sources(path) for path in valid]
+                final_repeat = [_scan_startup_sources(path) for path in valid]
+                if (
+                    final_sources != startup_sources
+                    or final_repeat != startup_sources
+                    or _startup_source_generations(final_repeat) != startup_evidence
+                    or epoch_changed
+                ):
+                    raise RuntimeError("startup recursive inventory changed")
+                # Preserve the verified per-root slot/family sources across
+                # finalization, so delayed observer callbacks cannot admit a
+                # duplicate under a stale startup identity.
+                record_sources = getattr(self._handler, "record_startup_sources", None)
+                if callable(record_sources):
+                    record_sources(startup_sources)
+                self._wait_startup_observer_idle()
+            finish = getattr(self._handler, "finish_startup_inventory", None)
+            if callable(finish) and not finish(verified_epoch):
+                raise RuntimeError("startup live admission incomplete")
         except Exception:
             self._cleanup(suppress_errors=True)
             raise
@@ -241,6 +442,39 @@ class WoFFWatchdog:
             log.info(f"Discovery log: {self.config.discovery_log_path}")
         log.info("Pressiona Ctrl+C para parar.\n")
         return True
+
+    @property
+    def reconciliation_complete(self) -> bool:
+        """False if cold startup or subsequent admission became incomplete."""
+        handler = self._handler
+        return bool(handler is not None and handler.reconciliation_complete)
+
+    def _wait_startup_observer_idle(self) -> None:
+        """Bound the handoff by waiting for dispatched Observer events to settle.
+
+        This does not claim an atomic filesystem snapshot or that the OS has
+        already enqueued every change. Post-start workers independently verify
+        the root inventory at their SQLite transaction boundary.
+        """
+        deadline = time.monotonic() + max(0.1, self.config.stability_timeout_sec)
+        interval = min(0.05, max(0.005, self.config.stability_check_interval_sec))
+        stable_observations = 0
+        while True:
+            pending = []
+            for observer in self.observers:
+                queue = getattr(observer, "event_queue", None)
+                count = getattr(queue, "unfinished_tasks", None)
+                if isinstance(count, int):
+                    pending.append(count)
+            if not pending or all(count == 0 for count in pending):
+                stable_observations += 1
+                if stable_observations >= 2:
+                    return
+            else:
+                stable_observations = 0
+            if time.monotonic() >= deadline:
+                raise RuntimeError("startup observer callbacks remain unsettled")
+            time.sleep(interval)
 
     def _reconcile_vacant_slots(self, roots: List[str]) -> None:
         """Submit negative inventory through the same bounded Dossier path."""

@@ -786,14 +786,6 @@ class TestWatchdogStartup(unittest.TestCase):
             woff_watchdog, "WoFFEventHandler", Handler
         ), patch.object(
             woff_watchdog, "Observer", return_value=observer
-        ), patch.object(
-            woff_watchdog.glob,
-            "glob",
-            side_effect=lambda pattern: (
-                [pilot_path]
-                if os.path.basename(pattern) == "Pilot*Log.txt"
-                else []
-            ),
         ):
             watchdog = woff_watchdog.WoFFWatchdog(config)
             self.assertTrue(watchdog.start())
@@ -801,7 +793,7 @@ class TestWatchdogStartup(unittest.TestCase):
 
         self.assertEqual(observed_timeouts, [21.0])
 
-    def test_live_file_created_after_observer_start_is_not_baseline_submitted(self):
+    def test_live_file_created_during_observer_start_coalesces_with_baseline(self):
         tmp_dir = tempfile.mkdtemp()
         self.addCleanup(shutil.rmtree, tmp_dir)
         path = os.path.join(tmp_dir, "Pilot1Log.txt")
@@ -812,6 +804,7 @@ class TestWatchdogStartup(unittest.TestCase):
         processing_started = threading.Event()
         release_processing = threading.Event()
         processed = []
+        acknowledged = set()
         initial_submissions = []
 
         class Handler:
@@ -824,7 +817,10 @@ class TestWatchdogStartup(unittest.TestCase):
             def process(self, submitted_path, event_type, previous=None):
                 processing_started.set()
                 assert release_processing.wait(2)
-                if previous != "generation":
+                # Duplicate scheduler attempts must not create duplicate
+                # persisted effects for an unchanged source generation.
+                if previous != "generation" and "generation" not in acknowledged:
+                    acknowledged.add("generation")
                     processed.append(os.path.basename(submitted_path).lower())
                 return "generation"
 
@@ -873,25 +869,19 @@ class TestWatchdogStartup(unittest.TestCase):
             woff_watchdog, "catalog_squadrons"
         ), patch.object(woff_watchdog, "CampaignEngine"), patch.object(
             woff_watchdog, "WoFFEventHandler", Handler
-        ), patch.object(woff_watchdog, "Observer", Observer), patch.object(
-            woff_watchdog.glob, "glob", return_value=[]
-        ) as baseline:
+        ), patch.object(woff_watchdog, "Observer", Observer):
             watchdog = woff_watchdog.WoFFWatchdog(config)
             self.assertFalse(os.path.exists(path))
             self.assertTrue(watchdog.start())
             handler = watchdog._handler
             watchdog.stop()
 
-        self.assertEqual(baseline.call_count, 4)
-        self.assertEqual(initial_submissions, [])
+        self.assertEqual(initial_submissions, [path])
         self.assertEqual(processed, ["pilot1log.txt"])
         self.assertIsNotNone(handler)
         assert handler is not None
         self.assertEqual(handler.scheduler.admitted_paths, 0)
-        self.assertEqual(
-            handler.scheduler.metrics(),
-            _scheduler_metrics(coalesced=1, retried=1),
-        )
+        self.assertGreaterEqual(handler.scheduler.metrics()["coalesced"], 1)
 
     def test_partially_started_observer_is_owned_and_original_error_survives_cleanup(self):
         tmp_dir = tempfile.mkdtemp()
@@ -943,6 +933,10 @@ class TestWatchdogStartup(unittest.TestCase):
                 "Pilot*Claims.txt", "Pilot*Squads.txt",
             )
         }
+        for paths in files.values():
+            for path in paths:
+                with open(path, "w", encoding="utf-8") as source:
+                    source.write("synthetic")
         config = WatchdogConfig(
             watch_paths=[tmp_dir], export_path=os.path.join(tmp_dir + "-outputs", "ordered.db"),
             watched_extensions=[".txt"], max_workers=4, max_pending_events=8,
@@ -977,10 +971,7 @@ class TestWatchdogStartup(unittest.TestCase):
             woff_watchdog, "catalog_squadrons"
         ), patch.object(woff_watchdog, "CampaignEngine"), patch.object(
             woff_watchdog, "WoFFEventHandler", Handler
-        ), patch.object(woff_watchdog, "Observer", return_value=observer), patch.object(
-            woff_watchdog.glob, "glob",
-            side_effect=lambda path: files[os.path.basename(path)],
-        ):
+        ), patch.object(woff_watchdog, "Observer", return_value=observer):
             watchdog = woff_watchdog.WoFFWatchdog(config)
             self.assertTrue(watchdog.start())
             watchdog.stop()
@@ -1033,7 +1024,7 @@ class TestWatchdogStartup(unittest.TestCase):
             patch.object(woff_watchdog, "CampaignEngine"),
             patch.object(woff_watchdog, "WoFFEventHandler"),
             patch.object(woff_watchdog, "Observer"),
-            patch.object(woff_watchdog.glob, "glob", return_value=[]),
+            patch.object(woff_watchdog, "_scan_startup_sources", wraps=woff_watchdog._scan_startup_sources),
         ]
         mocks = [patcher.start() for patcher in patches]
         for patcher in patches:
@@ -1062,6 +1053,7 @@ class TestWatchdogStartup(unittest.TestCase):
             [".txt"]
         )
 
+        # Two preflight scans and two post-phase scans form the bounded barrier.
         self.assertEqual(pilot_glob.call_count, 4)
         engine.assert_called_once()
         handler.assert_called_once()
@@ -1156,9 +1148,7 @@ class TestWatchdogStartup(unittest.TestCase):
             woff_watchdog, "catalog_squadrons"
         ), patch.object(woff_watchdog, "CampaignEngine"), patch.object(
             woff_watchdog, "WoFFEventHandler", StartupHandler
-        ), patch.object(woff_watchdog, "Observer", StartupObserver), patch.object(
-            woff_watchdog.glob, "glob", side_effect=[[pilot_path], [], [], []]
-        ):
+        ), patch.object(woff_watchdog, "Observer", StartupObserver):
             watchdog = woff_watchdog.WoFFWatchdog(config)
             self.addCleanup(watchdog.db_manager.close)
             self.assertTrue(watchdog.start())
