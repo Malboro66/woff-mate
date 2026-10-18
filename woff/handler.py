@@ -915,8 +915,11 @@ class WoFFEventHandler(FileSystemEventHandler):
                 self.discovery.log_file(path, event_type)
             return False
 
-        accepted = self.scheduler.submit(path, event_type)
+        # Admission and startup finalization share one lock: a callback
+        # already submitting must not finish *after* startup deactivates
+        # tracking, silently hiding a rejected bounded-scheduler admission.
         with self._startup_inventory_lock:
+            accepted = self.scheduler.submit(path, event_type)
             if self._startup_inventory_active:
                 self._startup_inventory_epoch += 1
                 if not accepted:

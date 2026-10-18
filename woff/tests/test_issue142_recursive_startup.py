@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import os
+import threading
 from contextlib import contextmanager
 from pathlib import Path
 from unittest.mock import MagicMock, patch
@@ -380,6 +381,68 @@ def test_file_added_after_child_scan_forces_startup_retry_not_false_success(
     assert added
     fake_handler.submit_initial.assert_not_called()
     fake_handler.shutdown.assert_called_once()
+
+
+def test_inflight_live_rejection_precedes_startup_finalization(
+    tmp_path: Path,
+) -> None:
+    """Do not finalize positively while a live scheduler admission is in flight."""
+    from ..handler import WoFFEventHandler
+    from ..database import DatabaseManager
+    from ..campaign_engine import CampaignEngine
+
+    root = tmp_path / "campaign"
+    root.mkdir()
+    config = WatchdogConfig(
+        watch_paths=[str(root)],
+        export_path=str(tmp_path / "export" / "db.sqlite"),
+        watched_extensions=[".txt"],
+    )
+    db = DatabaseManager(config.export_path, campaign_namespaces=config.campaign_namespaces)
+    handler = WoFFEventHandler(config, db, CampaignEngine(db))
+    entered_submit = threading.Event()
+    release_submit = threading.Event()
+    finalized = threading.Event()
+    outcome: dict[str, bool] = {}
+
+    def reject_after_barrier(*_args, **_kwargs) -> bool:
+        entered_submit.set()
+        assert release_submit.wait(5), "synthetic submit barrier timed out"
+        return False
+
+    def submit_live() -> None:
+        outcome["accepted"] = handler._handle(
+            str(root / "Pilot2Dossier.txt"), "created"
+        )
+
+    def finish() -> None:
+        outcome["complete"] = handler.finish_startup_inventory()
+        finalized.set()
+
+    try:
+        handler.begin_startup_inventory()
+        with patch.object(handler.scheduler, "submit", side_effect=reject_after_barrier):
+            live_thread = threading.Thread(target=submit_live)
+            finish_thread = threading.Thread(target=finish)
+            try:
+                live_thread.start()
+                assert entered_submit.wait(5)
+                finish_thread.start()
+                # Under the old implementation finish returned true while
+                # submit was still blocked, losing its eventual rejection.
+                assert not finalized.wait(0.1)
+            finally:
+                release_submit.set()
+                live_thread.join(5)
+                if finish_thread.ident is not None:
+                    finish_thread.join(5)
+            assert not live_thread.is_alive()
+            assert not finish_thread.is_alive()
+            assert outcome == {"accepted": False, "complete": False}
+            assert handler.startup_inventory_epoch() == 1
+    finally:
+        handler.shutdown()
+        db.close()
 
 
 def test_live_scheduler_rejection_during_startup_remains_a_blocker(
