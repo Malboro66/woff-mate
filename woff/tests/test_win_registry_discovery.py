@@ -191,3 +191,74 @@ def test_registry_query_type_and_access_errors_fall_through(tmp_path: Path) -> N
     assert win_registry.get_woff_install_path(registry=denied) == current
     assert denied.opened == [NEXT, CURRENT]
     assert denied.closed == [CURRENT]
+
+
+def test_existing_root_without_generated_folders_is_retained(tmp_path: Path) -> None:
+    """No career yet: do not turn a supported existing install into 'not found'."""
+    game_root = tmp_path / "empty-woff-install"
+    game_root.mkdir()
+    fake = FakeWinReg({CURRENT: str(game_root)})
+    assert win_registry.get_woff_install_path(registry=fake) == str(game_root)
+
+    from unittest.mock import patch
+
+    discover = win_registry.get_woff_install_path
+    config_path = tmp_path / "new-config.json"
+    with patch("woff.win_registry.get_woff_install_path",
+               side_effect=lambda: discover(registry=fake)):
+        cfg = load_config(str(config_path))
+
+    assert cfg.watch_paths == [
+        str(game_root / "campaigns" / "CampaignData" / "Pilots"),
+        str(game_root / "Logs"),
+    ]
+    assert config_path.exists()
+
+
+def test_ready_candidate_takes_precedence_over_incomplete_newer_root(
+    tmp_path: Path,
+) -> None:
+    ready = _make_dir(tmp_path, "ready")
+    incomplete = tmp_path / "incomplete"
+    incomplete.mkdir()
+    fake = FakeWinReg({NEXT: str(incomplete), CURRENT: ready})
+
+    assert win_registry.get_woff_install_path(registry=fake) == ready
+    assert fake.opened == [NEXT, CURRENT]
+    assert fake.closed == [NEXT, CURRENT]
+
+
+def test_two_incomplete_existing_roots_use_documented_key_order(
+    tmp_path: Path,
+) -> None:
+    newer = tmp_path / "newer"
+    older = tmp_path / "older"
+    newer.mkdir()
+    older.mkdir()
+    fake = FakeWinReg({CURRENT: str(older), NEXT: str(newer)})
+
+    assert win_registry.get_woff_install_path(registry=fake) == str(newer)
+    assert fake.opened == [NEXT, CURRENT]
+    assert fake.closed == [NEXT, CURRENT]
+
+
+def test_config_loader_missing_keys_has_one_manual_warning(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    fake = FakeWinReg({})
+    from unittest.mock import patch
+
+    discover = win_registry.get_woff_install_path
+    with caplog.at_level(logging.WARNING, logger="WoFFWatch"):
+        with patch("woff.win_registry.get_woff_install_path",
+                   side_effect=lambda: discover(registry=fake)):
+            cfg = load_config(str(tmp_path / "missing-config.json"))
+
+    assert cfg.watch_paths == []
+    assert not (tmp_path / "missing-config.json").exists()
+    warnings = [r.getMessage() for r in caplog.records
+                if r.name == "WoFFWatch" and r.levelno == logging.WARNING]
+    assert len(warnings) == 1
+    assert "manual" in warnings[0].lower()
+    assert "OFFManager4" in warnings[0]
+    assert "OFFManager5" in warnings[0]

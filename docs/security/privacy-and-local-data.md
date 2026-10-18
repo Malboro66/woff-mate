@@ -67,7 +67,7 @@ value: CFS3Path
 
 `CFS3Path` is used only to locate the local WoFF installation. Registry access remains read-only.
 
-The OFFManager4 key is historically observed. OFFManager5 is an explicitly approved synthetic forward-compatibility candidate, not confirmation that any released game build uses it. Only the approved installation-path value is read. Absolute existing WoFF roots containing the expected Pilots and Logs directories take precedence in the listed order; stale, malformed, or missing candidates are skipped and manual configuration remains available. Missing keys do not establish that the game is uninstalled. Arbitrary registry enumeration remains forbidden.
+The OFFManager4 key is historically observed. OFFManager5 is an explicitly approved synthetic forward-compatibility candidate, not confirmation that any released game build uses it. Only the approved installation-path value is read. Existing candidate directories containing expected Pilots and Logs folders take precedence in the listed order. An existing root without those generated folders remains a fallback, preserving the config loader's established first-run behavior. Nonexistent or malformed candidates are skipped and manual configuration remains available. Missing keys do not establish that the game is uninstalled. Arbitrary registry enumeration remains forbidden.
 
 ## NET-001: Offline Core Operation and No External Telemetry
 

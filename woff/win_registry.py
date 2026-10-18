@@ -41,8 +41,8 @@ class _WinReg(Protocol):
     def CloseKey(self, key: Any) -> None: ...
 
 
-def _valid_install_dir(candidate: Any) -> Optional[str]:
-    """Require a plausible WoFF root with the watch directories the loader uses."""
+def _valid_install_dir(candidate: Any) -> Optional[Tuple[str, bool]]:
+    """Return an existing root and whether optional generated watch folders exist."""
     if not isinstance(candidate, str):
         return None
     path = candidate.strip()
@@ -54,18 +54,19 @@ def _valid_install_dir(candidate: Any) -> Optional[str]:
         return None
     try:
         root = Path(path)
+        if not root.is_dir():
+            return None
         pilots = root / "campaigns" / "CampaignData" / "Pilots"
         logs = root / "Logs"
         parent_logs = root.parent / "Logs"
-        if root.is_dir() and pilots.is_dir() and (logs.is_dir() or parent_logs.is_dir()):
-            return path
+        ready = pilots.is_dir() and (logs.is_dir() or parent_logs.is_dir())
+        return path, ready
     except (OSError, ValueError):
-        pass
-    return None
+        return None
 
 
 def get_woff_install_path(registry: Optional[_WinReg] = None) -> Optional[str]:
-    """Return the first valid CFS3Path from the approved HKCU keys.
+    """Prefer an existing complete WoFF root; allow one awaiting generated folders.
 
     Missing/stale/malformed keys are not evidence the game is uninstalled.
     "registry" can be replaced with a fake for deterministic tests.
@@ -81,6 +82,7 @@ def get_woff_install_path(registry: Optional[_WinReg] = None) -> Optional[str]:
             return None
         registry = cast(_WinReg, winreg)
 
+    first_existing_root: Optional[str] = None
     for sub_key in WOFF_REG_KEYS:
         try:
             key = registry.OpenKey(registry.HKEY_CURRENT_USER, sub_key)
@@ -104,10 +106,21 @@ def get_woff_install_path(registry: Optional[_WinReg] = None) -> Optional[str]:
         if value_type == 2 and isinstance(value, str):
             value = os.path.expandvars(value)
 
-        path = _valid_install_dir(value)
-        if path is not None:
-            log.info("WoFF registry auto-discovery selected %s", sub_key)
-            return path
+        valid = _valid_install_dir(value)
+        if valid is not None:
+            path, folders_ready = valid
+            if folders_ready:
+                log.info("WoFF registry auto-discovery selected %s", sub_key)
+                return path
+            if first_existing_root is None:
+                first_existing_root = path
+
+    # The configuration loader intentionally accepts roots before a career
+    # creates the Pilots/Logs folders, and then reports missing folders.
+    if first_existing_root is not None:
+        log.info("WoFF registry auto-discovery found an existing installation directory; "
+                 "some generated data folders may not exist yet")
+        return first_existing_root
 
     log.warning(
         "WoFF auto-discovery found no valid CFS3Path in the approved "

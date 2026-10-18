@@ -22,8 +22,11 @@ WOFF BH&H II base v1.38 is the primary reference installation. The maintainer at
 WoFF Mate checks only the HKCU `CFS3Path` value in the explicit
 `OFFManager5` then `OFFManager4` Settings key allowlist. The newer key
 is a synthetic compatibility case, **not an attested game version**. Candidates
-must be absolute, drive-qualified or UNC paths to existing roots with the
-expected CampaignData/Pilots and Logs directories; invalid paths are skipped. WoFF Mate does not scan other keys, enumerate values, or read
+must be absolute, drive-qualified or UNC paths to existing directories;
+nonexistent paths are skipped. Roots with expected CampaignData/Pilots and Logs
+folders take priority. Existing roots without those generated folders remain
+eligible if no fully populated candidate exists. WoFF Mate does not scan other
+keys, enumerate values, or read
 activation credentials. If detection fails, normal manual configuration remains
 available. A missing registry key does not demonstrate a missing WoFF installation.
 
