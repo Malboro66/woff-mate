@@ -19,7 +19,7 @@ import time
 import threading
 import weakref
 from contextlib import nullcontext
-from typing import Any, Optional, List, Sequence
+from typing import Any, Callable, Optional, List, Sequence
 
 from watchdog.events import FileSystemEventHandler
 
@@ -164,7 +164,7 @@ class FileProcessor:
         self._confirmed_vacancies: dict[tuple[str, int], PilotSlotBinding] = {}
         # Optional handler-owned filesystem safety fence for production observers.
         # Direct FileProcessor users retain the previous standalone contract.
-        self._source_commit_guard = None
+        self._source_commit_guard: Optional[Callable[..., None]] = None
 
     def _slot_lock(self, path: str):
         if pilot_slot(path) is None:

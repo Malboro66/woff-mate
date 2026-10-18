@@ -1,6 +1,7 @@
 """P1 #142 transaction/inventory safety regressions using synthetic pilot data."""
 from __future__ import annotations
 
+from typing import Any, cast
 from unittest.mock import patch
 
 from ..campaign_engine import CampaignEngine
@@ -233,7 +234,7 @@ def test_prelock_callback_delay_cannot_rebind_after_finalization(tmp_path):
             def __exit__(self, *_args):
                 true_lock.release()
 
-        handler._startup_inventory_lock = DelayedAcquire()
+        handler._startup_inventory_lock = cast(Any, DelayedAcquire())
         callback = threading.Thread(
             target=lambda: results.update(
                 submitted=handler._handle(str(source), "modified")

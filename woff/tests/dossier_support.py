@@ -79,11 +79,15 @@ class CompleteRosterDomainHarness(FileProcessor):
     Runtime admission and partial integrity have separate real FileProcessor
     regressions. No persistence, reconciliation or exception handler is mocked.
     """
-    def _process_text(self, path, fname, snapshot=None, *, dependent_identity=None, slot_epoch=None):
+    def _process_text(
+        self, path, fname, snapshot=None, *,
+        dependent_identity=None, slot_epoch=None, verify_generation=True,
+    ):
         if "dossier" not in fname:
             return super()._process_text(
                 path, fname, snapshot,
                 dependent_identity=dependent_identity, slot_epoch=slot_epoch,
+                verify_generation=verify_generation,
             )
         data, name = self._parser_input(path, snapshot)
         parser = WoFFDossierParser()
