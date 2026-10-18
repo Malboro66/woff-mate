@@ -74,8 +74,9 @@ class WoFFPilot:
     skill:        Optional[int] = None
     reputation:   Optional[int] = None
     
-    source_file:  str = ""
-    last_updated: str = ""
+    # Source metadata may be absent; missing is not a writable empty string.
+    source_file:  Optional[str] = None
+    last_updated: Optional[str] = None
 
     @property
     def affiliation(self) -> NationService:
