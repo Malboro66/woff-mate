@@ -153,9 +153,36 @@ optical master, deterministic ICO, static review, provenance, and usage rules.
 Future Issue #82 should use `woff/assets/ui/branding/woff_mate_app.ico` as the
 candidate PyInstaller icon and retain both app-icon SVG masters for diagnosis.
 
-Run `python -I -S scripts/generate_branding_assets.py` after an intentional SVG
-edit to validate the canonical sources and refresh only the ICO, review PNGs,
-and checksum inventories. The command never rewrites the canonical SVG files.
+### Issue #194 ? canonical binary generation contract
+
+**Approved binary build toolchain:** native Windows, CPython **3.10.11**,
+compiled against and running **zlib 1.2.13**. The approved eight canonical SVGs
+are authoritative; the ICO, review PNGs and SHA-256 inventories are derivatives.
+The exact Python/zlib version is required for **regenerating canonical binary
+assets**, not for running WoFF Mate on another supported interpreter.
+
+After an intentional SVG change use:
+`py -3.10 -I -S scripts/generate_branding_assets.py`
+
+When executed outside that toolchain, the generator refuses to write to its
+own repository root. Supplying an explicit **separate** `--output-root` allows
+diagnostic generation only, labeled NONCANONICAL; its compressed PNG/ICO bytes
+and resulting checksum inventory must never replace committed release assets.
+This prevents accidental mutation of approved outputs.
+
+All environments continue to validate committed canonical SHA-256 inventories.
+Diagnostic regeneration checks the complete PNG chunk structure and CRCs,
+canonical non-IDAT contents, width/height, and decompressed unfiltered RGBA
+scanlines of the five ICO PNG entries and both review PNGs. This does not
+pretend that a different zlib compressor generates the same IDAT bytes.
+In the native canonical environment, full ICO, review PNG and checksum
+inventory *byte equality* remains mandatory. Neither test skips nor broad
+xfails nor automatic asset regeneration is permitted.
+
+The source imagery, dimensions, geometry and checked-in binaries remain
+unchanged by Issue #194. To roll back this contract revert the isolated
+generator gate, verification tests and this documentation section; there
+is no branding-asset migration.
 
 The actual PyInstaller bundle consumption remains deferred; native Windows
 shortcut, taskbar, and window-icon behavior remains deferred, as do real Qt

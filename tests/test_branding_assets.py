@@ -555,6 +555,57 @@ def test_package_and_evidence_checksums_cover_deliverables() -> None:
     assert "Issue #82" in evidence_readme
 
 
+def _canonical_branding_toolchain() -> bool:
+    return (
+        sys.platform == "win32"
+        and sys.version_info[:3] == (3, 10, 11)
+        and zlib.ZLIB_VERSION == zlib.ZLIB_RUNTIME_VERSION == "1.2.13"
+    )
+
+
+def _verified_png_content(payload: bytes) -> tuple[tuple[bytes, ...], bytes]:
+    """Require valid PNG chunks/CRCs and return non-IDAT data and scanlines."""
+    assert payload.startswith(b"\x89PNG\r\n\x1a\n")
+    non_idat = []
+    compressed = bytearray()
+    kinds = []
+    offset = 8
+    while offset < len(payload):
+        assert offset + 12 <= len(payload)
+        size = struct.unpack(">I", payload[offset : offset + 4])[0]
+        assert offset + 12 + size <= len(payload)
+        kind = payload[offset + 4 : offset + 8]
+        data = payload[offset + 8 : offset + 8 + size]
+        crc = struct.unpack(">I", payload[offset + 8 + size : offset + 12 + size])[0]
+        assert zlib.crc32(kind + data) & 0xFFFFFFFF == crc
+        kinds.append(kind)
+        if kind == b"IDAT":
+            compressed.extend(data)
+        else:
+            non_idat.append(kind + data)
+        offset += 12 + size
+    assert offset == len(payload)
+    assert kinds == [b"IHDR", b"IDAT", b"IEND"]
+    width, height, depth, color, _, _ = _png_info(payload)
+    assert (depth, color) == (8, 6)
+    raw = zlib.decompress(bytes(compressed))
+    assert len(raw) == height * (1 + 4 * width)
+    for row in range(height):
+        assert raw[row * (1 + 4 * width)] == 0
+    return tuple(non_idat), raw
+
+
+def _assert_png_equivalence(canonical: bytes, generated: bytes) -> None:
+    assert _verified_png_content(generated) == _verified_png_content(canonical)
+
+
+def _assert_inventory(root: Path, names: set[str]) -> None:
+    entries = _checksums(root / "SHA256SUMS")
+    assert set(entries) == names
+    for name, digest in entries.items():
+        assert hashlib.sha256((root / name).read_bytes()).hexdigest() == digest
+
+
 def test_generation_is_deterministic_and_stdlib_only(tmp_path: Path) -> None:
     script = REPOSITORY_ROOT / "scripts" / "generate_branding_assets.py"
     generated_asset_root = _prepare_generator_root(tmp_path)
@@ -562,7 +613,7 @@ def test_generation_is_deterministic_and_stdlib_only(tmp_path: Path) -> None:
         relative: (generated_asset_root / relative).read_bytes()
         for relative in SVG_ASSETS
     }
-    _run_generator(tmp_path)
+    result = _run_generator(tmp_path)
     generated_evidence_root = (
         tmp_path / "docs" / "ui" / "evidence" / "ui-v2-branding-2026-09-24"
     )
@@ -570,21 +621,77 @@ def test_generation_is_deterministic_and_stdlib_only(tmp_path: Path) -> None:
         relative: (generated_asset_root / relative).read_bytes()
         for relative in SVG_ASSETS
     } == canonical_before
-    for relative in ("woff_mate_app.ico", "SHA256SUMS"):
-        assert (generated_asset_root / relative).read_bytes() == (
-            ASSET_ROOT / relative
-        ).read_bytes()
+
+    # Never downgrade the original canonical bytes or checked-in SHA-256
+    # inventories when running on a different Python/zlib toolchain.
+    assets = GENERATED_ASSETS | {"README.md", "manifest.json"}
+    evidence = {"brand-review.png", "windows-icon-review.png"}
+    _assert_inventory(ASSET_ROOT, assets)
+    _assert_inventory(EVIDENCE_ROOT, evidence)
+    _assert_inventory(generated_asset_root, assets)
+    _assert_inventory(generated_evidence_root, evidence)
+
+    canonical_ico = (ASSET_ROOT / "woff_mate_app.ico").read_bytes()
+    generated_ico = (generated_asset_root / "woff_mate_app.ico").read_bytes()
+    original_entries = _ico_entries(ASSET_ROOT / "woff_mate_app.ico")
+    new_entries = _ico_entries(generated_asset_root / "woff_mate_app.ico")
+    assert set(original_entries) == set(new_entries) == set(ICO_SIZES)
+    for size in ICO_SIZES:
+        _assert_png_equivalence(original_entries[size], new_entries[size])
     for relative in ("brand-review.png", "windows-icon-review.png"):
-        assert (generated_evidence_root / relative).read_bytes() == (
-            EVIDENCE_ROOT / relative
+        _assert_png_equivalence(
+            (EVIDENCE_ROOT / relative).read_bytes(),
+            (generated_evidence_root / relative).read_bytes(),
+        )
+
+    if _canonical_branding_toolchain():
+        assert "NONCANONICAL BRANDING OUTPUT" not in result.stderr
+        assert canonical_ico == generated_ico
+        assert (generated_asset_root / "SHA256SUMS").read_bytes() == (
+            ASSET_ROOT / "SHA256SUMS"
         ).read_bytes()
-    assert (generated_evidence_root / "SHA256SUMS").read_bytes() == (
-        EVIDENCE_ROOT / "SHA256SUMS"
-    ).read_bytes()
+        for relative in ("brand-review.png", "windows-icon-review.png", "SHA256SUMS"):
+            assert (generated_evidence_root / relative).read_bytes() == (
+                EVIDENCE_ROOT / relative
+            ).read_bytes()
+    else:
+        # Output may be pixel-identical yet not a canonical binary build.
+        assert "NONCANONICAL BRANDING OUTPUT" in result.stderr
 
     source = script.read_text(encoding="utf-8").lower()
     for forbidden in ("pillow", "cairosvg", "inkscape", "imagemagick", "openai", "requests"):
         assert forbidden not in source
+
+
+def test_noncanonical_default_root_fails_closed_without_asset_write(
+    tmp_path: Path,
+) -> None:
+    if _canonical_branding_toolchain():
+        return  # Canonical generation is intentionally allowed.
+
+    fake_repo = tmp_path / "isolated-repository"
+    fake_script = fake_repo / "scripts" / "generate_branding_assets.py"
+    fake_script.parent.mkdir(parents=True)
+    shutil.copyfile(
+        REPOSITORY_ROOT / "scripts" / "generate_branding_assets.py", fake_script
+    )
+    fake_assets = fake_repo / "woff" / "assets" / "ui" / "branding"
+    fake_assets.mkdir(parents=True)
+    sample = fake_assets / "woff_mate_wordmark_dark.svg"
+    sample.write_bytes((ASSET_ROOT / sample.name).read_bytes())
+    baseline = sample.read_bytes()
+    result = subprocess.run(
+        [sys.executable, "-I", "-S", str(fake_script)],
+        cwd=fake_repo,
+        check=False,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+    )
+    assert result.returncode != 0
+    assert "noncanonical branding toolchain" in result.stderr
+    assert sample.read_bytes() == baseline
+    assert not (fake_assets / "woff_mate_app.ico").exists()
 
 
 def test_canonical_svg_edits_drive_derivatives_and_keep_rounded_dividers(

@@ -13,6 +13,7 @@ import hashlib
 import math
 import re
 import struct
+import sys
 import zlib
 from dataclasses import dataclass
 from pathlib import Path
@@ -738,6 +739,21 @@ def _write_checksums(path: Path, root: Path, names: tuple[str, ...]) -> None:
     path.write_text("".join(lines), encoding="ascii", newline="\n")
 
 
+# The release assets were originally generated on this exact Windows toolchain.
+CANONICAL_PYTHON = (3, 10, 11)
+CANONICAL_ZLIB = "1.2.13"
+
+
+def _is_canonical_toolchain() -> bool:
+    return (
+        sys.platform == "win32"
+        and sys.implementation.name == "cpython"
+        and sys.version_info[:3] == CANONICAL_PYTHON
+        and zlib.ZLIB_VERSION == CANONICAL_ZLIB
+        and zlib.ZLIB_RUNTIME_VERSION == CANONICAL_ZLIB
+    )
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
@@ -747,7 +763,22 @@ def main() -> int:
         help="Repository-shaped output root (defaults to the current repository).",
     )
     arguments = parser.parse_args()
-    _write_outputs(arguments.output_root.resolve())
+    output_root = arguments.output_root.resolve()
+    repository_root = Path(__file__).resolve().parents[1]
+    if not _is_canonical_toolchain():
+        if output_root == repository_root:
+            parser.error(
+                "noncanonical branding toolchain: checked-in derivatives "
+                "require Windows CPython 3.10.11 and zlib 1.2.13; "
+                "specify a separate --output-root for diagnostics"
+            )
+        print(
+            "NONCANONICAL BRANDING OUTPUT (diagnostic only): compressed "
+            "PNG and checksum bytes are not authoritative. "
+            "Verify canonical SHA-256 and decoded PNG equivalence.",
+            file=sys.stderr,
+        )
+    _write_outputs(output_root)
     return 0
 
 
