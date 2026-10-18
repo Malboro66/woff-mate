@@ -13,6 +13,7 @@ import hashlib
 import math
 import re
 import struct
+import sys
 import zlib
 from dataclasses import dataclass
 from pathlib import Path
@@ -738,6 +739,40 @@ def _write_checksums(path: Path, root: Path, names: tuple[str, ...]) -> None:
     path.write_text("".join(lines), encoding="ascii", newline="\n")
 
 
+# The release assets were originally generated on this exact Windows toolchain.
+CANONICAL_PYTHON = (3, 10, 11)
+CANONICAL_ZLIB = "1.2.13"
+
+
+def _is_canonical_toolchain() -> bool:
+    return (
+        sys.platform == "win32"
+        and sys.implementation.name == "cpython"
+        and sys.version_info[:3] == CANONICAL_PYTHON
+        and sys.version_info.releaselevel == "final"
+        and sys.version_info.serial == 0
+        and zlib.ZLIB_VERSION == CANONICAL_ZLIB
+        and zlib.ZLIB_RUNTIME_VERSION == CANONICAL_ZLIB
+    )
+
+
+def _guard_noncanonical_destinations(output_root: Path, repository_root: Path) -> None:
+    """Reject any destination resolving inside this checkout."""
+    assets = output_root / "woff" / "assets" / "ui" / "branding"
+    evidence = output_root / "docs" / "ui" / "evidence" / "ui-v2-branding-2026-09-24"
+    files = (
+        assets / "woff_mate_app.ico", assets / "SHA256SUMS",
+        evidence / "brand-review.png", evidence / "windows-icon-review.png",
+        evidence / "SHA256SUMS",
+    )
+    for target in (output_root, assets, evidence, *files):
+        resolved = target.resolve()
+        if resolved == repository_root or repository_root in resolved.parents:
+            raise ValueError("noncanonical branding toolchain: output aliases canonical repository")
+        if target in files and target.exists() and target.stat().st_nlink > 1:
+            raise ValueError("noncanonical branding toolchain: multiply-linked output")
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
@@ -747,7 +782,20 @@ def main() -> int:
         help="Repository-shaped output root (defaults to the current repository).",
     )
     arguments = parser.parse_args()
-    _write_outputs(arguments.output_root.resolve())
+    output_root = arguments.output_root.resolve()
+    repository_root = Path(__file__).resolve().parents[1]
+    if not _is_canonical_toolchain():
+        try:
+            _guard_noncanonical_destinations(output_root, repository_root)
+        except ValueError as exc:
+            parser.error(str(exc))
+        print(
+            "NONCANONICAL BRANDING OUTPUT (diagnostic only): compressed "
+            "PNG and checksum bytes are not authoritative. "
+            "Verify canonical SHA-256 and decoded PNG equivalence.",
+            file=sys.stderr,
+        )
+    _write_outputs(output_root)
     return 0
 
 
