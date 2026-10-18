@@ -8,9 +8,9 @@ Lê o bloco XML <Mission> no início do ficheiro e o log textual no final.
 """
 
 import os
-import re
 import logging
 import xml.etree.ElementTree as ET
+from xml.parsers import expat
 from typing import Optional, List, Dict, Any
 from ..models import WoFFMission, WoFFPilot
 from ..nation import normalize_nation_evidence
@@ -21,6 +21,78 @@ from ..normalization import (
 )
 
 log = logging.getLogger("WoFFWatch")
+
+class _MissionRootClosed(Exception):
+    """Internal sentinel: stop Expat exactly after the XML document root."""
+
+
+def _split_mission_document(content: str) -> tuple[str, str]:
+    """Return real Mission XML and trailing debrief using Expat's element stack.
+
+    Expat validates comments, CDATA, nested elements and root attributes. Its
+    byte index points to the actual root end tag, not a lookalike in text.
+    We stop at that event because the WoFF debrief is deliberately not XML.
+
+    DTDs and custom/external entities are not part of the supported WoFF
+    format and must be rejected before ElementTree materializes content.
+    """
+    document = content.encode("utf-8")
+    # The legacy decoder has already converted source bytes to Unicode;
+    # the normalized UTF-8 buffer must not be reinterpreted by an XML
+    # declaration naming another source encoding.
+    parser = expat.ParserCreate(encoding="utf-8")
+    depth = 0
+    root_end: Optional[int] = None
+
+    def start_element(name: str, _attributes: Dict[str, str]) -> None:
+        nonlocal depth
+        if depth == 0 and name != "Mission":
+            raise ValueError("expected Mission root element")
+        depth += 1
+
+    def end_element(_name: str) -> None:
+        nonlocal depth, root_end
+        depth -= 1
+        if depth == 0:
+            index = parser.CurrentByteIndex
+            if document[index : index + 2] == b"</":
+                # Expat has already established this as the real closing tag.
+                # End tags contain no quoted attributes or embedded markup.
+                terminator = document.find(b">", index)
+                if terminator < 0:
+                    raise ValueError("incomplete Mission closing tag")
+                root_end = terminator + 1
+            else:
+                # Expat reports the end of a self-closing root after "/>".
+                root_end = index
+            raise _MissionRootClosed
+
+    def reject_doctype(*_arguments: object) -> None:
+        raise ValueError("DTD and entity declarations are not supported")
+
+    def reject_external_entity(
+        _context: str,
+        _base: Optional[str],
+        _system_id: Optional[str],
+        _public_id: Optional[str],
+    ) -> int:
+        raise ValueError("external XML entities are not supported")
+
+    parser.StartElementHandler = start_element
+    parser.EndElementHandler = end_element
+    parser.StartDoctypeDeclHandler = reject_doctype
+    parser.EntityDeclHandler = reject_doctype
+    parser.ExternalEntityRefHandler = reject_external_entity
+
+    try:
+        parser.Parse(document, True)
+    except _MissionRootClosed:
+        pass
+
+    if root_end is None:
+        raise ValueError("incomplete Mission root")
+    return document[:root_end].decode("utf-8"), document[root_end:].decode("utf-8")
+
 
 class WoFFMissionLogParser:
     def __init__(self):
@@ -53,18 +125,16 @@ class WoFFMissionLogParser:
         self.flight_plan = []
         content = data.decode("utf-8", errors="replace")
 
-        # 1. Extrair o bloco XML <Mission>...</Mission>
-        xml_match = re.search(r"<Mission>(.*?)</Mission>", content, re.DOTALL)
-        if not xml_match:
-            log.warning("  Bloco <Mission> não encontrado no log.")
-            return False
-            
-        xml_str = "<Mission>" + xml_match.group(1) + "</Mission>"
-        
+        # 1. Extract the validated root boundary, not a textual closing-tag
+        # match that may appear inside a comment or CDATA section.
         try:
+            xml_str, text_after_xml = _split_mission_document(content)
             root = ET.fromstring(xml_str)
-        except ET.ParseError as e:
-            log.error(f"  Erro de XML no log: {e}")
+        except (expat.ExpatError, ET.ParseError, ValueError) as error:
+            log.error("  Invalid Mission XML document: %s", error)
+            return False
+        if root.tag != "Mission":
+            log.warning("  Unsupported Mission XML root.")
             return False
 
         # 2. Extrair Parâmetros e Briefing
@@ -159,7 +229,6 @@ class WoFFMissionLogParser:
                 break # Já processámos a formação do jogador, podemos sair do ciclo
 
         # 4. Extrair Debriefing do texto pós-XML
-        text_after_xml = content[xml_match.end():]
         
         if "forced landing on friendly field" in text_after_xml.lower():
             self.debriefing = "Forced landing on friendly field"
