@@ -298,7 +298,8 @@ class WoFFWatchdog:
                 epoch_reader = getattr(
                     self._handler, "startup_inventory_epoch", None
                 )
-                verified_epoch = epoch_reader() if callable(epoch_reader) else None
+                raw_epoch = epoch_reader() if callable(epoch_reader) else None
+                verified_epoch = raw_epoch if isinstance(raw_epoch, int) else None
                 startup_sources = [_scan_startup_sources(path) for path in valid]
                 # A child can change after its own post-scan stat check while
                 # its sibling is still being visited. An independent second
