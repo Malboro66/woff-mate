@@ -10,6 +10,17 @@ The machine-readable eval registry lives in
 [`../architecture/project-graph.yaml`](../architecture/project-graph.yaml). This
 document defines the human-readable contract and cycle aggregation rules.
 
+## Current revision and evidence use
+
+The [integrated governance checkpoint of 2026-10-18](governance-checkpoint-2026-10-18.md)
+distinguishes implemented evals from pending aggregate product decisions.
+This catalog's recorded `implemented` status proves only the linked scoped
+evidence, **not** that R1/Gate A, another aggregate cycle, a Draft PR, or a real
+WOFF data capture has passed. In particular, completed #96/#184/#193/#77/#99
+do not waive open #142/#146/#195/#87 work or the Gate A review and demonstration.
+Do not change executable eval statuses to satisfy this checkpoint; modify the
+graph only when supported implementation/review evidence justifies it.
+
 ## Eval types
 
 | Type | Use | Preferred evidence |
