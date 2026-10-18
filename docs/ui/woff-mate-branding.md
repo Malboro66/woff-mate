@@ -153,9 +153,43 @@ optical master, deterministic ICO, static review, provenance, and usage rules.
 Future Issue #82 should use `woff/assets/ui/branding/woff_mate_app.ico` as the
 candidate PyInstaller icon and retain both app-icon SVG masters for diagnosis.
 
-Run `python -I -S scripts/generate_branding_assets.py` after an intentional SVG
-edit to validate the canonical sources and refresh only the ICO, review PNGs,
-and checksum inventories. The command never rewrites the canonical SVG files.
+### Issue #194 ? canonical binary generation contract
+
+**Approved binary build toolchain:** native Windows, CPython **3.10.11**,
+compiled against and running **zlib 1.2.13**. The approved eight canonical SVGs
+are authoritative; the ICO, review PNGs and SHA-256 inventories are derivatives.
+The exact Python/zlib version is required for **regenerating canonical binary
+assets**, not for running WoFF Mate on another supported interpreter.
+
+After an intentional SVG change use:
+`py -3.10 -I -S scripts/generate_branding_assets.py`
+
+When executed outside that toolchain, the generator refuses to write into its
+checkout, including nested output-directory symlinks/NTFS junctions and
+multiply-linked existing output files. A genuinely **separate** `--output-root`
+allows diagnostic-only generation, labeled NONCANONICAL; its compressed PNG/ICO
+bytes and checksum inventory must never replace committed release assets.
+This prevents accidental mutation of approved outputs.
+
+All environments validate committed canonical SHA-256 inventories **against
+independently pinned approved inventory-file digests**, not solely the contents
+of the inventories being inspected. The package SHA256SUMS digest is
+`4dad33e6083dbd3cc685cc60627908018b8ca8b2f60a05f71a70ae536d86c99d`
+and the evidence SHA256SUMS digest is
+`a92a0c3761ec76458f8a3062a11ef3be0db1e7cc95ea9882802c9c4d072c83f6`.
+This prevents a self-consistent but noncanonical binary/inventory replacement.
+Diagnostic regeneration checks the complete PNG chunk structure and CRCs,
+canonical non-IDAT contents, width/height, and decompressed unfiltered RGBA
+scanlines of the five ICO PNG entries and both review PNGs. This does not
+pretend that a different zlib compressor generates the same IDAT bytes.
+In the native canonical environment, full ICO, review PNG and checksum
+inventory *byte equality* remains mandatory. Neither test skips nor broad
+xfails nor automatic asset regeneration is permitted.
+
+The source imagery, dimensions, geometry and checked-in binaries remain
+unchanged by Issue #194. To roll back this contract revert the isolated
+generator gate, verification tests and this documentation section; there
+is no branding-asset migration.
 
 The actual PyInstaller bundle consumption remains deferred; native Windows
 shortcut, taskbar, and window-icon behavior remains deferred, as do real Qt
