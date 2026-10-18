@@ -13,24 +13,37 @@ migration, medal catalog changes, or shared SQLite connection-policy changes.
    undecodable input, streams with no uppercase-hex evidence, and decoded
    payloads shorter than two bytes.
 5. Stage every validated generation before starting the SQLite write batch.
+6. Within one SQLite transaction, preflight every staged replacement against its
+   existing row before writing catalog rows. A nonempty stored TEXT payload
+   is retained when the new decoded hexadecimal string is shorter; reject
+   the **entire batch** with `shorter-than-stored`. If an existing non-NULL
+   payload has an unsupported storage type, reject with `unsupported-stored`
+   rather than overwriting unknown data.
 
 Two decoded bytes are a deliberately minimal **provisional** validity floor,
 not a reverse-engineered squadron record schema. Historical separators remain
 permitted by `unscramble`. We cannot identify every longer, stable but
 semantically truncated file without independently verified Scratchpad format
-markers, length, or checksum. This limitation must not be represented as
-complete source-level truncation detection.
+markers, length, or checksum. The retained-length guard rejects the concrete
+shorter-than-previously-stored case, but does **not** prove completeness for a
+first-seen record or one that stays the same length or grows. Legitimately
+shorter fresh generations are conservatively rejected until an independently
+verified real-format criterion allows them. Never represent this as complete
+source-level truncation detection.
 
 ## Persistence / errors
 
 - An empty directory is a no-op, never a delete instruction.
 - An invalid member rejects the **whole selected batch**. Existing rows and
   other valid candidates remain unchanged.
-- Once staged, all INSERT/UPDATE statements share one SQLite transaction;
-  an SQL error rolls back all candidates.
+- Once staged, the existing-row length/type preflight runs before any
+  INSERT/UPDATE statements within the same SQLite transaction. A rejected
+  member rolls back the full batch without changing any catalog rows.
+  An SQL error also rolls back all candidates.
 - An unchanged row is not rewritten on replay (`ON CONFLICT DO UPDATE WHERE`).
 - One bounded warning/error records the **category only** (empty, truncated,
-  unsupported, inaccessible, changed-generation, timeout or sqlite-write).
+  shorter-than-stored, unsupported-stored, unsupported, inaccessible,
+  changed-generation, timeout or sqlite-write).
   It does not include paths, source names, original bytes or payload content.
 - A later successful run may apply data after a rejection; rejected input
   itself is never persisted.

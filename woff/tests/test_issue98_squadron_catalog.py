@@ -143,6 +143,65 @@ def test_stable_generation_upserts_and_replay_does_not_rewrite_row(sample):
         assert conn.execute("SELECT counter FROM audit").fetchone() == (0,)
 
 
+def test_stable_shorter_generation_cannot_replace_retained_payload(sample, caplog):
+    folder, db = sample
+    (folder / "Esc 15.txt").write_bytes(b"41|42|")
+    with caplog.at_level(logging.WARNING):
+        _catalog(folder, db)
+    assert _rows(db) == [("Esc 15", "DEADBEEF", "Esc 15.txt")]
+    assert "shorter-than-stored" in caplog.text
+    assert str(folder) not in caplog.text
+    assert "DEADBEEF" not in caplog.text
+
+
+def test_shorter_generation_aborts_entire_batch_before_writes(sample, caplog):
+    folder, db = sample
+    (folder / "Esc 15.txt").write_bytes(b"41|42|")
+    (folder / "Esc 16.txt").write_bytes(b"43|44|45|46|")
+    with caplog.at_level(logging.WARNING):
+        _catalog(folder, db)
+    assert _rows(db) == [("Esc 15", "DEADBEEF", "Esc 15.txt")]
+    assert caplog.text.count("batch rejected") == 1
+    assert "shorter-than-stored" in caplog.text
+
+
+def test_later_shorter_member_rejects_earlier_valid_member(sample, caplog):
+    folder, db = sample
+    _seed(db, squad="Esc 16")
+    (folder / "Esc 15.txt").write_bytes(b"41|42|43|44|")
+    (folder / "Esc 16.txt").write_bytes(b"45|46|")
+    with caplog.at_level(logging.WARNING):
+        _catalog(folder, db)
+    assert _rows(db) == [
+        ("Esc 15", "DEADBEEF", "Esc 15.txt"),
+        ("Esc 16", "DEADBEEF", "Esc 16.txt"),
+    ]
+    assert caplog.text.count("batch rejected") == 1
+    assert "shorter-than-stored" in caplog.text
+
+
+def test_unknown_existing_storage_type_is_preserved(sample, caplog):
+    folder, db = sample
+    with sqlite3.connect(db) as conn:
+        conn.execute("UPDATE squadrons SET raw_data = ?", (b"\xde\xad",))
+    (folder / "Esc 15.txt").write_bytes(b"41|42|43|44|")
+    with caplog.at_level(logging.WARNING):
+        _catalog(folder, db)
+    assert _rows(db) == [("Esc 15", b"\xde\xad", "Esc 15.txt")]
+    assert "unsupported-stored" in caplog.text
+
+
+def test_equal_or_larger_stable_generation_can_replace_retained_payload(sample):
+    folder, db = sample
+    source = folder / "Esc 15.txt"
+    source.write_bytes(b"41|42|43|44|")
+    _catalog(folder, db)
+    assert _rows(db) == [("Esc 15", "41424344", "Esc 15.txt")]
+    source.write_bytes(b"41|42|43|44|45|")
+    _catalog(folder, db)
+    assert _rows(db) == [("Esc 15", "4142434445", "Esc 15.txt")]
+
+
 def test_batch_invalid_member_aborts_all_replacements(sample, caplog):
     folder, db = sample
     (folder / "Esc 15.txt").write_bytes(b"41|42|")
@@ -155,7 +214,7 @@ def test_batch_invalid_member_aborts_all_replacements(sample, caplog):
 
 def test_batch_sql_failure_rolls_back_all_changes(sample, caplog):
     folder, db = sample
-    (folder / "Esc 15.txt").write_bytes(b"41|42|")
+    (folder / "Esc 15.txt").write_bytes(b"41|42|43|44|")
     (folder / "Esc 16.txt").write_bytes(b"43|44|")
     with sqlite3.connect(db) as conn:
         conn.execute(
@@ -178,11 +237,11 @@ def test_empty_directory_is_not_a_delete_signal(sample):
 
 def test_multiple_valid_members_commit_as_one_batch(sample):
     folder, db = sample
-    (folder / "Esc 15.txt").write_bytes(b"41|42|")
+    (folder / "Esc 15.txt").write_bytes(b"41|42|43|44|")
     (folder / "Esc 16.txt").write_bytes(b"43|44|")
     _catalog(folder, db)
     assert _rows(db) == [
-        ("Esc 15", "4142", "Esc 15.txt"),
+        ("Esc 15", "41424344", "Esc 15.txt"),
         ("Esc 16", "4344", "Esc 16.txt"),
     ]
 

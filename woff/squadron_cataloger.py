@@ -14,7 +14,7 @@ from contextlib import closing
 from dataclasses import dataclass
 from typing import Optional
 
-from woff.decode.common import HEX_DIGITS, unscramble
+from .decode.common import HEX_DIGITS, unscramble
 from .ingestion.snapshot import SnapshotFailure, StableSnapshotReader
 
 log = logging.getLogger("WoFFWatch")
@@ -117,6 +117,23 @@ def catalog_squadrons(
                     "CREATE TABLE IF NOT EXISTS squadrons ("
                     "id TEXT PRIMARY KEY, name TEXT, raw_data TEXT, source_file TEXT)"
                 )
+                # Preflight every selected replacement before changing any rows.
+                # Consistency across reads alone cannot establish that a stable
+                # payload is complete. Retain a longer stored generation until
+                # a verified format contract can authorize intentional shrinkage.
+                for entry in entries:
+                    existing = conn.execute(
+                        "SELECT raw_data FROM squadrons WHERE id = ?",
+                        (entry.squad_id,),
+                    ).fetchone()
+                    if existing is None or existing[0] is None:
+                        continue
+                    previous = existing[0]
+                    if not isinstance(previous, str):
+                        raise _RejectedGeneration("unsupported-stored")
+                    if previous and len(entry.raw_hex) < len(previous):
+                        raise _RejectedGeneration("shorter-than-stored")
+
                 changes = 0
                 for entry in entries:
                     cursor = conn.execute(
@@ -132,9 +149,12 @@ def catalog_squadrons(
                     )
                     changes += cursor.rowcount
                 conn.commit()
-            except sqlite3.Error:
+            except (sqlite3.Error, _RejectedGeneration):
                 conn.rollback()
                 raise
+    except _RejectedGeneration as exc:
+        log.warning("squadron-catalog batch rejected: %s", exc.kind)
+        return
     except sqlite3.Error:
         log.error("squadron-catalog batch rejected: sqlite-write")
         return
