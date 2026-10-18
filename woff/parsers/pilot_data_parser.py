@@ -71,6 +71,17 @@ class WoFFPilotDataParser:
         expected = ("day", "month", "year", "hour", "minute")
         return len(parts) == 10 and tuple(value.lower() for value in parts[:5]) == expected
 
+    # Attested zero-count PilotClaims v1.38 metadata, not a victory row.
+    _ZERO_CLAIMS_HEADER = (
+        "day", "month", "year", "hour", "minute",
+        "missionregion", "missionbase", "missiontype", "aircraftname",
+        "claimqty", "enemycraftname", "circumstances", "aircrafttruncatedname",
+    )
+
+    @classmethod
+    def _is_zero_claims_header(cls, parts: List[str]) -> bool:
+        return tuple(field.casefold() for field in parts) == cls._ZERO_CLAIMS_HEADER
+
     @staticmethod
     def _has_claim_confirmation_signature(parts: List[str]) -> bool:
         return len(parts) > 5 and parts[5].lower().startswith(
@@ -300,10 +311,36 @@ class WoFFPilotDataParser:
         log.info(f"[TXT] Analisando Vitórias (Claims): {os.path.basename(path)}")
         try:
             self.declared_records = self._declared_record_count(lines)
+            # Metadata admission is restricted to the first two nonempty
+            # lines: an explicit zero count and one exact ordered header.
+            first_nonempty = next(
+                (i for i, raw in enumerate(lines) if raw.strip()), None
+            )
+            zero_prelude = (
+                first_nonempty is not None
+                and lines[first_nonempty].strip() == "0"
+            )
+            header_line = None
+            if zero_prelude:
+                second_nonempty = next(
+                    (i for i in range(first_nonempty + 1, len(lines))
+                     if lines[i].strip()), None
+                )
+                if second_nonempty is not None and self._is_zero_claims_header(
+                    self._normalized_fields(lines[second_nonempty].rstrip("\r\n"))
+                ):
+                    header_line = second_nonempty
             for line_number, raw_line in enumerate(lines, start=1):
                 line = raw_line.rstrip("\r\n")
-                if not line.strip() or line.strip().isdigit():
+                if not line.strip():
                     continue
+                if header_line is not None and line_number == header_line + 1:
+                    continue
+                if line.strip().isdigit():
+                    # Only the initial counter is source metadata. Subsequent
+                    # numeric lines are malformed candidate records.
+                    if line_number - 1 == first_nonempty:
+                        continue
 
                 self.observed_records += 1
                 parts = self._normalized_fields(line)
