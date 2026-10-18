@@ -22,3 +22,11 @@ WoFF_Mate é uma aplicação Python para Windows que processa dados do WoFF e ma
 A fase de implementação termina quando os critérios da issue foram atendidos, os testes passaram, o diff foi revisado e uma PR draft foi aberta.
 
 A entrega integrada termina somente após os controles aplicáveis ao escopo — como revisão independente, CI, Codex Review e gates de governança — e uma decisão humana explícita de merge. A abertura da PR draft não conclui, por si só, a entrega integrada.
+
+## Governança de escopo e proporcionalidade
+
+- Consulte o [checkpoint integrado de 2026-10-18](docs/engineering/governance-checkpoint-2026-10-18.md) para distinguir estado atual, decisões, evidências históricas e restrições dos Product Gates. Revalide `main`, issues e PRs antes de tomar decisões.
+- Não amplie critérios de aceite para campanhas de infraestrutura, plataformas secundárias, máquinas virtuais, testes especializados de acessibilidade, certificações ou revisões repetidas sem demonstrar que respondem a um requisito aprovado e modificam uma decisão concreta. Registre limitações ou evidência ausente e peça decisão do mantenedor para expansão material de custo ou escopo. Isso não dispensa gates aplicáveis.
+- Spikes encerram quando há evidência suficiente para a decisão delimitada. Um review independente da PR não substitui um Full Application Review da `main` integrada.
+- Nunca interprete CI verde, PR Draft, fixture/protótipo, suporte declarado pelo fornecedor ou toolkit ADR aceita como aprovação de Product Gates A–D, P1 com dados reais, launcher, RPG social ou release.
+- Documentação/governança podem chegar até PR Draft sob L2; merge, mudanças de portão ou aceitação de risco permanecem decisões humanas.
