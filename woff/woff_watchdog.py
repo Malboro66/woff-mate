@@ -189,6 +189,31 @@ def _scan_startup_sources(root: str) -> dict[str, list[str]]:
                 raise OSError("ambiguous-startup-pilot-slot")
             logical_slots.add(slot)
         paths.sort(key=lambda path: (os.path.normcase(path), path))
+
+    # Dependent source identity resolves the Dossier next to that file, NOT a
+    # Dossier elsewhere in the configured campaign namespace. Do not submit
+    # an impossible cross-subdirectory dependency as a settled startup phase.
+    dossiers_by_slot = {
+        pilot_slot(path): path
+        for path in sources["Pilot*Dossier.txt"]
+    }
+    for family in _STARTUP_PILOT_PATTERNS[1:]:
+        for path in sources[family]:
+            slot = pilot_slot(path)
+            if slot is None:
+                raise OSError("invalid-startup-dependent-slot")
+            dossier = dossiers_by_slot.get(slot)
+            if dossier is None:
+                # Preserve existing dependency-pending behavior when no
+                # Dossier is known for the slot anywhere in this root.
+                continue
+            expected = os.path.join(
+                os.path.dirname(path), dossier_source_name(slot)
+            )
+            if os.path.normcase(os.path.abspath(dossier)) != os.path.normcase(
+                os.path.abspath(expected)
+            ):
+                raise OSError("unresolvable-startup-dependent-identity")
     return sources
 
 

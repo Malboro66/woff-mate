@@ -545,3 +545,69 @@ def test_finalization_rejects_new_event_after_last_epoch_read(
     finally:
         handler.shutdown()
         db.close()
+
+
+@pytest.mark.parametrize("family", ("Log", "Claims", "Squads"))
+def test_known_dossier_in_other_subdirectory_is_rejected(
+    tmp_path: Path, family: str,
+) -> None:
+    root = tmp_path / "campaign"
+    (root / "alpha").mkdir(parents=True)
+    (root / "bravo").mkdir()
+    (root / "alpha" / "Pilot1Dossier.txt").write_bytes(b"synthetic")
+    (root / "bravo" / f"Pilot1{family}.txt").write_bytes(b"synthetic")
+    with pytest.raises(OSError, match="unresolvable-startup-dependent-identity"):
+        _scan(root)
+
+
+@pytest.mark.parametrize("family", ("Log", "Claims", "Squads"))
+def test_known_dossier_beside_dependent_is_accepted(
+    tmp_path: Path, family: str,
+) -> None:
+    root = tmp_path / "campaign"
+    subfolder = root / "nested"
+    subfolder.mkdir(parents=True)
+    dossier = subfolder / "Pilot1Dossier.txt"
+    dependent = subfolder / f"Pilot1{family}.txt"
+    dossier.write_bytes(b"synthetic")
+    dependent.write_bytes(b"synthetic")
+    inventory = _scan(root)
+    assert inventory["Pilot*Dossier.txt"] == [str(dossier)]
+    assert inventory[f"Pilot*{family}.txt"] == [str(dependent)]
+
+
+def test_unknown_dossier_keeps_existing_pending_policy(tmp_path: Path) -> None:
+    root = tmp_path / "campaign"
+    root.mkdir()
+    path = root / "Pilot1Log.txt"
+    path.write_bytes(b"synthetic")
+    inventory = _scan(root)
+    assert inventory["Pilot*Dossier.txt"] == []
+    assert inventory["Pilot*Log.txt"] == [str(path)]
+
+
+def test_cross_directory_dependent_cannot_submit_any_startup_sources(
+    tmp_path: Path,
+) -> None:
+    root = tmp_path / "campaign"
+    (root / "alpha").mkdir(parents=True)
+    (root / "bravo").mkdir()
+    (root / "alpha" / "Pilot1Dossier.txt").write_bytes(b"synthetic")
+    (root / "bravo" / "Pilot1Log.txt").write_bytes(b"synthetic")
+    handler = MagicMock()
+    config = WatchdogConfig(
+        watch_paths=[str(root)],
+        export_path=str(tmp_path / "export" / "db.sqlite"),
+        watched_extensions=[".txt"],
+    )
+    with patch.object(woff_watchdog, "Observer"), patch.object(
+        woff_watchdog, "WoFFEventHandler", return_value=handler
+    ), patch.object(woff_watchdog, "CampaignEngine"), patch.object(
+        woff_watchdog, "catalog_medals"
+    ), patch.object(woff_watchdog, "catalog_squadrons"):
+        watchdog = woff_watchdog.WoFFWatchdog(config)
+        with pytest.raises(OSError, match="unresolvable-startup-dependent-identity"):
+            watchdog.start()
+    handler.submit_initial.assert_not_called()
+    handler.submit_initial_vacancy.assert_not_called()
+    handler.shutdown.assert_called_once()
