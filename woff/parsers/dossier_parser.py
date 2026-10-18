@@ -80,6 +80,13 @@ _US_PILOT_RANKS = frozenset({
 # index 2 as MFJ I and its squadron at index 83 as III MLFA. Both are needed:
 # naval labels alone and unverified aliases must never select a new profile.
 _GB_RFC_SQUADRON = frozenset({"16 rfc"})
+# Recon Wars v1.38: exactly paired source-unit/display-unit evidence.
+# Do not broaden the country-only GB rank profile on the display name alone.
+_GB_ATTESTED_RFC_PAIRS = frozenset({
+    ("rfc-2", "2 rfc"),
+    ("rfc-13", "13 rfc"),
+})
+_GB_NEW_RFC_DISPLAYS = frozenset(display for _, display in _GB_ATTESTED_RFC_PAIRS)
 _GB_RNAS_SQUADRON = frozenset({"1 sqn rnas", "hq sqn 1 wing rnas"})
 
 
@@ -98,6 +105,16 @@ def _observed_rank_profile(
     unit = squadron.strip().casefold()
     context_unit = source_unit.strip().casefold()
     if nation is NationCode.GB:
+        # For the newly attested family, validate both anchors. A known
+        # service code cannot override a contradictory unit pair.
+        if unit in _GB_NEW_RFC_DISPLAYS or context_unit in {
+            source for source, _ in _GB_ATTESTED_RFC_PAIRS
+        }:
+            if (context_unit, unit) not in _GB_ATTESTED_RFC_PAIRS:
+                return frozenset(), frozenset()
+            if service in (ServiceCode.RAF, ServiceCode.RNAS):
+                return frozenset(), frozenset()
+            return _GB_GENERAL_PILOT_RANKS, _OBSERVED_OBSERVER_RANKS
         if service is ServiceCode.RNAS:
             if unit in _GB_RFC_SQUADRON or unit == "raf":
                 return frozenset(), frozenset()
