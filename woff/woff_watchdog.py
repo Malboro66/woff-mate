@@ -303,9 +303,12 @@ class WoFFWatchdog:
                 # its sibling is still being visited. An independent second
                 # traversal guards against claiming a complete stale tree.
                 repeat_sources = [_scan_startup_sources(path) for path in valid]
-                if startup_sources != repeat_sources or (
-                    epoch_before is not None and epoch_reader() != epoch_before
-                ):
+                epoch_changed = (
+                    epoch_before is not None
+                    and callable(epoch_reader)
+                    and epoch_reader() != epoch_before
+                )
+                if startup_sources != repeat_sources or epoch_changed:
                     raise RuntimeError("startup recursive inventory changed")
                 self._reconcile_vacant_slots(valid)
                 log.info("A sincronizar dados iniciais dos pilotos...")
@@ -342,8 +345,14 @@ class WoFFWatchdog:
                     self._handler, "startup_inventory_epoch", None
                 )
                 epoch_before = epoch_reader() if callable(epoch_reader) else None
-                if [_scan_startup_sources(path) for path in valid] != startup_sources or (
-                    epoch_before is not None and epoch_reader() != epoch_before
+                epoch_changed = (
+                    epoch_before is not None
+                    and callable(epoch_reader)
+                    and epoch_reader() != epoch_before
+                )
+                if (
+                    [_scan_startup_sources(path) for path in valid] != startup_sources
+                    or epoch_changed
                 ):
                     raise RuntimeError("startup recursive inventory changed")
             finish = getattr(self._handler, "finish_startup_inventory", None)
