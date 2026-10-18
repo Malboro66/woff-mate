@@ -383,10 +383,10 @@ def test_file_added_after_child_scan_forces_startup_retry_not_false_success(
     fake_handler.shutdown.assert_called_once()
 
 
-def test_inflight_live_rejection_precedes_startup_finalization(
+def test_live_event_during_startup_cannot_run_a_worker(
     tmp_path: Path,
 ) -> None:
-    """Do not finalize positively while a live scheduler admission is in flight."""
+    """A concurrent live positive must fail startup without a preflight DB write."""
     from ..handler import WoFFEventHandler
     from ..database import DatabaseManager
     from ..campaign_engine import CampaignEngine
@@ -400,46 +400,17 @@ def test_inflight_live_rejection_precedes_startup_finalization(
     )
     db = DatabaseManager(config.export_path, campaign_namespaces=config.campaign_namespaces)
     handler = WoFFEventHandler(config, db, CampaignEngine(db))
-    entered_submit = threading.Event()
-    release_submit = threading.Event()
-    finalized = threading.Event()
-    outcome: dict[str, bool] = {}
-
-    def reject_after_barrier(*_args, **_kwargs) -> bool:
-        entered_submit.set()
-        assert release_submit.wait(5), "synthetic submit barrier timed out"
-        return False
-
-    def submit_live() -> None:
-        outcome["accepted"] = handler._handle(
-            str(root / "Pilot2Dossier.txt"), "created"
-        )
-
-    def finish() -> None:
-        outcome["complete"] = handler.finish_startup_inventory()
-        finalized.set()
-
+    path = str(root / "Pilot2Dossier.txt")
     try:
         handler.begin_startup_inventory()
-        with patch.object(handler.scheduler, "submit", side_effect=reject_after_barrier):
-            live_thread = threading.Thread(target=submit_live)
-            finish_thread = threading.Thread(target=finish)
-            try:
-                live_thread.start()
-                assert entered_submit.wait(5)
-                finish_thread.start()
-                # Under the old implementation finish returned true while
-                # submit was still blocked, losing its eventual rejection.
-                assert not finalized.wait(0.1)
-            finally:
-                release_submit.set()
-                live_thread.join(5)
-                if finish_thread.ident is not None:
-                    finish_thread.join(5)
-            assert not live_thread.is_alive()
-            assert not finish_thread.is_alive()
-            assert outcome == {"accepted": False, "complete": False}
+        with patch.object(handler.scheduler, "submit", return_value=True) as submit:
+            assert handler._handle(path, "created") is False
+            submit.assert_not_called()
             assert handler.startup_inventory_epoch() == 1
+            assert handler.finish_startup_inventory(0) is False
+            # Once startup is closed, ordinary live admission still works.
+            assert handler._handle(path, "modified") is True
+            submit.assert_called_once_with(path, "modified")
     finally:
         handler.shutdown()
         db.close()
@@ -538,8 +509,9 @@ def test_finalization_rejects_new_event_after_last_epoch_read(
     try:
         handler.begin_startup_inventory()
         initial_epoch = handler.startup_inventory_epoch()
-        with patch.object(handler.scheduler, "submit", return_value=True):
-            assert handler._handle(str(root / "Pilot1Dossier.txt"), "created")
+        with patch.object(handler.scheduler, "submit", return_value=True) as submit:
+            assert not handler._handle(str(root / "Pilot1Dossier.txt"), "created")
+            submit.assert_not_called()
         assert handler.startup_inventory_epoch() == initial_epoch + 1
         assert handler.finish_startup_inventory(initial_epoch) is False
     finally:
@@ -611,3 +583,36 @@ def test_cross_directory_dependent_cannot_submit_any_startup_sources(
     handler.submit_initial.assert_not_called()
     handler.submit_initial_vacancy.assert_not_called()
     handler.shutdown.assert_called_once()
+
+
+@pytest.mark.parametrize("event_type", ("deleted", "moved-away"))
+def test_directory_departure_during_startup_cannot_run_vacancy_worker(
+    tmp_path: Path, event_type: str,
+) -> None:
+    """A subtree departure fails cold startup before any vacancy persistence."""
+    from ..handler import WoFFEventHandler
+    from ..database import DatabaseManager
+    from ..campaign_engine import CampaignEngine
+
+    root = tmp_path / "campaign"
+    root.mkdir()
+    config = WatchdogConfig(
+        watch_paths=[str(root)],
+        export_path=str(tmp_path / "export" / "db.sqlite"),
+        watched_extensions=[".txt"],
+    )
+    db = DatabaseManager(config.export_path, campaign_namespaces=config.campaign_namespaces)
+    handler = WoFFEventHandler(config, db, CampaignEngine(db))
+    try:
+        handler.begin_startup_inventory()
+        with patch.object(
+            handler.processor, "vacancy_paths_for_directory"
+        ) as vacancy, patch.object(handler.scheduler, "submit") as submit:
+            handler._reconcile_directory(str(root / "nested"), event_type)
+            vacancy.assert_not_called()
+            submit.assert_not_called()
+        assert handler.startup_inventory_epoch() == 1
+        assert handler.finish_startup_inventory(0) is False
+    finally:
+        handler.shutdown()
+        db.close()

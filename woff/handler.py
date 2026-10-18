@@ -890,6 +890,14 @@ class WoFFEventHandler(FileSystemEventHandler):
 
     def _reconcile_directory(self, path: str, event_type: str) -> None:
         """Recheck occupied slots after a subtree may have left a watch root."""
+        # A directory departure can invalidate the cold-start inventory.
+        # Never submit a vacancy worker before that inventory is validated:
+        # failure is reported to startup, which must retry on a fresh scan.
+        with self._startup_inventory_lock:
+            if self._startup_inventory_active:
+                self._startup_inventory_epoch += 1
+                self._startup_inventory_rejected = True
+                return
         dossier_paths = self.processor.vacancy_paths_for_directory(path)
         for dossier_path in dossier_paths:
             if not self.scheduler.submit(
@@ -921,16 +929,20 @@ class WoFFEventHandler(FileSystemEventHandler):
                 self.discovery.log_file(path, event_type)
             return False
 
-        # Admission and startup finalization share one lock: a callback
-        # already submitting must not finish *after* startup deactivates
-        # tracking, silently hiding a rejected bounded-scheduler admission.
+        # Live writes must not escape validation of ambiguous recursive
+        # startup inventory. A live mutation during cold start invalidates
+        # that inventory and fails startup closed; a fresh startup scan is
+        # required. Do not run its scheduler worker before the validation
+        # barrier, even when the scheduler has capacity.
+        #
+        # Holding the lock across the normal post-startup submission keeps
+        # this transition atomic with finish_startup_inventory().
         with self._startup_inventory_lock:
-            accepted = self.scheduler.submit(path, event_type)
             if self._startup_inventory_active:
                 self._startup_inventory_epoch += 1
-                if not accepted:
-                    self._startup_inventory_rejected = True
-        return accepted
+                self._startup_inventory_rejected = True
+                return False
+            return self.scheduler.submit(path, event_type)
 
     def submit_initial(self, path: str) -> bool:
         """Route startup reconciliation through the bounded live scheduler."""
