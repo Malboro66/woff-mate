@@ -26,7 +26,7 @@ from __future__ import annotations
 
 import os
 import sys
-import glob
+import stat
 import argparse
 import logging
 import threading
@@ -104,6 +104,67 @@ log = logging.getLogger("WoFFWatch")
 # ──────────────────────────────────────────────────────────────
 # ORQUESTRADOR PRINCIPAL
 # ──────────────────────────────────────────────────────────────
+
+# Keep startup's positive inventory bounded by the same approved filename
+# families as live event admission; this is not general filesystem ingestion.
+_STARTUP_PILOT_PATTERNS = (
+    "Pilot*Dossier.txt",
+    "Pilot*Log.txt",
+    "Pilot*Claims.txt",
+    "Pilot*Squads.txt",
+)
+
+
+def _scan_startup_sources(root: str) -> dict[str, list[str]]:
+    """Enumerate one complete, non-link-following recursive pilot inventory.
+
+    A partially scanned root must not produce a seemingly complete startup
+    inventory. The watcher starts before this enumeration; any concurrent file
+    modifications are coalesced through the existing event scheduler.
+    """
+    sources: dict[str, list[str]] = {
+        pattern: [] for pattern in _STARTUP_PILOT_PATTERNS
+    }
+
+    def visit(directory: str) -> None:
+        before = os.stat(directory, follow_symlinks=False)
+        if (
+            not stat.S_ISDIR(before.st_mode)
+            or getattr(before, "st_file_attributes", 0) & 0x400
+        ):
+            raise OSError("unsupported-startup-subtree")
+        with os.scandir(directory) as entries:
+            for entry in entries:
+                metadata = entry.stat(follow_symlinks=False)
+                if entry.is_symlink() or getattr(
+                    metadata, "st_file_attributes", 0
+                ) & 0x400:
+                    raise OSError("unverified-startup-subtree")
+                if stat.S_ISDIR(metadata.st_mode):
+                    visit(entry.path)
+                elif stat.S_ISREG(metadata.st_mode):
+                    for pattern in _STARTUP_PILOT_PATTERNS:
+                        if fnmatch(entry.name, pattern):
+                            sources[pattern].append(entry.path)
+        after = os.stat(directory, follow_symlinks=False)
+        if (
+            before.st_dev,
+            before.st_ino,
+            before.st_mtime_ns,
+            before.st_ctime_ns,
+        ) != (
+            after.st_dev,
+            after.st_ino,
+            after.st_mtime_ns,
+            after.st_ctime_ns,
+        ):
+            raise OSError("changed-startup-inventory")
+
+    visit(root)
+    for paths in sources.values():
+        paths.sort(key=os.path.normcase)
+    return sources
+
 
 class WoFFWatchdog:
     """
@@ -199,21 +260,23 @@ class WoFFWatchdog:
         # ──────────────────────────────────────────────────────────────
         # SINCRONIZAÇÃO INICIAL DE TODOS OS PILOTOS
         # ──────────────────────────────────────────────────────────────
-            file_patterns = []
+            startup_sources: list[dict[str, list[str]]] = []
             if ".txt" in self.config.watched_extensions:
+                # Collect all roots before submitting any positives or
+                # authoritative vacancy assertions. A subtree scan error
+                # fails startup rather than silently accepting a partial set.
+                startup_sources = [_scan_startup_sources(path) for path in valid]
                 self._reconcile_vacant_slots(valid)
                 log.info("A sincronizar dados iniciais dos pilotos...")
-                file_patterns = [
-                    "Pilot*Dossier.txt",
-                    "Pilot*Log.txt",
-                    "Pilot*Claims.txt",
-                    "Pilot*Squads.txt",
-                ]
 
-            for file_pattern in file_patterns:
-                phase_files = []
-                for path in valid:
-                    phase_files.extend(glob.glob(os.path.join(path, file_pattern)))
+            for file_pattern in (
+                _STARTUP_PILOT_PATTERNS if startup_sources else ()
+            ):
+                phase_files = [
+                    file_path
+                    for inventory in startup_sources
+                    for file_path in inventory[file_pattern]
+                ]
                 for file_path in phase_files:
                     if not self._handler.submit_initial(file_path):
                         raise RuntimeError(
