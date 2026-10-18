@@ -90,7 +90,7 @@ Autonomy drops when:
 | 2026-08-14 | Merge and release | Human only | Approved Master Plan and repository policy |
 
 | 2026-10-18 | Governance reconciliation (#209) | L2 maximum, unchanged | Documentation and checkpoint Draft PR permitted; no autonomy promotion, gate approval or merge |
- 
+
 See [the dated integrated checkpoint](governance-checkpoint-2026-10-18.md) for
 current-state qualification and the proportional-evidence rule. Historical
 authorization entries above remain historical, not new permissions.
