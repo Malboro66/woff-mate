@@ -350,8 +350,17 @@ def test_file_added_after_child_scan_forces_startup_retry_not_false_success(
     original_scandir = os.scandir
     added = False
 
+    @contextmanager
+    def ordered_root_entries(directory: str):
+        # scandir order is filesystem-specific; explicitly visit the first
+        # child before the sibling that triggers a late write.
+        with original_scandir(directory) as iterator:
+            yield sorted(iterator, key=lambda entry: entry.name)
+
     def simulate_late_nested_source(directory: str):
         nonlocal added
+        if str(directory) == str(root):
+            return ordered_root_entries(directory)
         if str(directory) == str(sibling) and not added:
             added = True
             source.write_bytes(b"synthetic")
