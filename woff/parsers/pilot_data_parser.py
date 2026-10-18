@@ -321,7 +321,7 @@ class WoFFPilotDataParser:
                 and lines[first_nonempty].strip() == "0"
             )
             header_line = None
-            if zero_prelude:
+            if zero_prelude and first_nonempty is not None:
                 second_nonempty = next(
                     (i for i in range(first_nonempty + 1, len(lines))
                      if lines[i].strip()), None
