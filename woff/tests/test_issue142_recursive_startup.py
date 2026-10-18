@@ -408,9 +408,10 @@ def test_live_event_during_startup_cannot_run_a_worker(
             submit.assert_not_called()
             assert handler.startup_inventory_epoch() == 1
             assert handler.finish_startup_inventory(0) is False
-            # Once startup is closed, ordinary live admission still works.
-            assert handler._handle(path, "modified") is True
-            submit.assert_called_once_with(path, "modified")
+            # Closing a failed startup does not silently re-enable admission.
+            # A fresh inventory and explicit recovery are required.
+            assert handler._handle(path, "modified") is False
+            submit.assert_not_called()
     finally:
         handler.shutdown()
         db.close()
@@ -511,17 +512,17 @@ def test_queued_duplicate_callback_after_finalization_cannot_submit(
         with patch.object(handler.scheduler, "submit", return_value=True) as submit:
             assert handler._handle(str(delayed), "created") is False
             submit.assert_not_called()
-            # Normal edits of the already-bound source are constant time.
-            with patch("os.scandir", side_effect=AssertionError("unexpected full rescan")):
-                assert handler._handle(str(approved), "modified") is True
-            submit.assert_called_once_with(str(approved), "modified")
+            # A formerly trusted path cannot bypass a same-slot duplicate:
+            # verify the whole namespace again before admitting its edits.
+            assert handler._handle(str(approved), "modified") is False
+            submit.assert_not_called()
     finally:
         handler.shutdown()
         db.close()
 
 
-def test_new_live_source_is_checked_once_then_reused(tmp_path: Path) -> None:
-    """Valid new sources remain admitted without rescanning each later modification."""
+def test_new_live_source_is_revalidated_on_later_modifications(tmp_path: Path) -> None:
+    """A valid new source remains admissible, but its identity is rechecked."""
     from ..handler import WoFFEventHandler
     from ..database import DatabaseManager
     from ..campaign_engine import CampaignEngine
@@ -544,8 +545,7 @@ def test_new_live_source_is_checked_once_then_reused(tmp_path: Path) -> None:
         new.write_bytes(b"new")
         with patch.object(handler.scheduler, "submit", return_value=True) as submit:
             assert handler._handle(str(new), "created") is True
-            with patch("os.scandir", side_effect=AssertionError("unexpected rescan")):
-                assert handler._handle(str(new), "modified") is True
+            assert handler._handle(str(new), "modified") is True
             assert submit.call_count == 2
     finally:
         handler.shutdown()

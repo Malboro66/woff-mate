@@ -24,12 +24,14 @@ Modos de uso:
 
 from __future__ import annotations
 
+import hashlib
 import os
 import sys
 import stat
 import argparse
 import logging
 import threading
+import time
 from fnmatch import fnmatch
 from pathlib import Path
 from typing import Optional, List, Any, TextIO
@@ -217,6 +219,36 @@ def _scan_startup_sources(root: str) -> dict[str, list[str]]:
     return sources
 
 
+def _startup_source_generations(
+    inventories: list[dict[str, list[str]]],
+) -> tuple[tuple[object, ...], ...]:
+    """Bind recursive inventory to file generations as well as paths."""
+    evidence: list[tuple[object, ...]] = []
+    for inventory in inventories:
+        for paths in inventory.values():
+            for path in paths:
+                before = os.stat(path, follow_symlinks=False)
+                if not stat.S_ISREG(before.st_mode) or (
+                    getattr(before, "st_file_attributes", 0) & 0x400
+                ):
+                    raise OSError("unverified-startup-generation")
+                with open(path, "rb") as source:
+                    digest = hashlib.sha256(source.read()).hexdigest()
+                after = os.stat(path, follow_symlinks=False)
+                identity_before = (
+                    before.st_dev, before.st_ino, before.st_size,
+                    before.st_mtime_ns, before.st_ctime_ns,
+                )
+                identity_after = (
+                    after.st_dev, after.st_ino, after.st_size,
+                    after.st_mtime_ns, after.st_ctime_ns,
+                )
+                if identity_before != identity_after:
+                    raise OSError("changed-startup-generation")
+                evidence.append((os.path.normcase(os.path.abspath(path)), *identity_after, digest))
+    return tuple(sorted(evidence))
+
+
 class WoFFWatchdog:
     """
     Classe principal que gere o ciclo de vida do watchdog.
@@ -315,6 +347,7 @@ class WoFFWatchdog:
         # SINCRONIZAÇÃO INICIAL DE TODOS OS PILOTOS
         # ──────────────────────────────────────────────────────────────
             startup_sources: list[dict[str, list[str]]] = []
+            startup_evidence: tuple[tuple[object, ...], ...] = ()
             verified_epoch: int | None = None
             if ".txt" in self.config.watched_extensions:
                 # Collect all roots before submitting any positives or
@@ -337,6 +370,7 @@ class WoFFWatchdog:
                 )
                 if startup_sources != repeat_sources or epoch_changed:
                     raise RuntimeError("startup recursive inventory changed")
+                startup_evidence = _startup_source_generations(repeat_sources)
                 self._reconcile_vacant_slots(valid)
                 log.info("A sincronizar dados iniciais dos pilotos...")
 
@@ -366,6 +400,7 @@ class WoFFWatchdog:
                             f"{file_pattern}"
                         )
             if startup_sources:
+                self._wait_startup_observer_idle()
                 # Recheck after all phase waits: changes in a previously
                 # visited child cannot silently complete startup.
                 epoch_reader = getattr(
@@ -378,8 +413,12 @@ class WoFFWatchdog:
                     and callable(epoch_reader)
                     and epoch_reader() != verified_epoch
                 )
+                final_sources = [_scan_startup_sources(path) for path in valid]
+                final_repeat = [_scan_startup_sources(path) for path in valid]
                 if (
-                    [_scan_startup_sources(path) for path in valid] != startup_sources
+                    final_sources != startup_sources
+                    or final_repeat != startup_sources
+                    or _startup_source_generations(final_repeat) != startup_evidence
                     or epoch_changed
                 ):
                     raise RuntimeError("startup recursive inventory changed")
@@ -389,6 +428,7 @@ class WoFFWatchdog:
                 record_sources = getattr(self._handler, "record_startup_sources", None)
                 if callable(record_sources):
                     record_sources(startup_sources)
+                self._wait_startup_observer_idle()
             finish = getattr(self._handler, "finish_startup_inventory", None)
             if callable(finish) and not finish(verified_epoch):
                 raise RuntimeError("startup live admission incomplete")
@@ -402,6 +442,39 @@ class WoFFWatchdog:
             log.info(f"Discovery log: {self.config.discovery_log_path}")
         log.info("Pressiona Ctrl+C para parar.\n")
         return True
+
+    @property
+    def reconciliation_complete(self) -> bool:
+        """False if cold startup or subsequent admission became incomplete."""
+        handler = self._handler
+        return bool(handler is not None and handler.reconciliation_complete)
+
+    def _wait_startup_observer_idle(self) -> None:
+        """Bound the handoff by waiting for dispatched Observer events to settle.
+
+        This does not claim an atomic filesystem snapshot or that the OS has
+        already enqueued every change. Post-start workers independently verify
+        the root inventory at their SQLite transaction boundary.
+        """
+        deadline = time.monotonic() + max(0.1, self.config.stability_timeout_sec)
+        interval = min(0.05, max(0.005, self.config.stability_check_interval_sec))
+        stable_observations = 0
+        while True:
+            pending = []
+            for observer in self.observers:
+                queue = getattr(observer, "event_queue", None)
+                count = getattr(queue, "unfinished_tasks", None)
+                if isinstance(count, int):
+                    pending.append(count)
+            if not pending or all(count == 0 for count in pending):
+                stable_observations += 1
+                if stable_observations >= 2:
+                    return
+            else:
+                stable_observations = 0
+            if time.monotonic() >= deadline:
+                raise RuntimeError("startup observer callbacks remain unsettled")
+            time.sleep(interval)
 
     def _reconcile_vacant_slots(self, roots: List[str]) -> None:
         """Submit negative inventory through the same bounded Dossier path."""
