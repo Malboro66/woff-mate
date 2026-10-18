@@ -70,11 +70,19 @@ def _split_mission_document(content: str) -> tuple[str, str]:
     def reject_doctype(*_arguments: object) -> None:
         raise ValueError("DTD and entity declarations are not supported")
 
+    def reject_external_entity(
+        _context: str,
+        _base: Optional[str],
+        _system_id: Optional[str],
+        _public_id: Optional[str],
+    ) -> int:
+        raise ValueError("external XML entities are not supported")
+
     parser.StartElementHandler = start_element
     parser.EndElementHandler = end_element
     parser.StartDoctypeDeclHandler = reject_doctype
     parser.EntityDeclHandler = reject_doctype
-    parser.ExternalEntityRefHandler = reject_doctype
+    parser.ExternalEntityRefHandler = reject_external_entity
 
     try:
         parser.Parse(document, True)
