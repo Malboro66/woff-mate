@@ -15,6 +15,7 @@ from ..ingestion.outcome import ProcessingOutcome, ProcessingReason, ProcessingS
 from ..parsers.pilot_data_parser import WoFFPilotDataParser
 from .test_dossier_parser import _encode_dossier
 from .dossier_support import verified_fixture
+from .test_issue186_zero_claims_header import HEADER as ZERO_CLAIMS_HEADER
 
 
 def _dossier() -> bytes:
@@ -226,12 +227,21 @@ def test_complete_claims_source_still_processes(live_runtime: LiveRuntime) -> No
     assert live_runtime.count("victories") == 1
 
 
-@pytest.mark.parametrize("name", ("Pilot1Log.txt", "Pilot1Claims.txt"))
+@pytest.mark.parametrize(
+    ("name", "contents"),
+    [
+        ("Pilot1Log.txt", "0\n"),
+        ("Pilot1Claims.txt", "0\n"),
+        ("Pilot1Claims.txt", "0\n" + ZERO_CLAIMS_HEADER + "\n"),
+    ],
+    ids=("zero-log", "zero-claims", "zero-claims-attested-header"),
+)
 def test_valid_zero_record_generation_remains_acknowledged_without_mutation(
     live_runtime: LiveRuntime,
     name: str,
+    contents: str,
 ) -> None:
-    source = live_runtime.write(name, "0\n")
+    source = live_runtime.write(name, contents)
     before = live_runtime.state()
 
     outcome = live_runtime.process(source)
@@ -239,6 +249,38 @@ def test_valid_zero_record_generation_remains_acknowledged_without_mutation(
     assert outcome.status is ProcessingStatus.SUCCESS
     assert outcome.reason is ProcessingReason.SUCCESS
     assert live_runtime.state() == before
+
+
+@pytest.mark.parametrize(
+    "suffix",
+    [
+        ZERO_CLAIMS_HEADER + "\n",
+        "malformed\n",
+        _claim_record(),
+    ],
+    ids=("duplicate-header", "malformed-row", "actual-claim-with-zero-counter"),
+)
+def test_zero_claims_header_followed_by_extra_data_is_not_acknowledged(
+    live_runtime: LiveRuntime,
+    suffix: str,
+) -> None:
+    source = live_runtime.write(
+        "Pilot1Claims.txt", "0\n" + ZERO_CLAIMS_HEADER + "\n" + suffix
+    )
+    parser = WoFFPilotDataParser()
+    parser.parse_bytes(source.read_bytes(), source.name)
+    assert parser.declared_records == 0
+    assert parser.is_complete is False
+    assert parser.valid_empty is False
+
+    before = live_runtime.state()
+    outcome = live_runtime.process(source)
+
+    assert outcome.status is ProcessingStatus.PERMANENT_REJECTION
+    assert outcome.reason is ProcessingReason.INCOMPLETE_SOURCE
+    assert outcome.acknowledged_generation is None
+    assert live_runtime.state() == before
+    assert live_runtime.count("victories") == 0
 
 
 def test_malformed_source_remains_distinct_from_proven_incomplete_source(
