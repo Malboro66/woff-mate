@@ -17,7 +17,6 @@ import logging
 import os
 import re
 import xml.etree.ElementTree as ET
-from datetime import datetime
 from typing import Optional, List, Dict
 
 # Importar modelos de dados e funções de normalização (assumindo que estão na raiz do projeto)
@@ -170,7 +169,8 @@ class WoFFXMLParser:
     def _parse_pilot(self, root: ET.Element, path: str):
         p = WoFFPilot()
         p.source_file  = os.path.basename(path)
-        p.last_updated = datetime.now().isoformat()
+        # Generic XML is not verified Dossier evidence for pilot freshness.
+        p.last_updated = None
 
         # Corrigido: Removido o fallback do nome do ficheiro para evitar pilotos falsos
         found_name = (
@@ -220,7 +220,7 @@ class WoFFXMLParser:
                     m = self._parse_mission_elem(elem)
                     if m:
                         m.pilotId = self.pilot.id
-                        m.source_file = self.pilot.source_file
+                        m.source_file = self.pilot.source_file or ""
                         self.missions.append(m)
                         
         # Fallback: Mission diretamente sob root
@@ -229,7 +229,7 @@ class WoFFXMLParser:
                 m = self._parse_mission_elem(elem)
                 if m:
                     m.pilotId = self.pilot.id
-                    m.source_file = self.pilot.source_file
+                    m.source_file = self.pilot.source_file or ""
                     self.missions.append(m)
 
     def _parse_mission_elem(self, elem: ET.Element) -> Optional[WoFFMission]:

@@ -564,12 +564,14 @@ evals:
     evidence: A stable validated squadron generation replaces data atomically and remains idempotent on replay.
   EVAL-PILOT-PROVENANCE-001:
     work_items: [issue-99]
-    status: planned
-    evidence: Log, Claims, Squads, and partial XML merges preserve authoritative Dossier source provenance and non-empty update time.
+    status: implemented
+    evidence: Log, Claims, and Squads preserve authoritative Dossier source and observation time; identityless XML cannot overwrite pilot metadata.
+    enforced_by: [woff/tests/test_pilot_provenance_merge.py]
   EVAL-PILOT-PROVENANCE-002:
     work_items: [issue-99]
-    status: planned
-    evidence: Replaying richer and poorer pilot sources converges without regressing provenance fields to empty or lower-authority values.
+    status: implemented
+    evidence: Richer Dossier refresh and poorer source replay converge without regressing valid provenance or altering the schema.
+    enforced_by: [woff/tests/test_pilot_provenance_merge.py]
   EVAL-VICTORY-MERGE-001:
     work_items: [issue-73]
     status: implemented

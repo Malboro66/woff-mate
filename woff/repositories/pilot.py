@@ -252,6 +252,8 @@ class PilotRepository(BaseRepository):
         dossier: bool,
     ) -> int:
         slot = identity.slot
+        if not pilot.source_file:
+            raise PilotIdentityRejected("invalid-slot-source", slot)
         actual_slot = pilot_slot(pilot.source_file)
         if slot is None or actual_slot != slot:
             raise PilotIdentityRejected("invalid-slot-source", slot)
@@ -270,6 +272,34 @@ class PilotRepository(BaseRepository):
             return None
         value = pilot.status.strip()
         return value or None
+
+    @staticmethod
+    def _authoritative_timestamp(
+        stored: Optional[str], observed: Optional[str]
+    ) -> Optional[str]:
+        """Keep the latest comparable, valid Dossier observation timestamp.
+
+        No timestamp from a slot-dependent or identityless source is admitted.
+        Existing valid values survive missing, malformed or older observations.
+        """
+        if not isinstance(observed, str) or not observed.strip():
+            return stored
+        candidate = observed.strip()
+        try:
+            candidate_time = datetime.fromisoformat(candidate)
+        except ValueError:
+            return stored
+        if not stored or not stored.strip():
+            return candidate
+        try:
+            stored_time = datetime.fromisoformat(stored.strip())
+        except ValueError:
+            return candidate
+        try:
+            return candidate if candidate_time > stored_time else stored
+        except TypeError:
+            # Avoid claiming an ordering for incompatible timezone evidence.
+            return stored
 
     def _insert_pilot(
         self, pilot: WoFFPilot, identity_kind: PilotIdentityKind
@@ -313,8 +343,9 @@ class PilotRepository(BaseRepository):
                 pilot.killsCount,
                 pilot.skill,
                 pilot.reputation,
-                pilot.source_file,
-                pilot.last_updated,
+                pilot.source_file if identity_kind is PilotIdentityKind.DOSSIER else None,
+                self._authoritative_timestamp(None, pilot.last_updated)
+                if identity_kind is PilotIdentityKind.DOSSIER else None,
             ),
         )
 
@@ -328,6 +359,19 @@ class PilotRepository(BaseRepository):
     ) -> None:
         name = "" if preserve_name else pilot.name
         status = self._status_value(pilot, identity_kind)
+        # source_file denotes the verified Dossier, not the last partial input.
+        dossier_source = (
+            pilot.source_file if identity_kind is PilotIdentityKind.DOSSIER
+            else None
+        )
+        dossier_timestamp = None
+        if identity_kind is PilotIdentityKind.DOSSIER:
+            row = self._conn.execute(
+                "SELECT last_updated FROM pilots WHERE id=?", (pilot_id,)
+            ).fetchone()
+            dossier_timestamp = self._authoritative_timestamp(
+                row[0] if row else None, pilot.last_updated
+            )
         self._conn.execute(
             """
             UPDATE pilots SET
@@ -354,7 +398,7 @@ class PilotRepository(BaseRepository):
                 skill=COALESCE(?, skill),
                 reputation=COALESCE(?, reputation),
                 source_file=COALESCE(NULLIF(?, ''), source_file),
-                last_updated=?
+                last_updated=COALESCE(?, last_updated)
             WHERE id=?
             """,
             (
@@ -380,8 +424,8 @@ class PilotRepository(BaseRepository):
                 pilot.killsCount,
                 pilot.skill,
                 pilot.reputation,
-                pilot.source_file,
-                pilot.last_updated,
+                dossier_source,
+                dossier_timestamp,
                 pilot_id,
             ),
         )

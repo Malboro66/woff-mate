@@ -912,6 +912,17 @@ strong enough to identify an exact replay.
 | #98 | `EVAL-CATALOG-STABILITY-001`, `EVAL-CATALOG-STABILITY-002` |
 | #99 | `EVAL-PILOT-PROVENANCE-001`, `EVAL-PILOT-PROVENANCE-002` |
 
+### Pilot provenance regression evidence — Issue #99
+
+`EVAL-PILOT-PROVENANCE-001` and `EVAL-PILOT-PROVENANCE-002` are
+enforced by `woff/tests/test_pilot_provenance_merge.py`. This covers Dossier
+authority, Log/Claims/Squads replay, advancing and non-regressing timestamps,
+existing SQLite rows, and rejected identityless XML sources. The semantic
+meaning of these two persisted pilot columns and their query/report
+interpretation is defined in
+[`pilot-source-provenance.md`](pilot-source-provenance.md).
+The issue remains open and the release cycle incomplete until integration.
+
 ### Implemented decoder evals
 
 - `EVAL-DECODE-001` is enforced by `woff/tests/test_decode_common.py`. The
