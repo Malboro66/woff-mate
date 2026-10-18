@@ -41,6 +41,8 @@ class SnapshotFailure(RuntimeError):
 
 @dataclass(frozen=True)
 class FileGeneration:
+    """Path-observed metadata and digest; changed_ns retains raw path ctime."""
+
     device: int
     inode: int
     size: int
@@ -63,7 +65,11 @@ class _GenerationChanged(OSError):
 
 
 class StableSnapshotReader:
-    """Require two identical full observations within a fixed attempt budget."""
+    """Require two identical full observations within a fixed attempt budget.
+
+    This detects observable metadata/content changes, not unobservable ABA or
+    adversarial timestamp/identity reuse. It does not lock concurrent writers.
+    """
 
     def __init__(
         self,
@@ -104,6 +110,17 @@ class StableSnapshotReader:
             int(value.st_mtime_ns), int(value.st_ctime_ns),
         )
 
+    @classmethod
+    def _cross_identity(cls, value: StatMetadata) -> tuple[int, int, int, int, int]:
+        """Comparable path/descriptor fields, separate from exported metadata."""
+        identity = cls._identity(value)
+        if os.name == "nt":
+            # Windows CPython 3.12+ path ctime is creation time while fstat
+            # may report change time. Birthtime is comparable across both;
+            # 3.10/3.11 lack it and expose creation time through ctime instead.
+            return (*identity[:4], int(getattr(value, "st_birthtime_ns", value.st_ctime_ns)))
+        return identity
+
     def _read_verified(self, path: str) -> bytes:
         with open(path, "rb") as source:
             before = os.fstat(source.fileno())
@@ -111,7 +128,9 @@ class StableSnapshotReader:
             after = os.fstat(source.fileno())
         current = self._stat(path)
         if not (
-            self._identity(before) == self._identity(after) == self._identity(current)
+            self._identity(before) == self._identity(after)
+            and self._cross_identity(before) == self._cross_identity(after)
+            == self._cross_identity(current)
             and len(data) == before.st_size
         ):
             raise _GenerationChanged()

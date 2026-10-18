@@ -627,6 +627,7 @@ def test_unpersisted_proof_cannot_be_evicted_or_exceed_scheduler_capacity(runtim
             if (slot := pilot_slot(path)) is not None
             else None
         ),
+        sqlite_capability="no-sqlite",
     )
     try:
         assert scheduler.submit("Pilot1Dossier.txt", "deleted")

@@ -78,7 +78,16 @@ class EventScheduler:
         persistence_retry_policy: Optional[PersistenceRetryPolicy] = None,
         dependency_retry_policy: Optional[DependencyRetryPolicy] = None,
         vacancy_pending: Optional[Callable[[PilotSlotBinding], bool]] = None,
+        worker_task_cleanup: Optional[Callable[[], None]] = None,
+        sqlite_capability: Optional[str] = None,
     ) -> None:
+        if (
+            not isinstance(sqlite_capability, str)
+            or sqlite_capability not in ("sqlite-capable", "no-sqlite")
+        ):
+            raise ValueError("sqlite_capability must be explicitly declared as sqlite-capable or no-sqlite")
+        if sqlite_capability == "sqlite-capable" and not callable(worker_task_cleanup):
+            raise ValueError("worker_task_cleanup must be callable for sqlite-capable work")
         if (
             isinstance(max_pending_events, bool)
             or not isinstance(max_pending_events, int)
@@ -91,6 +100,8 @@ class EventScheduler:
         self._dependency_retry_process = dependency_retry_process
         self._dependency_key_for_event = dependency_key_for_event
         self._vacancy_pending = vacancy_pending
+        self._worker_task_cleanup = worker_task_cleanup
+        self._sqlite_capability = sqlite_capability
         self._persistence_retry_policy = (
             persistence_retry_policy or PersistenceRetryPolicy()
         )
@@ -108,6 +119,7 @@ class EventScheduler:
         self._deferred_by_dependency: Dict[DependencyKey, Set[str]] = {}
         self._dependency_resolution_sequence = 0
         self._lock = threading.Lock()
+        self._worker_cleanup_failures: list[tuple[int, str]] = []
         self._changed = threading.Condition(self._lock)
         self._accepting = True
         self._metrics = {
@@ -355,6 +367,32 @@ class EventScheduler:
         return True
 
     def _run(
+        self,
+        key: str,
+        event: Event,
+        dependency_outcome: Optional[ProcessingOutcome] = None,
+    ) -> None:
+        try:
+            self._run_task(key, event, dependency_outcome)
+        finally:
+            if self._worker_task_cleanup is not None:
+                try:
+                    self._worker_task_cleanup()
+                except Exception as error:
+                    thread_id = threading.get_ident()
+                    error_type = type(error).__name__
+                    with self._lock:
+                        self._worker_cleanup_failures.append(
+                            (thread_id, error_type)
+                        )
+                    log.error(
+                        "Worker task cleanup failed "
+                        "(thread_id=%d, exception_type=%s)",
+                        thread_id,
+                        error_type,
+                    )
+
+    def _run_task(
         self,
         key: str,
         event: Event,
@@ -944,6 +982,13 @@ class EventScheduler:
         self._executor.shutdown(wait=True)
         if dependency_monitor is not None:
             dependency_monitor.join()
+        with self._lock:
+            cleanup_failure_count = len(self._worker_cleanup_failures)
+        if cleanup_failure_count:
+            raise RuntimeError(
+                "Worker task cleanup failed for "
+                f"{cleanup_failure_count} task(s)"
+            )
 
     def wait_for_paths(self, paths: list[str], timeout: float) -> bool:
         """Wait at most ``timeout`` for the named admitted paths to drain."""

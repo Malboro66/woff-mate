@@ -1,8 +1,11 @@
 import sqlite3
+import threading
+from queue import Queue
 
 import pytest
 
 from ..database import DatabaseManager, TransactionRollbackError
+from ..ingestion.scheduler import EventScheduler
 from ..models import WoFFMission, WoFFPilot, WoFFWingman
 from .identity_support import dossier_evidence
 
@@ -308,3 +311,113 @@ def test_autonomous_wingman_operations_still_commit(db, pilot):
             "SELECT description FROM wingmen_memory WHERE wingmanId = ?",
             (wingman.id,),
         ).fetchone() == ("Autonomous memory",)
+
+
+def test_worker_cleanup_preserves_transactions_and_reopen(tmp_path, caplog):
+    database_path = tmp_path / "worker-transactions.sqlite"
+    database = DatabaseManager(str(database_path))
+    callback_connections = []
+    cleanup_observations = []
+    cleanup_records = Queue()
+
+    def process(path, event_type):
+        connection = database._get_conn()
+        callback_connections.append(
+            (event_type, threading.get_ident(), connection)
+        )
+        assert connection.execute("PRAGMA foreign_keys").fetchone() == (1,)
+        if event_type == "commit":
+            with database.transaction() as outer:
+                outer.execute(
+                    "INSERT INTO meta(key, value) VALUES (?, ?)",
+                    ("t04-outer", "committed"),
+                )
+                with database.transaction() as nested:
+                    nested.execute(
+                        "INSERT INTO meta(key, value) VALUES (?, ?)",
+                        ("t04-nested", "committed"),
+                    )
+        elif event_type == "rollback":
+            with database.transaction() as transaction:
+                transaction.execute(
+                    "INSERT INTO meta(key, value) VALUES (?, ?)",
+                    ("t04-rollback", "must-not-commit"),
+                )
+                raise BodyError("synthetic worker transaction failure")
+        else:
+            with database.transaction() as outer:
+                outer.execute(
+                    "INSERT INTO meta(key, value) VALUES (?, ?)",
+                    ("t04-rollback-only", "must-not-commit"),
+                )
+                try:
+                    with database.transaction():
+                        raise BodyError("synthetic nested failure")
+                except BodyError:
+                    pass
+
+    def cleanup():
+        connection = getattr(database._local, "conn", None)
+        cleanup_records.put(
+            (
+                threading.get_ident(),
+                connection,
+                connection.in_transaction if connection is not None else None,
+            )
+        )
+        database.close()
+
+    scheduler = EventScheduler(
+        process, 1, 1, worker_task_cleanup=cleanup,
+        sqlite_capability="sqlite-capable",
+    )
+    try:
+        for event_type in ("commit", "rollback", "rollback-only"):
+            assert scheduler.submit(f"{event_type}.synthetic", event_type)
+            assert scheduler.wait_for_paths([f"{event_type}.synthetic"], 2)
+            cleanup_observations.append(cleanup_records.get(timeout=2))
+        scheduler.shutdown()
+
+        assert len(callback_connections) == 3
+        assert len({id(record[2]) for record in callback_connections}) == 3
+        assert all(
+            callback_connections[index][1] == callback_connections[0][1]
+            for index in range(3)
+        )
+        assert [
+            (thread_id, connection, in_transaction)
+            for thread_id, connection, in_transaction in cleanup_observations
+        ] == [
+            (thread_id, connection, False)
+            for _, thread_id, connection in callback_connections
+        ]
+        assert any(
+            record.exc_info is not None
+            and isinstance(record.exc_info[1], BodyError)
+            for record in caplog.records
+        )
+        assert any(
+            record.exc_info is not None
+            and isinstance(record.exc_info[1], TransactionRollbackError)
+            for record in caplog.records
+        )
+    finally:
+        if scheduler.accepting:
+            scheduler.shutdown()
+        database.close()
+
+    reopened = DatabaseManager(str(database_path))
+    try:
+        connection = reopened._get_conn()
+        assert connection.execute(
+            "SELECT key, value FROM meta WHERE key LIKE 't04-%' ORDER BY key"
+        ).fetchall() == [
+            ("t04-nested", "committed"),
+            ("t04-outer", "committed"),
+        ]
+        assert connection.execute("PRAGMA integrity_check").fetchone() == (
+            "ok",
+        )
+        assert connection.execute("PRAGMA foreign_key_check").fetchall() == []
+    finally:
+        reopened.close()
