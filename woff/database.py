@@ -171,6 +171,61 @@ SCHEMA_TABLES: Dict[str, Dict[str, str]] = {
     "wingmen_memory": {"id": "TEXT", "wingmanId": "TEXT", "event_type": "TEXT", "event_date": "TEXT", "description": "TEXT", "impact_morale": "INTEGER", "impact_stress": "INTEGER"},
 }
 
+# Only constraints whose absence changes application-level behavior are
+# required here. Nullable optional source fields remain nullable.
+SCHEMA_REQUIRED_NOT_NULL: Dict[str, Tuple[str, ...]] = {
+    "pilot_slot_bindings": ("campaign_namespace", "slot", "pilotId", "last_updated"),
+    "victory_source_records": ("pilotId", "source_record_key", "victoryId"),
+    "diary_entries": ("pilotId",),
+}
+
+# A None expected default means the source must leave the value unknown.
+# Explicit SQL DEFAULT NULL has identical SQLite insert behavior.
+SCHEMA_REQUIRED_DEFAULTS: Dict[str, Dict[str, Optional[int]]] = {
+    "pilots": {"status": None},
+    "squad_members": {"status": None},
+    "pilot_rpg_stats": {"fatigue": 0, "morale": 75, "stress": 0},
+    "wingmen_personalities": {
+        "aerial_skill": 50, "aggression": 50, "charisma": 50,
+        "intelligence": 50, "physicality": 50, "professionalism": 50,
+    },
+    "wingmen_memory": {"impact_morale": 0, "impact_stress": 0},
+}
+
+
+def _normalize_schema_default(value: object) -> object:
+    """Normalize semantically equivalent integer and NULL SQLite defaults.
+
+    Quoted strings are deliberately not numbers; REAL literals such as 0.0
+    also differ from integer defaults by SQLite storage class.
+    """
+    if value is None:
+        return None
+    expression = str(value).strip()
+    while expression.startswith("(") and expression.endswith(")"):
+        depth = 0
+        encloses_all = True
+        for offset, character in enumerate(expression):
+            if character == "(":
+                depth += 1
+            elif character == ")":
+                depth -= 1
+                if depth == 0 and offset != len(expression) - 1:
+                    encloses_all = False
+                    break
+            if depth < 0:
+                encloses_all = False
+                break
+        if not encloses_all or depth != 0:
+            break
+        expression = expression[1:-1].strip()
+    if expression.upper() == "NULL":
+        return None
+    if re.fullmatch(r"[+-]?[0-9]+", expression):
+        return int(expression)
+    return expression
+
+
 SCHEMA_PRIMARY_KEYS: Dict[str, Tuple[str, ...]] = {
     table: (
         ("pilotId",)
@@ -1040,6 +1095,23 @@ class DatabaseManager:
                         f"wrong type {table}.{column}: {actual[column] or '<none>'}, "
                         f"expected {expected_type}"
                     )
+
+            rows_by_column = {str(row[1]): row for row in info}
+            for column in SCHEMA_REQUIRED_NOT_NULL.get(table, ()):
+                row = rows_by_column.get(column)
+                if row is not None and not row[3]:
+                    errors.append(f"missing NOT NULL {table}.{column}")
+            for column, required_default in SCHEMA_REQUIRED_DEFAULTS.get(
+                table, {}
+            ).items():
+                row = rows_by_column.get(column)
+                if row is not None:
+                    actual_default = _normalize_schema_default(row[4])
+                    if actual_default != required_default:
+                        errors.append(
+                            f"wrong default {table}.{column}: {row[4]!r}, "
+                            f"expected {required_default!r}"
+                        )
 
             primary_key = tuple(
                 row[1] for row in sorted(info, key=lambda item: item[5]) if row[5]
