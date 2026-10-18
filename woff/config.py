@@ -264,7 +264,11 @@ def load_config(path: str) -> WatchdogConfig:
     try:
         from .win_registry import get_woff_install_path
         woff_path = get_woff_install_path()
-        
+        if woff_path is None:
+            # Registry discovery already supplied the actionable diagnostic.
+            # Do not issue a second manual-configuration warning.
+            return WatchdogConfig()
+
         if woff_path:
             default_cfg = WatchdogConfig()
             base_path = Path(woff_path)

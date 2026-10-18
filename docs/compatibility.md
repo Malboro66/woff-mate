@@ -17,6 +17,19 @@ Automatic CI coverage is not a statement that Linux is a supported end-user plat
 
 WOFF BH&H II base v1.38 is the primary reference installation. The maintainer attests that the previously supplied Pilot1/Pilot2 captures came from that installation and were not manually modified. Their physical structure was examined in the earlier source investigations; the installation/build provenance is a separate maintainer attestation. This does not establish that every v1.38 Dossier has one layout. Older, alternate and future formats require separate structural evidence.
 
+## Windows registry install discovery
+
+WoFF Mate checks only the HKCU `CFS3Path` value in the explicit
+`OFFManager5` then `OFFManager4` Settings key allowlist. The newer key
+is a synthetic compatibility case, **not an attested game version**. Candidates
+must be absolute, drive-qualified or UNC paths to existing directories;
+nonexistent paths are skipped. Roots with expected CampaignData/Pilots and Logs
+folders take priority. Existing roots without those generated folders remain
+eligible if no fully populated candidate exists. WoFF Mate does not scan other
+keys, enumerate values, or read
+activation credentials. If detection fails, normal manual configuration remains
+available. A missing registry key does not demonstrate a missing WoFF installation.
+
 ## Categorical normalization
 
 Nation aliases match complete, case-insensitive values. Short aliases such as
