@@ -389,8 +389,9 @@ now integrated through PR #178; the repeated R2 at `f394ece9` recommends retenti
 `review-r2` is done and its eval Implemented as a technical review, while the
 explicit ADR decision was accepted on 2026-10-05 and every Product Gate remains
 unapproved. The review is a
-product-review checkpoint, not another release-cycle issue. Issues #44, #43, #76 and #101 remain incomplete; #96 is completed. Therefore
-cycle 3.4.0 and `EVAL-CYCLE-340-001` remain active/planned. The historical
+product-review checkpoint, not another release-cycle issue. Issues #43, #76 and #101
+remain incomplete; #44 completed through PR #204 and #96 is also completed.
+Therefore cycle 3.4.0 and `EVAL-CYCLE-340-001` remain active/planned. The historical
 [#136 closure discrepancy](evals.md#136-closure-discrepancy) is resolved by the
 implementation merged through PR #164. No aggregate tracker is declared for 3.4.0;
 `EVAL-CYCLE-340-001` and its graph members define the aggregate scope.
