@@ -300,8 +300,10 @@ Issue #135 and this document do not authorize adding or adopting:
 - a new third-party license obligation.
 
 `docs/architecture/adr-ui-toolkit.md` and #82 remain the authority for toolkit
-feasibility/adoption evidence. PySide6 + Qt Widgets is proposed, not accepted by
-this standard.
+feasibility/adoption evidence. The maintainer separately accepted
+**PySide6 + Qt Widgets 6.11.2** on 2026-10-05; this visual standard does not
+itself accept a toolkit or authorize live UI binding. Product Gates A-D remain
+unapproved.
 
 ## Asset and provenance policy
 
