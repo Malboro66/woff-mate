@@ -1,37 +1,82 @@
-<img src="icon.png" alt="WOFF MATE LOGO">
-WoFF Mate
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="woff/assets/ui/branding/woff_mate_wordmark_light.svg">
+    <img src="woff/assets/ui/branding/woff_mate_wordmark_dark.svg" alt="WoFF Mate — official WM wordmark" width="480">
+  </picture>
+</p>
 
-> An open-source companion application for *Wings Over Flanders Fields: Between Heaven & Hell II*.
+<h1 align="center">WoFF Mate</h1>
+
+<p align="center"><strong>Your campaign's story, beyond the cockpit.</strong></p>
+
+<p align="center">
+  An independent, open-source and local-first companion for
+  <em>Wings Over Flanders Fields: Between Heaven &amp; Hell II</em>.
+  Follow pilot careers, missions, squadrons and the records that give a campaign its history.
+</p>
+
+<p align="center">
+  <a href="https://woff-mate-ui-v2.pilotohans.chatgpt.site/">Explore the UI V2 design</a> ·
+  <a href="#quick-start">Get started</a> ·
+  <a href="#development-roadmap">Development roadmap</a> ·
+  <a href="https://github.com/Malboro66/woff-mate/issues">Issues</a>
+</p>
 
 [![CI](https://img.shields.io/github/actions/workflow/status/Malboro66/woff-mate/ci.yml?branch=main&label=CI&logo=github)](https://github.com/Malboro66/woff-mate/actions/workflows/ci.yml)
 [![Python](https://img.shields.io/badge/Python-3.10--3.14-blue?logo=python&logoColor=white)](https://www.python.org/)
-[![Windows](https://img.shields.io/badge/Windows-10%20%7C%2011-0078D4?logo=windows&logoColor=white)](https://github.com/Malboro66/woff-mate)
+[![Windows](https://img.shields.io/badge/Windows-10%20%7C%2011-0078D4?logo=windows&logoColor=white)](docs/compatibility.md)
 [![License: MIT](https://img.shields.io/github/license/Malboro66/woff-mate)](LICENSE)
-[![Pyright](https://img.shields.io/badge/type%20checked-Pyright-blue)](pyrightconfig.json)
-[![pytest](https://img.shields.io/badge/tested%20with-pytest-0A9EDC?logo=pytest&logoColor=white)](https://github.com/Malboro66/woff-mate/actions)
-![Read Only](https://img.shields.io/badge/game%20integration-read--only-success)
-![Status](https://img.shields.io/badge/status-active%20development-orange)
-[![Last Commit](https://img.shields.io/github/last-commit/Malboro66/woff-mate)](https://github.com/Malboro66/woff-mate/commits/main)
-[![Issues](https://img.shields.io/github/issues/Malboro66/woff-mate)](https://github.com/Malboro66/woff-mate/issues)
-[![Contributions Welcome](https://img.shields.io/badge/contributions-welcome-brightgreen)](CONTRIBUTING.md)
+![Game files](https://img.shields.io/badge/WOFF%20files-read--only-3A785A)
+![Project](https://img.shields.io/badge/status-active%20development-C1782A)
 
-WoFF Mate monitors WOFF campaign data in real time, extracts and normalizes pilot and mission information, and stores it in a local SQLite database. On top of that data it provides RPG-style pilot state, squadron context, and narrative mission diary foundations for a richer campaign companion experience.
+> **Development software, not a public release.** The existing ingestion, local SQLite storage, CLI and campaign-domain code are evolving under explicit data-safety requirements. **Product Gates A–D are not approved**, and production P1 desktop/live-data integration, a public installer, launcher and social RPG are **not** authorized or complete. The published UI V2 is a **design reference**, not the live product.
 
-> **Read-only integration:** WoFF Mate observes and processes game-generated files. It does not intentionally modify WOFF campaign files.
+## What WoFF Mate is building
 
-## Features
+The goal is a companion that makes a WOFF career easier to explore without taking control of the simulator's campaign files. It observes game-generated sources, extracts supported records, maintains a local database and lays the groundwork for deeper squadron life.
 
-- 🛩️ **Real-time campaign monitoring** — reacts to game-generated file changes while keeping ingestion bounded and deterministic.
-- 👨‍✈️ **Pilot tracking** — keeps persistent career records separate with Dossier-backed pilot-slot identity; display names are not treated as unique IDs.
-- 🎯 **Mission ingestion** — parses mission logs and stores structured mission information.
-- 🎖️ **Victories and awards** — tracks combat victories, medals, and related campaign data.
-- 👥 **Wingmen and squadron context** — maintains AI pilot and squadron information.
-- 🧠 **RPG layer** — tracks fatigue, morale, and stress from campaign history.
-- 📖 **Dynamic diary** — generates narrative mission records from stored campaign events.
-- 💾 **SQLite persistence** — uses transactional local storage for campaign state.
-- 🔒 **Read-only game integration** — keeps the game installation and campaign files outside the application's write path.
+| Area | Current evidence | Boundary |
+|---|---|---|
+| **Campaign core and CLI** | File monitoring, stable-source ingestion, pilot/career records, missions, victories, awards, squadron context, local SQLite, queries/reports and diary/RPG foundations are implemented code paths. | Real-data reliability, recovery and full-app review remain subject to **Product Gate A**. |
+| **Desktop P0** | Navigable PySide6/Qt Widgets prototype with synthetic careers and fixture-backed screens. | **Fixture-only**; no production live WOFF/SQLite binding. |
+| **UI V2** | [Published visual design reference](https://woff-mate-ui-v2.pilotohans.chatgpt.site/) with Operations, Pilot Dossier, Missions, Squadron, War Diary and Reports. | A design site, **not** a production application or a game-connected demo. |
+| **Experimental source preview** | [R0.3 immutable-copy diagnostic desktop preview](docs/ui/real-source-preview.md). | Explicitly selected **local copies** only; not a live database, sync or public product. |
+| **Future product** | Retained desktop toolkit, planned read-only P1, installable companion, launcher and persistent social/RPG systems. | Separate scope, evidence and maintainer approvals required. |
+
+The retained desktop UI toolkit is **PySide6 + Qt Widgets 6.11.2**, accepted as an architectural choice on 2026-10-05. This does **not** approve any product gate. See the [UI toolkit ADR](docs/architecture/adr-ui-toolkit.md) and [integrated governance checkpoint](docs/engineering/governance-checkpoint-2026-10-18.md).
+
+## A look at the desktop direction
+
+<p align="center">
+  <img src="docs/ui/evidence/issue-140-p0/operations-ready.png" width="49%" alt="Fixture-only P0 Operations desktop screen with synthetic data">
+  <img src="docs/ui/evidence/issue-140-p0/dossier-ready.png" width="49%" alt="Fixture-only P0 Pilot Dossier desktop screen with synthetic data">
+</p>
+
+*Screenshots from the historical **P0 fixture-backed desktop prototype** (Issue #140). These use synthetic data, are not production screens and do not show live WOFF integration. The separate [UI V2 site](https://woff-mate-ui-v2.pilotohans.chatgpt.site/) is the current visual design reference.*
+
+## Current capabilities
+
+- **Local-first, read-only WOFF sources:** monitor supported campaign files without intentionally writing back to game campaign data.
+- **Career-aware pilot records:** maintain identities beyond display names and preserve historical career records.
+- **Mission and combat records:** parse supported mission, victory, claim and decoration information without treating missing fields as known values.
+- **Squadron context:** model known AI aircrew/wingman records and identity evidence.
+- **Campaign RPG foundations:** maintain baseline fatigue, morale, stress and narrative/diary data; this is **not** the future interactive social RPG.
+- **SQLite and recovery-focused engineering:** local persistence with tests, guarded migrations and explicit source/provenance boundaries.
+- **Developer/diagnostic tools:** command-line ingest, queries and reports; read-only prototype and source-copy preview tracks remain separate.
+
+## Development roadmap
+
+1. **Reliable companion / Gate A:** finish outstanding ingestion, provenance and derived-state evidence; validate a bounded real-WOFF replay and recovery; obtain a new revision-bound Full Application Review and explicit maintainer decision.
+2. **Desktop read-only vertical slice / applicable Gates A–B:** connect approved application query services to the retained Qt Widgets UI while preserving career identity and honest unknown/partial states.
+3. **Installable alpha and companion beta:** deliver user-facing installation, diagnostics and ordinary flows only after their own packaging, recovery and distribution evidence.
+4. **Headquarters and social RPG / applicable Gate C:** progressively add squadron relationships, persistent memory, morale, promotions, recovery, transfers and encounters, never inferring events without evidence.
+5. **Public release / Gate D:** distribution and installer only after explicit final product, privacy, compatibility and release reviews.
+
+This is a **direction of work, not a delivery schedule or permission to implement gated features**. Follow [GitHub Issues](https://github.com/Malboro66/woff-mate/issues), the [development board](https://github.com/users/Malboro66/projects/1) and the [product checkpoints](docs/engineering/product-milestones.md) for authoritative progress.
 
 ## Quick Start
+
+> **Development-only instructions.** Until the applicable reliability and product gates are approved, use approved, disposable copies of campaign files and an isolated local database for experiments. Do not use an irreplaceable live career as a test dataset.
 
 ### Requirements
 
@@ -160,11 +205,9 @@ versão exata do WoFF ainda não foi confirmada
 
 ## Project Status
 
-🚧 **Active development**
+**Active development — no public release or approved Product Gate A–D.** The application version is sourced from `woff/version.py`; schema and configuration versions evolve independently. The technical, architectural and issue-specific progress of the project must not be confused with product-release readiness.
 
-Core ingestion, persistence, campaign processing, RPG systems, and engineering quality gates are under active development. The application version is sourced from `woff/version.py`; schema and configuration format versions evolve independently.
-
-Current work and planned features are tracked in the [WoFF Mate Development Project](https://github.com/users/Malboro66/projects/1) and in [GitHub Issues](https://github.com/Malboro66/woff-mate/issues).
+The dated [2026-10-18 governance checkpoint](docs/engineering/governance-checkpoint-2026-10-18.md) documents the retained toolkit, completed reliability work and outstanding evidence. The current code, GitHub issues/PRs and independent revision-bound reviews take precedence over older descriptions. A green CI run or a successful fixture-backed UI preview is not a live-data, launcher or release approval.
 
 ## Documentation
 
@@ -188,7 +231,7 @@ revision-bound historical evidence.
 - [Immutable UI application contracts](docs/ui/application-contracts.md)
 - [UI/UX development standard](docs/ui/ui-development-standard.md)
 - [Synthetic UI fixture inventory](woff/tests/fixtures/ui_states/README.md)
-- [Published UI V2 prototype](https://woff-mate-ui-v2.pilotohans.chatgpt.site/)
+- [Published UI V2 design reference](https://woff-mate-ui-v2.pilotohans.chatgpt.site/)
 - [UI V2 reference](docs/ui/ui-v2-reference.md)
 - [UI V2 visual system](docs/ui/ui-v2-visual-system.md)
 - [UI V2 design walkthrough](docs/ui/ui-v2-walkthrough.md)
@@ -226,7 +269,7 @@ For security-sensitive reports, follow [SECURITY.md](SECURITY.md) rather than op
 
 ## License
 
-WoFF Mate is released under the [MIT License](LICENSE).
+The WoFF Mate source code is available under the [MIT License](LICENSE). This does not indicate a published application release.
 
 ## Disclaimer
 
