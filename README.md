@@ -168,8 +168,20 @@ Current work and planned features are tracked in the [WoFF Mate Development Proj
 
 ## Documentation
 
+The 2026-08-13 approved Master Plan remains the historical product direction.
+For **current decisions and next steps**, use the
+[2026-10-18 integrated governance checkpoint](docs/engineering/governance-checkpoint-2026-10-18.md)
+alongside the executable project graph, eval catalog, quality gates, and
+[product/review policy](docs/engineering/product-milestones.md). The checkpoint
+does not itself approve Product Gates A-D; dated R1/R2 reviews remain
+revision-bound historical evidence.
+
 - [Architecture](docs/architecture/modular-monolith.md)
 - [Executable project graph](docs/architecture/project-graph.yaml)
+- [Integrated governance checkpoint — 2026-10-18](docs/engineering/governance-checkpoint-2026-10-18.md)
+- [R1 integrity review (historical FAIL)](docs/engineering/r1-integrity-baseline.md)
+- [First R2 review (historical HOLD)](docs/engineering/r2-ui-architecture-review.md)
+- [Repeated R2 review (technical GO)](docs/engineering/r2-ui-architecture-review-repeat.md)
 - [UI toolkit ADR](docs/architecture/adr-ui-toolkit.md)
 - [Read-only UI foundation](docs/ui/read-only-foundation.md)
 - [Shared screen-state matrix](docs/ui/screen-state-matrix.md)

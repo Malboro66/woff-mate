@@ -1,5 +1,5 @@
 version: 1
-updated: 2026-10-16
+updated: 2026-10-18
 
 project:
   repository: Malboro66/woff-mate
@@ -685,8 +685,9 @@ evals:
     enforced_by: [woff/tests/test_dossier_transactions.py]
   EVAL-XML-001:
     work_items: [issue-44]
-    status: planned
+    status: implemented
     evidence: Closing-element text inside a comment or CDATA does not truncate Mission XML.
+    enforced_by: [woff/tests/test_issue44_xml_boundary.py]
   EVAL-PARSE-SEM-001:
     work_items: [issue-74]
     status: implemented
@@ -748,16 +749,19 @@ evals:
     evidence: A hexadecimal TEXT to BLOB migration preserves bytes and reopens safely.
   EVAL-SCHEMA-CONTRACT-001:
     work_items: [issue-77]
-    status: planned
+    status: implemented
     evidence: Missing required nullability or a changed required default fails schema certification.
+    enforced_by: [woff/tests/test_issue77_schema_constraints.py]
   EVAL-SCHEMA-CONTRACT-002:
     work_items: [issue-77]
-    status: planned
+    status: implemented
     evidence: Optional nullability remains accepted and failed certification cannot stamp the canonical schema version.
+    enforced_by: [woff/tests/test_issue77_schema_constraints.py]
   EVAL-REG-001:
     work_items: [issue-49]
-    status: planned
+    status: implemented
     evidence: Registry discovery uses deterministic precedence and validates every candidate path.
+    enforced_by: [woff/tests/test_win_registry_discovery.py, woff/tests/test_privacy_contracts.py]
   EVAL-PRIV-001:
     work_items: [issue-65]
     status: implemented
@@ -1123,7 +1127,7 @@ work_items:
   issue-44:
     title: Extract Mission XML with an XML-aware boundary
     module: ingestion
-    state: backlog
+    state: done
     evals: [EVAL-XML-001]
     gates: [Q0, Q1, Q3, Q6-CYCLE-3.4.0]
     depends_on: []
@@ -1162,7 +1166,7 @@ work_items:
   issue-49:
     title: Make WoFF registry discovery version-tolerant
     module: platform
-    state: backlog
+    state: done
     evals: [EVAL-REG-001]
     gates: [Q0, Q1, Q4]
     depends_on: []
@@ -1255,7 +1259,7 @@ work_items:
   issue-77:
     title: Certify SQLite nullability and default constraints
     module: persistence
-    state: backlog
+    state: done
     evals: [EVAL-SCHEMA-CONTRACT-001, EVAL-SCHEMA-CONTRACT-002]
     gates: [Q0, Q1, Q2]
     depends_on: []
@@ -1351,7 +1355,7 @@ work_items:
   issue-99:
     title: Preserve pilot source provenance across partial-source merges
     module: persistence
-    state: backlog
+    state: done
     evals: [EVAL-PILOT-PROVENANCE-001, EVAL-PILOT-PROVENANCE-002]
     gates: [Q0, Q1, Q2]
     depends_on: []

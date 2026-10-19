@@ -1,10 +1,17 @@
 # WoFF Mate — Integrated governance checkpoint (2026-10-18)
 
-**Status:** current-state governance reconciliation proposal, **not a Product Gate decision**
+**Status:** integrated governance checkpoint via PR #210, **not a Product Gate decision**
 **Scope:** Issue #209; documentation and controls only
 **Verified integrated `main`:** `d230d1e139a49e1746e9e24fb70b0adc9905d8ab`
 **Verification:** GitHub comparison `d230d1e139a49e1746e9e24fb70b0adc9905d8ab...main` was `identical` (0 ahead / 0 behind) on 2026-10-18.
 **Software identifiers from `woff/version.py`:** app `3.2.0`, SQLite schema `3.5`, config `1`; `pyproject.toml` specifies Python `>=3.10,<3.15` and optional `ui = ["PySide6==6.11.2"]`.
+
+**Post-integration note (2026-10-18):** Issue #209 was closed through
+[PR #210](https://github.com/Malboro66/woff-mate/pull/210), merged at
+`364173db0753f85856bb1021cdbcfdb77516434a`. The verified
+`d230d1e...` baseline above and the Draft-PR completion procedure in Section 7
+remain original pre-integration evidence, not a pending PR or new authorization.
+Refer to the current `main` and GitHub for subsequent revision drift.
 
 This document supersedes older *current-state summaries* only where they conflict with independently observed integrated revisions, issue/PR states, or explicit later maintainer decisions. It **does not** amend the original Master Plan, erase revision-bound reviews, change executable project-graph issue states, declare a CI run successful, or grant implementation, merge, release or gate authorization.
 

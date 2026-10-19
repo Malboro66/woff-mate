@@ -18,9 +18,11 @@ is retained only as the design origin and V1 archive.
 
 This document, the [visual system](ui-v2-visual-system.md), and the recorded
 [walkthrough](ui-v2-walkthrough.md) are the normative repository handoff for
-V2. They describe design intent only. They do not prove a production UI, accept
-the proposed toolkit ADR, or authorize a GUI dependency, SQLite access, direct
-WoFF-file reads, writes, launcher control, or live-session behavior.
+V2. They describe design intent only. They do not prove a production UI or
+authorize production live-data UI binding, SQLite access, direct WoFF-file reads,
+writes, launcher control, or live-session behavior. The maintainer separately
+accepted the PySide6 + Qt Widgets 6.11.2 toolkit ADR on 2026-10-05; that
+decision does not approve Product Gates A-D or authorize P1 live-data integration.
 
 The published Site is subordinate to these toolkit-independent contracts. Its
 passing conformance evidence is recorded in the

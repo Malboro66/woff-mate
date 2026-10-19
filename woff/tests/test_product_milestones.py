@@ -108,8 +108,9 @@ def test_product_path_and_cycle_ownership_are_executable() -> None:
     assert set(evals["EVAL-CYCLE-340-001"]["work_items"]) == members
     assert cycles["cycle-3.4.0"]["state"] == "active"
     assert evals["EVAL-CYCLE-340-001"]["status"] == "planned"
+    assert items["issue-44"]["state"] == "done"
     assert {items[item_id]["state"] for item_id in {
-        "issue-44", "issue-43", "issue-76", "issue-101"
+        "issue-43", "issue-76", "issue-101"
     }} == {"backlog"}
     assert items["issue-96"]["state"] == "done"
     assert items["issue-187"]["state"] == "done"
