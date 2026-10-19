@@ -76,6 +76,8 @@ This is a **direction of work, not a delivery schedule or permission to implemen
 
 ## Quick Start
 
+> **Development-only instructions.** Until the applicable reliability and product gates are approved, use approved, disposable copies of campaign files and an isolated local database for experiments. Do not use an irreplaceable live career as a test dataset.
+
 ### Requirements
 
 - Windows 10 64-bit or Windows 11 64-bit
@@ -229,7 +231,7 @@ revision-bound historical evidence.
 - [Immutable UI application contracts](docs/ui/application-contracts.md)
 - [UI/UX development standard](docs/ui/ui-development-standard.md)
 - [Synthetic UI fixture inventory](woff/tests/fixtures/ui_states/README.md)
-- [Published UI V2 prototype](https://woff-mate-ui-v2.pilotohans.chatgpt.site/)
+- [Published UI V2 design reference](https://woff-mate-ui-v2.pilotohans.chatgpt.site/)
 - [UI V2 reference](docs/ui/ui-v2-reference.md)
 - [UI V2 visual system](docs/ui/ui-v2-visual-system.md)
 - [UI V2 design walkthrough](docs/ui/ui-v2-walkthrough.md)
@@ -267,7 +269,7 @@ For security-sensitive reports, follow [SECURITY.md](SECURITY.md) rather than op
 
 ## License
 
-WoFF Mate is released under the [MIT License](LICENSE).
+The WoFF Mate source code is available under the [MIT License](LICENSE). This does not indicate a published application release.
 
 ## Disclaimer
 
