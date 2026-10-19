@@ -95,7 +95,7 @@ def test_ui_reference_stack_is_classified_without_authorizing_runtime_adoption()
     assert "itself accept a toolkit or authorize live UI binding" in _normalized(
         standard
     )
-    assert "Product Gates A-D remain unapproved" in standard
+    assert "Product Gates A-D remain unapproved" in _normalized(standard)
 
 
 def test_ui_standard_preserves_state_accessibility_motion_and_privacy_contracts() -> None:
