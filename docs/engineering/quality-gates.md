@@ -7,6 +7,32 @@ and supported CI environments. This document defines the evidence required to
 advance work. A green workflow is necessary but does not replace functional exit
 criteria.
 
+## Proportionality and current-state checkpoint
+
+The [2026-10-18 integrated governance checkpoint](governance-checkpoint-2026-10-18.md)
+records the observed repository baseline and the distinction between integrated
+evidence, Draft PRs, and gate decisions. Revalidate it against current `main`
+and GitHub before relying on issue statuses. This checkpoint grants no gate,
+autonomy promotion, code implementation or merge authorization.
+
+A check or environment exercise must be decision-relevant and proportionate:
+state the approved requirement, exact decision to be changed, minimum
+reproducible evidence, stop criterion, and cost/risk. Do not expand a feasibility
+spike or ordinary acceptance criterion into unrequested VM, specialized
+accessibility certification, physical platform campaign, clean-machine
+distribution test or extra review cycles unless the maintainer explicitly
+approves that expanded requirement and the evidence materially matters to an
+immediate decision. Preserve historical evidence and record the gap as
+unverified/deferred instead of fabricating a PASS or silently weakening a
+required gate. Full Q4/release and basic applicable keyboard/focus/accessibility
+quality remain obligations in their authorized scopes.
+
+CI success, vendor-stated compatibility, synthetic demonstrations and
+successful parsing are each limited to what they actually measured. Gate A
+requires a revision-bound, demonstrable reliable real-source/recovery path and
+explicit maintainer decision under Q5; no individual closed integrity issue or
+current Draft PR grants that approval.
+
 ## Q0: ready for implementation
 
 Work enters implementation only when:

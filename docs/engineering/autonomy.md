@@ -44,9 +44,11 @@ issue, graph dependencies, evidence requirements, and human controls.
 Experimental or fixture-only work cannot silently become retained production
 architecture or a live-data interface.
 
-Issue #51 is authorized through L2. It may publish a branch and open a draft
-pull request. It may not mark the pull request ready, merge, or publish a
-release without a new maintainer decision.
+Historical authorization: Issue #51 was authorized through L2 for its original
+governance foundation. This is not a current standing permission to merge,
+release or change gate criteria. Current documentation/governance, including
+Issue #209, remains limited to a Draft PR under L2; integration and any
+sensitive decision remain human-controlled.
 
 ## Permanently human decisions
 
@@ -86,6 +88,11 @@ Autonomy drops when:
 | 2026-08-14 | Documentation and executable governance | L2 | Issue #51 authorized as a small independent draft PR |
 | 2026-08-14 | Issue #34 transactions and repositories | L1 | Structural data work remains under human publication and merge control |
 | 2026-08-14 | Merge and release | Human only | Approved Master Plan and repository policy |
+| 2026-10-18 | Governance reconciliation (#209) | L2 maximum, unchanged | Documentation and checkpoint Draft PR permitted; no autonomy promotion, gate approval or merge |
+
+See [the dated integrated checkpoint](governance-checkpoint-2026-10-18.md) for
+current-state qualification and the proportional-evidence rule. Historical
+authorization entries above remain historical, not new permissions.
 
 ## Updating this record
 
