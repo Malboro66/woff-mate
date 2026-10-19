@@ -796,10 +796,12 @@ roster-generation, transfer-baseline, and incomplete-input policy.
 | #139 | `EVAL-PRODUCT-POLICY-001` |
 | #140 | `EVAL-P0-FLOW-001`, `EVAL-P0-BOUNDARY-001`, `EVAL-P0-DEMO-001` |
 
-Cycle 3.4.0 is `active`. Issues #28, #35, #37, #38, #41, #74, #75, #79, #80,
-#81, #82, #97, #136, #139, and #140 are complete. Issues #44, #43, #76 and #101 remain incomplete. #96 completed through PR #182
-and no longer blocks #101; transfer work remains backlog, and the aggregate
-cycle eval remains planned.
+Cycle 3.4.0 is `active`. Issues #28, #35, #37, #38, #41, #44, #74, #75, #79, #80,
+#81, #82, #96, #97, #136, #139, and #140 are complete. Issue #44 completed
+through PR #204, with `EVAL-XML-001` enforced by
+`woff/tests/test_issue44_xml_boundary.py`. Issues #43, #76 and #101 remain
+incomplete; #96 completed through PR #182 and no longer blocks #101.
+Transfer work remains backlog, and the aggregate cycle eval remains planned.
 `EVAL-CYCLE-340-001` aggregates all twenty members and remains planned until
 every member acceptance criterion, applicable eval, and `Q6-CYCLE-3.4.0`
 condition passes.
@@ -923,6 +925,19 @@ strong enough to identify an exact replay.
 | #98 | `EVAL-CATALOG-STABILITY-001`, `EVAL-CATALOG-STABILITY-002` |
 | #99 | `EVAL-PILOT-PROVENANCE-001`, `EVAL-PILOT-PROVENANCE-002` |
 
+At integrated `main` `364173db0753f85856bb1021cdbcfdb77516434a`,
+Issues #77 (PR #205), #49 (PR #207), and #99 (PR #206) are
+completed scoped work items. The cycle 3.5.0 aggregate is still
+`planned` and has not been approved.
+
+- `EVAL-SCHEMA-CONTRACT-001/002` are enforced by
+  `woff/tests/test_issue77_schema_constraints.py`; this certifies the
+  bounded SQLite nullability/default contract, not distribution readiness.
+- `EVAL-REG-001` is enforced by
+  `woff/tests/test_win_registry_discovery.py` and
+  `woff/tests/test_privacy_contracts.py`; OFFManager5 is a synthetic
+  forward-compatibility probe, not proof of a live installation.
+
 ### Pilot provenance regression evidence — Issue #99
 
 `EVAL-PILOT-PROVENANCE-001` and `EVAL-PILOT-PROVENANCE-002` are
@@ -932,7 +947,9 @@ existing SQLite rows, and rejected identityless XML sources. The semantic
 meaning of these two persisted pilot columns and their query/report
 interpretation is defined in
 [`pilot-source-provenance.md`](pilot-source-provenance.md).
-The issue remains open and the release cycle incomplete until integration.
+Issue #99 was closed after integration of PR #206 at
+`40a49435409169250db243f5ab962e8d5ded528f`.
+The broader cycle 3.5.0 remains planned; issue completion does not certify it.
 
 ### Implemented decoder evals
 
